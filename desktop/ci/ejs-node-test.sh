@@ -15,7 +15,7 @@ chmod +x shim/node
 PATH="$WORK/shim:$PATH" node --version
 
 python3 -m venv venv && . venv/bin/activate || exit 1
-pip install --quiet "yt-dlp[default]==$VERSION" pytest || exit 1
+pip install --quiet "yt-dlp[default]==$VERSION" pytest==9.1.1 || exit 1  # pytest version of yt-dlp's own CI
 git clone --quiet --depth 1 --branch "$VERSION" https://github.com/yt-dlp/yt-dlp src || exit 1
 cd src || exit 1
 PATH="$WORK/shim:$PATH" python -m pytest -p no:cacheprovider test/test_jsc/test_ejs_integration.py -k NodeJCP -v 2>&1 | tail -30

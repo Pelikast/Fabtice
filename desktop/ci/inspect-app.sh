@@ -12,8 +12,12 @@ file "$BIN"
 lipo -archs "$BIN"
 
 minos() {
-  # minimum macOS recorded in a Mach-O slice (LC_BUILD_VERSION or LC_VERSION_MIN_MACOSX)
-  otool -arch "$2" -l "$1" | awk '/LC_BUILD_VERSION/{b=1} b&&/minos/{print $2; exit} /LC_VERSION_MIN_MACOSX/{v=1} v&&/version/{print $2; exit}'
+  # minimum macOS recorded in a Mach-O slice (LC_BUILD_VERSION or LC_VERSION_MIN_MACOSX);
+  # copied first because Xcode's otool wrapper mishandles parentheses in paths
+  local tmp; tmp=$(mktemp)
+  cp "$1" "$tmp"
+  otool -arch "$2" -l "$tmp" | awk '/LC_BUILD_VERSION/{b=1} b&&/minos/{print $2; exit} /LC_VERSION_MIN_MACOSX/{v=1} v&&/version/{print $2; exit}'
+  rm -f "$tmp"
 }
 for arch in x86_64 arm64; do
   echo "minos $arch: main=$(minos "$BIN" "$arch") framework=$(minos "$FW" "$arch")"

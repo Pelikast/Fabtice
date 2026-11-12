@@ -35,8 +35,10 @@ echo 'console.log(JSON.stringify({ok: 1 + 1 === 2, node: process.version, arch: 
   | ELECTRON_RUN_AS_NODE=1 "$APP_BIN" --permission - ; echo "exit=$?"
 
 echo "== yt-dlp verbose header with the app as JS runtime"
-ELECTRON_RUN_AS_NODE=1 ./yt-dlp_macos -v --ignore-config --no-js-runtimes --js-runtimes "node:$APP_BIN" 2>&1 | head -12
-if ! ELECTRON_RUN_AS_NODE=1 ./yt-dlp_macos -v --ignore-config --no-js-runtimes --js-runtimes "node:$APP_BIN" 2>&1 | grep -q 'JS runtimes: node-'; then
+# Without a URL yt-dlp exits with status 2 after printing its header.
+header=$(ELECTRON_RUN_AS_NODE=1 ./yt-dlp_macos -v --ignore-config --no-js-runtimes --js-runtimes "node:$APP_BIN" 2>&1)
+printf '%s\n' "$header" | head -12
+if ! printf '%s\n' "$header" | grep -q 'JS runtimes: node-'; then
   echo "FAIL: yt-dlp did not accept the app as its node runtime"
   exit 1
 fi
