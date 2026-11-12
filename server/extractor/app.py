@@ -28,7 +28,9 @@ ARGS_FILE = Path(__file__).with_name("ytdlp_args.json")
 
 MAX_DURATION_S = 20 * 60
 MAX_FILESIZE = "80M"
-AUDIO_FORMAT = "bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio/best"
+# AAC in MP4 is the one format every browser decodes; yt-dlp remuxes it to a
+# regular (non-fragmented) file, which Safari needs.
+AUDIO_FORMAT = "bestaudio[ext=m4a][acodec^=mp4a]/bestaudio[ext=m4a]/bestaudio"
 MAX_PARALLEL = 3
 PER_IP_PER_HOUR = 20
 GLOBAL_PER_HOUR = 200
@@ -121,7 +123,9 @@ async def run(cmd, timeout, cwd=None):
 
 
 def ytdlp_base():
-    return ["yt-dlp", "--no-playlist", "--no-progress", "--no-cache-dir", *extra_args()]
+    # The cache only holds YouTube's solved player script, never user data.
+    cache = os.path.join(TMP_ROOT, "ytdlp-cache")
+    return ["yt-dlp", "--no-playlist", "--no-progress", "--cache-dir", cache, *extra_args()]
 
 
 def short_error(stderr):
