@@ -1,0 +1,260 @@
+name: desktop-mac
+
+# Builds the universal macOS app (ad-hoc signed), tests it with the stub yt-dlp
+# on Apple Silicon and on Intel, and publishes it on the "desktop-dev"
+# prerelease. Every run leaves its status and log tails on the ci-logs branch:
+#   git fetch origin ci-logs && git show FETCH_HEAD:STATUS.md
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'desktop/**'
+      - '.github/workflows/desktop-mac.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: desktop-mac
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+    working-directory: desktop
+
+env:
+  RELEASE_TAG: desktop-dev
+  CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Install
+        id: install
+        run: |
+          source "$GITHUB_WORKSPACE/desktop/ci/log-step.sh" 01-install
+          sw_vers; uname -m; node --version; npm --version
+          npm ci
+
+      - name: Unit tests
+        id: unit
+        run: |
+          source "$GITHUB_WORKSPACE/desktop/ci/log-step.sh" 02-unit-tests
+          npm test
+
+      - name: Build universal app
+        id: build
+        run: |
+          source "$GITHUB_WORKSPACE/desktop/ci/log-step.sh" 03-build
+          printf '{"commit":"%s","builtAt":"%s","runId":"%s"}\n' "$GITHUB_SHA" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$GITHUB_RUN_ID" > build-info.json
+          npm run dist:mac
+          ls -la dist
+          shasum -a 256 dist/Fabtice-mac-universal.dmg dist/Fabtice-mac-universal.zip
+
+      - name: Inspect app
+        id: inspect
+        run: |
+          source "$GITHUB_WORKSPACE/desktop/ci/log-step.sh" 04-inspect
+          ci/inspect-app.sh dist/mac-universal/Fabtice.app
+
+      - name: End-to-end test (stub yt-dlp, packaged app, arm64)
+        id: e2e
+        run: |
+          source "$GITHUB_WORKSPACE/desktop/ci/log-step.sh" 05-e2e-arm64
+          FABTICE_E2E_APP="$PWD/dist/mac-universal/Fabtice.app/Contents/MacOS/Fabtice" \
+          FABTICE_E2E_OUT="$RUNNER_TEMP/ci-logs/e2e-arm64" npm run test:e2e
+
+      - name: yt-dlp with the app as JS runtime
+        id: ytdlp
+        continue-on-error: true
+        run: |
+          source "$GITHUB_WORKSPACE/desktop/ci/log-step.sh" 06-ytdlp-arm64
+          ci/ytdlp-check.sh "$PWD/dist/mac-universal/Fabtice.app/Contents/MacOS/Fabtice" --youtube
+
+      - name: yt-dlp EJS solver test with the app as node
+        id: ejs
+        continue-on-error: true
+        run: |
+          source "$GITHUB_WORKSPACE/desktop/ci/log-step.sh" 07-ejs-node-test
+          ci/ejs-node-test.sh "$PWD/dist/mac-universal/Fabtice.app/Contents/MacOS/Fabtice"
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: fabtice-mac-universal
+          path: desktop/dist/Fabtice-mac-universal.zip
+          retention-days: 7
+          compression-level: 0
+
+      - name: Publish prerelease
+        id: publish
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          source "$GITHUB_WORKSPACE/desktop/ci/log-step.sh" 08-publish
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git tag -f "$RELEASE_TAG" "$GITHUB_SHA"
+          git push -f origin "refs/tags/$RELEASE_TAG"
+          cat > "$RUNNER_TEMP/notes.md" <<EOF
+          Version de test de l'app Mac, reconstruite automatiquement à chaque modification de \`desktop/\`.
+
+          - Commit : $GITHUB_SHA
+          - Construite le : $(date -u +'%Y-%m-%d %H:%M UTC')
+          - Universelle (Intel + Apple Silicon), macOS 12 Monterey minimum.
+          - Non signée par un développeur identifié : voir « Ouvrir l'app » dans desktop/README.md.
+          EOF
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release edit "$RELEASE_TAG" --prerelease --title 'Fabtice pour Mac — version de test' --notes-file "$RUNNER_TEMP/notes.md"
+          else
+            gh release create "$RELEASE_TAG" --prerelease --verify-tag --title 'Fabtice pour Mac — version de test' --notes-file "$RUNNER_TEMP/notes.md"
+          fi
+          gh release upload "$RELEASE_TAG" dist/Fabtice-mac-universal.dmg dist/Fabtice-mac-universal.zip --clobber
+          for asset in $(gh release view "$RELEASE_TAG" --json assets -q '.assets[].name'); do
+            case "$asset" in
+              Fabtice-mac-universal.dmg|Fabtice-mac-universal.zip) ;;
+              *) gh release delete-asset "$RELEASE_TAG" "$asset" -y ;;
+            esac
+          done
+          gh release view "$RELEASE_TAG" --json url,assets -q '.url, (.assets[] | "\(.name) \(.size) \(.url)")'
+
+      - name: Collect logs
+        if: always()
+        working-directory: .
+        env:
+          STEPS_JSON: ${{ toJSON(steps) }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/ci-logs"
+          printf '%s\n' "$STEPS_JSON" > "$RUNNER_TEMP/ci-logs/steps.json"
+
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: logs-build
+          path: ${{ runner.temp }}/ci-logs
+          retention-days: 7
+
+  intel:
+    needs: build
+    runs-on: macos-15-intel
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: fabtice-mac-universal
+          path: ${{ runner.temp }}/app
+
+      - name: Install test dependencies
+        id: install
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+        run: |
+          source "$GITHUB_WORKSPACE/desktop/ci/log-step.sh" 11-intel-install
+          sw_vers; uname -m; sysctl -n machdep.cpu.brand_string
+          npm ci
+          ditto -x -k "$RUNNER_TEMP/app/Fabtice-mac-universal.zip" "$RUNNER_TEMP/app"
+          ls "$RUNNER_TEMP/app"
+
+      - name: End-to-end test (stub yt-dlp, packaged app, x64)
+        id: e2e
+        run: |
+          source "$GITHUB_WORKSPACE/desktop/ci/log-step.sh" 12-e2e-x64
+          FABTICE_E2E_APP="$RUNNER_TEMP/app/Fabtice.app/Contents/MacOS/Fabtice" \
+          FABTICE_E2E_OUT="$RUNNER_TEMP/ci-logs/e2e-x64" npm run test:e2e
+
+      - name: yt-dlp with the app as JS runtime (x64)
+        id: ytdlp
+        continue-on-error: true
+        run: |
+          source "$GITHUB_WORKSPACE/desktop/ci/log-step.sh" 13-ytdlp-x64
+          ci/ytdlp-check.sh "$RUNNER_TEMP/app/Fabtice.app/Contents/MacOS/Fabtice"
+
+      - name: Collect logs
+        if: always()
+        working-directory: .
+        env:
+          STEPS_JSON: ${{ toJSON(steps) }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/ci-logs"
+          printf '%s\n' "$STEPS_JSON" > "$RUNNER_TEMP/ci-logs/steps-intel.json"
+
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: logs-intel
+          path: ${{ runner.temp }}/ci-logs
+          retention-days: 7
+
+  ci-logs:
+    needs: [build, intel]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/download-artifact@v7
+        continue-on-error: true
+        with:
+          pattern: logs-*
+          path: ${{ runner.temp }}/logs
+
+      - name: Push status and log tails to the ci-logs branch
+        working-directory: ${{ runner.temp }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NEEDS_JSON: ${{ toJSON(needs) }}
+        run: |
+          out="$RUNNER_TEMP/out"
+          rm -rf "$out" && mkdir -p "$out"
+          {
+            echo "# CI run $GITHUB_RUN_ID"
+            echo
+            echo "- commit: $GITHUB_SHA"
+            echo "- event: $GITHUB_EVENT_NAME"
+            echo "- finished: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "- url: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo
+            echo '## Jobs'
+            echo '```json'
+            printf '%s\n' "$NEEDS_JSON"
+            echo '```'
+            for f in $(find logs -name 'steps*.json' | sort); do
+              echo
+              echo "## Steps ($f)"
+              echo '```'
+              jq -r 'to_entries[] | "\(.key): outcome=\(.value.outcome) conclusion=\(.value.conclusion)"' "$f" || cat "$f"
+              echo '```'
+            done
+          } > "$out/STATUS.md"
+          if [ -d logs ]; then
+            find logs -type f -name '*.log' | sort | while read -r f; do
+              name=$(basename "$f")
+              { echo "### $f ($(wc -l < "$f") lines, last 200 shown)"; tail -n 200 "$f"; } > "$out/$name"
+            done
+            find logs -type f \( -name '*.txt' -o -name '*.png' \) | while read -r f; do
+              dir="$out/$(basename "$(dirname "$f")")"; mkdir -p "$dir"; cp "$f" "$dir/"
+            done
+          fi
+          cd "$out"
+          git init -q -b ci-logs
+          git add -A
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+            commit -q -m "CI logs: run $GITHUB_RUN_ID for $GITHUB_SHA"
+          git push -q -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:refs/heads/ci-logs
+          echo "pushed ci-logs"

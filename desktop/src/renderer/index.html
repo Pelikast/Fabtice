@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fabtice</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <header>
+    <h1>Fabtice</h1>
+    <p class="sub">Prototype : importer l’audio d’un lien YouTube sur ce Mac</p>
+  </header>
+
+  <section id="ytdlp">
+    <h2>yt-dlp</h2>
+    <p id="ytdlp-status" class="status">Vérification…</p>
+    <p id="ytdlp-update" class="status" hidden></p>
+    <div class="row">
+      <button id="ytdlp-install" type="button" hidden>Installer yt-dlp</button>
+    </div>
+    <progress id="ytdlp-progress" max="1" value="0" hidden></progress>
+  </section>
+
+  <section id="import">
+    <h2>Importer un lien</h2>
+    <form id="import-form" class="row">
+      <input id="link" type="text" autocomplete="off" spellcheck="false"
+             placeholder="https://www.youtube.com/watch?v=…" aria-label="Lien YouTube">
+      <button id="import-button" type="submit">Importer</button>
+    </form>
+    <p id="import-status" class="status"></p>
+    <progress id="import-progress" max="100" value="0" hidden></progress>
+  </section>
+
+  <section id="player" hidden>
+    <h2 id="track-title">—</h2>
+    <p id="track-meta" class="status"></p>
+    <div class="row player-row">
+      <button id="play" type="button">Lecture</button>
+      <input id="position" type="range" min="0" max="1" step="0.01" value="0" aria-label="Position">
+      <span id="time" class="time">0:00 / 0:00</span>
+    </div>
+  </section>
+
+  <section id="diagnostics">
+    <div class="row between">
+      <h2>Diagnostic</h2>
+      <button id="copy-diag" type="button">Copier le diagnostic</button>
+    </div>
+    <p id="copy-status" class="status"></p>
+    <pre id="diag-text">…</pre>
+  </section>
+</main>
+<script src="app.js"></script>
+</body>
+</html>

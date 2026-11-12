@@ -1,0 +1,182 @@
+'use strict';
+
+const path = require('node:path');
+const os = require('node:os');
+const fsp = require('node:fs/promises');
+const { pathToFileURL } = require('node:url');
+const { app, BrowserWindow, ipcMain, net, clipboard, session } = require('electron');
+const { YtDlpManager } = require('./ytdlp-manager');
+const { extractAudio } = require('./extract');
+const { parseVideoId } = require('./video-id');
+const { collectSystemInfo, jsRuntime } = require('./system-info');
+
+const PAGE_PATH = path.join(__dirname, 'renderer', 'index.html');
+const PAGE_URL = pathToFileURL(PAGE_PATH).href;
+const HOME = os.homedir();
+
+let win = null;
+let manager = null;
+let systemInfo = null;
+let updateCheck = null;
+let extraction = null;
+
+// Diagnostics are pasted into conversations: replace the home folder by "~".
+function redact(value) {
+  if (typeof value === 'string') return HOME && HOME.length > 1 ? value.split(HOME).join('~') : value;
+  if (Array.isArray(value)) return value.map(redact);
+  if (value && typeof value === 'object' && !ArrayBuffer.isView(value)) {
+    const out = {};
+    for (const [k, v] of Object.entries(value)) out[k] = redact(v);
+    return out;
+  }
+  return value;
+}
+
+function handle(channel, fn) {
+  ipcMain.handle(channel, async (event, ...args) => {
+    if (!event.senderFrame || event.senderFrame.url !== PAGE_URL) throw new Error('unexpected IPC sender');
+    return fn(event, ...args);
+  });
+}
+
+function send(channel, payload) {
+  if (win && !win.isDestroyed()) win.webContents.send(channel, payload);
+}
+
+async function removeStaleTempDirs() {
+  try {
+    const tmp = os.tmpdir();
+    for (const name of await fsp.readdir(tmp)) {
+      if (!name.startsWith('fabtice-')) continue;
+      const full = path.join(tmp, name);
+      const st = await fsp.stat(full).catch(() => null);
+      if (st && st.isDirectory() && Date.now() - st.mtimeMs > 3600_000) await fsp.rm(full, { recursive: true, force: true });
+    }
+  } catch {
+    // best effort
+  }
+}
+
+function createWindow() {
+  win = new BrowserWindow({
+    width: 940,
+    height: 860,
+    minWidth: 640,
+    minHeight: 560,
+    title: 'Fabtice',
+    backgroundColor: '#f4ece0',
+    show: false,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+      webSecurity: true,
+      spellcheck: false,
+    },
+  });
+  win.once('ready-to-show', () => win.show());
+  win.on('closed', () => { win = null; });
+  win.loadFile(PAGE_PATH);
+}
+
+function registerIpc() {
+  handle('fabtice:system', async () => redact(systemInfo ? await systemInfo : null));
+
+  handle('fabtice:ytdlp-status', async () => redact(await manager.status()));
+
+  handle('fabtice:ytdlp-check', async (_e, force) => {
+    if (force || !updateCheck) updateCheck = manager.checkForUpdate().catch((e) => ({ error: e.message }));
+    return redact(await updateCheck);
+  });
+
+  handle('fabtice:ytdlp-install', async () => {
+    try {
+      const meta = await manager.install((p) => send('fabtice:ytdlp-progress', p));
+      updateCheck = null;
+      return redact({ ok: true, meta });
+    } catch (e) {
+      return redact({ ok: false, error: e.message });
+    }
+  });
+
+  handle('fabtice:extract', async (_e, text) => {
+    if (extraction) return { ok: false, error: 'Une importation est déjà en cours.' };
+    const videoId = parseVideoId(text);
+    if (!videoId) {
+      return { ok: false, error: 'Lien non reconnu. Collez un lien YouTube (watch?v=, youtu.be/, /shorts/, /embed/ ou /live/).' };
+    }
+    const ytdlpPath = await manager.executable();
+    if (!ytdlpPath) return { ok: false, needsYtdlp: true, error: 'yt-dlp n’est pas encore installé.' };
+    const controller = new AbortController();
+    extraction = controller;
+    try {
+      const result = await extractAudio({
+        ytdlpPath,
+        videoId,
+        jsRuntime: jsRuntime(),
+        cacheDir: path.join(app.getPath('userData'), 'yt-dlp-cache'),
+        signal: controller.signal,
+        onProgress: (p) => send('fabtice:extract-progress', p),
+      });
+      const { audio, ...rest } = result;
+      return { ...redact(rest), audio: audio ? new Uint8Array(audio.buffer, audio.byteOffset, audio.byteLength) : null };
+    } catch (e) {
+      return { ok: false, error: `Erreur interne : ${e.message}` };
+    } finally {
+      extraction = null;
+    }
+  });
+
+  handle('fabtice:copy', async (_e, text) => {
+    if (typeof text !== 'string' || text.length > 1_000_000) throw new Error('invalid text');
+    clipboard.writeText(text);
+    return true;
+  });
+}
+
+// Test seam: lets the automated test run with a throw-away user-data folder.
+if (process.env.FABTICE_USER_DATA) app.setPath('userData', process.env.FABTICE_USER_DATA);
+
+if (!app.requestSingleInstanceLock()) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    if (win) {
+      if (win.isMinimized()) win.restore();
+      win.focus();
+    }
+  });
+
+  app.on('web-contents-created', (_e, contents) => {
+    contents.on('will-navigate', (event) => event.preventDefault());
+    contents.on('will-redirect', (event) => event.preventDefault());
+    contents.on('will-attach-webview', (event) => event.preventDefault());
+    contents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  });
+
+  app.whenReady().then(() => {
+    session.defaultSession.setPermissionRequestHandler((_wc, _perm, cb) => cb(false));
+    session.defaultSession.setPermissionCheckHandler(() => false);
+
+    manager = new YtDlpManager({
+      userDataDir: app.getPath('userData'),
+      fetchImpl: (url, opts) => net.fetch(url, opts),
+    });
+    systemInfo = collectSystemInfo();
+    updateCheck = manager.checkForUpdate().catch((e) => ({ error: e.message }));
+    removeStaleTempDirs();
+    registerIpc();
+    createWindow();
+
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    });
+  });
+
+  app.on('before-quit', () => {
+    if (extraction) extraction.abort();
+  });
+
+  app.on('window-all-closed', () => app.quit());
+}

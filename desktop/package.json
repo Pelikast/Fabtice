@@ -1,0 +1,60 @@
+{
+  "name": "fabtice-desktop",
+  "productName": "Fabtice",
+  "version": "0.1.0",
+  "description": "Fabtice, app Mac : prototype d'import audio depuis un lien YouTube",
+  "license": "GPL-3.0-or-later",
+  "private": true,
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test \"test/unit/*.test.js\"",
+    "test:e2e": "node --test --test-concurrency=1 \"test/e2e/*.test.js\"",
+    "dist:mac": "electron-builder --mac --universal --publish never"
+  },
+  "devDependencies": {
+    "electron": "43.8.9",
+    "electron-builder": "26.18.0",
+    "playwright-core": "1.64.1"
+  },
+  "build": {
+    "appId": "org.fabtice.desktop",
+    "productName": "Fabtice",
+    "copyright": "Fabtice — GPL-3.0-or-later",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*",
+      "package.json",
+      "build-info.json"
+    ],
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "universal"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "universal"
+          ]
+        }
+      ],
+      "category": "public.app-category.music",
+      "minimumSystemVersion": "12.0",
+      "identity": "-",
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false,
+      "artifactName": "Fabtice-mac-universal.${ext}"
+    },
+    "dmg": {
+      "title": "Fabtice",
+      "writeUpdateInfo": false
+    },
+    "publish": null
+  }
+}
