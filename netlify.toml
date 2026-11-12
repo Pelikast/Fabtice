@@ -1,2 +1,22 @@
 [build]
   publish = "web"
+
+# The extraction server, reached through the site so the browser stays on one
+# origin. The status page is plain deploy state (no request data).
+[[redirects]]
+  from = "/api/*"
+  to = "https://65-108-216-137.sslip.io/api/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/admin/*"
+  to = "https://65-108-216-137.sslip.io/admin/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/status/*"
+  to = "http://65.108.216.137:8081/:splat"
+  status = 200
+  force = true

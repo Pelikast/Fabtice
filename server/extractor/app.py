@@ -52,6 +52,7 @@ slots = asyncio.Semaphore(MAX_PARALLEL)
 hits_by_ip = defaultdict(deque)
 hits_global = deque()
 recent_log = deque(maxlen=400)
+admin_jobs = {}
 
 
 def log(msg):
@@ -250,27 +251,49 @@ async def admin_ytdlp(request):
     args = [str(a) for a in body.get("args", [])]
     timeout = min(int(body.get("timeout", 120)), 600)
     use_base = body.get("base", True)
-    tmpdir = tempfile.mkdtemp(prefix="fab-adm-", dir=TMP_ROOT)
-    started = time.time()
-    try:
-        cmd = [*(ytdlp_base() if use_base else ["yt-dlp"]), *args]
-        code, out, err = await run(cmd, timeout, cwd=tmpdir)
-        produced = [
-            {"name": p.name, "bytes": p.stat().st_size}
-            for p in Path(tmpdir).iterdir()
-            if p.is_file()
-        ]
-    finally:
-        shutil.rmtree(tmpdir, ignore_errors=True)
-    return web.json_response(
-        {
+
+    async def work():
+        tmpdir = tempfile.mkdtemp(prefix="fab-adm-", dir=TMP_ROOT)
+        started = time.time()
+        try:
+            cmd = [*(ytdlp_base() if use_base else ["yt-dlp"]), *args]
+            code, out, err = await run(cmd, timeout, cwd=tmpdir)
+            produced = [
+                {"name": p.name, "bytes": p.stat().st_size}
+                for p in Path(tmpdir).iterdir()
+                if p.is_file()
+            ]
+        finally:
+            shutil.rmtree(tmpdir, ignore_errors=True)
+        return {
             "code": code,
             "seconds": round(time.time() - started, 1),
             "stdout": out[-30000:],
             "stderr": err[-30000:],
             "files": produced,
         }
-    )
+
+    if not body.get("async"):
+        return web.json_response(await work())
+    # Long runs: answer at once with a job id, to be polled at /admin/job/<id>.
+    job_id = os.urandom(6).hex()
+    for old in list(admin_jobs)[:-20]:
+        admin_jobs.pop(old, None)
+    admin_jobs[job_id] = asyncio.ensure_future(work())
+    return web.json_response({"job": job_id})
+
+
+async def admin_job(request):
+    if not is_admin(request):
+        return json_error(401, "unauthorized")
+    task = admin_jobs.get(request.match_info["job"])
+    if task is None:
+        return json_error(404, "unknown_job")
+    if not task.done():
+        return web.json_response({"running": True})
+    if task.exception():
+        return web.json_response({"failed": repr(task.exception())})
+    return web.json_response(task.result())
 
 
 async def admin_env(request):
@@ -305,6 +328,7 @@ def make_app():
     app.router.add_get("/api/info", info)
     app.router.add_get("/api/audio", audio)
     app.router.add_post("/admin/ytdlp", admin_ytdlp)
+    app.router.add_get("/admin/job/{job}", admin_job)
     app.router.add_get("/admin/env", admin_env)
     app.router.add_get("/admin/logs", admin_logs)
     app.router.add_route("OPTIONS", "/{tail:.*}", health)
