@@ -14,7 +14,7 @@ services:
       - /etc/fabtice:/etc/fabtice:ro
     # Audio only ever transits through memory, never the disk.
     tmpfs:
-      - /tmp:size=1g,mode=1777
+      - /tmp:size=300m,mode=1777
 
   caddy:
     image: caddy:2

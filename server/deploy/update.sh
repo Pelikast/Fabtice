@@ -39,7 +39,18 @@ EOF
   systemctl enable --now fabtice-status.service >>"$LOG" 2>&1
 fi
 
-# 2. Docker.
+# 2. Swap, so image builds cannot run out of memory on a 1 GB server.
+if [ ! -f /swapfile ] && [ "$(swapon --noheadings | wc -l)" -eq 0 ]; then
+  log "Creating a 2 GB swap file"
+  if fallocate -l 2G /swapfile && chmod 600 /swapfile \
+    && mkswap /swapfile >>"$LOG" 2>&1 && swapon /swapfile; then
+    echo '/swapfile none swap sw 0 0' >>/etc/fstab
+  else
+    log "Swap file could not be enabled (continuing without)"
+  fi
+fi
+
+# 3. Docker.
 if ! docker compose version >/dev/null 2>&1; then
   log "Installing Docker"
   run apt-get -o DPkg::Lock::Timeout=180 update
@@ -49,7 +60,7 @@ if ! docker compose version >/dev/null 2>&1; then
   fi
 fi
 
-# 3. Public hostname: server/deploy/hostname if present, else <ip>.sslip.io.
+# 4. Public hostname: server/deploy/hostname if present, else <ip>.sslip.io.
 IP4=$(ip -4 route get 1.1.1.1 2>/dev/null | sed -n 's/.* src \([0-9.]*\).*/\1/p')
 if [ -s "$DIR/server/deploy/hostname" ]; then
   HOST=$(tr -d ' \n\r' <"$DIR/server/deploy/hostname")
@@ -78,7 +89,7 @@ if [ "$WANT" != "$HAVE" ] || [ "$RUNNING" -lt 2 ]; then
   docker image prune -f >/dev/null 2>&1
 fi
 
-# 4. Status files (no request data: only deploy state and Caddy's own logs).
+# 5. Status files (no request data: only deploy state and Caddy's own logs).
 docker compose logs --no-color --tail 60 caddy >"$STATUS/caddy.log" 2>&1
 cat >"$STATUS/status.json" <<EOF
 {"time":"$(date -u +%FT%TZ)","commit":"$COMMIT","host":"$HOST","ip4":"$IP4","deployed":"$(cat "$STATE/deployed" 2>/dev/null)","running":$(docker compose ps --status running -q 2>/dev/null | wc -l)}
