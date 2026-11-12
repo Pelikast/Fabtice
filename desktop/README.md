@@ -75,7 +75,9 @@ Ouvrez ensuite Fabtice normalement.
 1. Au premier lancement, cliquez sur **Installer yt-dlp**. L’app télécharge
    l’outil officiel yt-dlp (environ 37 Mo) depuis sa page GitHub, vérifie son
    empreinte SHA-256 et le range dans son dossier
-   `~/Library/Application Support/Fabtice/yt-dlp/`. À chaque ouverture, elle
+   `~/Library/Application Support/Fabtice/yt-dlp/`. En cas de coupure, elle
+   réessaie d’elle-même quatre fois en une vingtaine de secondes avant
+   d’afficher « Réessayer ». À chaque ouverture, elle
    regarde s’il existe une version plus récente et propose la mise à jour.
 2. Collez un lien YouTube (vidéo de 20 minutes au plus, pas de direct) et
    cliquez sur **Importer**.
@@ -121,7 +123,11 @@ Variables d’environnement de test :
 - `FABTICE_YTDLP_PATH` : chemin d’un autre exécutable à utiliser à la place
   de yt-dlp (par exemple `test/fixtures/stub-yt-dlp.js`, qui copie un fichier
   audio local au lieu de télécharger) ;
-- `FABTICE_USER_DATA` : dossier de données jetable pour les tests.
+- `FABTICE_USER_DATA` : dossier de données jetable pour les tests ;
+- `FABTICE_RELEASE_BASE` : adresse d’un serveur local qui imite les versions
+  GitHub de yt-dlp (pannes simulées) ;
+- `FABTICE_RETRY_DELAYS_MS` : attentes entre les essais, par exemple
+  `100,200,300` (par défaut 2, 5 puis 10 secondes : 4 essais en 20 s environ).
 
 Intégration continue : `.github/workflows/desktop-mac.yml` construit l’app sur
 un Mac Apple Silicon, la teste (avec le faux yt-dlp) sur Apple Silicon et sur

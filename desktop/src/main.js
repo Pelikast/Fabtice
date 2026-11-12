@@ -83,20 +83,21 @@ function createWindow() {
 function registerIpc() {
   handle('fabtice:system', async () => redact(systemInfo ? await systemInfo : null));
 
-  handle('fabtice:ytdlp-status', async () => redact(await manager.status()));
+  // Each yt-dlp answer carries the log of network attempts for the diagnostics.
+  handle('fabtice:ytdlp-status', async () => redact({ ...(await manager.status()), attempts: manager.attemptLog() }));
 
   handle('fabtice:ytdlp-check', async (_e, force) => {
     if (force || !updateCheck) updateCheck = manager.checkForUpdate().catch((e) => ({ error: e.message }));
-    return redact(await updateCheck);
+    return redact({ ...(await updateCheck), attempts: manager.attemptLog() });
   });
 
   handle('fabtice:ytdlp-install', async () => {
     try {
       const meta = await manager.install((p) => send('fabtice:ytdlp-progress', p));
       updateCheck = null;
-      return redact({ ok: true, meta });
+      return redact({ ok: true, meta, attempts: manager.attemptLog() });
     } catch (e) {
-      return redact({ ok: false, error: e.message });
+      return redact({ ok: false, error: e.message, attempts: manager.attemptLog() });
     }
   });
 

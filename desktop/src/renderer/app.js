@@ -12,6 +12,8 @@ const state = {
   extract: null, // { ok, error, refused, meta, report }
   decode: null, // { ok, ... }
   webgpu: null,
+  attempts: [], // network attempts of the yt-dlp manager
+  installError: null,
 };
 
 function fmtTime(seconds) {
@@ -37,8 +39,13 @@ function setStatus(el, text, isError = false) {
 
 // ---------------------------------------------------------------- yt-dlp
 
+function keepAttempts(answer) {
+  if (answer && Array.isArray(answer.attempts)) state.attempts = answer.attempts;
+}
+
 async function refreshYtdlp() {
   state.ytdlp = await fabtice.ytdlpStatus();
+  keepAttempts(state.ytdlp);
   const s = state.ytdlp;
   const button = $('ytdlp-install');
   if (s.installed) {
@@ -48,7 +55,7 @@ async function refreshYtdlp() {
   } else {
     setStatus($('ytdlp-status'), s.error
       ? `yt-dlp indisponible : ${s.error}`
-      : 'yt-dlp n’est pas encore installé. Il sera téléchargé depuis le site officiel (GitHub, environ 35 Mo) et vérifié.', Boolean(s.error && s.source === 'override'));
+      : 'yt-dlp n’est pas encore installé. Il sera téléchargé depuis le site officiel (GitHub, environ 37 Mo) et vérifié.', Boolean(s.error && s.source === 'override'));
     button.hidden = s.source === 'override';
     button.textContent = 'Installer yt-dlp';
   }
@@ -58,11 +65,14 @@ async function refreshYtdlp() {
 async function refreshUpdate(force = false) {
   if (state.ytdlp && state.ytdlp.source === 'override') return;
   state.update = await fabtice.ytdlpCheck(force);
+  keepAttempts(state.update);
   const u = state.update;
   const el = $('ytdlp-update');
   if (u.error) {
-    el.hidden = false;
-    setStatus(el, `Impossible de vérifier les mises à jour : ${u.error}`, true);
+    // Never alarming: an installed, verified yt-dlp keeps working; before the
+    // first install, the install button already says what to do.
+    el.hidden = !u.installed;
+    setStatus(el, 'Mises à jour non vérifiées pour l’instant (pas de réponse du serveur). yt-dlp reste utilisable.');
   } else if (u.updateAvailable) {
     el.hidden = false;
     setStatus(el, `Nouvelle version disponible${u.latest.tag ? ` : ${u.latest.tag}` : ''}.`);
@@ -78,17 +88,29 @@ async function refreshUpdate(force = false) {
 async function installYtdlp() {
   const button = $('ytdlp-install');
   const bar = $('ytdlp-progress');
+  const wasInstalled = Boolean(state.ytdlp && state.ytdlp.installed);
   button.disabled = true;
   bar.hidden = false;
   bar.removeAttribute('value');
   setStatus($('ytdlp-status'), 'Téléchargement de yt-dlp…');
   const result = await fabtice.ytdlpInstall();
+  keepAttempts(result);
   button.disabled = false;
   bar.hidden = true;
   if (!result.ok) {
-    setStatus($('ytdlp-status'), `Échec de l’installation : ${result.error}`, true);
+    // The technical error goes to the diagnostic only.
+    state.installError = result.error;
+    setStatus($('ytdlp-status'), wasInstalled
+      ? 'La mise à jour de yt-dlp n’a pas pu être téléchargée. C’est en général passager : réessayez dans un instant. L’ancienne version reste utilisable.'
+      : 'Le téléchargement de yt-dlp a échoué. C’est en général passager (connexion ou serveur) : réessayez dans un instant.', true);
+    button.hidden = false;
+    button.textContent = 'Réessayer';
+    document.body.dataset.install = 'failed';
+    renderDiagnostics();
     return;
   }
+  state.installError = null;
+  document.body.dataset.install = 'ok';
   $('ytdlp-update').hidden = true;
   await refreshYtdlp();
   await refreshUpdate(true);
@@ -353,11 +375,21 @@ function diagnosticsText() {
     if (y.sha256) L.push(`yt-dlp SHA-256 : ${y.sha256}${y.intact === false ? ' (DIFFÉRENT de l’installation)' : ''}`);
     if (y.error) L.push(`yt-dlp problème : ${y.error}`);
   }
+  if (state.installError) L.push(`Installation yt-dlp : dernier échec — ${state.installError}`);
   const u = state.update;
   if (u) {
     if (u.error) L.push(`Mise à jour yt-dlp : vérification impossible (${u.error})`);
     else if (u.skipped) L.push(`Mise à jour yt-dlp : non vérifiée (${u.reason})`);
     else L.push(`Mise à jour yt-dlp : dernière version ${u.latest.tag || '(étiquette inconnue)'} · ${u.updateAvailable ? 'mise à jour disponible' : u.installed ? 'à jour' : 'pas encore installé'}`);
+  }
+
+  if (state.attempts.length) {
+    L.push(`Réseau yt-dlp (${state.attempts.length} essais cette session) :`);
+    for (const a of state.attempts) {
+      const time = a.at.slice(11, 23);
+      const via = a.finalHost && a.finalHost !== a.host ? ` → ${a.finalHost}` : '';
+      L.push(`  ${time} ${a.op} ${a.host}${via} essai ${a.attempt}/${a.of} · ${a.ok ? 'OK' : 'ÉCHEC'} en ${a.ms} ms${a.ok ? '' : ` · ${a.error}`}`);
+    }
   }
 
   L.push('');
