@@ -1,0 +1,667 @@
+/* Fabtice — maquette de l'écran principal.
+   Les jetons ci-dessous sont ceux décrits dans DESIGN.md. */
+
+@font-face {
+  font-family: "Fraunces";
+  src: url("fonts/fraunces-latin-full-normal.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Fraunces";
+  src: url("fonts/fraunces-latin-full-italic.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Instrument Sans";
+  src: url("fonts/instrument-sans-latin-wght-normal.woff2") format("woff2");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  /* Papier */
+  --papier: #f4ecdf;
+  --papier-clair: #fbf6ec;
+  --papier-fonce: #eadfcd;
+  --trait: #d8c8b0;
+  --trait-fin: #e6dac6;
+
+  /* Encre */
+  --encre: #2b1f17;
+  --encre-douce: #6a5646;
+  --encre-pale: #a08c77;
+
+  /* Braise : le seul accent. Laiton : la sélection. */
+  --braise: #c4502a;
+  --braise-sombre: #a23f1f;
+  --laiton: #b8873a;
+  --laiton-voile: rgba(184, 135, 58, 0.17);
+
+  /* Teintes des pistes : sourdes, de même valeur. */
+  --voix: #b5533c;
+  --batterie: #6f5847;
+  --basse: #85506b;
+  --guitare: #798043;
+  --piano: #557886;
+  --vents: #bd8a2c;
+  --autres: #8d8176;
+
+  --titre: "Fraunces", "Iowan Old Style", Georgia, serif;
+  --texte: "Instrument Sans", "Helvetica Neue", Arial, sans-serif;
+
+  --rayon: 5px;
+  --tete: 212px;      /* colonne des en-têtes de piste */
+  --mesure: 72px;     /* largeur d'une mesure, ajustée par le script */
+  --piste: 74px;      /* hauteur d'une piste */
+  --vite: 140ms;
+  --pose: 220ms;
+  --courbe: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+* { box-sizing: border-box; }
+
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--papier);
+  color: var(--encre);
+  font: 15px/1.4 var(--texte);
+  font-feature-settings: "tnum" 1;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+/* Grain de papier très léger, pour la chaleur. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 50;
+  opacity: 0.05;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.17 0 0 0 0 0.12 0 0 0 0 0.09 0 0 0 1 0'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23g)'/%3E%3C/svg%3E");
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+button:focus-visible, input:focus-visible, a:focus-visible {
+  outline: 2px solid var(--braise);
+  outline-offset: 2px;
+}
+
+.app {
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
+/* ---------- Barre du haut ---------- */
+
+.haut {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 0 22px;
+  height: 58px;
+  border-bottom: 1px solid var(--trait);
+}
+.marque {
+  font-family: var(--titre);
+  font-size: 25px;
+  font-weight: 560;
+  font-variation-settings: "opsz" 72, "SOFT" 60, "WONK" 1;
+  letter-spacing: -0.01em;
+  line-height: 1;
+}
+.marque i {
+  font-style: italic;
+  color: var(--braise);
+}
+.projet {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding-left: 20px;
+  border-left: 1px solid var(--trait);
+}
+.projet-titre {
+  font-family: var(--titre);
+  font-size: 18px;
+  font-weight: 480;
+  font-variation-settings: "opsz" 24, "SOFT" 40;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.projet-source {
+  color: var(--encre-douce);
+  font-size: 13px;
+  white-space: nowrap;
+}
+.menus {
+  display: flex;
+  gap: 4px;
+}
+.menu {
+  padding: 8px 12px;
+  border-radius: var(--rayon);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--encre-douce);
+  transition: background var(--vite) var(--courbe), color var(--vite) var(--courbe);
+}
+.menu:hover { background: var(--papier-fonce); color: var(--encre); }
+.menu-plus { display: none; }
+
+/* ---------- Zone de travail ---------- */
+
+.travail {
+  position: relative;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--trait) transparent;
+}
+.plan {
+  position: relative;
+  width: calc(var(--tete) + var(--mesures) * var(--mesure));
+  min-width: 100%;
+  padding-bottom: 20px;
+}
+
+.rang {
+  display: flex;
+  border-bottom: 1px solid var(--trait-fin);
+}
+.tete {
+  position: sticky;
+  left: 0;
+  z-index: 6;
+  flex: 0 0 var(--tete);
+  width: var(--tete);
+  background: var(--papier);
+  border-right: 1px solid var(--trait);
+}
+.corps {
+  position: relative;
+  flex: 1 0 auto;
+  width: calc(var(--mesures) * var(--mesure));
+}
+
+/* Bandeau fixe en haut : tempo, accords, mesures. */
+.regle {
+  position: sticky;
+  top: 0;
+  z-index: 8;
+  background: var(--papier);
+  border-bottom: 1px solid var(--trait);
+}
+.regle .rang { border-bottom: 0; }
+.regle .tete {
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--encre-douce);
+}
+.rang-tempo { height: 34px; }
+.rang-accords { height: 42px; }
+.rang-mesures { height: 24px; background: var(--papier-fonce); }
+.rang-mesures .tete { background: var(--papier-fonce); }
+
+.rang-tempo canvas { display: block; width: 100%; height: 100%; }
+
+.accords, .mesures-num {
+  display: grid;
+  grid-template-columns: repeat(var(--mesures), var(--mesure));
+  height: 100%;
+}
+.accord {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 9px;
+  border-left: 1px solid var(--trait-fin);
+  font-family: var(--titre);
+  font-size: 18px;
+  font-weight: 540;
+  font-variation-settings: "opsz" 28, "SOFT" 50;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.accord sup {
+  font-size: 0.62em;
+  font-weight: 500;
+  vertical-align: 0.5em;
+  margin-left: 1px;
+  color: var(--encre-douce);
+}
+.accord .q { font-size: 0.74em; font-weight: 470; margin-left: 1px; }
+.accord.deux { font-size: 14.5px; gap: 6px; padding-left: 6px; }
+.rang-mesures .corps { position: relative; }
+.boucle-regle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--boucle-debut) * var(--mesure));
+  width: calc((var(--boucle-fin) - var(--boucle-debut)) * var(--mesure));
+  background: var(--laiton);
+}
+.mesures-num { position: relative; }
+.mesure-num.dans-boucle { color: var(--encre); border-left-color: rgba(43, 31, 23, 0.25); }
+.mesure-num {
+  padding-left: 9px;
+  border-left: 1px solid var(--trait);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 24px;
+  color: var(--encre-douce);
+}
+
+/* ---------- Pistes ---------- */
+
+.piste { height: var(--piste); transition: opacity var(--pose) var(--courbe); }
+.piste .tete {
+  display: grid;
+  grid-template-columns: 4px minmax(0, 1fr) auto;
+  grid-template-rows: 1fr 1fr;
+  column-gap: 12px;
+  align-items: center;
+  padding: 9px 14px 9px 0;
+}
+.pastille {
+  grid-row: 1 / 3;
+  align-self: stretch;
+  width: 4px;
+  border-radius: 0 2px 2px 0;
+  background: var(--teinte);
+}
+.nom {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.005em;
+  align-self: end;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ms { display: flex; gap: 5px; align-self: end; }
+.ms button {
+  width: 27px;
+  height: 23px;
+  border: 1px solid var(--trait);
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--encre-douce);
+  background: var(--papier-clair);
+  transition: background var(--vite) var(--courbe), color var(--vite) var(--courbe), border-color var(--vite) var(--courbe);
+}
+.ms button:hover { border-color: var(--encre-pale); color: var(--encre); }
+.ms .muet[aria-pressed="true"] { background: var(--encre); border-color: var(--encre); color: var(--papier-clair); }
+.ms .solo[aria-pressed="true"] { background: var(--laiton); border-color: var(--laiton); color: var(--encre); }
+
+.volume {
+  grid-column: 2 / 4;
+  align-self: start;
+  margin-top: 5px;
+  width: 100%;
+  height: 14px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+}
+.volume::-webkit-slider-runnable-track { height: 3px; border-radius: 2px; background: var(--trait); }
+.volume::-moz-range-track { height: 3px; border-radius: 2px; background: var(--trait); }
+.volume::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 11px; height: 11px; margin-top: -4px;
+  border-radius: 50%;
+  background: var(--encre-douce);
+  border: 0;
+}
+.volume::-moz-range-thumb { width: 11px; height: 11px; border-radius: 50%; background: var(--encre-douce); border: 0; }
+
+.piste .corps {
+  background-image: linear-gradient(to right, var(--trait-fin) 1px, transparent 1px);
+  background-size: var(--mesure) 100%;
+}
+.piste canvas { display: block; width: 100%; height: 100%; }
+.piste.eteinte .corps { opacity: 0.22; }
+.piste.eteinte .nom { color: var(--encre-pale); }
+
+/* ---------- Boucle et tête de lecture ---------- */
+
+.calque {
+  position: absolute;
+  top: 0;
+  bottom: 20px;
+  left: var(--tete);
+  width: calc(var(--mesures) * var(--mesure));
+  pointer-events: none;
+  z-index: 7;
+}
+.boucle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--boucle-debut) * var(--mesure));
+  width: calc((var(--boucle-fin) - var(--boucle-debut)) * var(--mesure));
+  background: var(--laiton-voile);
+  border-left: 1.5px solid var(--laiton);
+  border-right: 1.5px solid var(--laiton);
+}
+.lecture {
+  position: absolute;
+  top: 100px;
+  bottom: 0;
+  left: 0;
+  width: 0;
+  border-left: 1.5px solid var(--braise);
+  transform: translateX(calc(var(--position) * var(--mesure)));
+  will-change: transform;
+}
+.lecture::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -7px;
+  border: 6px solid transparent;
+  border-top: 9px solid var(--braise);
+}
+
+/* ---------- Transport ---------- */
+
+.bas {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 18px;
+  padding: 12px 22px calc(12px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--trait);
+  background: var(--papier-clair);
+}
+.position { display: flex; align-items: baseline; gap: 16px; }
+.temps {
+  font-family: var(--titre);
+  font-size: 28px;
+  font-weight: 420;
+  font-variation-settings: "opsz" 48, "SOFT" 30;
+  line-height: 1;
+}
+.ou { color: var(--encre-douce); font-size: 13px; white-space: nowrap; }
+.ou b { color: var(--encre); font-weight: 600; }
+
+.commandes { display: flex; align-items: center; gap: 14px; }
+.rond {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  color: var(--encre-douce);
+  transition: background var(--vite) var(--courbe), color var(--vite) var(--courbe), transform var(--vite) var(--courbe);
+}
+.rond:hover { background: var(--papier-fonce); color: var(--encre); }
+.rond[aria-pressed="true"] { color: var(--laiton); background: var(--laiton-voile); }
+.rond svg { width: 20px; height: 20px; }
+.jouer {
+  width: 58px;
+  height: 58px;
+  background: var(--braise);
+  color: #fff;
+  box-shadow: 0 1px 0 rgba(43, 31, 23, 0.25), 0 6px 16px -6px rgba(196, 80, 42, 0.55);
+}
+.jouer:hover { background: var(--braise-sombre); color: #fff; }
+.jouer:active { transform: scale(0.96); }
+.jouer svg { width: 24px; height: 24px; }
+.jouer .pause { display: none; }
+.jouer[aria-pressed="true"] .lire { display: none; }
+.jouer[aria-pressed="true"] .pause { display: block; }
+
+.reglages { display: flex; justify-content: flex-end; align-items: stretch; gap: 10px; }
+.reglage {
+  display: grid;
+  grid-template-columns: auto auto auto;
+  grid-template-rows: auto auto;
+  align-items: center;
+  column-gap: 2px;
+  padding: 5px 8px 6px;
+  border: 1px solid var(--trait);
+  border-radius: var(--rayon);
+  background: var(--papier);
+}
+.reglage-nom {
+  grid-column: 1 / 4;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--encre-douce);
+  text-align: center;
+}
+.reglage button {
+  width: 30px;
+  height: 30px;
+  border-radius: 4px;
+  font-size: 19px;
+  line-height: 1;
+  color: var(--encre-douce);
+  transition: background var(--vite) var(--courbe), color var(--vite) var(--courbe);
+}
+.reglage button:hover { background: var(--papier-fonce); color: var(--encre); }
+.valeur { min-width: 76px; text-align: center; line-height: 1.05; }
+.valeur strong {
+  display: block;
+  font-family: var(--titre);
+  font-size: 22px;
+  font-weight: 520;
+  font-variation-settings: "opsz" 36, "SOFT" 40;
+}
+.valeur small { font-size: 11px; color: var(--encre-douce); white-space: nowrap; }
+.metronome {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  width: 64px;
+  border: 1px solid var(--trait);
+  border-radius: var(--rayon);
+  background: var(--papier);
+  color: var(--encre-douce);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  transition: background var(--vite) var(--courbe), color var(--vite) var(--courbe), border-color var(--vite) var(--courbe);
+}
+.metronome svg { width: 22px; height: 22px; }
+.metronome:hover { border-color: var(--encre-pale); color: var(--encre); }
+.metronome[aria-pressed="true"] { background: var(--encre); border-color: var(--encre); color: var(--papier-clair); }
+
+/* ---------- Fenêtre d'accueil ---------- */
+
+.voile {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(43, 31, 23, 0.34);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity var(--pose) var(--courbe), visibility 0s linear var(--pose);
+}
+.voile.ouverte { opacity: 1; visibility: visible; transition-delay: 0s; }
+.accueil {
+  width: min(560px, 100%);
+  max-height: 100%;
+  overflow: auto;
+  padding: 30px 32px 26px;
+  background: var(--papier-clair);
+  border: 1px solid var(--trait);
+  border-radius: 8px;
+  box-shadow: 0 24px 60px -20px rgba(43, 31, 23, 0.45);
+  transform: translateY(10px);
+  transition: transform var(--pose) var(--courbe);
+}
+.voile.ouverte .accueil { transform: none; }
+.accueil h2 {
+  margin: 0 0 4px;
+  font-family: var(--titre);
+  font-size: 30px;
+  font-weight: 500;
+  font-variation-settings: "opsz" 72, "SOFT" 60;
+  letter-spacing: -0.01em;
+}
+.accueil p { margin: 0 0 20px; color: var(--encre-douce); }
+.champ {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.champ input {
+  flex: 1;
+  min-width: 0;
+  height: 46px;
+  padding: 0 14px;
+  font: inherit;
+  font-size: 16px;
+  color: var(--encre);
+  background: #fff;
+  border: 1px solid var(--trait);
+  border-radius: var(--rayon);
+}
+.champ input::placeholder { color: var(--encre-pale); }
+.plein {
+  height: 46px;
+  padding: 0 20px;
+  border-radius: var(--rayon);
+  background: var(--braise);
+  color: #fff;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background var(--vite) var(--courbe);
+}
+.plein:hover { background: var(--braise-sombre); }
+.sinon { font-size: 13.5px; color: var(--encre-douce); margin-bottom: 22px; }
+.lien {
+  color: var(--encre);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: var(--braise);
+  text-underline-offset: 3px;
+}
+.accueil h3 {
+  margin: 0 0 10px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--encre-douce);
+}
+.stems { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.stem {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 13px 8px 10px;
+  border: 1px solid var(--trait);
+  border-radius: var(--rayon);
+  background: var(--papier);
+  font-weight: 500;
+  color: var(--encre-douce);
+  transition: background var(--vite) var(--courbe), color var(--vite) var(--courbe), border-color var(--vite) var(--courbe);
+}
+.stem::before {
+  content: "";
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  border: 1.5px solid var(--encre-pale);
+  transition: background var(--vite) var(--courbe), border-color var(--vite) var(--courbe);
+}
+.stem[aria-pressed="true"] { color: var(--encre); background: #fff; border-color: var(--encre-pale); }
+.stem[aria-pressed="true"]::before { background: var(--teinte); border-color: var(--teinte); }
+.pied {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--trait-fin);
+  font-size: 13.5px;
+}
+
+/* ---------- Téléphone ---------- */
+
+@media (max-width: 760px) {
+  :root { --tete: 92px; --piste: 64px; }
+  .haut { padding: 0 14px; gap: 12px; height: 52px; }
+  .marque { font-size: 22px; }
+  .projet { padding-left: 12px; }
+  .projet-titre { font-size: 16px; }
+  .projet-source, .menus .menu:not(.menu-plus) { display: none; }
+  .menu-plus { display: block; font-size: 20px; line-height: 1; padding: 6px 10px; }
+
+  .regle .tete { padding: 0 8px; font-size: 9.5px; letter-spacing: 0.06em; }
+  .accord { font-size: 18px; padding-left: 7px; }
+  .accord.deux { font-size: 15px; }
+  .piste .tete {
+    grid-template-columns: 4px minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    column-gap: 8px;
+    padding: 8px 8px 8px 0;
+  }
+  .nom { font-size: 13px; }
+  .ms { grid-column: 2; align-self: start; margin-top: 4px; }
+  .ms button { width: 30px; height: 24px; }
+  .volume { display: none; }
+
+  .bas {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+  }
+  .position { justify-content: space-between; order: 1; }
+  .temps { font-size: 22px; }
+  .commandes { justify-content: center; order: 3; gap: 22px; }
+  .reglages { justify-content: stretch; order: 2; gap: 8px; }
+  .reglage { flex: 1; padding: 4px 4px 5px; justify-content: center; }
+  .valeur { min-width: 0; padding: 0 2px; }
+  .valeur strong { font-size: 19px; }
+  .reglage button { width: 28px; }
+  .metronome { width: 54px; font-size: 0; gap: 0; }
+  .jouer { width: 60px; height: 60px; }
+
+  .accueil { padding: 24px 20px 20px; }
+  .accueil h2 { font-size: 26px; }
+  .champ { flex-direction: column; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition-duration: 0.01ms !important; }
+}
