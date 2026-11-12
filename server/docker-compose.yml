@@ -1,0 +1,32 @@
+services:
+  extractor:
+    build:
+      context: ./extractor
+      args:
+        YTDLP_REFRESH: ${YTDLP_REFRESH:-0}
+    network_mode: host
+    restart: unless-stopped
+    environment:
+      FABTICE_COMMIT: ${FABTICE_COMMIT:-dev}
+      BIND: 127.0.0.1
+      PORT: "8080"
+    volumes:
+      - /etc/fabtice:/etc/fabtice:ro
+    # Audio only ever transits through memory, never the disk.
+    tmpfs:
+      - /tmp:size=1g,mode=1777
+
+  caddy:
+    image: caddy:2
+    network_mode: host
+    restart: unless-stopped
+    environment:
+      FABTICE_HOST: ${FABTICE_HOST:?missing}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:
