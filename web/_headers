@@ -1,0 +1,4 @@
+# Test pages need cross-origin isolation for multi-threaded WebAssembly.
+/spikes/*
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Embedder-Policy: require-corp
