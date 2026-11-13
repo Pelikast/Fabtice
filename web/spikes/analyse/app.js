@@ -138,6 +138,8 @@ function applyChart(m) {
   if (playing) nextBeat = st.grid.beats.findIndex((t) => t >= position());
 }
 
+// Below this geometric-mean posterior a chord is shown as doubtful (calibrated on GuitarSet).
+const DOUBT = 0.35;
 const meterLabel = (m) => (m === 6 ? '6/8' : m === 7 ? '7/8' : `${m}/4`);
 
 // ---------- corrections ----------
@@ -234,7 +236,7 @@ function draw() {
     for (const s of st.segments) {
       if (s.t1 < t0 || s.t0 > t1) continue;
       const x = X(s.t0);
-      const doubt = s.confidence < 0.5;
+      const doubt = s.confidence < DOUBT;
       g.fillStyle = doubt ? C.doubt : C.ink;
       g.fillRect(Math.round(x), 4, 1, laneH - 8);
       const label = chordName(s.chord, st.key.best) + (doubt ? ' ?' : '');
@@ -315,7 +317,7 @@ function drawChart() {
       d.insertAdjacentHTML('beforeend', '<span class="c" title="même accord">%</span>');
     } else {
       for (const s of inBar) {
-        const doubt = s.confidence < 0.5;
+        const doubt = s.confidence < DOUBT;
         const alt = s.alternatives.map((a) => `${chordName(a.chord, key)} ${Math.round(a.p * 100)} %`).join(', ');
         const name = chordName(s.chord, key) + (s.bass ? '/' + pcName(s.bass.pc, key) : '') + (doubt ? ' ?' : '');
         d.insertAdjacentHTML('beforeend', `<span class="c${doubt ? ' doubt' : ''}" title="sûreté ${Math.round(s.confidence * 100)} % ; autres : ${alt}">${name}</span>`);
@@ -481,7 +483,7 @@ function diagnostic() {
     for (const b of bars(st.grid)) {
       const inBar = [];
       for (const i of b.beats) { const s = atBeat[i]; if (s && inBar[inBar.length - 1] !== s) inBar.push(s); }
-      line.push(`${b.index}: ` + inBar.map((s) => chordName(s.chord, key) + (s.extensions.length ? `(${s.extensions.map((x) => x.name).join(',')})` : '') + (s.confidence < 0.5 ? '?' : '')).join(' '));
+      line.push(`${b.index}: ` + inBar.map((s) => chordName(s.chord, key) + (s.extensions.length ? `(${s.extensions.map((x) => x.name).join(',')})` : '') + (s.confidence < DOUBT ? '?' : '')).join(' '));
       if (line.length === 4) { L.push('  | ' + line.join(' | ') + ' |'); line = []; }
     }
     if (line.length) L.push('  | ' + line.join(' | ') + ' |');

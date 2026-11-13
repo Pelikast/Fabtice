@@ -237,9 +237,15 @@ export function buildSegments(units, beatTimes, path, post, { extThreshold = 0.5
     for (let k = 0; k < 13; k++) bass[k] /= frames || 1;
     s.t0 = beatTimes[s.beats[0]];
     s.t1 = beatTimes[s.beats[s.beats.length - 1] + 1] ?? (s.t0 + 0.5);
-    s.confidence = conf[s.chord];
-    const order = [...conf.keys()].sort((x, y) => conf[y] - conf[x]);
-    s.alternatives = order.filter((c) => c !== s.chord).slice(0, 2).map((c) => ({ chord: c, p: conf[c] }));
+    // The HMM marginal is over-confident (doubtful segments barely ever fall below 0.5).
+    // The geometric mean of the network's own frame posterior for the chosen chord is
+    // better calibrated (measured on GuitarSet), so it drives the "doubtful" flag.
+    s.posterior = conf[s.chord];
+    const geo = new Float64Array(N_CHORDS);
+    for (const i of s.beats) for (let c = 0; c < N_CHORDS; c++) geo[c] += units[i].logp[c] / s.beats.length;
+    s.confidence = Math.exp(geo[s.chord]);
+    const order = [...geo.keys()].sort((x, y) => geo[y] - geo[x]);
+    s.alternatives = order.filter((c) => c !== s.chord).slice(0, 2).map((c) => ({ chord: c, p: Math.exp(geo[c]) }));
     s.pitch = Array.from(pitch);
     s.extensions = [];
     s.bass = null;

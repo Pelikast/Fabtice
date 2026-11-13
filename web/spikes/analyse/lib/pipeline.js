@@ -14,6 +14,7 @@ export const OPTION_DEFAULTS = {
   post: 'minimal',      // 'minimal' | 'dbn' | 'joint'
   meterSource: 'hmm',   // 'hmm' (meter HMM on beats) | 'network' (Beat This downbeats as is)
   minBpm: 40, maxBpm: 300, lambda: 100,
+  meterCandidates: [3, 4], // 2, 5, 6, 7 are left to the user (measured: more false alarms than hits)
   tuningCorrection: true,
   harmonyPrior: true,
 };
@@ -56,7 +57,7 @@ export function gridFromActivations(act, opts) {
     return { grid: makeGrid(beats, numbers, bpb), meterScores: [] };
   }
   const dp = beatDownProb(act, beats);
-  const m = inferMeter(dp, { fixed: o.fixedMeter || null });
+  const m = inferMeter(dp, { fixed: o.fixedMeter || null, candidates: o.meterCandidates });
   return { grid: makeGrid(beats, m.numbers, m.beatsPerBar), meterScores: m.scores };
 }
 
