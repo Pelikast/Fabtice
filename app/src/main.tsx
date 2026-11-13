@@ -15,6 +15,8 @@ connectEngine(appStore, getEngine());
 const params = new URLSearchParams(window.location.search);
 if (params.has('demo')) {
   // Synthetic piece for development, tests and screenshots (see demo/demoProject.ts).
+  // The dialog stays closed from the first paint instead of flashing.
+  appStore.setState((s) => ({ ui: { ...s.ui, newPieceOpen: false } }));
   void import('./demo/start').then((m) => m.startDemo(params));
 }
 

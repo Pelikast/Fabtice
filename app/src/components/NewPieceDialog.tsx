@@ -54,9 +54,10 @@ export function NewPieceDialog() {
 function Choices({ open, desktop }: { open: boolean; desktop: boolean }) {
   const [link, setLink] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
-  const firstRef = useRef<HTMLInputElement & HTMLButtonElement>(null);
+  // Mac app: the link field takes the focus, ready for a paste.
+  const linkRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
-    if (open) firstRef.current?.focus({ preventScroll: true });
+    if (open) linkRef.current?.focus({ preventScroll: true });
   }, [open]);
 
   const chooseFile = () => fileRef.current?.click();
@@ -86,7 +87,7 @@ function Choices({ open, desktop }: { open: boolean; desktop: boolean }) {
           }}
         >
           <input
-            ref={firstRef}
+            ref={linkRef}
             type="url"
             inputMode="url"
             placeholder={t('new.linkPlaceholder')}
@@ -115,7 +116,7 @@ function Choices({ open, desktop }: { open: boolean; desktop: boolean }) {
   return (
     <>
       <p>{t('new.leadFile')}</p>
-      <button ref={firstRef} className="plein" onClick={chooseFile}>
+      <button className="plein" onClick={chooseFile}>
         {t('new.chooseFileButton')}
       </button>
       {fileInput}

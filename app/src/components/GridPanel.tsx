@@ -81,7 +81,7 @@ export function GridPanel({ ref }: { ref: Ref<HTMLDivElement> }) {
         {taps.length >= 2 ? t('grid.tapCount', { n: taps.length }) : t('grid.tapHint')}
       </p>
 
-      <div className="panneau-ligne">
+      <div className="panneau-ligne empile">
         <span>{t('grid.beatsPerBar')}</span>
         <span className="duo temps-mesure" role="group" aria-label={t('grid.beatsPerBar')}>
           {NUMERATORS.map((n) => (
