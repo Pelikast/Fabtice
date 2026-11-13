@@ -177,10 +177,25 @@ function registerIpc() {
   });
 }
 
-// Test seam: lets the automated test run with a throw-away user-data folder.
+// Test seams (never set for a user):
+//  - FABTICE_USER_DATA: throw-away user-data folder;
+//  - FABTICE_STARTUP_TRACE=1: one line per start-up step on stderr, so a launch
+//    that stalls shows how far it got in the test output;
+//  - FABTICE_HOLD_WINDOW=1: do not open the first window until the test calls
+//    globalThis.__fabticeOpenFirstWindow(). A debugger that attaches while a
+//    window is loading can stall (Playwright waits for the page to settle and
+//    never gets there), so the test attaches first and only then asks for it.
+const TRACE = process.env.FABTICE_STARTUP_TRACE === '1';
+function trace(message) {
+  if (TRACE) process.stderr.write(`[fabtice] ${message}\n`);
+}
+process.on('unhandledRejection', (e) => trace(`unhandled rejection: ${e && e.stack ? e.stack : e}`));
+process.on('uncaughtException', (e) => trace(`uncaught exception: ${e && e.stack ? e.stack : e}`));
+
 if (process.env.FABTICE_USER_DATA) app.setPath('userData', process.env.FABTICE_USER_DATA);
 
 if (!app.requestSingleInstanceLock()) {
+  trace('another instance holds the lock: quitting');
   app.quit();
 } else {
   app.on('second-instance', () => {
@@ -197,7 +212,9 @@ if (!app.requestSingleInstanceLock()) {
     contents.setWindowOpenHandler(() => ({ action: 'deny' }));
   });
 
+  trace('single-instance lock obtained, waiting for ready');
   app.whenReady().then(() => {
+    trace('ready');
     fabticeProtocol.installHandler(protocol, {
       [fabticeProtocol.HOST_APP]: UI_DIR,
       [fabticeProtocol.HOST_DIAGNOSTIC]: DIAGNOSTIC_DIR,
@@ -214,17 +231,32 @@ if (!app.requestSingleInstanceLock()) {
     updateCheck = manager.checkForUpdate().catch((e) => ({ error: e.message }));
     removeStaleTempDirs();
     registerIpc();
-    if (fs.existsSync(path.join(UI_DIR, 'index.html'))) {
-      createWindow();
+    trace('protocol, menu and IPC set up');
+    const openFirstWindow = () => {
+      if (fs.existsSync(path.join(UI_DIR, 'index.html'))) {
+        createWindow();
+      } else {
+        // Build mistake: say so plainly and fall back on the diagnostic page.
+        dialog.showErrorBox('Fabtice', 'L’interface est introuvable dans cette version de l’app. La fenêtre de diagnostic s’ouvre à la place.');
+        openDiagnostic();
+      }
+      trace('first window created');
+    };
+    if (process.env.FABTICE_HOLD_WINDOW === '1') {
+      globalThis.__fabticeOpenFirstWindow = openFirstWindow;
+      trace('first window held for the test');
     } else {
-      // Build mistake: say so plainly and fall back on the diagnostic page.
-      dialog.showErrorBox('Fabtice', 'L’interface est introuvable dans cette version de l’app. La fenêtre de diagnostic s’ouvre à la place.');
-      openDiagnostic();
+      openFirstWindow();
     }
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0 && fs.existsSync(path.join(UI_DIR, 'index.html'))) createWindow();
     });
+  }).catch((e) => {
+    // A failure here would otherwise leave a running app with no window.
+    trace(`start-up failed: ${e && e.stack ? e.stack : e}`);
+    dialog.showErrorBox('Fabtice', `Fabtice n’a pas pu démarrer.\n\n${e && e.message ? e.message : e}`);
+    app.exit(1);
   });
 
   app.on('before-quit', () => {
