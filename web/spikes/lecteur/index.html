@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fabtice — lecteur (prototype)</title>
+<style>
+  :root { --bg:#f4ece0; --ink:#3a2a1e; --mute:#7a6250; --line:#d9c9b0; --panel:#fbf6ec; --accent:#b06030; --accent-d:#8a4b2a; }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.45 Georgia,"Times New Roman",serif; padding:14px 16px 60px; max-width:1100px; margin-inline:auto; }
+  h1 { font-weight:normal; font-size:28px; margin:4px 0 2px; letter-spacing:.02em; }
+  h2 { font-weight:normal; font-size:19px; margin:0 0 8px; }
+  p.sub { margin:0 0 12px; color:var(--mute); font-size:15px; }
+  section { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:12px 14px; margin:12px 0; }
+  .row { display:flex; flex-wrap:wrap; gap:8px 14px; align-items:center; }
+  .row + .row { margin-top:8px; }
+  button, select, input[type=number], input[type=text] { font:inherit; color:var(--ink); background:#fffdf8; border:1px solid #bfae92; border-radius:6px; padding:6px 12px; min-height:38px; }
+  button { cursor:pointer; }
+  button:hover { background:#f3e8d4; }
+  button.primary { background:var(--accent); border-color:var(--accent-d); color:#fffaf2; }
+  button.primary:hover { background:var(--accent-d); }
+  button.on { background:var(--accent); color:#fffaf2; border-color:var(--accent-d); }
+  button[disabled] { opacity:.5; cursor:default; }
+  input[type=range] { accent-color:var(--accent); min-width:150px; flex:1 1 200px; max-width:420px; }
+  label { display:inline-flex; gap:6px; align-items:center; }
+  .val { font-variant-numeric:tabular-nums; min-width:5.5em; display:inline-block; }
+  #time { font-variant-numeric:tabular-nums; font-size:20px; min-width:12em; }
+  #wavewrap { background:#fbf6ec; border:1px solid var(--line); border-radius:6px; overflow:hidden; }
+  canvas { display:block; width:100%; }
+  .stem { display:grid; grid-template-columns: 9em auto auto 1fr auto auto; gap:8px 10px; align-items:center; padding:5px 0; border-top:1px solid var(--line); }
+  .stem:first-child { border-top:0; }
+  .stem .nm { font-weight:bold; }
+  .stem small { color:var(--mute); }
+  .stem button { min-height:34px; min-width:38px; padding:2px 8px; }
+  .meter { height:10px; background:#e6d9c3; border-radius:5px; overflow:hidden; min-width:160px; flex:1 1 200px; max-width:420px; }
+  .meter > i { display:block; height:100%; width:0; background:#6b8f55; transition:width .2s; }
+  .meter > i.warn { background:#c98a2a; } .meter > i.bad { background:#b0412e; }
+  dl.stats { display:grid; grid-template-columns:auto 1fr; gap:2px 14px; margin:8px 0 0; font-size:14px; }
+  dl.stats dt { color:var(--mute); } dl.stats dd { margin:0; font-variant-numeric:tabular-nums; }
+  .note { color:var(--mute); font-size:14px; }
+  #log { white-space:pre-wrap; font:12px/1.4 ui-monospace,Menlo,monospace; color:#6a3a2a; margin-top:6px; }
+  .hint { color:var(--mute); font-size:13.5px; margin:6px 0 0; }
+  a { color:var(--accent-d); }
+  @media (max-width:640px) {
+    .stem { grid-template-columns: 1fr auto auto; }
+    .stem input[type=range] { grid-column:1 / -1; max-width:none; }
+    #time { font-size:17px; }
+  }
+</style>
+</head>
+<body>
+<h1>Fabtice — lecteur</h1>
+<p class="sub">Prototype du moteur de lecture : plusieurs pistes synchronisées, tonalité et tempo en direct, boucle. Rien n’est envoyé sur un serveur.</p>
+
+<section>
+  <h2>1. Pistes</h2>
+  <div class="row">
+    <button id="btn-files" class="primary">Ajouter des fichiers audio…</button>
+    <input id="file" type="file" accept="audio/*,.mp3,.wav,.aif,.aiff,.m4a,.flac" multiple hidden>
+    <button id="btn-demo">Démo synthétique (7 pistes, 38 s)</button>
+    <button id="btn-demo-long">Démo longue (7 pistes, 5 min)</button>
+    <button id="btn-clear">Tout retirer</button>
+  </div>
+  <div class="row">
+    <label>Mémoire des pistes
+      <select id="mem">
+        <option value="i16" selected>16 bits (mono détecté, par défaut)</option>
+        <option value="f32">32 bits flottant (comparaison)</option>
+      </select>
+    </label>
+    <span id="loadstate" class="note"></span>
+  </div>
+  <p class="hint">Un fichier = une piste. Pour tester la séparation, chargez plusieurs fichiers de même durée (voix, batterie, basse…).</p>
+</section>
+
+<section>
+  <h2>2. Lecture et boucle</h2>
+  <div class="row">
+    <button id="btn-play" class="primary" style="min-width:7em">▶ Lecture</button>
+    <button id="btn-start" title="Retour au début de la boucle ou du morceau">⏮</button>
+    <span id="time">0:00.0 / 0:00.0</span>
+    <span id="barpos" class="note"></span>
+  </div>
+  <div id="wavewrap" style="margin-top:10px"><canvas id="wave" height="200"></canvas></div>
+  <div class="row">
+    <label><input type="checkbox" id="loop-on" checked> Boucle</label>
+    <button id="btn-loop-clear">Effacer la boucle</button>
+    <label><input type="checkbox" id="snap" checked> Aimanter aux temps</label>
+    <label><input type="checkbox" id="grid-on" checked> Grille</label>
+    <label><input type="checkbox" id="follow" checked> Suivre la lecture</label>
+    <span class="note">Zoom :</span>
+    <button id="z-out" title="Dézoomer">−</button><button id="z-in" title="Zoomer">+</button><button id="z-all">Tout</button><button id="z-loop">Boucle</button>
+    <label><input type="checkbox" id="pan-mode"> Main (déplacer)</label>
+  </div>
+  <p class="hint">Glisser sur la forme d’onde = choisir une boucle (les bords se déplacent à la souris) ; clic = aller à cet endroit ; double-clic = effacer la boucle ; Ctrl/Alt + molette ou deux doigts = zoom ; molette = défilement. Espace = lecture/pause.</p>
+</section>
+
+<section>
+  <h2>3. Tonalité et tempo</h2>
+  <div class="row">
+    <label for="engine">Moteur</label>
+    <select id="engine"></select>
+    <span id="engine-info" class="note"></span>
+  </div>
+  <div class="row">
+    <label for="semi" style="min-width:7em">Tonalité</label>
+    <input id="semi" type="range" min="-12" max="12" step="1" value="0">
+    <span class="val" id="semi-v">0 demi-ton</span><button id="semi-0">0</button>
+  </div>
+  <div class="row">
+    <label for="cents" style="min-width:7em">Réglage fin</label>
+    <input id="cents" type="range" min="-50" max="50" step="1" value="0">
+    <span class="val" id="cents-v">0 cent</span><button id="cents-0">0</button>
+  </div>
+  <div class="row">
+    <label for="tempo" style="min-width:7em">Tempo</label>
+    <input id="tempo" type="range" min="25" max="200" step="1" value="100">
+    <span class="val" id="tempo-v">100 %</span><button id="tempo-0">100</button>
+  </div>
+  <div class="row">
+    <label><input type="checkbox" id="formant"> Garder le timbre des voix (formants)</label>
+    <label><input type="checkbox" id="skipmuted" checked> Ne pas calculer les pistes muettes (si le moteur le permet)</label>
+  </div>
+  <p class="hint" id="engine-warn"></p>
+</section>
+
+<section>
+  <h2>4. Pistes : volume, muet, solo</h2>
+  <div id="stems"><p class="note">Aucune piste chargée.</p></div>
+</section>
+
+<section>
+  <h2>5. Métronome</h2>
+  <div class="row">
+    <label><input type="checkbox" id="metro-on"> Métronome</label>
+    <label>Tempo (BPM) <input id="bpm" type="number" min="30" max="300" step="0.1" value="100" style="width:6em"></label>
+    <label>Premier temps (s) <input id="offset" type="number" min="0" max="30" step="0.01" value="0" style="width:6em"></label>
+    <label>Temps par mesure <input id="bpb" type="number" min="1" max="12" step="1" value="4" style="width:4.5em"></label>
+  </div>
+  <div class="row">
+    <label for="metro-vol" style="min-width:7em">Volume</label>
+    <input id="metro-vol" type="range" min="0" max="100" value="50">
+  </div>
+  <p class="hint">Grille à tempo fixe. Le clic suit le tempo ralenti ou accéléré : il est placé à l’instant où le temps de la grille est entendu, pas à l’instant où il est lu.</p>
+</section>
+
+<section>
+  <h2>6. Mesures</h2>
+  <div class="row"><span style="min-width:11em">Charge du fil audio</span>
+    <div class="meter"><i id="cpu-bar"></i></div><span id="cpu-txt" class="val" style="min-width:16em"></span></div>
+  <dl class="stats" id="stats"></dl>
+  <div class="row" style="margin-top:10px">
+    <button id="btn-diag" class="primary">Copier le diagnostic</button>
+    <span id="diag-state" class="note"></span>
+  </div>
+  <p class="hint">Faites jouer quelques secondes avec vos réglages habituels (par exemple −5 demi-tons, tempo 60 %, boucle sur quelques mesures) avant de copier le diagnostic.</p>
+</section>
+
+<section>
+  <h2>7. Rendu hors ligne (export)</h2>
+  <div class="row">
+    <label>Portée
+      <select id="exp-scope"><option value="loop">La boucle (une fois)</option><option value="all">Tout le morceau</option></select>
+    </label>
+    <label>Format
+      <select id="exp-fmt"><option value="16">WAV 16 bits</option><option value="32">WAV 32 bits flottant</option></select>
+    </label>
+    <button id="btn-export">Rendre en WAV</button>
+  </div>
+  <div class="row"><span id="exp-state" class="note"></span></div>
+  <p class="hint">Même moteur et mêmes réglages (tonalité, tempo, pistes muettes, volumes, métronome), calculés plus vite que le temps réel avec un OfflineAudioContext.</p>
+</section>
+
+<div id="log"></div>
+<script type="module" src="app.js"></script>
+</body>
+</html>
