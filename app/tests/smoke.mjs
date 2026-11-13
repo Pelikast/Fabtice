@@ -47,7 +47,7 @@ const text = (page, sel) => page.locator(sel).first().innerText();
 try {
   // ------------------------------------------------------------ desktop size, demo
   {
-    const { page, errors } = await open('?demo', { width: 1280, height: 800 });
+    const { page, errors } = await open('?demo&moteur=factice', { width: 1280, height: 800 });
     await ready(page);
     await page.evaluate(() => document.fonts.ready);
     check('cross-origin isolated', await page.evaluate(() => crossOriginIsolated));

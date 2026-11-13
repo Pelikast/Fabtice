@@ -25,12 +25,14 @@ le stockage.
 | `npm run test:smoke` | après `build` : vérifications dans Chromium (Playwright préinstallé) et captures d'écran dans un dossier temporaire (`FABTICE_SMOKE_OUT` pour le choisir) |
 | `npm run test:import` | après `build` : import des cinq formats (sélecteur et glisser-déposer), rouverture du projet après rechargement, autosauvegarde, stockage en échec, import par lien contre un faux `window.fabtice`, coût d'un morceau de cinq minutes (captures dans `FABTICE_IMPORT_OUT`) |
 | `npm run test:timeline` | après `build` : vérifications de la frise dans Chromium (formes d'onde, grille, boucle, défilement, zoom, suivi, téléphone, morceau de dix minutes) |
+| `npm run test:engine` | après `build` (et, en option, `build:desktop`) : mesures du vrai moteur audio dans Chromium (tonalité, tempo, boucle, métronome, limiteur, charge) |
 
 Les fichiers audio de test de `test:import` sont dans `tests/fixtures/` (quelques
 dizaines de ko, tons synthétiques ; `make_fixtures.py` dit comment ils sont faits ;
 le m4a est `desktop/test/fixtures/tone-dash.m4a`).
 
-`?demo` à la fin de l'adresse (`http://localhost:5173/?demo`) ouvre un morceau
+`?moteur=factice` force le moteur factice (aucun son) ; les tests d'interface
+(`test:smoke`, `test:import`) l'utilisent. `?demo` à la fin de l'adresse (`http://localhost:5173/?demo`) ouvre un morceau
 synthétique de quatre pistes, généré dans le code, sans fichier audio ;
 `?demo&vue=grille` ouvre directement l'affichage Grille d'accords. En mode
 démo, `window.__fabtice` donne accès au magasin, au moteur et aux actions ;
@@ -52,9 +54,12 @@ src/
                       clics du métronome, formats d'affichage, « Battre le tempo »
   store/              état de l'app (store.ts), actions (actions.ts), valeurs
                       dérivées (derived.ts), préférences, document de projet
-  audio/              contrat du moteur (AudioEngine.ts), moteur factice
+  audio/              contrat du moteur (AudioEngine.ts), vrai moteur
+                      (WorkletEngine.ts + worklet/), moteur factice
                       (MockEngine.ts), fabrique (index.ts), branchement au
-                      magasin (connect.ts), registre de l'audio décodé
+                      magasin (connect.ts), registre de l'audio décodé,
+                      stockage 16 bits partagé (storage.ts), binaire wasm
+                      de Signalsmith et ses licences (wasm/)
   timeline/           TOUT ce qui se dessine le long du temps : formes d'onde,
                       grille, règle, boucle, tête de lecture, défilement, zoom
   components/         l'écran : barre du haut, en-têtes de pistes, transport,
@@ -134,9 +139,68 @@ clics, calculés par `grid/lines.ts#metronomeClicks`), `on('state' | 'ended' |
 
 `MockEngine` l'implémente avec une horloge (aucun son) : avancée au rapport de
 tempo, boucle, arrêt en fin de morceau, et `snapshot()` pour vérifier ce qu'il
-a reçu. Pour brancher le vrai moteur, **ne changer que
-`createAudioEngine()` dans `src/audio/index.ts`**. Le contexte audio doit être
-créé à 48 kHz quel que soit le réglage de la machine.
+a reçu. `createAudioEngine()` (`src/audio/index.ts`) renvoie le **vrai moteur**
+(`WorkletEngine`) dans un navigateur, le moteur factice avec `?moteur=factice`
+et hors navigateur (tests Node). Un navigateur qui ne peut pas faire tourner le
+vrai moteur (pas d'AudioWorklet, pas d'isolation COOP/COEP donc pas de
+`SharedArrayBuffer`) ne retombe **jamais** en silence sur le factice :
+`loadTracks()` rejette, l'état passe à `error` avec le code `unsupported`
+(texte prévu : `engine.errorUnsupported`, à brancher dans `Transport.tsx`).
+
+#### Le vrai moteur (`WorkletEngine`)
+
+- **Un seul AudioWorklet pour toutes les pistes** (`worklet/processor.ts`),
+  moteur d'étirement **Signalsmith Stretch** seul (version sans SIMD, mesurée
+  comme la bonne) : c'est la préécoute en direct. Rubber Band (rendu
+  « Appliquer » et export) viendra au lot 3, hors de ce moteur.
+- **Contexte forcé à 48 kHz** (`ENGINE_SAMPLE_RATE`) quel que soit le réglage de
+  la machine ; créé (suspendu) par `loadTracks()`, **repris à l'intérieur de
+  `play()`**, appelé de façon synchrone avant tout `await` : `play()` doit donc
+  partir du geste de l'utilisateur. Après une pause le contexte est remis en
+  sommeil au bout de 0,4 s (la tablette ne reste pas allumée) ; `play()` le
+  réveille. Une interruption du système (appel, autre app) ramène le moteur à
+  `ready` à la position où il était.
+- **Mémoire** (conception du prototype) : pistes en blocs de 16 bits de 32 768
+  images dans des `SharedArrayBuffer`, pistes mono (canaux identiques à un pas
+  de 16 bits près) stockées une seule fois. Un morceau stéréo de 5 minutes
+  pèse environ 58 Mo par piste dans le moteur, **en plus** des `Float32` du
+  registre (`registry.ts`, 115 Mo par piste stéréo de 5 minutes) et des
+  instances Signalsmith (environ 6 Mo de mémoire wasm par piste).
+- **Boucle** : repli côté entrée avec fondu enchaîné de 20 ms ; l'étireur voit
+  un signal continu (pas de clic, pas de dérive). Hors de la boucle (après un
+  déplacement au-delà de sa fin), la lecture va jusqu'à la fin du morceau.
+- **Métronome** : les clics viennent de `setClickTrack()` (temps source) ; ils
+  ne sont pas étirés, et sont posés en sortie en tenant compte du retard du
+  moteur (environ 150 ms, fixe, donc toutes les pistes transposées ou non
+  restent alignées avec les clics).
+- **Position** : `getPosition()` lit un bloc partagé que le worklet écrit à
+  chaque quantum (128 images) : position **entendue** (retard du moteur et du
+  limiteur retirés), prolongée jusqu'à l'image courante d'après l'horloge audio.
+  Aucune allocation, aucun message. Après un déplacement ou un démarrage elle
+  montre la cible tout de suite, puis avance (jamais en arrière). Hors lecture,
+  c'est la position mémorisée côté page.
+- **Limiteur de sécurité** sur le mélange : retard de 2 ms, signal intact (gain
+  exactement 1) sous environ −1 dBFS (0,891), baisse de gain progressive,
+  anticipée, au-dessus ; jamais d'écrêtage dur.
+- **Pause** avec un fondu de 8 ms ; **fin de morceau** : événement `ended` une
+  fois tout entendu, moteur `ready` à la fin ; `play()` repart de 0.
+- Les pistes en sourdine ne sont pas calculées (la charge baisse).
+- Hors contrat, utiles aux tests : `diagnostics()` (charge, pistes actives,
+  modèle de retard), `memoryBytes()`, `debugNode`, `debugContext`.
+
+**Fichiers servis par la construction.** `assets.ts` importe le worklet avec
+`?worker&url` (Vite le construit en un fichier autonome `assets/processor-*.js`,
+sans `import`) et le wasm avec `?url` (`assets/signalsmith-nosimd-*.wasm`),
+tous deux relatifs au module (donc valables avec la base `./` de l'app Mac).
+Le wasm est lu avec `fetch` puis ses **octets** sont postés au worklet : un
+`WebAssembly.Module` ne peut pas être posté à un AudioWorklet dans Chromium.
+Les textes des licences MIT de Signalsmith sont copiés dans `assets/`. Le
+binaire a été compilé à partir de `web/spikes/lecteur/engines/src/signalsmith.cpp`
+(voir `src/audio/wasm/SOURCES.md`) ; ne pas le recompiler sans nouvelles mesures.
+
+**Tests.** `npm test` couvre le cœur dans Node avec le vrai wasm
+(`worklet/*.test.ts`, `storage.test.ts`) ; `npm run test:engine` mesure le
+moteur complet dans Chromium (enregistreur branché sur la sortie du worklet).
 
 ### App Mac — `src/platform/desktopBridge.ts`
 
