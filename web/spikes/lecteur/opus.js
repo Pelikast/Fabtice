@@ -37,10 +37,11 @@ export async function encodeOpus(l, r, sr, bitrate = 96000) {
 export class OpusReader {
 	constructor(enc, shareable) { this.enc = enc; this.share = shareable; }
 	/** Decodes chunks c0..c1 (inclusive) with one decoder session. Resolves to an array of {l, r} (Int16; r null for mono). */
-	decodeChunks(c0, c1) {
+	decodeChunks(c0, c1, stale) {
 		// One queue for all stems: concurrent AudioDecoders were measured much slower per chunk than one at a time,
 		// and creating a decoder per chunk costs more than decoding it, hence runs of several chunks.
-		const run = () => this._decode(c0, c1);
+		// `stale()` lets the caller drop a request that was queued for a position the playhead has left.
+		const run = () => (stale && stale() ? null : this._decode(c0, c1));
 		const p = globalQueue.then(run, run);
 		globalQueue = p.catch(() => {});
 		return p;

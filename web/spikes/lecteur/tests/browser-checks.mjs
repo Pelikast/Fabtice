@@ -7,12 +7,19 @@ const { chromium } = createRequire('/opt/node-tools/')('playwright');
 
 let failed = 0;
 const ok = (name, cond, detail) => { if (!cond) failed++; console.log(`${cond ? 'PASS' : 'FAIL'}  ${name.padEnd(58)} ${detail}`); };
-const rssMB = () => { // total resident memory of all Chromium processes of this run
-	try { return +execSync("ps -eo rss,args | grep -E 'chrome|headless_shell' | grep -v grep | awk '{s+=$1} END {print s}'").toString().trim() / 1024; } catch { return 0; }
+let browserPid = 0;
+const rssMB = () => { // resident memory of this run's Chromium process tree only (the machine is shared)
+	try {
+		const out = execSync('ps -eo pid=,ppid=,rss=').toString().trim().split('\n').map((l) => l.trim().split(/\s+/).map(Number));
+		const kids = new Map(); for (const [pid, ppid, rss] of out) { if (!kids.has(ppid)) kids.set(ppid, []); kids.get(ppid).push([pid, rss]); }
+		let sum = 0; const walk = (pid) => { for (const [k, rss] of kids.get(pid) || []) { sum += rss; walk(k); } };
+		walk(browserPid); return sum / 1024;
+	} catch { return 0; }
 };
 
 const { srv, url } = await startServer(0);
-const browser = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required', '--no-sandbox', '--enable-precise-memory-info', '--js-flags=--expose-gc'] });
+const browser = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required', '--no-sandbox', '--enable-precise-memory-info', '--js-flags=--expose-gc', `--fab-test=${process.pid}`] });
+browserPid = +execSync(`ps -eo pid=,args= | grep -- '--fab-test=${process.pid}' | grep -v -- '--type=' | grep -v grep | head -1 | awk '{print $1}'`).toString().trim();
 async function fresh(opts = {}) {
 	const page = await browser.newPage({ viewport: { width: 1200, height: 900 } });
 	page.on('pageerror', (e) => console.log('[pageerror]', e.message));
@@ -165,23 +172,25 @@ for (const kind of ['i16', 'f32']) {
 		f.seek(100); await f.play();
 		await new Promise((r) => setTimeout(r, 4000));
 		const us0 = S.ctx.playbackStats.underrunEvents;
-		const pos1 = S.pos;
+		const pos1 = S.pos; const miss0 = S.missing;
 		// jump far away while playing, then loop a bar elsewhere
 		f.seek(200);
 		await new Promise((r) => setTimeout(r, 2500));
 		S.loop = { start: 230.4, end: 232.8, enabled: true }; f.view.setLoop(S.loop);
 		S.node.port.postMessage({ type: 'loop', enabled: true, start: 230.4 * S.sr, end: 232.8 * S.sr });
 		f.seek(230.0);
-		await new Promise((r) => setTimeout(r, 6000));
+		await new Promise((r) => setTimeout(r, 7000));
+		const missMid = S.missing;
+		await new Promise((r) => setTimeout(r, 3000));
 		const us1 = S.ctx.playbackStats.underrunEvents;
 		let resident = 0, opusBytes = 0;
 		for (const s of S.stems) { resident += s.opus.resident.size; opusBytes += s.opus.enc.bytes; }
-		return { sr: S.sr, encodeMs: S.encodeMs, opusBytes, resident, pos1, pos: S.pos, us0, us1, underruns: S.underruns, missing: S.missing, errors: S.errors, active: S.active,
+		return { missMid, missEnd: S.missing, sr: S.sr, encodeMs: S.encodeMs, opusBytes, resident, pos1, pos: S.pos, us0, us1, underruns: S.underruns, missing: S.missing, errors: S.errors, active: S.active,
 			load: S.loadRecent.slice(-20), heap: performance.memory.usedJSHeapSize };
 	});
 	const rss = rssMB();
 	ok('opus mode: 7 stems x 307 s, memory', true, `Opus data ${(m.opusBytes / 1048576).toFixed(1)} MB, resident chunks ${m.resident} (${(m.resident * 32768 * 2 * 1.5 / 1048576).toFixed(0)} MB approx), JS heap ${(m.heap / 1048576).toFixed(0)} MB, browser RSS ${rss.toFixed(0)} MB (blank page ${base.toFixed(0)} MB), encoding took ${(m.encodeMs / 1000).toFixed(1)} s in total`);
-	ok('opus mode: playback, far seek and loop', m.errors.length === 0 && m.pos > 229 && m.pos < 233, `position ${m.pos.toFixed(1)} s, chunk misses ${m.missing}, underruns ${m.underruns}, playbackStats underrunEvents ${m.us0} -> ${m.us1}, load ${(m.load.reduce((a, b) => a + b, 0) / m.load.length * 100).toFixed(1)} %, errors ${JSON.stringify(m.errors)}`);
+	ok('opus mode: playback, far seek and loop', m.errors.length === 0 && m.pos > 229 && m.pos < 233 && m.resident > 20 && m.missEnd - m.missMid < 10, `position ${m.pos.toFixed(1)} s, chunk misses ${m.missing} (${m.missEnd - m.missMid} in the last 3 s of looping, after a 7 s catch-up following the far seek), underruns ${m.underruns}, playbackStats underrunEvents ${m.us0} -> ${m.us1}, load ${(m.load.reduce((a, b) => a + b, 0) / m.load.length * 100).toFixed(1)} %, errors ${JSON.stringify(m.errors)}`);
 	// export a loop in opus mode
 	const ex = await page.evaluate(async () => {
 		window.__keepExport = true;

@@ -15,7 +15,8 @@ export const hasSimd = (() => { try { return WebAssembly.validate(SIMD_PROBE); }
 
 const moduleCache = new Map();
 export async function loadWasmModule(name) {
-	const file = `engines/${name}${hasSimd ? '' : '-nosimd'}.wasm`;
+	// measured: the SIMD build of Signalsmith is not faster (no explicit SIMD in the library), so only Rubber Band uses it
+	const file = `engines/${name}${hasSimd && name === 'rubberband' ? '' : '-nosimd'}.wasm`;
 	if (!moduleCache.has(file)) {
 		moduleCache.set(file, (async () => {
 			const r = await fetch(file);

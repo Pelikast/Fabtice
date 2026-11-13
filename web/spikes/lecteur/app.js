@@ -471,8 +471,12 @@ function wanted(frames, margin) {
 	const sr = S.sr, set = new Set(), last = Math.ceil(frames / CHUNK) - 1;
 	const add = (a, b) => { for (let c = Math.max(0, Math.floor(a) >> CHUNK_BITS); c <= Math.min(last, Math.floor(b) >> CHUNK_BITS); c++) set.add(c); };
 	const rate = Math.max(1, +$('tempo').value / 100), pos = S.pos * sr, m = margin;
-	add(pos - 1.5 * sr * m, pos + (S.playing ? 7 : 3) * sr * rate * m);
 	const L = S.loop;
+	if (L.enabled && L.end > L.start && L.end - L.start < 120 && S.pos >= L.start - 0.5 && S.pos <= L.end + 0.2) {
+		add(L.start * sr - 0.2 * sr, L.end * sr + 0.2 * sr); // inside a loop: only the loop is needed
+		return set;
+	}
+	add(pos - 1.5 * sr * m, pos + (S.playing ? 4 : 2) * sr * rate * m);
 	if (L.enabled && L.end > L.start && L.end - L.start < 120) add(L.start * sr - 0.2 * sr, L.end * sr + 0.2 * sr);
 	return set;
 }
@@ -487,15 +491,15 @@ function streamTick() {
 		if (drop.length) { for (const c of drop) o.resident.delete(c); S.node.port.postMessage({ type: 'chunks', index: i, drop }); }
 		const pc = Math.floor(S.pos * S.sr) >> CHUNK_BITS;
 		const need = [...want].filter((c) => !o.resident.has(c) && !o.pending.has(c)).sort((a, b) => a - b);
-		// contiguous runs of at most 6 chunks, nearest to the playhead first
+		// contiguous runs of at most 4 chunks, nearest to the playhead first
 		const runs = [];
-		for (const c of need) { const r = runs[runs.length - 1]; if (r && c === r[1] + 1 && r[1] - r[0] < 5) r[1] = c; else runs.push([c, c]); }
+		for (const c of need) { const r = runs[runs.length - 1]; if (r && c === r[1] + 1 && r[1] - r[0] < 3) r[1] = c; else runs.push([c, c]); }
 		runs.sort((a, b) => Math.abs(a[0] - pc) - Math.abs(b[0] - pc));
 		for (const [a, b] of runs) {
 			for (let c = a; c <= b; c++) o.pending.add(c);
-			o.reader.decodeChunks(a, b).then((chs) => {
+			o.reader.decodeChunks(a, b, () => { const w = wanted(s.store.frames, 1); return !S.stems.includes(s) || ![...Array(b - a + 1).keys()].some((k) => w.has(a + k)); }).then((chs) => {
 				for (let c = a; c <= b; c++) o.pending.delete(c);
-				if (!S.stems.includes(s)) return;
+				if (!chs || !S.stems.includes(s)) return;
 				const put = [];
 				chs.forEach((ch, k) => { o.resident.add(a + k); put.push([a + k, ch]); });
 				S.node.port.postMessage({ type: 'chunks', index: i, put });
