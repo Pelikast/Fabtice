@@ -156,7 +156,24 @@ Variables d’environnement de test :
 - `FABTICE_RELEASE_BASE` : adresse d’un serveur local qui imite les versions
   GitHub de yt-dlp (pannes simulées) ;
 - `FABTICE_RETRY_DELAYS_MS` : attentes entre les essais, par exemple
-  `100,200,300` (par défaut 2, 5 puis 10 secondes : 4 essais en 20 s environ).
+  `100,200,300` (par défaut 2, 5 puis 10 secondes : 4 essais en 20 s environ) ;
+- `FABTICE_HOLD_WINDOW=1` : l’app n’ouvre sa première fenêtre que sur demande
+  du test (`globalThis.__fabticeOpenFirstWindow()`), pour que l’outil de test
+  s’attache avant qu’une page se charge (sinon son lancement peut rester
+  bloqué) ; `FABTICE_E2E_QUERY` (par exemple `?debug`) n’est pris en compte
+  qu’avec elle ;
+- `FABTICE_STARTUP_TRACE=1` : chaque étape du démarrage écrit une ligne
+  `[fabtice] …` sur la sortie d’erreur, que les tests recopient quand un
+  lancement échoue ;
+- `FABTICE_STUB_FIXTURES` : dossier des fichiers audio du faux yt-dlp quand
+  il est installé ailleurs (le test de parcours le fait installer par le
+  serveur de versions local, comme un vrai yt-dlp).
+
+Les tests de bout en bout couvrent le parcours complet par les boutons de
+l’interface (`test/e2e/journey.test.js`) : lien collé, installation de l’outil,
+extraction, forme d’onde, lecture avec le vrai moteur (aucune violation de la
+politique de sécurité), boucle et tonalité, relance avec le même dossier de
+données, lien refusé, import d’un fichier.
 
 Intégration continue : `.github/workflows/desktop-mac.yml` vérifie et construit
 l’interface (`npm ci`, `typecheck`, `test`, `build:desktop` dans `app/`), construit
