@@ -41,6 +41,17 @@ aucune technique de contournement des protections de YouTube.
    - **Zoom** horizontal et vertical par deux curseurs, et bouton « Auto » qui
      ajuste les pistes à la fenêtre sans débordement.
    - **Réglage** : suivre ou non la tête de lecture pendant la lecture.
+   - **Deux qualités de rendu.** En direct, tout changement de tonalité ou de
+     tempo s'entend aussitôt avec le moteur léger (Signalsmith Stretch) : c'est
+     la prévisualisation. Un bouton « Appliquer » recalcule ensuite les pistes
+     avec le meilleur moteur (Rubber Band R3 « finer », trop lourd pour le
+     direct) dans des fichiers temporaires, derrière un court écran d'attente ;
+     le lecteur ne fait alors plus que lire ces fichiers. Tout nouveau
+     changement repasse en prévisualisation jusqu'au prochain « Appliquer ».
+     La conservation du timbre (formants) n'est proposée que dans ce rendu
+     appliqué : elle ne donne pas un bon résultat avec le moteur léger.
+   - Le contexte audio est fixé à 48 kHz, quel que soit le réglage de la
+     machine (à 96 kHz le calcul double sans bénéfice).
 4. **Analyse** : tempo et temps, tonalité, accords (fondamentale et couleur
    fiables ; extensions proposées comme suggestions), en tenant compte de
    l'harmonie jazz. Tout est corrigeable à la main : premier temps, métrique,
@@ -87,3 +98,8 @@ Pas prévu pour l'instant : apps Windows, Android, iOS.
 - Les prototypes de la phase 0 vivent dans `web/spikes/<nom>/` (pages de test
   ouvrables depuis le site) et ne préjugent pas de l'architecture de la v1.
 - Ne jamais mettre de secret dans le dépôt : il est public.
+- **Chaque envoi sur `main` déclenche un déploiement Netlify, et le quota de
+  déploiements est limité.** Ne pousser sur `main` que pour une étape
+  réellement terminée, avec l'accord du propriétaire. Le travail courant reste
+  en local ou sur une autre branche, et se vérifie avec un serveur local, pas
+  sur le site.
