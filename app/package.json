@@ -15,7 +15,9 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
-    "test:smoke": "node tests/smoke.mjs"
+    "test:smoke": "node tests/smoke.mjs",
+    "test:engine": "node tests/engine.mjs",
+    "test:timeline": "node tests/timeline.mjs"
   },
   "dependencies": {
     "react": "^19.3.1",
