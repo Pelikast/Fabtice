@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fabtice — séparation (prototype)</title>
+<style>
+  :root { --bg: #f4ece0; --ink: #3a2a1e; --muted: #7a6250; --line: #d9c9b3; --accent: #8a4b2a; --card: #fbf6ee; }
+  * { box-sizing: border-box; }
+  html { background: var(--bg); }
+  body {
+    margin: 0 auto; max-width: 760px; padding: 16px;
+    background: var(--bg); color: var(--ink);
+    font: 17px/1.5 Georgia, "Times New Roman", serif;
+  }
+  h1 { font-weight: normal; font-size: 32px; margin: 8px 0 4px; }
+  h2 { font-weight: normal; font-size: 22px; margin: 28px 0 8px; border-bottom: 1px solid var(--line); padding-bottom: 4px; }
+  p, li { color: var(--ink); }
+  .muted { color: var(--muted); font-size: 15px; }
+  button, select, input[type=number] {
+    font: inherit; color: var(--ink); background: var(--card);
+    border: 1px solid var(--muted); border-radius: 6px; padding: 8px 14px;
+  }
+  button { cursor: pointer; }
+  button.main { background: var(--accent); color: #fff8ef; border-color: var(--accent); font-size: 19px; padding: 10px 22px; }
+  button:disabled { opacity: .45; cursor: default; }
+  label.tier { display: block; padding: 10px 12px; margin: 6px 0; background: var(--card); border: 1px solid var(--line); border-radius: 8px; cursor: pointer; }
+  label.tier input { margin-right: 8px; }
+  label.tier .muted { display: block; margin-left: 26px; }
+  details { margin: 12px 0; }
+  details > div { padding: 8px 0 0 4px; }
+  details label { display: block; margin: 6px 0; }
+  progress { width: 100%; height: 14px; }
+  #status { min-height: 1.5em; }
+  .row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+  .row .name { flex: 1 1 120px; }
+  .row button { padding: 4px 10px; font-size: 15px; }
+  .row button.on { background: var(--accent); color: #fff8ef; border-color: var(--accent); }
+  .row input[type=range] { width: 110px; }
+  #transport { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  #seek { flex: 1 1 200px; }
+  pre { white-space: pre-wrap; word-break: break-word; background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 10px; font-size: 13px; line-height: 1.4; }
+  .warn { color: #8a2a1a; }
+</style>
+</head>
+<body>
+  <h1>Séparation des instruments</h1>
+  <p class="muted">Prototype Fabtice. Tout le calcul se fait sur cet appareil ; le modèle est téléchargé une seule fois puis gardé en mémoire du navigateur.</p>
+
+  <h2>1. Le morceau</h2>
+  <p><input type="file" id="file" accept="audio/*,.mp3,.wav,.aif,.aiff,.m4a,.flac"></p>
+  <p id="fileinfo" class="muted"></p>
+
+  <h2>2. La qualité</h2>
+  <div id="tiers"></div>
+
+  <details>
+    <summary>Réglages avancés</summary>
+    <div>
+      <label>Calcul :
+        <select id="backend">
+          <option value="auto">automatique (carte graphique si possible)</option>
+          <option value="webgpu">carte graphique (WebGPU)</option>
+          <option value="wasm">processeur (WebAssembly)</option>
+        </select>
+      </label>
+      <label>Moteur WebGPU :
+        <select id="engine">
+          <option value="native">natif (recommandé)</option>
+          <option value="jsep">JSEP (ancien)</option>
+        </select>
+      </label>
+      <label>Fils de calcul processeur : <input type="number" id="threads" min="1" max="16" step="1" style="width:5em"></label>
+      <label>Ne traiter que les premières <input type="number" id="limit" min="0" step="5" value="0" style="width:5em"> secondes (0 = tout)</label>
+      <label><input type="checkbox" id="verbose"> Journal détaillé d’ONNX Runtime (répartition des opérations)</label>
+      <p><button id="clearcache">Effacer les modèles téléchargés</button></p>
+    </div>
+  </details>
+
+  <p><button id="run" class="main" disabled>Séparer</button></p>
+  <p id="status" class="muted"></p>
+  <progress id="progress" value="0" max="1" hidden></progress>
+
+  <div id="player" hidden>
+    <h2>3. Écouter</h2>
+    <div id="transport">
+      <button id="play">▶ Lecture</button>
+      <button id="stop">■ Début</button>
+      <input type="range" id="seek" min="0" max="1" step="0.01" value="0">
+      <span id="time" class="muted">0:00</span>
+    </div>
+    <div id="tracks"></div>
+  </div>
+
+  <h2>Cet appareil</h2>
+  <p class="muted">Le banc d’essai mesure chaque niveau de qualité sur quelques secondes de son synthétique, puis recommande celui qui convient. Il télécharge les modèles (jusqu’à 420 Mo la première fois).</p>
+  <div id="benchopts"></div>
+  <p><button id="bench">Lancer le banc d’essai</button></p>
+  <p><button id="copy" class="main">Copier le diagnostic</button> <span id="copied" class="muted"></span></p>
+  <pre id="diag"></pre>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
