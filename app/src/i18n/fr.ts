@@ -6,9 +6,6 @@ export const fr = {
   'meta.locale': 'fr-FR',
   'meta.decimal': ',',
 
-  'app.name': 'Fabtice',
-  'app.loading': 'Ouverture…',
-
   // Top bar
   'top.menus': 'Menus',
   'top.newProject': 'Nouveau projet',
@@ -32,7 +29,6 @@ export const fr = {
   'settings.newProject': 'Nouveau projet…',
 
   // Ruler heads
-  'ruler.tempo': 'Tempo',
   'ruler.tempoValue': 'Tempo · {bpm}',
   'ruler.tempoUnset': 'Tempo · à régler',
   'ruler.tempoEdit': 'Régler le tempo et les mesures',
@@ -52,7 +48,6 @@ export const fr = {
   'grid.downbeat': 'Premier temps ici',
   'grid.downbeatAt': 'La mesure 1 commence à {time}.',
   'grid.downbeatHint': 'Placez la tête de lecture sur le premier temps, puis appuyez.',
-  'grid.close': 'Fermer',
 
   // Transport
   'pos.bar': 'mesure',
@@ -163,6 +158,7 @@ export const fr = {
 
   // Engine
   'engine.error': 'La lecture audio ne fonctionne pas sur cet appareil.',
+  'engine.errorLoad': 'Ce morceau n’a pas pu être préparé pour la lecture.',
 } as const;
 
 export type Messages = { readonly [K in keyof typeof fr]: string };

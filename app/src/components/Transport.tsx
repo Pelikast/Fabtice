@@ -51,31 +51,37 @@ function PositionReadout() {
   const timeRef = useRef<HTMLSpanElement>(null);
   const barRef = useRef<HTMLElement>(null);
   const beatRef = useRef<HTMLElement>(null);
-  const last = useRef({ time: '', bar: '', beat: '' });
   const loopText = useApp((s) => (s.loop.enabled && s.loop.region ? formatLoopBars(s.tempoMap, s.loop.region) : null));
+  const engineError = useApp((s) => (s.transport.engine === 'error' ? (s.transport.error?.code ?? 'runtime') : null));
 
   useFrame(() => {
     const position = getEngine().getPosition();
     const time = formatClock(position, decimalSeparator());
     const { bar, beat } = formatPosition(appStore.getState().tempoMap, position);
-    const l = last.current;
-    if (time !== l.time && timeRef.current) timeRef.current.textContent = l.time = time;
-    if (bar !== l.bar && barRef.current) barRef.current.textContent = l.bar = bar;
-    if (beat !== l.beat && beatRef.current) beatRef.current.textContent = l.beat = beat;
+    // Touch the DOM only when the text changes.
+    for (const [el, text] of [[timeRef.current, time], [barRef.current, bar], [beatRef.current, beat]] as const) {
+      if (el && el.textContent !== text) el.textContent = text;
+    }
   });
 
   return (
     <div className="position">
       <span className="temps" ref={timeRef} data-testid="temps" />
-      <span className="ou">
-        {t('pos.bar')} <b ref={barRef} /> · {t('pos.beat')} <b ref={beatRef} />
-        {loopText && (
-          <span>
-            {' '}
-            · {t('pos.loop')} <b>{loopText}</b>
-          </span>
-        )}
-      </span>
+      {engineError ? (
+        <span className="ou" role="alert">
+          {t(engineError === 'load' ? 'engine.errorLoad' : 'engine.error')}
+        </span>
+      ) : (
+        <span className="ou">
+          {t('pos.bar')} <b ref={barRef} /> · {t('pos.beat')} <b ref={beatRef} />
+          {loopText && (
+            <span>
+              {' '}
+              · {t('pos.loop')} <b>{loopText}</b>
+            </span>
+          )}
+        </span>
+      )}
     </div>
   );
 }

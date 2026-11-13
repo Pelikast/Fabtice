@@ -73,7 +73,6 @@
 }
 .plein:hover { background: var(--braise-sombre); }
 .sinon { font-size: 13.5px; color: var(--encre-douce); margin-bottom: 6px; }
-.formats { margin: 0; font-size: 13.5px; color: var(--encre-douce); }
 .pied {
   display: flex;
   justify-content: space-between;

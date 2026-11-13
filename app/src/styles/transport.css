@@ -134,7 +134,7 @@ button.valeur:hover:not(:disabled), button.valeur[aria-expanded="true"] { backgr
   font-weight: 520;
   font-variation-settings: "opsz" 36, "SOFT" 40;
 }
-.valeur small { display: block; font-size: 11px; color: var(--encre-douce); white-space: nowrap; }
+.valeur small { display: block; font-size: 11px; line-height: 15px; color: var(--encre-douce); white-space: nowrap; }
 .metronome {
   display: flex;
   flex-direction: column;

@@ -206,6 +206,11 @@ try {
     await page.click('button:has-text("Annuler")');
     check('cancel returns to the choices', await page.locator('.accueil .plein').isVisible());
 
+    // Engine failure is shown in the transport
+    await page.evaluate(() => window.__fabtice.engine.loadTracks([{ id: 'x', channels: [new Float32Array(16)], sampleRate: 44100 }], {}).catch(() => {}));
+    await sleep(100);
+    check('engine error shown in the transport', (await text(page, '.position [role="alert"]')).includes('pas pu être préparé'));
+
     check('no page errors (desktop size)', errors.length === 0, errors.join(' | '));
     await page.close();
   }
