@@ -1,0 +1,15 @@
+/* Placeholder layout of the timeline column (replaced with the real timeline). */
+
+.frise { position: relative; min-width: 0; }
+.frise-regle {
+  position: sticky;
+  top: 0;
+  z-index: 8;
+  background: var(--papier);
+  border-bottom: 1px solid var(--trait);
+}
+.frise-rang.mesures { background: var(--papier-fonce); }
+.frise-voie {
+  height: var(--piste);
+  border-bottom: 1px solid var(--trait-fin);
+}

@@ -1,37 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ENGINE_SAMPLE_RATE, type EngineState } from './AudioEngine';
-import { MockEngine, type Clock } from './MockEngine';
-
-/** Manual clock: time only moves with `advance()`, timers fire when due. */
-function fakeClock() {
-  let now = 0;
-  let timers: { at: number; fn: () => void; id: number }[] = [];
-  let next = 1;
-  const clock: Clock = {
-    now: () => now,
-    setTimer: (fn, ms) => {
-      const id = next++;
-      timers.push({ at: now + ms, fn, id });
-      return id;
-    },
-    clearTimer: (h) => {
-      timers = timers.filter((t) => t.id !== h);
-    },
-  };
-  const advance = (ms: number) => {
-    const end = now + ms;
-    for (;;) {
-      timers.sort((a, b) => a.at - b.at);
-      const due = timers[0];
-      if (!due || due.at > end) break;
-      timers.shift();
-      now = due.at;
-      due.fn();
-    }
-    now = end;
-  };
-  return { clock, advance };
-}
+import { MockEngine } from './MockEngine';
+import { fakeClock } from '../test/fakeClock';
 
 const track = (id: string, seconds: number) => ({
   id,

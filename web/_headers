@@ -1,4 +1,5 @@
-# Test pages need cross-origin isolation for multi-threaded WebAssembly.
-/spikes/*
+# Cross-origin isolation everywhere: the audio engine and the test pages need
+# SharedArrayBuffer (multi-threaded WebAssembly, shared audio memory).
+/*
   Cross-Origin-Opener-Policy: same-origin
   Cross-Origin-Embedder-Policy: require-corp

@@ -1,0 +1,184 @@
+/* ---------- Central area ---------- */
+
+.milieu { position: relative; min-height: 0; }
+.vue { position: absolute; inset: 0; }
+
+/* ---------- Pistes view: header column + timeline column ---------- */
+
+/* Vertical scrolling only: the timeline scrolls horizontally on its own
+   (virtual scroll), so the sticky ruler keeps working. */
+.travail {
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--trait) transparent;
+}
+.plan {
+  display: grid;
+  grid-template-columns: var(--tete) minmax(0, 1fr);
+  min-height: 100%;
+  padding-bottom: var(--pied-pistes);
+}
+.tetes {
+  position: relative;
+  z-index: 9;
+  min-width: 0;
+  background: var(--papier);
+  border-right: 1px solid var(--trait);
+}
+
+/* Ruler heads: stay visible while the tracks scroll. */
+.regle-tetes {
+  position: sticky;
+  top: 0;
+  z-index: 8;
+  background: var(--papier);
+  border-bottom: 1px solid var(--trait);
+}
+.rang-tete {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 0 16px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--encre-douce);
+  white-space: nowrap;
+  overflow: hidden;
+  text-align: left;
+}
+.rang-tete.tempo { height: var(--rang-tempo); }
+.rang-tete.accords { height: var(--rang-accords); }
+.rang-tete.mesures { height: var(--rang-mesures); background: var(--papier-fonce); }
+button.rang-tete {
+  gap: 6px;
+  transition: background var(--vite) var(--courbe), color var(--vite) var(--courbe);
+}
+button.rang-tete:hover, button.rang-tete[aria-expanded="true"] { background: var(--papier-fonce); color: var(--encre); }
+.rang-tete .chevron { width: 9px; height: 9px; flex: none; opacity: 0.8; }
+.rang-tete .texte { overflow: hidden; text-overflow: ellipsis; }
+
+/* ---------- Track headers ---------- */
+
+.piste-tete {
+  display: grid;
+  grid-template-columns: 4px minmax(0, 1fr) auto;
+  grid-template-rows: 1fr 1fr;
+  column-gap: 12px;
+  align-items: center;
+  height: var(--piste);
+  padding: 9px 14px 9px 0;
+  border-bottom: 1px solid var(--trait-fin);
+  overflow: hidden;
+  transition: opacity var(--pose) var(--courbe);
+}
+.pastille {
+  grid-row: 1 / 3;
+  align-self: stretch;
+  width: 4px;
+  border-radius: 0 2px 2px 0;
+  background: var(--teinte);
+}
+.nom {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.005em;
+  align-self: end;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color var(--pose) var(--courbe);
+}
+.ms { display: flex; gap: 5px; align-self: end; }
+.ms button {
+  position: relative;
+  width: 27px;
+  height: 23px;
+  border: 1px solid var(--trait);
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--encre-douce);
+  background: var(--papier-clair);
+  transition: background var(--vite) var(--courbe), color var(--vite) var(--courbe), border-color var(--vite) var(--courbe);
+}
+/* Small buttons keep a 40 px touch target. */
+.ms button::after { content: ""; position: absolute; inset: -9px -3px; }
+.ms button:hover { border-color: var(--encre-pale); color: var(--encre); }
+.ms .muet[aria-pressed="true"] { background: var(--encre); border-color: var(--encre); color: var(--papier-clair); }
+.ms .solo[aria-pressed="true"] { background: var(--laiton); border-color: var(--laiton); color: var(--encre); }
+.volume { grid-column: 2 / 4; align-self: start; margin-top: 5px; width: 100%; }
+.piste-tete.eteinte .nom { color: var(--encre-pale); }
+
+/* ---------- Manual grid panel (under the Tempo head) ---------- */
+
+.panneau-grille {
+  top: calc(var(--rang-tempo) + 4px);
+  left: 8px;
+  width: 296px;
+  padding: 14px 16px 16px;
+  text-transform: none;
+  letter-spacing: normal;
+}
+.panneau-grille h2 { margin: 0 0 12px; }
+.panneau-ligne { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.panneau-ligne > span { font-size: 14px; font-weight: 500; color: var(--encre); }
+.panneau-ligne small { display: block; font-size: 11.5px; color: var(--encre-douce); font-weight: 400; }
+.saisie {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--trait);
+  border-radius: var(--rayon);
+  background: var(--papier);
+}
+.saisie button {
+  width: 34px;
+  height: 38px;
+  font-size: 19px;
+  line-height: 1;
+  color: var(--encre-douce);
+  transition: background var(--vite) var(--courbe), color var(--vite) var(--courbe);
+}
+.saisie button:hover { background: var(--papier-fonce); color: var(--encre); }
+.saisie input {
+  width: 58px;
+  height: 38px;
+  padding: 0;
+  border: 0;
+  border-left: 1px solid var(--trait-fin);
+  border-right: 1px solid var(--trait-fin);
+  background: #fff;
+  text-align: center;
+  font-family: var(--titre);
+  font-size: 19px;
+  font-weight: 520;
+  font-variation-settings: "opsz" 36, "SOFT" 40;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+.saisie input::-webkit-inner-spin-button, .saisie input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.bouton-cadre {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--trait);
+  border-radius: var(--rayon);
+  background: var(--papier);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--encre);
+  transition: background var(--vite) var(--courbe), border-color var(--vite) var(--courbe);
+}
+.bouton-cadre:hover { border-color: var(--encre-pale); background: var(--papier-fonce); }
+.bouton-cadre:active { background: var(--trait-fin); }
+.panneau-note { margin: 6px 2px 14px; font-size: 12.5px; color: var(--encre-douce); }
+.panneau-note:last-child { margin-bottom: 0; }
+.temps-mesure button { min-width: 34px; height: 38px; padding: 0; }
+.panneau-separe { margin: 2px -16px 14px; border: 0; border-top: 1px solid var(--trait-fin); }

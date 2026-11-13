@@ -1,0 +1,138 @@
+* { box-sizing: border-box; }
+
+html, body, #root { height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--papier);
+  color: var(--encre);
+  font: 15px/1.4 var(--texte);
+  font-feature-settings: "tnum" 1;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+/* Paper grain at 5 %, over the whole screen. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 50;
+  opacity: 0.05;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.17 0 0 0 0 0.12 0 0 0 0 0.09 0 0 0 1 0'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23g)'/%3E%3C/svg%3E");
+}
+
+button, select, input {
+  font: inherit;
+  color: inherit;
+}
+button, select {
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+button:disabled { cursor: default; }
+button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible {
+  outline: 2px solid var(--encre);
+  outline-offset: 2px;
+}
+[hidden] { display: none !important; }
+
+.visuellement-cache {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Sliders: a thin rule and a small ink knob. */
+input[type="range"] {
+  height: 14px;
+  margin: 0;
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+input[type="range"]::-webkit-slider-runnable-track { height: 3px; border-radius: 2px; background: var(--trait); }
+input[type="range"]::-moz-range-track { height: 3px; border-radius: 2px; background: var(--trait); }
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 11px;
+  height: 11px;
+  margin-top: -4px;
+  border-radius: 50%;
+  background: var(--encre-douce);
+  border: 0;
+}
+input[type="range"]::-moz-range-thumb { width: 11px; height: 11px; border-radius: 50%; background: var(--encre-douce); border: 0; }
+
+.app {
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
+/* Floating windows (settings, tempo and tuning panels) share one look. */
+.fenetre {
+  position: absolute;
+  z-index: 30;
+  padding: 8px;
+  background: var(--papier-clair);
+  border: 1px solid var(--trait);
+  border-radius: var(--rayon-fenetre);
+  box-shadow: var(--ombre-fenetre);
+  animation: monte var(--pose) var(--courbe);
+}
+@keyframes monte {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Small capitals label (DESIGN.md « Libellé »). */
+.libelle {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--encre-douce);
+}
+
+/* Text link with an ember underline, as in the mockup's dialog. */
+.lien {
+  padding: 0;
+  color: var(--encre);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: var(--braise);
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+/* Two-choice switch (minor notation, beats per bar). */
+.duo { display: flex; border: 1px solid var(--trait); border-radius: var(--rayon); overflow: hidden; }
+.duo button {
+  padding: 4px 10px;
+  font-family: var(--titre);
+  font-size: 15px;
+  font-weight: 520;
+  color: var(--encre-douce);
+  transition: background var(--vite) var(--courbe), color var(--vite) var(--courbe);
+}
+.duo button + button { border-left: 1px solid var(--trait-fin); }
+.duo button:hover { background: var(--papier-fonce); color: var(--encre); }
+.duo button[aria-pressed="true"] { background: var(--encre); color: var(--papier-clair); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+.lien:disabled { color: var(--encre-pale); text-decoration-color: var(--trait); cursor: default; }

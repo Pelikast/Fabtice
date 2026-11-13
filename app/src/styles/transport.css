@@ -1,0 +1,184 @@
+/* ---------- Transport ---------- */
+
+.bas {
+  position: relative;
+  z-index: 15;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 18px;
+  padding: 12px 22px calc(12px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--trait);
+  background: var(--papier-clair);
+}
+.gauche { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-width: 0; }
+.position { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.temps {
+  font-family: var(--titre);
+  font-size: 28px;
+  font-weight: 420;
+  font-variation-settings: "opsz" 48, "SOFT" 30;
+  line-height: 1;
+}
+.ou { color: var(--encre-douce); font-size: 12.5px; white-space: nowrap; }
+.ou b { color: var(--encre); font-weight: 600; }
+
+.reglage-nom {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--encre-douce);
+  text-align: center;
+}
+.sous-grille { display: flex; align-items: flex-end; gap: 8px; }
+.choix { display: flex; flex-direction: column; gap: 3px; }
+.choix .reglage-nom { text-align: left; }
+.choix select, .bascule {
+  height: 34px;
+  border: 1px solid var(--trait);
+  border-radius: var(--rayon);
+  background-color: var(--papier);
+  font-size: 14px;
+  font-weight: 500;
+}
+.choix select {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 164px;
+  padding: 0 30px 0 11px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8' fill='none' stroke='%236a5646' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1.5 1.5 6 6l4.5-4.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 11px center;
+  background-size: 10px;
+}
+.choix select:hover, .bascule:hover { border-color: var(--encre-pale); }
+.bascule {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 12px 0 9px;
+  color: var(--encre-douce);
+  transition: background var(--vite) var(--courbe), color var(--vite) var(--courbe), border-color var(--vite) var(--courbe);
+}
+.bascule svg { width: 24px; height: 13px; }
+.bascule[aria-pressed="true"] { background: var(--encre); border-color: var(--encre); color: var(--papier-clair); }
+
+.commandes { display: flex; align-items: center; gap: 14px; }
+.rond {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  color: var(--encre-douce);
+  transition: background var(--vite) var(--courbe), color var(--vite) var(--courbe), transform var(--vite) var(--courbe);
+}
+.rond:hover:not(:disabled) { background: var(--papier-fonce); color: var(--encre); }
+.rond:disabled { color: var(--encre-pale); }
+.rond[aria-pressed="true"] { color: var(--laiton); background: var(--laiton-voile); }
+.rond svg { width: 20px; height: 20px; }
+.jouer {
+  width: 58px;
+  height: 58px;
+  background: var(--braise);
+  color: #fff;
+  box-shadow: 0 1px 0 rgba(43, 31, 23, 0.25), 0 6px 16px -6px rgba(196, 80, 42, 0.55);
+}
+.jouer:hover:not(:disabled) { background: var(--braise-sombre); color: #fff; }
+.jouer:active:not(:disabled) { transform: scale(0.96); }
+.jouer:disabled { color: rgba(255, 255, 255, 0.8); background: var(--braise); opacity: 0.55; box-shadow: none; }
+.jouer svg { width: 24px; height: 24px; }
+.jouer .pause { display: none; }
+.jouer[aria-pressed="true"] .lire { display: none; }
+.jouer[aria-pressed="true"] .pause { display: block; }
+
+.reglages { display: flex; justify-content: flex-end; align-items: stretch; gap: 10px; }
+.reglage {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto auto auto;
+  grid-template-rows: auto auto;
+  align-items: center;
+  column-gap: 2px;
+  padding: 5px 8px 6px;
+  border: 1px solid var(--trait);
+  border-radius: var(--rayon);
+  background: var(--papier);
+}
+.reglage .reglage-nom { grid-column: 1 / 4; }
+.reglage > .pas {
+  width: 30px;
+  height: 30px;
+  border-radius: 4px;
+  font-size: 19px;
+  line-height: 1;
+  color: var(--encre-douce);
+  transition: background var(--vite) var(--courbe), color var(--vite) var(--courbe);
+}
+.reglage > .pas:hover:not(:disabled) { background: var(--papier-fonce); color: var(--encre); }
+.reglage > .pas:disabled { color: var(--encre-pale); }
+.valeur {
+  min-width: 76px;
+  padding: 1px 2px;
+  border-radius: 4px;
+  text-align: center;
+  line-height: 1.05;
+}
+button.valeur { transition: background var(--vite) var(--courbe); }
+button.valeur:hover:not(:disabled), button.valeur[aria-expanded="true"] { background: var(--papier-fonce); }
+.valeur strong {
+  display: block;
+  font-family: var(--titre);
+  font-size: 22px;
+  font-weight: 520;
+  font-variation-settings: "opsz" 36, "SOFT" 40;
+}
+.valeur small { display: block; font-size: 11px; color: var(--encre-douce); white-space: nowrap; }
+.metronome {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  width: 64px;
+  border: 1px solid var(--trait);
+  border-radius: var(--rayon);
+  background: var(--papier);
+  color: var(--encre-douce);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  transition: background var(--vite) var(--courbe), color var(--vite) var(--courbe), border-color var(--vite) var(--courbe);
+}
+.metronome svg { width: 22px; height: 22px; }
+.metronome:hover { border-color: var(--encre-pale); color: var(--encre); }
+.metronome[aria-pressed="true"] { background: var(--encre); border-color: var(--encre); color: var(--papier-clair); }
+
+/* Fine tuning, above the Tonalité box. */
+.panneau-accord {
+  right: 0;
+  bottom: calc(100% + 8px);
+  width: 250px;
+  padding: 12px 14px 12px;
+}
+.panneau-accord h2 { margin: 0 0 10px; }
+.cents { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.cents strong {
+  font-family: var(--titre);
+  font-size: 20px;
+  font-weight: 520;
+  font-variation-settings: "opsz" 36, "SOFT" 40;
+}
+.cents button {
+  width: 36px;
+  height: 36px;
+  border-radius: 4px;
+  font-size: 19px;
+  color: var(--encre-douce);
+}
+.cents button:hover { background: var(--papier-fonce); color: var(--encre); }
+.panneau-accord input[type="range"] { width: 100%; height: 28px; margin: 6px 0 8px; }
+.remise { display: flex; justify-content: flex-start; padding-top: 8px; border-top: 1px solid var(--trait-fin); }
+.remise .lien { min-height: 32px; font-size: 13.5px; }

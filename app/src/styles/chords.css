@@ -1,0 +1,27 @@
+/* Chord symbols, written as on a jazz chart (DESIGN.md). Used from lot 2 on. */
+
+.alt {
+  font-family: var(--musique);
+  font-size: 1.28em;
+  font-weight: 400;
+  margin: 0 -0.05em 0 -0.015em;
+  line-height: 0;
+  vertical-align: 0.1em;
+  -webkit-text-stroke: 0.022em currentColor;
+}
+.tri {
+  display: inline-block;
+  width: 0.6em;
+  height: 0.54em;
+  margin-left: 0.07em;
+  vertical-align: 0.1em;
+  overflow: visible;
+}
+.q { font-size: 0.74em; font-weight: 470; margin-left: 0.04em; }
+.ext {
+  font-size: 0.6em;
+  font-weight: 500;
+  vertical-align: 0.55em;
+  margin-left: 0.06em;
+  color: var(--encre-douce);
+}

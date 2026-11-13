@@ -8,6 +8,12 @@ Le projet est en phase de prototypes. Licence : GPL-3.0-or-later.
 
 ## Organisation
 
-- `web/` — l'application web (site statique, déployé sur Netlify).
-- `desktop/` — l'app Mac, qui ajoute l'import par lien.
+- `app/` — les sources de l'interface (TypeScript, React, Vite), communes à
+  l'app web et à l'app Mac ; voir `app/README.md`.
+- `web/` — le site statique déployé sur Netlify : l'interface construite depuis
+  `app/` (`index.html` et `assets/`, non versionnés), la maquette validée
+  (`maquette/`) et les pages de test des prototypes (`spikes/`).
+- `desktop/` — l'app Mac, qui ajoute l'import par lien ; elle reçoit la même
+  interface construite dans `desktop/ui/`.
 - `CLAUDE.md` — le cahier des charges et les conventions du projet.
+- `DESIGN.md` — le design validé, qui fait référence pour l'interface.

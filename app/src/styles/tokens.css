@@ -1,0 +1,60 @@
+/* Design tokens: DESIGN.md is the reference. One light theme, no dark mode. */
+
+:root {
+  /* Paper */
+  --papier: #f4ecdf;
+  --papier-clair: #fbf6ec;
+  --papier-fonce: #eadfcd;
+  --trait: #d8c8b0;
+  --trait-fin: #e6dac6;
+
+  /* Ink */
+  --encre: #2b1f17;
+  --encre-douce: #6a5646;
+  --encre-pale: #a08c77;
+
+  /* Ember: the only accent (play button, playhead). Brass: loop and selection. */
+  --braise: #c4502a;
+  --braise-sombre: #a23f1f;
+  --laiton: #b8873a;
+  --laiton-voile: rgba(184, 135, 58, 0.17);
+
+  /* Track hues: muted, same value; waveforms and track dots only. */
+  --voix: #b5533c;
+  --batterie: #6f5847;
+  --basse: #85506b;
+  --guitare: #798043;
+  --piano: #557886;
+  --vents: #bd8a2c;
+  --autres: #8d8176;
+  /* The whole piece, before separation, takes the « others » hue. */
+  --morceau: var(--autres);
+
+  /* Bar lines on the tracks: ink at 26 % (DESIGN.md). */
+  --barre: rgba(43, 31, 23, 0.26);
+
+  --titre: "Fraunces", "Iowan Old Style", Georgia, serif;
+  --texte: "Instrument Sans", "Helvetica Neue", Arial, sans-serif;
+  --musique: "Noto Music", "Apple Symbols", "Segoe UI Symbol", serif;
+
+  --rayon: 5px;
+  --rayon-fenetre: 8px;
+  --tete: 212px;        /* track header column */
+  --piste: 74px;        /* track height (vertical zoom), set from the store */
+  --rang-tempo: 34px;   /* ruler rows, mirrored in timeline/layout.ts */
+  --rang-accords: 42px;
+  --rang-mesures: 24px;
+  --pied-pistes: 56px;  /* room under the tracks for the display tools */
+
+  --vite: 140ms;        /* state change */
+  --pose: 220ms;        /* entrance */
+  --courbe: cubic-bezier(0.2, 0.7, 0.2, 1);
+
+  /* The single warm shadow, under windows; a light one under the play button. */
+  --ombre-fenetre: 0 18px 40px -18px rgba(43, 31, 23, 0.45);
+  --ombre-accueil: 0 24px 60px -20px rgba(43, 31, 23, 0.45);
+}
+
+@media (max-width: 760px) {
+  :root { --tete: 92px; }
+}

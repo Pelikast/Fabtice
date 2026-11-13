@@ -1,0 +1,106 @@
+/* ---------- Top bar (58 px) ---------- */
+
+.haut {
+  position: relative;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 0 22px;
+  height: 58px;
+  border-bottom: 1px solid var(--trait);
+}
+.marque {
+  margin: 0;
+  font-family: var(--titre);
+  font-size: 25px;
+  font-weight: 560;
+  font-variation-settings: "opsz" 72, "SOFT" 60, "WONK" 1;
+  letter-spacing: -0.01em;
+  line-height: 1;
+}
+.marque i { font-style: italic; color: var(--braise); }
+.projet {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding-left: 20px;
+  border-left: 1px solid var(--trait);
+}
+.projet-titre {
+  font-family: var(--titre);
+  font-size: 18px;
+  font-weight: 480;
+  font-variation-settings: "opsz" 24, "SOFT" 40;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.projet-titre.vide { color: var(--encre-douce); }
+.projet-source { color: var(--encre-douce); font-size: 13px; white-space: nowrap; }
+.menus { display: flex; align-items: center; gap: 4px; }
+.menu {
+  padding: 8px 12px;
+  border-radius: var(--rayon);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--encre-douce);
+  white-space: nowrap;
+  transition: background var(--vite) var(--courbe), color var(--vite) var(--courbe);
+}
+.menu:hover:not(:disabled) { background: var(--papier-fonce); color: var(--encre); }
+.menu:disabled { color: var(--encre-pale); }
+.menu[aria-expanded="true"] { background: var(--papier-fonce); color: var(--encre); }
+.menu-plus { display: none; }
+
+/* The two views: a group of their own, the active one underlined in ink. */
+.modes {
+  display: flex;
+  gap: 2px;
+  margin: 0 8px;
+  padding: 0 8px;
+  border-left: 1px solid var(--trait);
+  border-right: 1px solid var(--trait);
+}
+.mode { position: relative; }
+.mode[aria-selected="true"] { color: var(--encre); font-weight: 600; }
+.mode[aria-selected="true"]::after {
+  content: "";
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 2px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--encre);
+}
+
+/* Settings popover */
+.reglages-app {
+  top: 52px;
+  right: 16px;
+  width: 290px;
+}
+.option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 40px;
+  padding: 9px 10px;
+  border-radius: var(--rayon);
+  font-size: 14px;
+  text-align: left;
+}
+label.option { cursor: pointer; justify-content: flex-start; }
+label.option:hover, .lien-option:hover { background: var(--papier-fonce); }
+.option input[type="checkbox"] { width: 16px; height: 16px; margin: 0; accent-color: var(--encre); }
+.lien-option {
+  display: none;
+  border-top: 1px solid var(--trait-fin);
+  border-radius: 0 0 var(--rayon) var(--rayon);
+  font-weight: 600;
+}

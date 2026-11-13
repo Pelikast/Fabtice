@@ -1,0 +1,81 @@
+/* ---------- Medium screens ---------- */
+
+@media (max-width: 1240px) {
+  .projet-source { display: none; }
+  .choix select { width: 138px; }
+  .valeur { min-width: 64px; }
+}
+@media (max-width: 1040px) {
+  .ou { display: none; }
+  .menu { padding: 8px 9px; }
+}
+
+/* ---------- Phone (DESIGN.md « Téléphone ») ---------- */
+
+@media (max-width: 760px) {
+  .haut { flex-wrap: wrap; padding: 0 14px; gap: 0 12px; height: auto; }
+  .marque { font-size: 22px; line-height: 50px; }
+  .projet { padding-left: 12px; }
+  .projet-titre { font-size: 16px; }
+  .menus { display: contents; }
+  .cache-tel, .long { display: none; }
+  .menu-plus { display: block; font-size: 20px; line-height: 1; padding: 6px 10px; min-width: 40px; min-height: 40px; }
+  .modes {
+    order: 5;
+    flex: 1 0 100%;
+    margin: 0 -14px;
+    padding: 0;
+    border: 0;
+    border-top: 1px solid var(--trait-fin);
+  }
+  .mode { flex: 1; min-height: 40px; padding: 9px 4px; border-radius: 0; }
+  .mode[aria-selected="true"]::after { left: 22%; right: 22%; bottom: 0; }
+  .reglages-app { top: 48px; right: 10px; }
+  .lien-option { display: flex; }
+
+  .rang-tete { padding: 0 8px; font-size: 9.5px; letter-spacing: 0.06em; }
+  .rang-tete .chevron { display: none; }
+  .piste-tete {
+    grid-template-columns: 4px minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    column-gap: 8px;
+    padding: 8px 8px 8px 0;
+  }
+  .nom { font-size: 13px; }
+  .ms { grid-column: 2; align-self: start; margin-top: 4px; }
+  .ms button { width: 30px; height: 24px; }
+  .volume { display: none; }
+
+  /* On a phone the zoom is a pinch: only the magnet and Auto remain. */
+  .zoom { display: none; }
+  .outils { right: 10px; bottom: 8px; padding: 4px; }
+
+  .feuille { padding: 20px 12px 30px; }
+  .feuille-tete { flex-direction: column; gap: 2px; margin-bottom: 14px; }
+  .feuille-tete h1 { font-size: 24px; }
+  .grille-vide span { height: 76px; }
+
+  .bas {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+  }
+  .gauche { order: 1; }
+  .temps { font-size: 24px; }
+  .choix .reglage-nom { display: none; }
+  .choix select { width: 146px; height: 36px; }
+  .bascule { height: 36px; }
+  .commandes { justify-content: center; order: 3; gap: 22px; }
+  .reglages { justify-content: stretch; order: 2; gap: 8px; }
+  .reglage { flex: 1; padding: 4px 4px 5px; justify-content: center; }
+  .valeur { min-width: 0; padding: 0 2px; }
+  .valeur strong { font-size: 19px; }
+  .reglage > .pas { width: 28px; }
+  .metronome { width: 54px; font-size: 0; gap: 0; }
+  .jouer { width: 60px; height: 60px; }
+  .panneau-accord { right: auto; left: 0; }
+
+  .accueil { padding: 24px 20px 20px; }
+  .accueil h2 { font-size: 26px; }
+  .champ { flex-direction: column; }
+}

@@ -1,0 +1,166 @@
+/* ---------- New-piece dialog ---------- */
+
+.voile {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(43, 31, 23, 0.34);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity var(--pose) var(--courbe), visibility 0s linear var(--pose);
+}
+.voile.ouverte { opacity: 1; visibility: visible; transition-delay: 0s; }
+.accueil {
+  width: min(560px, 100%);
+  max-height: 100%;
+  overflow: auto;
+  padding: 30px 32px 26px;
+  background: var(--papier-clair);
+  border: 1px solid var(--trait);
+  border-radius: var(--rayon-fenetre);
+  box-shadow: var(--ombre-accueil);
+  transform: translateY(10px);
+  transition: transform var(--pose) var(--courbe);
+}
+.voile.ouverte .accueil { transform: none; }
+.accueil-entete { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.accueil h2 {
+  margin: 0 0 4px;
+  font-family: var(--titre);
+  font-size: 30px;
+  font-weight: 500;
+  font-variation-settings: "opsz" 72, "SOFT" 60;
+  letter-spacing: -0.01em;
+}
+.fermer {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  margin: -8px -12px 0 0;
+  border-radius: var(--rayon);
+  color: var(--encre-douce);
+  transition: background var(--vite) var(--courbe), color var(--vite) var(--courbe);
+}
+.fermer:hover { background: var(--papier-fonce); color: var(--encre); }
+.fermer svg { width: 16px; height: 16px; }
+.accueil p { margin: 0 0 20px; color: var(--encre-douce); }
+.champ { display: flex; gap: 8px; margin-bottom: 8px; }
+.champ input {
+  flex: 1;
+  min-width: 0;
+  height: 46px;
+  padding: 0 14px;
+  font-size: 16px;
+  color: var(--encre);
+  background: #fff;
+  border: 1px solid var(--trait);
+  border-radius: var(--rayon);
+}
+.champ input::placeholder { color: var(--encre-pale); }
+.plein {
+  height: 46px;
+  padding: 0 20px;
+  border-radius: var(--rayon);
+  background: var(--braise);
+  color: #fff;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background var(--vite) var(--courbe);
+}
+.plein:hover { background: var(--braise-sombre); }
+.sinon { font-size: 13.5px; color: var(--encre-douce); margin-bottom: 6px; }
+.formats { margin: 0; font-size: 13.5px; color: var(--encre-douce); }
+.pied {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--trait-fin);
+  font-size: 13.5px;
+  color: var(--encre-douce);
+}
+
+/* Import in progress */
+.import-etat { margin: 4px 0 2px; }
+.import-etat .phase { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 10px; font-weight: 500; }
+.import-etat .phase span:last-child { color: var(--encre-douce); font-variant-numeric: tabular-nums; }
+.import-titre {
+  margin: -4px 0 12px;
+  font-family: var(--titre);
+  font-size: 17px;
+  font-weight: 480;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.jauge {
+  position: relative;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--trait-fin);
+}
+.jauge span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: calc(var(--avance, 0) * 100%);
+  background: var(--encre-douce);
+  transition: width var(--pose) linear;
+}
+/* Unknown length: a short segment travels slowly, no blinking. */
+.jauge.indeterminee span { width: 30%; animation: parcourt 1.6s linear infinite; }
+@keyframes parcourt {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(340%); }
+}
+.import-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+.import-actions .bouton-cadre { width: auto; padding: 0 16px; }
+
+/* Import error: ink text on a brass rule, never red (the ember is for playback only). */
+.import-erreur {
+  margin: 4px 0 4px;
+  padding: 2px 0 2px 14px;
+  border-left: 3px solid var(--laiton);
+}
+.import-erreur strong { display: block; margin-bottom: 4px; }
+.import-erreur p { margin: 0; color: var(--encre); }
+.import-erreur p + p { margin-top: 6px; color: var(--encre-douce); font-size: 13.5px; }
+
+/* ---------- Drop anywhere ---------- */
+
+.depot {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(43, 31, 23, 0.34);
+  pointer-events: none;
+  animation: apparait var(--pose) var(--courbe);
+}
+.depot div {
+  padding: 34px 44px;
+  background: var(--papier-clair);
+  border: 1px solid var(--trait);
+  border-radius: var(--rayon-fenetre);
+  box-shadow: var(--ombre-accueil);
+  text-align: center;
+}
+.depot strong {
+  display: block;
+  margin-bottom: 4px;
+  font-family: var(--titre);
+  font-size: 26px;
+  font-weight: 500;
+  font-variation-settings: "opsz" 72, "SOFT" 60;
+}
+.depot span { color: var(--encre-douce); }
+@keyframes apparait { from { opacity: 0; } to { opacity: 1; } }
