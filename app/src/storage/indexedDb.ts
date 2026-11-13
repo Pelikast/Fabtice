@@ -84,12 +84,18 @@ export class IndexedDbStorage implements ProjectStorage {
   private async transact<T>(mode: IDBTransactionMode, stores: string[], work: (tx: IDBTransaction) => IDBRequest | null): Promise<T | undefined> {
     const db = await this.open();
     return new Promise<T | undefined>((resolve, reject) => {
-      let tx: IDBTransaction;
+      let tx: IDBTransaction | undefined;
       let last: IDBRequest | null = null;
       try {
         tx = db.transaction(stores, mode);
         last = work(tx);
       } catch (e) {
+        // A request that throws (data that cannot be stored) leaves the transaction alive: cancel what it did.
+        try {
+          tx?.abort();
+        } catch {
+          // already finished
+        }
         return reject(toStorageError(e));
       }
       tx.oncomplete = () => resolve(last ? (last.result as T) : undefined);

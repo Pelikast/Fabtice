@@ -1,8 +1,10 @@
 // Builders of tiny audio files for the unit tests (no audio dependency).
 
+type Bytes = Uint8Array<ArrayBuffer>;
+
 const enc = (s: string) => Array.from(s, (c) => c.charCodeAt(0));
 
-function concat(parts: (number[] | Uint8Array)[]): Uint8Array {
+function concat(parts: (number[] | Uint8Array)[]): Bytes {
   const total = parts.reduce((n, p) => n + p.length, 0);
   const out = new Uint8Array(total);
   let at = 0;
@@ -40,7 +42,7 @@ export interface AiffSpec {
   truncateBytes?: number;
 }
 
-export function makeAiff(spec: AiffSpec): Uint8Array {
+export function makeAiff(spec: AiffSpec): Bytes {
   const { channels, sampleRate, bits, samples, compression } = spec;
   const frames = samples[0]!.length;
   const little = compression === 'sowt';
@@ -87,7 +89,7 @@ export function makeAiff(spec: AiffSpec): Uint8Array {
 }
 
 /** 16-bit PCM WAV. */
-export function makeWav(channels: number, sampleRate: number, samples: number[][], options: { dataSizeOverride?: number } = {}): Uint8Array {
+export function makeWav(channels: number, sampleRate: number, samples: number[][], options: { dataSizeOverride?: number } = {}): Bytes {
   const frames = samples[0]!.length;
   const data: number[] = [];
   for (let i = 0; i < frames; i++) {
@@ -116,7 +118,7 @@ export function makeWav(channels: number, sampleRate: number, samples: number[][
 }
 
 /** A FLAC file prefix: marker and STREAMINFO only (enough to read the length). */
-export function makeFlacHeader(sampleRate: number, totalSamples: number): Uint8Array {
+export function makeFlacHeader(sampleRate: number, totalSamples: number): Bytes {
   const info = new Uint8Array(34);
   info[10] = (sampleRate >> 12) & 255;
   info[11] = (sampleRate >> 4) & 255;
@@ -127,7 +129,7 @@ export function makeFlacHeader(sampleRate: number, totalSamples: number): Uint8A
 }
 
 /** An MP4 file prefix: ftyp and a moov holding an mvhd (version 0) with the given length. */
-export function makeMp4Header(timescale: number, duration: number): Uint8Array {
+export function makeMp4Header(timescale: number, duration: number): Bytes {
   const mvhd = [...u32be(0), ...u32be(0), ...u32be(0), ...u32be(timescale), ...u32be(duration), ...new Array<number>(80).fill(0)];
   const mvhdBox = [...u32be(8 + mvhd.length), ...enc('mvhd'), ...mvhd];
   const moov = [...u32be(8 + mvhdBox.length), ...enc('moov'), ...mvhdBox];
@@ -136,7 +138,7 @@ export function makeMp4Header(timescale: number, duration: number): Uint8Array {
 }
 
 /** Constant-bitrate MPEG-1 Layer III frames (mono, 44.1 kHz, 128 kbps): silence, optional ID3v2 tag in front. */
-export function makeMp3(seconds: number, options: { id3?: boolean; xingFrames?: number } = {}): Uint8Array {
+export function makeMp3(seconds: number, options: { id3?: boolean; xingFrames?: number } = {}): Bytes {
   const frameLength = Math.floor((144 * 128000) / 44100); // 417 bytes
   const frames = Math.ceil((seconds * 44100) / 1152);
   const parts: (number[] | Uint8Array)[] = [];
