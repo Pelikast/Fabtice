@@ -69,7 +69,13 @@ function PositionReadout() {
       <span className="temps" ref={timeRef} data-testid="temps" />
       {engineError ? (
         <span className="ou" role="alert">
-          {t(engineError === 'load' ? 'engine.errorLoad' : 'engine.error')}
+          {t(
+            engineError === 'load'
+              ? 'engine.errorLoad'
+              : engineError === 'unsupported'
+                ? 'engine.errorUnsupported'
+                : 'engine.error',
+          )}
         </span>
       ) : (
         <span className="ou">
