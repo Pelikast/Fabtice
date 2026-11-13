@@ -336,8 +336,8 @@ voie, gain limité à 8) ; la courbe d'affichage est une puissance 0,8.
 | Geste | Effet |
 |---|---|
 | clic (sans glisser) sur une voie ou dans la rangée Mesures | `seek()`, calé par `snapTime()` si le magnétisme est actif |
-| glisser à la souris sur une voie ou dans Mesures | sélection de mesures entières, `setLoopRegion(loopFromBars(...))` en direct |
-| glisser un bord de la boucle (règle ou voie) | ajuste la boucle mesure par mesure (au moins une mesure) |
+| glisser à la souris sur une voie ou dans Mesures | sélection de mesures entières, `setLoopRegion(loopFromBars(...))` en direct ; au relâchement, `enterLoop()` amène la tête de lecture au début de la boucle si elle était en dehors |
+| glisser un bord de la boucle (règle ou voie) | ajuste la boucle mesure par mesure (au moins une mesure) ; même `enterLoop()` au relâchement |
 | glisser dans la rangée Tempo | fait défiler (comme le doigt) |
 | molette horizontale, balayage au pavé tactile | défilement horizontal |
 | Maj + molette | défilement horizontal |

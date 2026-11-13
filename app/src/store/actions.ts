@@ -194,6 +194,21 @@ export function setLoopRegion(region: TimeRange | null): void {
 
 export function toggleLoop(): void {
   set((s) => ({ loop: { ...s.loop, enabled: s.loop.region !== null && !s.loop.enabled } }));
+  enterLoop();
+}
+
+/**
+ * Brings the playhead into the loop: when a loop is on and the playhead is
+ * heard outside it, playback continues from the loop start. Called when a
+ * selection is finished and when the loop is switched on, so the loop is heard
+ * at once (past its end, the engine would otherwise play on to the end of the
+ * piece and never loop).
+ */
+export function enterLoop(): void {
+  const { region, enabled } = get().loop;
+  if (!enabled || !region) return;
+  const position = getEngine().getPosition();
+  if (position < region.start || position >= region.end) seek(region.start);
 }
 
 // ---------------------------------------------------------------- key and tempo
