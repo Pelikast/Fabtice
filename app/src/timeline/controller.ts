@@ -95,6 +95,10 @@ export class TimelineController {
   private s: AppState = appStore.getState();
   private alive = true;
   private dirty = ALL;
+  // Drawing cost, published in `data-flush` (count, total ms, worst ms) for the browser checks.
+  private flushes = 0;
+  private flushTotal = 0;
+  private flushMax = 0;
 
   // The view.
   private t0 = 0;
@@ -238,6 +242,7 @@ export class TimelineController {
     const d = this.dirty;
     this.dirty = 0;
     if (this.viewW <= 0) return;
+    const started = performance.now();
     const { viewW: w, dpr, t0, pps } = this;
     const s = this.s;
     if (d & GRID) {
@@ -278,9 +283,18 @@ export class TimelineController {
     if (d & LOOP) this.placeLoop();
     if (d & BAR) this.placeScrollbar();
     this.placeHead(this.lastPos, true);
+    // Read by the browser checks (tests/timeline.mjs) and handy when debugging.
+    this.root.dataset.t0 = String(this.t0);
+    this.root.dataset.pps = String(this.pps);
+    const cost = performance.now() - started;
+    this.flushes += 1;
+    this.flushTotal += cost;
+    this.flushMax = Math.max(this.flushMax, cost);
+    this.root.dataset.flush = `${this.flushes},${this.flushTotal.toFixed(2)},${this.flushMax.toFixed(2)}`;
   }
 
   private drawWaves(): void {
+    let allReady = true;
     for (const lane of this.lanes) {
       const w = lane.el.clientWidth;
       const h = lane.el.clientHeight;
@@ -292,8 +306,10 @@ export class TimelineController {
         lane.ctx.clearRect(0, 0, w, h);
         continue;
       }
+      if (!pyramid.ready) allReady = false;
       drawWave(lane.ctx, { w, h, dpr: this.dpr, t0: this.t0, pps: this.pps, pyramid, color: this.hue(track.role) });
     }
+    this.root.dataset.peaks = allReady ? 'ready' : 'building';
   }
 
   private readonly hues = new Map<string, string>();
@@ -604,7 +620,11 @@ export class TimelineController {
       if (this.touches.size > 2) return;
     }
     if (this.gesture) return;
-    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+    try {
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    } catch {
+      /* a pointer that is already gone: nothing to capture */
+    }
     const edge = this.edgeAt(e.clientX, region, touch);
     const loop = this.s.loop.region;
     if (edge && loop) {
@@ -801,7 +821,11 @@ export class TimelineController {
       const trackW = this.bar.clientWidth;
       if (e.target === this.thumb) {
         this.barDrag = { startX: e.clientX, startT0: this.t0, trackW };
-        this.bar.setPointerCapture(e.pointerId);
+        try {
+          this.bar.setPointerCapture(e.pointerId);
+        } catch {
+          /* pointer already gone */
+        }
         this.bar.classList.add('saisie');
       } else {
         // A click on the rule moves by one page towards it.
