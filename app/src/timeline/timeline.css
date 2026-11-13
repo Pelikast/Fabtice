@@ -1,15 +1,150 @@
-/* Placeholder layout of the timeline column (replaced with the real timeline). */
+/* The timeline column of the Pistes view. Colours come from the design tokens
+   (DESIGN.md); canvases are as big as the viewport and positioned by
+   timeline/controller.ts. */
 
-.frise { position: relative; min-width: 0; }
+.frise {
+  position: relative;
+  min-width: 0;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* ---------- Ruler (sticky) ---------- */
+
 .frise-regle {
   position: sticky;
   top: 0;
   z-index: 8;
+  overflow: hidden;
   background: var(--papier);
   border-bottom: 1px solid var(--trait);
+  /* Dragging in the bars row selects bars: the finger must not scroll the page. */
+  touch-action: none;
 }
+.frise-rang { position: relative; }
 .frise-rang.mesures { background: var(--papier-fonce); }
+.frise-regle-toile {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: none;
+}
+
+/* Loop band in the ruler: solid brass, the numbers on it stay ink. */
+.frise-bande {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: var(--laiton);
+  pointer-events: none;
+  transition: opacity var(--pose) var(--courbe);
+}
+.frise-bande.eteinte { opacity: 0.32; }
+
+/* ---------- Lanes ---------- */
+
+.frise-corps {
+  position: relative;
+  overflow: hidden;
+  touch-action: pan-y;
+}
+.frise-grille {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: none;
+}
+.frise-voies { position: relative; z-index: 1; }
 .frise-voie {
+  position: relative;
   height: var(--piste);
   border-bottom: 1px solid var(--trait-fin);
 }
+.frise-voie canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  transition: opacity var(--pose) var(--courbe);
+}
+/* A muted track, or one silenced by another's solo, stays in place at 22 %. */
+.frise-voie.eteinte canvas { opacity: 0.22; }
+
+/* Loop veil over the lanes: a brass wash with a 1.5 px brass edge. */
+.frise-voile {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  bottom: 0;
+  background: var(--laiton-voile);
+  border-left: 1.5px solid var(--laiton);
+  border-right: 1.5px solid var(--laiton);
+  pointer-events: none;
+  transition: opacity var(--pose) var(--courbe);
+}
+.frise-voile.eteinte { opacity: 0.4; }
+.frise-voile.coupee-gauche { border-left-width: 0; }
+.frise-voile.coupee-droite { border-right-width: 0; }
+
+/* ---------- Playhead ---------- */
+
+/* An ember hairline topped with a small triangle; moved with a transform in
+   the frame loop, never repainted. */
+.frise-lecture {
+  position: absolute;
+  z-index: 3;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 0;
+  border-left: 1.5px solid var(--braise);
+  pointer-events: none;
+  will-change: transform;
+}
+.frise-regle .frise-lecture { z-index: 4; }
+.frise-regle .frise-lecture::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -7px;
+  border: 6px solid transparent;
+  border-top: 9px solid var(--braise);
+}
+
+/* ---------- Horizontal scrollbar (the virtual scroll needs a visible handle) ---------- */
+
+.frise-defile {
+  position: sticky;
+  bottom: 0;
+  z-index: 6;
+  height: 14px;
+  cursor: pointer;
+  touch-action: none;
+}
+.frise-defile.inutile { visibility: hidden; pointer-events: none; }
+.frise-defile::before {
+  content: "";
+  position: absolute;
+  inset: 4px 0;
+  border-radius: 3px;
+  background: var(--trait-fin);
+}
+.frise-pouce {
+  position: absolute;
+  top: 4px;
+  left: 0;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--trait);
+  transition: background var(--vite) var(--courbe);
+}
+.frise-defile:hover .frise-pouce, .frise-defile:focus-visible .frise-pouce { background: var(--encre-pale); }
+.frise-defile.saisie .frise-pouce { background: var(--encre-douce); }
+.frise-defile:focus-visible { outline-offset: -2px; }

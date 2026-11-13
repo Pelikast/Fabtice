@@ -18,7 +18,8 @@
   display: grid;
   grid-template-columns: var(--tete) minmax(0, 1fr);
   min-height: 100%;
-  padding-bottom: var(--pied-pistes);
+  /* The timeline's scrollbar (14 px) sits in the foot. */
+  padding-bottom: calc(var(--pied-pistes) - 14px);
 }
 .tetes {
   position: relative;
