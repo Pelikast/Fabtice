@@ -16,6 +16,6 @@ console.log(await page.textContent('#loadstate'));
 await page.click('#btn-play');
 await page.waitForTimeout(3000);
 console.log(await page.evaluate(() => buildDiagnostic()));
-await page.screenshot({ path: process.argv[2] || '/tmp/claude-0/-home-user-fabtice/dd9138d6-de27-5bb3-9e96-743ffed7e45c/scratchpad/shot1.png', fullPage: true });
+await page.screenshot({ path: process.argv[2] || 'shot1.png', fullPage: true });
 await browser.close();
 srv.close();
