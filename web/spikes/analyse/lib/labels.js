@@ -1,4 +1,5 @@
-// Display names: jazz chord symbols spelled for the key, French key names.
+// Display names: jazz-chart chord symbols (triangle for major 7, accidentals tight
+// against the root) spelled for the key, French key names.
 import { NO_CHORD, chordRoot, chordQual } from './chords.js';
 
 const SHARP = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B'];
@@ -16,8 +17,8 @@ export function usesSharps(key) {
 export const pcName = (pc, key) => (usesSharps(key) ? SHARP : FLAT)[pc];
 
 const QSYM = {
-  maj: '', min: 'm', aug: '+', dim: '°', sus2: 'sus2', sus4: 'sus4', '7': '7', maj7: 'maj7', min7: 'm7',
-  minmaj7: 'm(maj7)', maj6: '6', min6: 'm6', dim7: '°7', hdim7: 'm7♭5',
+  maj: '', min: 'm', aug: '+', dim: '°', sus2: 'sus2', sus4: 'sus4', '7': '7', maj7: '△7', min7: 'm7',
+  minmaj7: 'm△7', maj6: '6', min6: 'm6', dim7: '°7', hdim7: 'm7♭5',
 };
 
 export function chordName(c, key) {

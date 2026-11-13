@@ -319,7 +319,8 @@ function drawChart() {
       for (const s of inBar) {
         const doubt = s.confidence < DOUBT;
         const alt = s.alternatives.map((a) => `${chordName(a.chord, key)} ${Math.round(a.p * 100)} %`).join(', ');
-        const name = chordName(s.chord, key) + (s.bass ? '/' + pcName(s.bass.pc, key) : '') + (doubt ? ' ?' : '');
+        const sup = s.extensions.length ? `<sup>${s.extensions.map((x) => x.name.replace('b', '♭').replace('#', '♯')).join(' ')}</sup>` : '';
+        const name = chordName(s.chord, key) + sup + (s.bass ? '/' + pcName(s.bass.pc, key) : '') + (doubt ? ' ?' : '');
         d.insertAdjacentHTML('beforeend', `<span class="c${doubt ? ' doubt' : ''}" title="sûreté ${Math.round(s.confidence * 100)} % ; autres : ${alt}">${name}</span>`);
       }
       const ext = inBar.filter((s) => s.extensions.length).map((s) => `${chordName(s.chord, key)} : ` + s.extensions.map((x) => `${x.name.replace('b', '♭').replace('#', '♯')} ${Math.round(x.p * 100)} %`).join(', '));
