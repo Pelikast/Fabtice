@@ -1,6 +1,8 @@
 // Browser checks of the import and of the local storage, in Chromium, on the
 // built interface served from web/ with the isolation headers.
 //   npm run build && npm run test:import
+// The silent clock-based engine is used (`?moteur=factice`) except where the
+// real engine is part of what is measured (the 5-minute piece, one smoke check).
 // What it covers: the five formats by file picker and by drag-and-drop (track,
 // duration, 48 kHz, waveform), reloading with the project and its settings,
 // autosave and flush on page hide, damaged and empty files, storage that fails
@@ -47,7 +49,7 @@ const browser = await chromium.launch({ args: ['--no-sandbox', '--autoplay-polic
 // ---------------------------------------------------------------- helpers
 
 /** A new page in a new browser context (so with its own, empty, storage). */
-async function open({ init, initArg, viewport = { width: 1280, height: 800 }, query = '?debug', context: existing } = {}) {
+async function open({ init, initArg, viewport = { width: 1280, height: 800 }, query = '?debug&moteur=factice', context: existing } = {}) {
   const context = existing ?? (await browser.newContext({ viewport }));
   const page = await context.newPage();
   const errors = [];
@@ -542,6 +544,25 @@ try {
     await context.close();
   }
 
+  // ------------------------------------------------------------ with the real audio engine
+  {
+    const { page, context, errors } = await open({ query: '?debug' });
+    await page.waitForFunction(() => document.querySelector('.voile')?.classList.contains('ouverte'));
+    await pickFile(page, fixture('tone.flac'));
+    const id = await pieceOpen(page);
+    const s = await state(page);
+    const engine = await page.evaluate(() => ({ state: window.__fabtice.engine.getState(), duration: window.__fabtice.engine.getDuration(), rate: window.__fabtice.engine.sampleRate }));
+    check('real engine: the imported piece is loaded and ready', engine.state === 'ready' && near(engine.duration, s.project.duration, 0.01) && engine.rate === 48000, JSON.stringify(engine));
+    await sleep(1200);
+    await page.reload();
+    await page.waitForFunction(() => window.__fabtice);
+    await pieceOpen(page, null);
+    const again = await page.evaluate(() => ({ state: window.__fabtice.engine.getState(), duration: window.__fabtice.engine.getDuration() }));
+    check('real engine: the kept piece is reopened into the engine', (await state(page)).project.id === id && again.state === 'ready' && near(again.duration, 1.5, 0.01), JSON.stringify(again));
+    check('no page errors (real engine)', errors.length === 0, errors.join(' | '));
+    await context.close();
+  }
+
   // ------------------------------------------------------------ phone: the notice and the dialog fit
   {
     const { page, context } = await open({
@@ -677,6 +698,7 @@ try {
     writeTone(aiff5, { kind: 'aiff', seconds: 300 });
     note(`generated 5-minute stereo files: wav ${(fs.statSync(wav5).size / 1e6).toFixed(1)} MB, aiff ${(fs.statSync(aiff5).size / 1e6).toFixed(1)} MB`);
     const { page, context, errors } = await open({
+      query: '?debug',
       init: () => {
         // Times the browser's own decoding.
         const real = OfflineAudioContext.prototype.decodeAudioData;
