@@ -17,7 +17,7 @@ const ROOT = path.join(__dirname, '..', '..');
 // before this, none after. So the test attaches first, then asks for the window.
 // FABTICE_STARTUP_TRACE makes the app print its start-up steps on stderr, which
 // Playwright copies into the error of a failed launch.
-async function launchApp(env) {
+async function launchApp(env, { initScript } = {}) {
   const clean = { ...process.env, FABTICE_HOLD_WINDOW: '1', FABTICE_STARTUP_TRACE: '1', ...env };
   delete clean.ELECTRON_RUN_AS_NODE;
   const extraArgs = process.platform === 'linux' ? ['--no-sandbox'] : [];
@@ -35,6 +35,7 @@ async function launchApp(env) {
       if (Date.now() > deadline) throw new Error('the app never reached the point where it holds its first window');
       await new Promise((r) => setTimeout(r, 100));
     }
+    if (initScript) await app.context().addInitScript(initScript);
     await app.evaluate(() => globalThis.__fabticeOpenFirstWindow());
     // Let the first window exist before the test does anything else with the
     // main process (creating a second window while it is still opening made

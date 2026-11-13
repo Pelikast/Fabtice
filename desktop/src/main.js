@@ -11,6 +11,7 @@ const { parseVideoId } = require('./video-id');
 const { collectSystemInfo, jsRuntime } = require('./system-info');
 const fabticeProtocol = require('./protocol');
 const { buildMenu } = require('./menu');
+const messages = require('./messages');
 
 // The interface is built by app/ (npm run build:desktop) into desktop/ui/.
 const UI_DIR = path.join(__dirname, '..', 'ui');
@@ -69,6 +70,13 @@ async function removeStaleTempDirs() {
   }
 }
 
+// Test seam: FABTICE_E2E_QUERY (for example "?debug") is added to the interface
+// address, only together with FABTICE_HOLD_WINDOW and only as plain parameters.
+function testQuery() {
+  const q = process.env.FABTICE_E2E_QUERY;
+  return process.env.FABTICE_HOLD_WINDOW === '1' && q && /^\?[a-z0-9&=_-]+$/i.test(q) ? q : '';
+}
+
 const WEB_PREFERENCES = {
   preload: path.join(__dirname, 'preload.js'),
   contextIsolation: true,
@@ -94,7 +102,7 @@ function createWindow() {
     win = null;
     if (diagnosticWin && !diagnosticWin.isDestroyed()) diagnosticWin.close();
   });
-  win.loadURL(fabticeProtocol.APP_URL);
+  win.loadURL(fabticeProtocol.APP_URL + testQuery());
 }
 
 // The phase 0 prototype page, kept to copy technical details on a machine
@@ -143,10 +151,10 @@ function registerIpc() {
   });
 
   handle('fabtice:extract', async (_e, text) => {
-    if (extraction) return { ok: false, error: 'Une importation est déjà en cours.' };
+    if (extraction) return { ok: false, error: messages.BUSY };
     const videoId = parseVideoId(text);
     if (!videoId) {
-      return { ok: false, error: 'Lien non reconnu. Collez un lien YouTube (watch?v=, youtu.be/, /shorts/, /embed/ ou /live/).' };
+      return { ok: false, error: messages.LINK_NOT_RECOGNISED };
     }
     const ytdlpPath = await manager.executable();
     if (!ytdlpPath) return { ok: false, needsYtdlp: true, error: 'yt-dlp n’est pas encore installé.' };

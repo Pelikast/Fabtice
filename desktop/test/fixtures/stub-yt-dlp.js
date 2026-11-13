@@ -16,6 +16,8 @@ const { spawnSync } = require('node:child_process');
 
 const args = process.argv.slice(2);
 const mode = process.env.FABTICE_STUB_MODE || 'dash';
+// Where the audio fixtures are (the stub may be installed elsewhere as a fake yt-dlp).
+const FIXTURE_DIR = process.env.FABTICE_STUB_FIXTURES || __dirname;
 
 if (process.env.FABTICE_STUB_LOG) {
   fs.appendFileSync(process.env.FABTICE_STUB_LOG, `${JSON.stringify({ args, electronRunAsNode: process.env.ELECTRON_RUN_AS_NODE || null })}\n`);
@@ -84,7 +86,7 @@ if (args.includes('--dump-single-json')) {
     abr: 64,
     asr: 44100,
     audio_channels: 2,
-    filesize: fs.statSync(path.join(__dirname, fx.file)).size,
+    filesize: fs.statSync(path.join(FIXTURE_DIR, fx.file)).size,
     protocol: 'https',
     formats: [],
   };
@@ -102,7 +104,7 @@ if (infoPath) {
   const fx = Object.values(FIXTURES).find((f) => f.ext === info.ext) || FIXTURES.dash;
   const out = value('--output').replace('%(ext)s', fx.ext);
   for (const pct of ['0.0', '50.0', '100.0']) process.stdout.write(`[download] ${pct.padStart(5)}% of 34.00KiB\n`);
-  fs.copyFileSync(path.join(__dirname, fx.file), out);
+  fs.copyFileSync(path.join(FIXTURE_DIR, fx.file), out);
   process.stdout.write(`[download] Destination: ${out}\n`);
   process.exit(0);
 }
