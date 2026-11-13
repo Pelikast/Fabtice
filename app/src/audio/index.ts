@@ -2,16 +2,23 @@
 
 import type { AudioEngine } from './AudioEngine';
 import { MockEngine } from './MockEngine';
+import { WorkletEngine } from './WorkletEngine';
 
 export * from './AudioEngine';
 export { MockEngine } from './MockEngine';
+export { WorkletEngine } from './WorkletEngine';
 
 /**
- * Creates the app's audio engine. Lot 1 returns the clock-based mock; the
- * real engine replaces it here and nowhere else.
+ * Creates the app's audio engine: the real one (AudioWorklet, Signalsmith
+ * Stretch) in a browser, the silent clock-based mock when the page asks for it
+ * with `?moteur=factice` (tests, screenshots) and outside a browser (unit
+ * tests in Node). A browser that cannot run the real engine does NOT get the
+ * mock: the engine reports an `unsupported` error when a piece is loaded.
  */
 export function createAudioEngine(): AudioEngine {
-  return new MockEngine();
+  if (typeof window === 'undefined' || typeof document === 'undefined') return new MockEngine();
+  if (new URLSearchParams(window.location.search).get('moteur') === 'factice') return new MockEngine();
+  return new WorkletEngine();
 }
 
 let current: AudioEngine | null = null;
