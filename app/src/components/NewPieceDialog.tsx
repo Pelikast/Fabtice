@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import { cancelImport, startFileImport, startLinkImport } from '../import/controller';
+import { cancelImport, isCancellablePhase, startFileImport, startLinkImport, startToolUpdate } from '../import/controller';
 import { FILE_ACCEPT } from '../import/formats';
 import { t } from '../i18n';
 import { getDesktopBridge } from '../platform/desktopBridge';
@@ -9,8 +9,9 @@ import { CloseIcon } from '../ui/icons';
 
 /**
  * « Nouveau morceau »: a link (Mac app only) or an audio file. Shown over the
- * empty shell at launch; while an import runs it shows its progress, then
- * its error if it fails.
+ * empty shell at launch; while an import runs (or the kept piece is reopened)
+ * it shows its progress, then its error if it fails. In the Mac app it also
+ * proposes, discreetly, a newer version of the import tool.
  */
 export function NewPieceDialog() {
   const open = useApp((s) => s.ui.newPieceOpen);
@@ -52,6 +53,8 @@ export function NewPieceDialog() {
 }
 
 function Choices({ open, desktop }: { open: boolean; desktop: boolean }) {
+  const notice = useApp((s) => s.ui.notice);
+  const toolUpdate = useApp((s) => s.ui.toolUpdate);
   const [link, setLink] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
   // Mac app: the link field takes the focus, ready for a paste.
@@ -75,9 +78,16 @@ function Choices({ open, desktop }: { open: boolean; desktop: boolean }) {
     />
   );
 
+  const noticeLine = notice && (
+    <p className="accueil-avis" role="status">
+      {notice}
+    </p>
+  );
+
   if (desktop) {
     return (
       <>
+        {noticeLine}
         <p>{t('new.leadLink')}</p>
         <form
           className="champ"
@@ -106,6 +116,14 @@ function Choices({ open, desktop }: { open: boolean; desktop: boolean }) {
           </button>
         </div>
         {fileInput}
+        {toolUpdate && (
+          <div className="mise-a-jour">
+            <span>{t('new.updateOffer')}</span>{' '}
+            <button className="lien" onClick={() => void startToolUpdate()}>
+              {t('new.updateAction')}
+            </button>
+          </div>
+        )}
         <div className="pied">
           <span>{t('new.formats')}</span>
           <span>{t('new.dropHint')}</span>
@@ -115,6 +133,7 @@ function Choices({ open, desktop }: { open: boolean; desktop: boolean }) {
   }
   return (
     <>
+      {noticeLine}
       <p>{t('new.leadFile')}</p>
       <button className="plein" onClick={chooseFile}>
         {t('new.chooseFileButton')}
@@ -128,23 +147,33 @@ function Choices({ open, desktop }: { open: boolean; desktop: boolean }) {
   );
 }
 
+/** Steps where the Mac app works and nothing can stop it. */
+const WAITS_FOR_MAC_APP = new Set(['installing', 'updating', 'fetching-info', 'downloading']);
+
 function ImportProgressView({ status }: { status: Extract<ImportStatus, { kind: 'busy' }> }) {
   const { phase, fraction, title } = status.progress;
+  const restoring = phase === 'restoring';
+  const cancellable = isCancellablePhase(phase);
   return (
     <div className="import-etat" role="status" aria-live="polite">
-      {title && <div className="import-titre">{title}</div>}
+      {title && !restoring && <div className="import-titre">{title}</div>}
       <div className="phase">
-        <span>{t(`import.${phase}`)}</span>
+        <span>{restoring ? t('import.restoring', { title: title ?? '' }) : t(`import.${phase}`)}</span>
         <span>{fraction !== null ? t('import.percent', { n: Math.round(fraction * 100) }) : ''}</span>
       </div>
       <div className={`jauge${fraction === null ? ' indeterminee' : ''}`} style={{ '--avance': fraction ?? 0 } as CSSProperties}>
         <span />
       </div>
-      <div className="import-actions">
-        <button className="bouton-cadre" onClick={cancelImport}>
-          {t('import.cancel')}
-        </button>
-      </div>
+      {phase === 'installing' && <p className="import-note">{t('import.installingNote')}</p>}
+      {cancellable ? (
+        <div className="import-actions">
+          <button className="bouton-cadre" onClick={cancelImport}>
+            {t('import.cancel')}
+          </button>
+        </div>
+      ) : (
+        WAITS_FOR_MAC_APP.has(phase) && <p className="import-note">{t('import.noCancel')}</p>
+      )}
     </div>
   );
 }

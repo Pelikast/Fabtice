@@ -74,6 +74,31 @@ describe('store and engine wiring', () => {
     expect(engine.getPosition()).toBeCloseTo(1);
   });
 
+  it('brings the playhead into a loop that was just selected or switched on', () => {
+    actions.seek(15);
+    actions.setLoopRegion({ start: 4, end: 8 });
+    actions.enterLoop();
+    expect(engine.getPosition()).toBe(4);
+
+    // Inside the loop: nothing moves.
+    actions.seek(6);
+    actions.enterLoop();
+    expect(engine.getPosition()).toBe(6);
+
+    // Before the loop: it jumps to the start too.
+    actions.seek(1);
+    actions.enterLoop();
+    expect(engine.getPosition()).toBe(4);
+
+    // Loop off: the playhead is left alone; switching it back on brings it in.
+    actions.toggleLoop();
+    actions.seek(12);
+    actions.enterLoop();
+    expect(engine.getPosition()).toBe(12);
+    actions.toggleLoop();
+    expect(engine.getPosition()).toBe(4);
+  });
+
   it('forwards key, tempo, metronome, loop and mix to the engine', () => {
     actions.stepSemitones(1);
     actions.stepSemitones(1);

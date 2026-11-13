@@ -17,7 +17,7 @@ import { getEngine } from '../audio';
 import { onAudioChange } from '../audio/registry';
 import { snapTime } from '../grid/lines';
 import type { Seconds, TimeRange } from '../model/project';
-import { applyAutoFit, seek, setLoopRegion, setZoom } from '../store/actions';
+import { applyAutoFit, enterLoop, seek, setLoopRegion, setZoom } from '../store/actions';
 import { appStore, type AppState } from '../store/store';
 import { onFrame } from '../ui/frameLoop';
 import { isPhoneLayout } from '../util/media';
@@ -724,6 +724,10 @@ export class TimelineController {
       if (e.timeStamp - g.at <= TAP_MAX_MS || !g.touch) this.seekAt(e.clientX, g.region);
     } else if (g.kind === 'pan' && !this.reducedMotion && Math.abs(g.velocity) > MOMENTUM_MIN * 3 && e.timeStamp - g.lastAt < 80) {
       this.momentum = g.velocity;
+    } else if ((g.kind === 'select' || g.kind === 'edge') && g.last) {
+      // The loop just drawn is what the musician wants to hear: bring the playhead into it.
+      this.followSuspended = false;
+      enterLoop();
     }
     this.endGesture();
   }

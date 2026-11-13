@@ -246,7 +246,17 @@ try {
     await page.mouse.up();
     reg = (await state(page)).loop.region;
     check('dragging backwards selects from the first bar touched', near(reg.start, barTime(g, 8), 1e-6) && near(reg.end, barTime(g, 11), 1e-6), JSON.stringify(reg));
-    check('a drag does not seek', Math.abs((await position(page)) - pos) < 1e-6);
+    // The click target is where the pointer went down, never where it was released:
+    // the playhead either stays (inside the new loop) or goes to the loop start.
+    {
+      const after = await position(page);
+      const inside = pos >= reg.start && pos < reg.end;
+      check(
+        'a drag does not seek to the pointer; the playhead is brought into the new loop',
+        inside ? Math.abs(after - pos) < 1e-6 : near(after, reg.start, 1e-6),
+        `${after} (was ${pos}, loop ${JSON.stringify(reg)})`,
+      );
+    }
     check('selection switches the loop on', (await state(page)).loop.enabled === true);
 
     // ---- Drag in the bars row
