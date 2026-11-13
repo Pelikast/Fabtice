@@ -99,15 +99,16 @@ Les accords s'écrivent comme sur une grille de jazz :
 
 ## Écran principal
 
-Trois affichages se partagent la zone centrale : **Pistes**, **Grille
-d'accords**, **Partition**. La barre du haut et le transport ne changent pas
-de l'un à l'autre ; boucle, tempo et tonalité y agissent de la même façon.
-L'affichage actif est souligné à l'encre, pas à la braise.
+Deux affichages se partagent la zone centrale : **Pistes** et **Grille
+d'accords**. La barre du haut et le transport ne changent pas de l'un à
+l'autre ; boucle, tempo et tonalité y agissent de la même façon. L'affichage
+actif est souligné à l'encre, pas à la braise. Un troisième affichage,
+**Partition**, est dessiné et validé mais réservé à la v2 (voir plus bas).
 
 De haut en bas, pour l'affichage Pistes :
 
 1. **Barre du haut** (58 px) : nom de l'app, titre du morceau, puis Nouveau
-   projet, les trois affichages, Exporter, Réglages.
+   projet, les deux affichages, Exporter, Réglages.
 2. **Bandeau fixe** : courbe de tempo, accords, numéros de mesure. Il reste
    visible quand on fait défiler les pistes.
 3. **Pistes** (74 px chacune) : à gauche la pastille de couleur, le nom, les
@@ -135,15 +136,18 @@ lettres de section encadrées, double barre aux changements de section. La
 boucle est un voile de laiton sur les mesures concernées ; la mesure en cours
 se remplit d'un filet braise.
 
-**Partition** : une page claire (`#fffdf8`) posée sur le papier, la liste des
-instruments à cocher à gauche. Plusieurs instruments cochés donnent un
-conducteur. Accords au-dessus de la première portée, boucle et tête de lecture
-comme ailleurs.
+**Partition (v2)** : cet affichage n'est pas dans l'interface de la v1. Son
+dessin est validé et conservé dans la maquette, à l'adresse
+https://fabtice.netlify.app/maquette/#vue=partition : une page claire
+(`#fffdf8`) posée sur le papier, la liste des instruments à cocher à gauche.
+Plusieurs instruments cochés donnent un conducteur. Accords au-dessus de la
+première portée, boucle et tête de lecture comme ailleurs. En v2, son onglet
+prendra place après « Grille d'accords ».
 
 ## Téléphone
 
 Sous 760 px de large : la colonne des pistes se réduit à 92 px (nom, M, S), la
-zone des pistes défile horizontalement à 86 px par mesure, les trois
+zone des pistes défile horizontalement à 86 px par mesure, les deux
 affichages deviennent une rangée d'onglets sous la barre du haut, les autres
 menus se replient derrière un seul bouton, et le transport s'empile en trois
 rangs avec la lecture au pouce. Le zoom se fait en pinçant : la barre d'outils

@@ -50,11 +50,10 @@ aucune technique de contournement des protections de YouTube.
    chartes de jazz : triangle pour l'accord majeur 7, altérations serrées
    contre la fondamentale, extensions en exposant ; mineur noté « m » ou « – »
    au choix dans les réglages.
-   - **Trois affichages** se partagent la zone centrale, la barre du haut et
-     le transport restant identiques : *Pistes* (formes d'onde), *Grille
-     d'accords* (façon iReal Pro), *Partition* (un instrument, ou un
-     conducteur si plusieurs sont cochés ; imprimable, export PDF). Boucle,
-     tempo et tonalité se règlent de la même façon dans les trois.
+   - **Deux affichages** se partagent la zone centrale, la barre du haut et
+     le transport restant identiques : *Pistes* (formes d'onde) et *Grille
+     d'accords* (façon iReal Pro). Boucle, tempo et tonalité se règlent de la
+     même façon dans les deux.
 6. **Métronome** : activable, volume, métriques composées (5/4, 7/8…), réglage
    avancé des temps forts et faibles par métrique ; décompte avant la boucle ;
    accélération progressive de la boucle.
@@ -64,9 +63,11 @@ aucune technique de contournement des protections de YouTube.
 9. **Sauvegarde automatique** locale à chaque action ; installation hors ligne
    (PWA) pour l'app web.
 
-Reporté en v2 : la transcription qui alimente l'affichage Partition
-(mélodies, solos), l'export MusicXML et MIDI. L'affichage lui-même est déjà
-prévu dans l'interface.
+Reporté en v2 : un troisième affichage, *Partition* (un instrument, ou un
+conducteur si plusieurs sont cochés ; imprimable, export PDF), avec la
+transcription qui l'alimente (mélodies, solos) et l'export MusicXML et MIDI.
+Il n'apparaît pas dans l'interface de la v1. Son dessin est validé et
+conservé : voir `DESIGN.md` et https://fabtice.netlify.app/maquette/#vue=partition.
 Pas prévu pour l'instant : apps Windows, Android, iOS.
 
 ## Exigences de qualité
