@@ -10,6 +10,9 @@ const WEB_OUT = path.resolve(here, '../web');
 const DESKTOP_OUT = path.resolve(here, '../desktop/ui');
 const FONTS = path.resolve(here, 'src/assets/fonts');
 const FONT_LICENCES = ['LICENSE-Fraunces.txt', 'LICENSE-InstrumentSans.txt', 'LICENSE-NotoMusic.txt'];
+// Licence texts of the audio engine (Signalsmith Stretch and Linear, MIT) that travel with the wasm binary.
+const WASM_DIR = path.resolve(here, 'src/audio/wasm');
+const WASM_LICENCES = ['LICENSE-signalsmith-stretch.txt', 'LICENSE-signalsmith-linear.txt'];
 // Fonts worth preloading: needed by the first paint of the shell.
 const PRELOADED_FONTS = /^(fraunces-latin-full-normal|instrument-sans-latin-wght-normal|noto-music-music-400-normal)-.*\.woff2$/;
 
@@ -24,7 +27,8 @@ const ISOLATION_HEADERS = {
  *  - the web build shares `web/` with the mockup and the spikes, so it cannot
  *    empty the folder: it only removes what it generated last time
  *    (`index.html` and `assets/`);
- *  - the font licence texts travel with the fonts (OFL), under stable names;
+ *  - the font licence texts travel with the fonts (OFL), under stable names,
+ *    and so do those of the audio engine's wasm binary (MIT);
  *  - the main fonts are preloaded.
  */
 function fabticeOutput(mode: string): Plugin {
@@ -40,6 +44,9 @@ function fabticeOutput(mode: string): Plugin {
     generateBundle() {
       for (const name of FONT_LICENCES) {
         this.emitFile({ type: 'asset', fileName: `assets/${name}`, source: readFileSync(path.join(FONTS, name)) });
+      }
+      for (const name of WASM_LICENCES) {
+        this.emitFile({ type: 'asset', fileName: `assets/${name}`, source: readFileSync(path.join(WASM_DIR, name)) });
       }
     },
     transformIndexHtml: {

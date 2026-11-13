@@ -159,6 +159,7 @@ export const fr = {
   // Engine
   'engine.error': 'La lecture audio ne fonctionne pas sur cet appareil.',
   'engine.errorLoad': 'Ce morceau n’a pas pu être préparé pour la lecture.',
+  'engine.errorUnsupported': 'Ce navigateur ne peut pas lire l’audio de Fabtice. Essayez une version récente de Chrome, Edge, Firefox ou Safari.',
 } as const;
 
 export type Messages = { readonly [K in keyof typeof fr]: string };
