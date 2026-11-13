@@ -1,9 +1,9 @@
-# Fabtice pour Mac — prototype
+# Fabtice pour Mac
 
-Ce premier prototype ne sert qu’à vérifier une chose : l’audio d’un lien
-YouTube peut-il être récupéré **sur le Mac de l’utilisateur**, avec sa propre
-connexion ? On colle un lien, l’app télécharge la piste audio, la décode, la
-fait écouter, et affiche un diagnostic détaillé à copier.
+L’app Mac affiche la vraie interface de Fabtice (celle de `app/`) dans une
+fenêtre Electron, et lui ajoute ce que le web ne peut pas faire : importer
+l’audio d’un lien YouTube **sur le Mac de l’utilisateur**, avec sa propre
+connexion, grâce à yt-dlp. Tout le reste tourne comme sur le site.
 
 ## Télécharger
 
@@ -11,11 +11,17 @@ La dernière version de test se trouve sur la page des versions du dépôt,
 rubrique « desktop-dev » :
 https://github.com/Pelikast/fabtice/releases/tag/desktop-dev
 
-- `Fabtice-mac-universal.dmg` : l’image disque à ouvrir (recommandé) ;
-- `Fabtice-mac-universal.zip` : la même app, compressée.
+Il y a **deux téléchargements**, un par type de Mac (chacun est deux fois plus
+léger qu’une app universelle) :
 
-L’app est universelle (Mac Intel et Mac Apple Silicon) et demande macOS 12
-Monterey ou plus récent.
+- **Mac à puce Apple (M1, M2, M3, M4…)** : `Fabtice-mac-apple-silicon.dmg` ;
+- **Mac Intel** : `Fabtice-mac-intel.dmg`.
+
+**Comment savoir lequel prendre ?** Menu Pomme (en haut à gauche) puis
+**À propos de ce Mac**. Si la ligne « Puce » indique « Apple M… », prenez le
+fichier « apple-silicon » ; si la ligne « Processeur » indique « Intel »,
+prenez le fichier « intel ». Les deux demandent macOS 12 Monterey ou plus
+récent.
 
 ## Ouvrir l’app la première fois
 
@@ -23,7 +29,7 @@ Fabtice n’est pas encore signée par un développeur enregistré chez Apple.
 macOS bloque donc la première ouverture ; il faut l’autoriser une fois, à la
 main. Commencez dans tous les cas par :
 
-1. Ouvrir `Fabtice-mac-universal.dmg` (double-clic dans Téléchargements).
+1. Ouvrir le fichier `.dmg` téléchargé (double-clic dans Téléchargements).
 2. Faire glisser l’icône **Fabtice** sur le dossier **Applications**.
 3. Éjecter l’image disque.
 
@@ -70,28 +76,43 @@ xattr -dr com.apple.quarantine /Applications/Fabtice.app
 
 Ouvrez ensuite Fabtice normalement.
 
-## Utiliser le prototype
+## Utiliser l’app
 
-1. Au premier lancement, cliquez sur **Installer yt-dlp**. L’app télécharge
-   l’outil officiel yt-dlp (environ 37 Mo) depuis sa page GitHub, vérifie son
+1. Au lancement, la fenêtre « Nouveau morceau » propose de coller un lien
+   YouTube (vidéo de 20 minutes au plus, pas de direct) ou de choisir un
+   fichier audio. Au premier import par lien, l’app télécharge l’outil
+   officiel yt-dlp (environ 37 Mo) depuis sa page GitHub, vérifie son
    empreinte SHA-256 et le range dans son dossier
    `~/Library/Application Support/Fabtice/yt-dlp/`. En cas de coupure, elle
-   réessaie d’elle-même quatre fois en une vingtaine de secondes avant
-   d’afficher « Réessayer ». À chaque ouverture, elle
-   regarde s’il existe une version plus récente et propose la mise à jour.
-2. Collez un lien YouTube (vidéo de 20 minutes au plus, pas de direct) et
-   cliquez sur **Importer**.
-3. Si tout va bien, le titre, la chaîne et la durée s’affichent, avec un
-   bouton Lecture / Pause et un curseur de position.
-4. Dans tous les cas, cliquez sur **Copier le diagnostic** et collez le texte
-   dans la conversation : il dit ce qui a marché ou non (versions, commande
-   exacte, erreurs de yt-dlp, format du fichier, décodage, WebGPU).
+   réessaie d’elle-même quatre fois en une vingtaine de secondes. À chaque
+   ouverture, elle regarde s’il existe une version plus récente.
+2. **Aide > Diagnostic…** ouvre une fenêtre à part (la page de test des
+   premiers essais) : elle importe un lien, le décode, le fait écouter et
+   affiche un diagnostic détaillé. Cliquez sur **Copier le diagnostic** et
+   collez le texte dans la conversation : il dit ce qui a marché ou non
+   (versions, commande exacte, erreurs de yt-dlp, format du fichier,
+   décodage, WebGPU).
 
 L’app utilise yt-dlp tel quel, depuis la connexion de l’utilisateur, sans
 aucun moyen de contourner les protections de YouTube. Si YouTube refuse, le
 diagnostic montre simplement le message d’erreur.
 
 ## Pour le développement
+
+Fonctionnement :
+
+- L’interface est construite par `app/` (`npm run build:desktop`) dans
+  `desktop/ui/` (non versionné) et embarquée dans l’app. Elle est servie par
+  le protocole `fabtice://app/` (`src/protocol.js`), avec les en-têtes
+  d’isolation COOP/COEP (SharedArrayBuffer, AudioWorklet), les bons types MIME
+  (dont `.wasm`) et une politique de sécurité (CSP) stricte : scripts et
+  styles de l’app seulement, WebAssembly, `blob:` pour les médias et les
+  workers, styles en ligne pour React, rien depuis le réseau. Les chemins qui
+  sortent du dossier sont refusés.
+- La page de diagnostic est servie par `fabtice://diagnostic/` et partage le
+  même `window.fabtice` (`src/preload.js`). Les appels IPC ne sont acceptés
+  que de ces deux adresses, depuis la fenêtre principale d’une page.
+- Menu en français : `src/menu.js`.
 
 Choix techniques (vérifiés le 12 novembre 2026) :
 
@@ -109,14 +130,22 @@ Choix techniques (vérifiés le 12 novembre 2026) :
   (MP4 fragmenté) est passé tel quel à `decodeAudioData`. Le diagnostic dit
   si Chromium l’a accepté.
 
-Commandes (dans `desktop/`) :
+Commandes (depuis `desktop/`) :
 
 ```
 npm ci
+npm run build:ui          # construit l'interface (app/) dans desktop/ui/
 npm start                 # lance l'app
-npm test                  # tests unitaires
-xvfb-run -a npm run test:e2e   # test de bout en bout (Linux), avec un faux yt-dlp
+npm test                  # tests unitaires (dont le protocole)
+xvfb-run -a npm run test:e2e   # bout en bout (Linux), avec un faux yt-dlp
+npm run dist:mac:arm64    # Fabtice-mac-apple-silicon.dmg et .zip (sur Mac)
+npm run dist:mac:x64      # Fabtice-mac-intel.dmg et .zip (sur Mac)
+npm run dist:dir          # app non empaquetée, pour essayer (toute plateforme)
 ```
+
+Les commandes de fabrication s’arrêtent avec un message clair si
+`desktop/ui/` n’existe pas. Pour tester l’app empaquetée :
+`FABTICE_E2E_APP=<chemin de l’exécutable> npm run test:e2e`.
 
 Variables d’environnement de test :
 
@@ -129,9 +158,11 @@ Variables d’environnement de test :
 - `FABTICE_RETRY_DELAYS_MS` : attentes entre les essais, par exemple
   `100,200,300` (par défaut 2, 5 puis 10 secondes : 4 essais en 20 s environ).
 
-Intégration continue : `.github/workflows/desktop-mac.yml` construit l’app sur
-un Mac Apple Silicon, la teste (avec le faux yt-dlp) sur Apple Silicon et sur
-Intel, puis publie la version de test `desktop-dev`. Le résultat de chaque
+Intégration continue : `.github/workflows/desktop-mac.yml` vérifie et construit
+l’interface (`npm ci`, `typecheck`, `test`, `build:desktop` dans `app/`), construit
+les deux apps sur un Mac Apple Silicon, teste chacune (avec le faux yt-dlp) sur
+sa propre architecture, puis publie les deux `.dmg` sur la version de test
+`desktop-dev` (sur `main` seulement). Le résultat de chaque
 passage et la fin des journaux sont poussés sur la branche `ci-logs` :
 
 ```

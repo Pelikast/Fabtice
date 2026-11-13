@@ -19,7 +19,7 @@ minos() {
   otool -arch "$2" -l "$tmp" | awk '/LC_BUILD_VERSION/{b=1} b&&/minos/{print $2; exit} /LC_VERSION_MIN_MACOSX/{v=1} v&&/version/{print $2; exit}'
   rm -f "$tmp"
 }
-for arch in x86_64 arm64; do
+for arch in $(lipo -archs "$BIN"); do
   echo "minos $arch: main=$(minos "$BIN" "$arch") framework=$(minos "$FW" "$arch")"
 done
 

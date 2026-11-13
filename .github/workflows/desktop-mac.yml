@@ -1,8 +1,10 @@
 name: desktop-mac
 
-# Builds the universal macOS app (ad-hoc signed), tests it with the stub yt-dlp
-# on Apple Silicon and on Intel, and publishes it on the "desktop-dev"
-# prerelease. Every run leaves its status and log tails on the ci-logs branch:
+# Checks and builds the interface (app/), builds the two macOS downloads
+# (Apple Silicon and Intel, ad-hoc signed), tests each one with the stub
+# yt-dlp on its own architecture, and publishes the two .dmg files on the
+# "desktop-dev" prerelease. Every run leaves its status and log tails on the
+# ci-logs branch:
 #   git fetch origin ci-logs && git show FETCH_HEAD:STATUS.md
 
 on:
@@ -10,6 +12,7 @@ on:
     branches: [main]
     paths:
       - 'desktop/**'
+      - 'app/**'
       - '.github/workflows/desktop-mac.yml'
   workflow_dispatch:
 
@@ -32,7 +35,7 @@ env:
 jobs:
   build:
     runs-on: macos-15
-    timeout-minutes: 50
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v6
 
@@ -40,59 +43,103 @@ jobs:
         with:
           node-version: 22
 
+      - name: Interface - install, typecheck, tests
+        id: ui-check
+        working-directory: app
+        run: |
+          source "$GITHUB_WORKSPACE/desktop/ci/log-step.sh" 00-ui-check
+          sw_vers; uname -m; node --version; npm --version
+          npm ci
+          npm run typecheck
+          npm test
+
+      - name: Interface - build for the Mac app
+        id: ui-build
+        working-directory: app
+        run: |
+          source "$GITHUB_WORKSPACE/desktop/ci/log-step.sh" 01-ui-build
+          npm run build:desktop
+          ls -la ../desktop/ui ../desktop/ui/assets
+
       - name: Install
         id: install
         run: |
-          source "$GITHUB_WORKSPACE/desktop/ci/log-step.sh" 01-install
-          sw_vers; uname -m; node --version; npm --version
+          source "$GITHUB_WORKSPACE/desktop/ci/log-step.sh" 02-install
           npm ci
 
       - name: Unit tests
         id: unit
         run: |
-          source "$GITHUB_WORKSPACE/desktop/ci/log-step.sh" 02-unit-tests
+          source "$GITHUB_WORKSPACE/desktop/ci/log-step.sh" 03-unit-tests
           npm test
 
-      - name: Build universal app
-        id: build
+      - name: Build Apple Silicon app
+        id: build-arm64
         run: |
-          source "$GITHUB_WORKSPACE/desktop/ci/log-step.sh" 03-build
+          source "$GITHUB_WORKSPACE/desktop/ci/log-step.sh" 04-build-arm64
           printf '{"commit":"%s","builtAt":"%s","runId":"%s"}\n' "$GITHUB_SHA" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$GITHUB_RUN_ID" > build-info.json
-          npm run dist:mac
+          npm run dist:mac:arm64
           ls -la dist
-          shasum -a 256 dist/Fabtice-mac-universal.dmg dist/Fabtice-mac-universal.zip
+          shasum -a 256 dist/Fabtice-mac-apple-silicon.dmg dist/Fabtice-mac-apple-silicon.zip
 
-      - name: Inspect app
+      - name: Build Intel app
+        id: build-x64
+        run: |
+          source "$GITHUB_WORKSPACE/desktop/ci/log-step.sh" 05-build-x64
+          npm run dist:mac:x64
+          ls -la dist
+          shasum -a 256 dist/Fabtice-mac-intel.dmg dist/Fabtice-mac-intel.zip
+
+      - name: Unpack both apps from their zip files
+        id: unpack
+        run: |
+          source "$GITHUB_WORKSPACE/desktop/ci/log-step.sh" 06-unpack
+          mkdir -p "$RUNNER_TEMP/arm64" "$RUNNER_TEMP/x64"
+          ditto -x -k dist/Fabtice-mac-apple-silicon.zip "$RUNNER_TEMP/arm64"
+          ditto -x -k dist/Fabtice-mac-intel.zip "$RUNNER_TEMP/x64"
+          ls "$RUNNER_TEMP/arm64" "$RUNNER_TEMP/x64"
+
+      - name: Inspect apps
         id: inspect
         run: |
-          source "$GITHUB_WORKSPACE/desktop/ci/log-step.sh" 04-inspect
-          ci/inspect-app.sh dist/mac-universal/Fabtice.app
+          source "$GITHUB_WORKSPACE/desktop/ci/log-step.sh" 07-inspect
+          echo "######## Apple Silicon"
+          ci/inspect-app.sh "$RUNNER_TEMP/arm64/Fabtice.app"
+          echo "######## Intel"
+          ci/inspect-app.sh "$RUNNER_TEMP/x64/Fabtice.app"
 
       - name: End-to-end test (stub yt-dlp, packaged app, arm64)
         id: e2e
         run: |
-          source "$GITHUB_WORKSPACE/desktop/ci/log-step.sh" 05-e2e-arm64
-          FABTICE_E2E_APP="$PWD/dist/mac-universal/Fabtice.app/Contents/MacOS/Fabtice" \
+          source "$GITHUB_WORKSPACE/desktop/ci/log-step.sh" 08-e2e-arm64
+          FABTICE_E2E_APP="$RUNNER_TEMP/arm64/Fabtice.app/Contents/MacOS/Fabtice" \
           FABTICE_E2E_OUT="$RUNNER_TEMP/ci-logs/e2e-arm64" npm run test:e2e
 
       - name: yt-dlp with the app as JS runtime
         id: ytdlp
         continue-on-error: true
         run: |
-          source "$GITHUB_WORKSPACE/desktop/ci/log-step.sh" 06-ytdlp-arm64
-          ci/ytdlp-check.sh "$PWD/dist/mac-universal/Fabtice.app/Contents/MacOS/Fabtice" --youtube
+          source "$GITHUB_WORKSPACE/desktop/ci/log-step.sh" 09-ytdlp-arm64
+          ci/ytdlp-check.sh "$RUNNER_TEMP/arm64/Fabtice.app/Contents/MacOS/Fabtice" --youtube
 
       - name: yt-dlp EJS solver test with the app as node
         id: ejs
         continue-on-error: true
         run: |
-          source "$GITHUB_WORKSPACE/desktop/ci/log-step.sh" 07-ejs-node-test
-          ci/ejs-node-test.sh "$PWD/dist/mac-universal/Fabtice.app/Contents/MacOS/Fabtice"
+          source "$GITHUB_WORKSPACE/desktop/ci/log-step.sh" 10-ejs-node-test
+          ci/ejs-node-test.sh "$RUNNER_TEMP/arm64/Fabtice.app/Contents/MacOS/Fabtice"
 
       - uses: actions/upload-artifact@v6
         with:
-          name: fabtice-mac-universal
-          path: desktop/dist/Fabtice-mac-universal.zip
+          name: fabtice-mac-intel
+          path: desktop/dist/Fabtice-mac-intel.zip
+          retention-days: 7
+          compression-level: 0
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: fabtice-mac-apple-silicon
+          path: desktop/dist/Fabtice-mac-apple-silicon.zip
           retention-days: 7
           compression-level: 0
 
@@ -102,17 +149,24 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          source "$GITHUB_WORKSPACE/desktop/ci/log-step.sh" 08-publish
+          source "$GITHUB_WORKSPACE/desktop/ci/log-step.sh" 11-publish
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git tag -f "$RELEASE_TAG" "$GITHUB_SHA"
           git push -f origin "refs/tags/$RELEASE_TAG"
           cat > "$RUNNER_TEMP/notes.md" <<EOF
-          Version de test de l'app Mac, reconstruite automatiquement à chaque modification de \`desktop/\`.
+          Version de test de l'app Mac, reconstruite automatiquement à chaque modification de \`app/\` ou de \`desktop/\`.
+
+          ## Quel fichier télécharger ?
+
+          - **Mac à puce Apple (M1, M2, M3, M4…)** : \`Fabtice-mac-apple-silicon.dmg\`
+          - **Mac Intel** : \`Fabtice-mac-intel.dmg\`
+
+          Pour le savoir : menu Pomme (en haut à gauche) → **À propos de ce Mac**. Sur un Mac à puce Apple, la ligne « Puce » indique « Apple M… » ; sur un Mac Intel, la ligne « Processeur » indique « Intel ».
 
           - Commit : $GITHUB_SHA
           - Construite le : $(date -u +'%Y-%m-%d %H:%M UTC')
-          - Universelle (Intel + Apple Silicon), macOS 12 Monterey minimum.
+          - macOS 12 Monterey minimum.
           - Non signée par un développeur identifié : voir « Ouvrir l'app » dans desktop/README.md.
           EOF
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
@@ -120,10 +174,11 @@ jobs:
           else
             gh release create "$RELEASE_TAG" --prerelease --verify-tag --title 'Fabtice pour Mac — version de test' --notes-file "$RUNNER_TEMP/notes.md"
           fi
-          gh release upload "$RELEASE_TAG" dist/Fabtice-mac-universal.dmg dist/Fabtice-mac-universal.zip --clobber
+          gh release upload "$RELEASE_TAG" dist/Fabtice-mac-apple-silicon.dmg dist/Fabtice-mac-intel.dmg --clobber
+          # Remove every other asset, the old universal app included.
           for asset in $(gh release view "$RELEASE_TAG" --json assets -q '.assets[].name'); do
             case "$asset" in
-              Fabtice-mac-universal.dmg|Fabtice-mac-universal.zip) ;;
+              Fabtice-mac-apple-silicon.dmg|Fabtice-mac-intel.dmg) ;;
               *) gh release delete-asset "$RELEASE_TAG" "$asset" -y ;;
             esac
           done
@@ -158,7 +213,7 @@ jobs:
 
       - uses: actions/download-artifact@v7
         with:
-          name: fabtice-mac-universal
+          name: fabtice-mac-intel
           path: ${{ runner.temp }}/app
 
       - name: Install test dependencies
@@ -166,16 +221,16 @@ jobs:
         env:
           ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
         run: |
-          source "$GITHUB_WORKSPACE/desktop/ci/log-step.sh" 11-intel-install
+          source "$GITHUB_WORKSPACE/desktop/ci/log-step.sh" 12-intel-install
           sw_vers; uname -m; sysctl -n machdep.cpu.brand_string
           npm ci
-          ditto -x -k "$RUNNER_TEMP/app/Fabtice-mac-universal.zip" "$RUNNER_TEMP/app"
+          ditto -x -k "$RUNNER_TEMP/app/Fabtice-mac-intel.zip" "$RUNNER_TEMP/app"
           ls "$RUNNER_TEMP/app"
 
       - name: End-to-end test (stub yt-dlp, packaged app, x64)
         id: e2e
         run: |
-          source "$GITHUB_WORKSPACE/desktop/ci/log-step.sh" 12-e2e-x64
+          source "$GITHUB_WORKSPACE/desktop/ci/log-step.sh" 13-e2e-x64
           FABTICE_E2E_APP="$RUNNER_TEMP/app/Fabtice.app/Contents/MacOS/Fabtice" \
           FABTICE_E2E_OUT="$RUNNER_TEMP/ci-logs/e2e-x64" npm run test:e2e
 
@@ -183,7 +238,7 @@ jobs:
         id: ytdlp
         continue-on-error: true
         run: |
-          source "$GITHUB_WORKSPACE/desktop/ci/log-step.sh" 13-ytdlp-x64
+          source "$GITHUB_WORKSPACE/desktop/ci/log-step.sh" 14-ytdlp-x64
           ci/ytdlp-check.sh "$RUNNER_TEMP/app/Fabtice.app/Contents/MacOS/Fabtice"
 
       - name: Collect logs
