@@ -219,9 +219,21 @@ export class PlayerCore {
     this.tracks.splice(i, 1);
   }
 
+  /** Drops every track and stops, at 0. */
   clearTracks(): void {
     for (const t of this.tracks) t.proc.destroy();
     this.tracks.length = 0;
+    this.playing = false;
+    this.ended = false;
+    this.ip = 0;
+    this.acc = 0;
+    this.mg = 0;
+    this.mgTarget = 0;
+    this.fadeAction = FADE_NONE;
+    this.frozen = -1;
+    this.pendingSeek = -1;
+    this.clickCount = 0;
+    this.limiter.reset();
   }
 
   setMix(id: string, mix: { volume: number; mute: boolean; solo: boolean }): void {
@@ -288,6 +300,7 @@ export class PlayerCore {
       this.startPos = this.ip + this.acc;
       this.sinceStart = 0;
       this.wrapOut = -1;
+      this.limiter.reset(); // no tail of what was playing before
     }
     this.playing = true;
     this.mgTarget = 1;

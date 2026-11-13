@@ -72,10 +72,6 @@ class FabticePlayer extends AudioWorkletProcessor {
         break;
       case 'clear':
         c.clearTracks();
-        c.ip = 0;
-        c.acc = 0;
-        c.playing = false;
-        c.ended = false;
         break;
       case 'mix':
         c.setMix(m.id, { volume: m.volume, mute: m.mute, solo: m.solo });

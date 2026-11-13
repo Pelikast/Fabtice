@@ -74,7 +74,7 @@ export class Limiter {
       if (m < follower) follower = m;
       else {
         follower += (m - follower) * this.release;
-        if (follower > 0.999999) follower = 1;
+        if (follower > 0.99995) follower = 1; // back to unity, inaudibly early
       }
       sum += follower - env[pos]!;
       env[pos] = follower;
