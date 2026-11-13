@@ -315,6 +315,28 @@ function chunkInput(model, plan, c, xl, xr) {
 
 // ---------------------------------------------------------------- whole track
 
+// A backend that silently computes garbage (zeros, NaN) must not pass for a result:
+// the stems of the first chunk must be finite and carry a sensible share of its energy.
+function checkOutput(stems, input, len) {
+  let ein = 0, eout = 0;
+  for (let ch = 0; ch < 2; ch++) for (let i = 0; i < len; i++) ein += input[ch][i] * input[ch][i];
+  for (const st of stems) {
+    for (let ch = 0; ch < 2; ch++) {
+      const x = st[ch];
+      for (let i = 0; i < len; i++) {
+        const v = x[i];
+        if (!Number.isFinite(v)) { const e = new Error('le modèle a rendu des valeurs invalides (NaN)'); e.code = 'BAD_OUTPUT'; throw e; }
+        eout += v * v;
+      }
+    }
+  }
+  if (ein > 1e-3 && eout < ein * 1e-4) {
+    const e = new Error('le modèle a rendu des pistes presque vides');
+    e.code = 'BAD_OUTPUT';
+    throw e;
+  }
+}
+
 // Separates a stereo track. Returns { stems: {name: [L, R]}, chunkTimes, seconds }.
 export async function separate(model, ort, session, left, right, { onProgress, signal } = {}) {
   const t0 = performance.now();
@@ -341,7 +363,7 @@ export async function separate(model, ort, session, left, right, { onProgress, s
     const [l, r] = chunkInput(model, plan, c, xl, xr);
     const p = runner.prepare(l, r);
     const t = performance.now();
-    return { p, t, promise: session.run(p.feeds) };
+    return { p, t, input: [l, r], promise: session.run(p.feeds) };
   };
 
   let pending = start(0);
@@ -361,6 +383,7 @@ export async function separate(model, ort, session, left, right, { onProgress, s
     const stems = runner.finish(cur.p, out);
     disposeAll(out);
     const c = plan.chunks[j];
+    if (j === 0) checkOutput(stems, cur.input, c.len);
     for (let s = 0; s < S; s++) {
       for (let ch = 0; ch < 2; ch++) {
         const src = stems[s][ch], dst = acc[s][ch];
@@ -416,9 +439,10 @@ export async function benchmarkChunks(model, ort, session, n = 3) {
     const t0 = performance.now();
     const p = runner.prepare(l, r);
     const out = await session.run(p.feeds);
-    runner.finish(p, out);
+    const stems = runner.finish(p, out);
     disposeAll(out);
     times.push((performance.now() - t0) / 1000);
+    if (k === 0) checkOutput(stems, [l, r], seg);
     await new Promise((res) => setTimeout(res, 0));
   }
   return times;

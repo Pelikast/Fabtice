@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Fabtice — séparation (prototype)</title>
 <style>
-  :root { --bg: #f4ece0; --ink: #3a2a1e; --muted: #7a6250; --line: #d9c9b3; --accent: #8a4b2a; --card: #fbf6ee; }
+  :root { --bg: #f4ecdf; --ink: #2b1f17; --muted: #6a5646; --line: #d8c8b0; --card: #fbf6ec; --braise: #c4502a; --laiton: #b8873a; } /* DESIGN.md tokens */
   * { box-sizing: border-box; }
   html { background: var(--bg); }
   body {
@@ -19,10 +19,11 @@
   .muted { color: var(--muted); font-size: 15px; }
   button, select, input[type=number] {
     font: inherit; color: var(--ink); background: var(--card);
-    border: 1px solid var(--muted); border-radius: 6px; padding: 8px 14px;
+    border: 1px solid var(--muted); border-radius: 5px; padding: 8px 14px; min-height: 40px;
   }
   button { cursor: pointer; }
-  button.main { background: var(--accent); color: #fff8ef; border-color: var(--accent); font-size: 19px; padding: 10px 22px; }
+  button.main { border: 2px solid var(--ink); font-size: 19px; padding: 10px 22px; }
+  button#play { background: var(--braise); color: #fff; border-color: var(--braise); border-radius: 29px; }
   button:disabled { opacity: .45; cursor: default; }
   label.tier { display: block; padding: 10px 12px; margin: 6px 0; background: var(--card); border: 1px solid var(--line); border-radius: 8px; cursor: pointer; }
   label.tier input { margin-right: 8px; }
@@ -35,7 +36,7 @@
   .row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--line); }
   .row .name { flex: 1 1 120px; }
   .row button { padding: 4px 10px; font-size: 15px; }
-  .row button.on { background: var(--accent); color: #fff8ef; border-color: var(--accent); }
+  .row button.on { background: var(--laiton); color: var(--ink); border-color: var(--laiton); }
   .row input[type=range] { width: 110px; }
   #transport { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
   #seek { flex: 1 1 200px; }

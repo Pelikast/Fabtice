@@ -250,17 +250,30 @@ $('run').addEventListener('click', async () => {
   lsSet(LS_INFLIGHT, { what: `séparation ${model.label} (${opt.backend})`, t: new Date().toISOString() });
   let session = null;
   try {
-    const loaded = await loadModelSession(model, opt, run, model.label);
+    let loaded = await loadModelSession(model, opt, run, model.label);
     session = loaded.session;
     renderDiag();
-    const t0 = performance.now();
-    const res = await separate(model, loaded.ort, session, left, right, {
-      onProgress: (p, j, n) => {
-        const el = (performance.now() - t0) / 1000;
-        const eta = (el / p) * (1 - p);
-        setStatus(`Séparation (${run.backend === 'webgpu' ? 'carte graphique' : 'processeur'}) : morceau ${j} / ${n} · ${fmtTime(el)} écoulées · reste environ ${fmtTime(eta)}`, p);
-      },
-    });
+    let t0 = performance.now();
+    const onProgress = (p, j, n) => {
+      const el = (performance.now() - t0) / 1000;
+      const eta = (el / p) * (1 - p);
+      setStatus(`Séparation (${run.backend === 'webgpu' ? 'carte graphique' : 'processeur'}) : morceau ${j} / ${n} · ${fmtTime(el)} écoulées · reste environ ${fmtTime(eta)}`, p);
+    };
+    let res;
+    try {
+      res = await separate(model, loaded.ort, session, left, right, { onProgress });
+    } catch (e) {
+      // In automatic mode, a WebGPU result that fails the sanity check is retried on the processor.
+      if (e.code !== 'BAD_OUTPUT' || opt.backend !== 'auto' || run.backend !== 'webgpu') throw e;
+      run.gpuBadOutput = errMsg(e);
+      logError('séparation WebGPU', e);
+      await session.release();
+      session = null;
+      loaded = await loadModelSession(model, { ...opt }, Object.assign(run, { backendAsked: 'wasm' }), model.label);
+      session = loaded.session;
+      t0 = performance.now();
+      res = await separate(model, loaded.ort, session, left, right, { onProgress });
+    }
     run.seconds = res.seconds;
     run.rtf = res.seconds / duration;
     run.chunks = res.chunks;
@@ -528,6 +541,7 @@ function diagText() {
       if (r.seconds != null) L.push(`     traitement ${sec(r.seconds)} = ${r.rtf.toFixed(2)} × la durée · ${r.chunks} morceaux · premier ${sec(r.firstChunk)} · médiane ${sec(r.medianChunk)} (dont iSTFT ${sec(r.medianPost)})${r.heap ? ` · tas JS ${mb(r.heap)}` : ''}`);
       if (r.deviceLimits) L.push(`     périphérique ORT : ${Object.entries(r.deviceLimits).map(([k, v]) => `${k} ${v >= 1048576 ? Math.round(v / 1048576) + ' Mio' : v}`).join(' · ')}`);
       if (r.attempts && r.attempts.length) L.push(`     essais refusés : ${r.attempts.map((a) => `${a.backend}: ${a.error}`).join(' | ')}`);
+      if (r.gpuBadOutput) L.push(`     WebGPU a rendu un résultat faux (${r.gpuBadOutput}) : refait sur le processeur`);
       if (r.error) L.push(`     ERREUR : ${r.error}`);
     }
   }
