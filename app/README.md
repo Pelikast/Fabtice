@@ -23,12 +23,19 @@ le stockage.
 | `npm run typecheck` | vérification des types |
 | `npm test` | tests unitaires (Vitest, dans Node) |
 | `npm run test:smoke` | après `build` : vérifications dans Chromium (Playwright préinstallé) et captures d'écran dans un dossier temporaire (`FABTICE_SMOKE_OUT` pour le choisir) |
+| `npm run test:import` | après `build` : import des cinq formats (sélecteur et glisser-déposer), rouverture du projet après rechargement, autosauvegarde, stockage en échec, import par lien contre un faux `window.fabtice`, coût d'un morceau de cinq minutes (captures dans `FABTICE_IMPORT_OUT`) |
 | `npm run test:timeline` | après `build` : vérifications de la frise dans Chromium (formes d'onde, grille, boucle, défilement, zoom, suivi, téléphone, morceau de dix minutes) |
+
+Les fichiers audio de test de `test:import` sont dans `tests/fixtures/` (quelques
+dizaines de ko, tons synthétiques ; `make_fixtures.py` dit comment ils sont faits ;
+le m4a est `desktop/test/fixtures/tone-dash.m4a`).
 
 `?demo` à la fin de l'adresse (`http://localhost:5173/?demo`) ouvre un morceau
 synthétique de quatre pistes, généré dans le code, sans fichier audio ;
 `?demo&vue=grille` ouvre directement l'affichage Grille d'accords. En mode
-démo, `window.__fabtice` donne accès au magasin, au moteur et aux actions.
+démo, `window.__fabtice` donne accès au magasin, au moteur et aux actions ;
+`?debug` donne le même accès sans morceau de démonstration (tests du navigateur).
+Le morceau de démonstration n'est jamais gardé sur l'appareil.
 
 Les fichiers construits (`web/index.html`, `web/assets/`, `desktop/ui/`) ne
 sont pas versionnés. Netlify lance `npm ci && npm run build` dans `app/`.
@@ -37,7 +44,8 @@ sont pas versionnés. Netlify lance `npm ci && npm run build` dans `app/`.
 
 ```
 src/
-  main.tsx            démarrage : langue, préférences, branchement du moteur, ?demo
+  main.tsx            démarrage : langue, préférences, branchement du moteur, ?demo,
+                      réouverture du morceau gardé, vérification de l'outil d'import
   model/              types des données (projet, pistes, carte de tempo, document)
   grid/               calculs de grille, purs et testés : temps <-> mesures,
                       traits de mesure et de sous-grille, magnétisme, boucles,
@@ -52,14 +60,18 @@ src/
   components/         l'écran : barre du haut, en-têtes de pistes, transport,
                       outils d'affichage, fenêtres, affichage Grille d'accords
   ui/                 boucle d'animation, icônes, clavier, glisser-déposer
-  import/             points d'entrée de l'import (fichier, lien) : bouchons
+  import/             import d'un fichier ou d'un lien : lecture, décodage à 48 kHz
+                      (Web Audio, lecteur AIFF et rééchantillonnage à nous), limites,
+                      outil d'import de l'app Mac, contrôleur de la fenêtre
   platform/           l'app Mac vue depuis la page (window.fabtice)
-  storage/            contrat du stockage du projet sur l'appareil
+  storage/            projet courant sur l'appareil : contrat, IndexedDB, gardien
+                      (autosauvegarde), réouverture au lancement
   i18n/               tous les textes (fr.ts) et t()
   demo/               le morceau synthétique de ?demo
   styles/             jetons, base, une feuille par zone, téléphone
   assets/fonts/       polices (woff2) et leurs licences OFL
-tests/                vérifications dans Chromium (smoke.mjs, timeline.mjs) et petit serveur
+tests/                vérifications dans Chromium (smoke.mjs, timeline.mjs, import.mjs),
+                      fichiers audio de test (fixtures/) et petit serveur
 ```
 
 ## Règles de fond
@@ -139,26 +151,77 @@ L'interface construite (`desktop/ui/`) charge des modules JavaScript et a
 besoin de l'isolation (COOP/COEP) : l'app Mac doit la servir par un protocole
 qui envoie ces en-têtes, pas par `file://`.
 
-### Stockage du projet — `src/storage/ProjectStorage.ts`
+### Stockage du projet — `src/storage/`
 
-Interface seulement : garder sur l'appareil le document du projet courant
+Un seul projet à la fois (lot 1) : le document du projet courant
 (`ProjectDocument`, `model/document.ts`, produit par
-`store/document.ts#toProjectDocument`) et les octets audio d'origine, puis
-les relire au lancement (`fromProjectDocument`, puis décodage et
-`registerAudio` sous les mêmes identifiants). Les préférences de
-l'utilisateur (notation, suivi, sous-grille, magnétisme) sont déjà gardées
-dans `localStorage` (`store/preferences.ts`).
+`store/document.ts#toProjectDocument`) et les **octets audio d'origine** (le mp3,
+le m4a… tel qu'importé). Le PCM décodé n'est jamais gardé : il est recalculé à
+chaque ouverture, de façon déterministe. Les préférences de l'utilisateur
+(notation, suivi, sous-grille, magnétisme) restent dans `localStorage`
+(`store/preferences.ts`).
+
+| Fichier | Rôle |
+|---|---|
+| `ProjectStorage.ts` | le contrat (`replaceCurrent`, `saveCurrent`, `loadCurrent`, `loadAudio`, `clearCurrent`, `requestPersistence`…) et `StorageError` (`unavailable`, `quota`, `corrupt`, `io`) |
+| `indexedDb.ts` | l'implémentation : base `fabtice` v1, deux magasins, `project` (clé `current` : `{ schema, document }`) et `audio` (une entrée par `AudioRef.id` : `{ bytes, mimeType, fileName }`). `replaceCurrent` réécrit les deux dans **une seule transaction** : en cas d'échec, l'ancien projet reste entier. Les transactions sont validées tout de suite (`commit()`), sinon une page qui se ferme perdrait l'écriture |
+| `documentFormat.ts` | lecture sûre : version du document (`MIGRATIONS`, vide pour l'instant ; une version **plus récente** est ignorée, jamais écrasée à la lecture), contrôle de la forme (sinon `corrupt`) ; `STORAGE_SCHEMA` pour l'enveloppe |
+| `keeper.ts` | le gardien : `keepNewProject()` (à appeler quand un nouveau morceau est ouvert et jouable : demande le stockage persistant la première fois, écrit audio et document ensemble, remplace l'ancien projet) puis autosauvegarde de tout changement du document, **différée** (700 ms de calme, 5 s au plus pendant un geste continu), une écriture à la fois, jamais attendue par l'écran ; `flush()` à la fermeture (`pagehide`, onglet masqué). Rien n'est écrit pour un morceau dont l'audio n'est pas encore gardé, ni pour le morceau de démonstration |
+| `restore.ts` | lancement : « Ouverture de « titre »… » (la fenêtre n'apparaît que si cela dure plus de 250 ms), décodage, `restoreProject()` (mêmes identifiants de projet, de piste et d'audio). Au moindre échec (audio absent, document abîmé, décodage, moteur) : le projet gardé est **oublié**, la fenêtre s'ouvre avec une phrase calme. Un marqueur dans `localStorage` pendant la réouverture évite la boucle si la page est tuée par le système (manque de mémoire sur téléphone) : au lancement suivant, pas de nouvel essai |
+| `memoryStorage.ts` | même contrat en mémoire, avec pannes simulées (tests) |
+
+**Quand l'appareil refuse** (navigation privée, stockage bloqué ou plein),
+l'app continue de fonctionner : `ui.storageNotice` (`'unavailable'` ou `'full'`)
+affiche une phrase calme, une seule fois (`components/StorageNotice.tsx`), et
+l'ancien projet gardé est lui aussi oublié pour ne pas être rouvert à tort.
+
+**Ce que la version finale doit respecter.** Après un import, la mémoire ne
+garde que le PCM décodé (environ 22 Mo par minute en stéréo, dans
+`audio/registry.ts`, lu par la frise et par le moteur) : les octets d'origine
+sont libérés dès qu'ils sont écrits dans IndexedDB. Un nouveau morceau remplace l'ancien seulement une fois ouvert et jouable
+(`openImportedPiece` résolu). Toute nouvelle donnée du projet doit entrer dans
+`ProjectDocument` (et `MIGRATIONS` si le format change), sinon elle n'est pas
+gardée.
 
 ### Import — `src/import/`
 
-`importFromFile(file, { onProgress, signal })` et `importFromLink(lien,
-pont, { onProgress, signal })` rendent un `ImportedPiece` (titre, source,
-octets d'origine, audio décodé à 48 kHz) ou rejettent avec une `ImportError`
-(code → message dans `i18n/fr.ts`). Ce sont des bouchons : le format est
-vérifié, puis `not-implemented`. Le déroulé décrit dans leurs commentaires est
-à implémenter. `import/controller.ts` relie déjà la fenêtre à ces fonctions
-(progression, erreur, annulation, ouverture du morceau par
-`openImportedPiece`) ; le glisser-déposer d'un fichier marche partout.
+`importFromFile(file, { onProgress, signal })` et `importFromLink(lien, pont,
+{ onProgress, signal })` rendent un `ImportedPiece` (titre, source, octets
+d'origine, audio décodé à 48 kHz, une ou deux voies) ou rejettent avec une
+`ImportError` (code → message dans `i18n/fr.ts`, `import.error.<code>`).
+
+- **Fichier** : mp3, wav, aiff, m4a, flac. Lecture par morceaux avec progression
+  (`reading`), puis `decode.ts` (`decoding`) : l'audio est décodé par Web Audio sur
+  un `OfflineAudioContext` à 48 kHz (aucun geste de l'utilisateur requis) ;
+  l'AIFF (non lu par Chromium) passe par `aiff.ts` (AIFF et AIFF-C, 8, 16, 24 et
+  32 bits, « sowt », flottants) et `resample.ts` (polyphase, fenêtre de Kaiser).
+  Plus de deux voies : mixage 5.1 vers stéréo, sinon les deux premières. Le
+  format se reconnaît aussi au contenu (`detect.ts`), qui lit la durée dans
+  l'en-tête quand c'est possible pour refuser un morceau trop long **avant** de
+  décoder.
+- **Limites** (`limits.ts`) : 20 minutes (comme le lien) et 256 Mo par fichier ;
+  au-delà, `too-long` et `too-large`. Un fichier vide ou sans son : `empty-audio` ;
+  abîmé ou pas vraiment audio : `decode-failed`. Raison d'être de ces limites :
+  stéréo 20 minutes = 460 Mo décodés, plus la copie du fichier.
+- **Lien** (app Mac seulement, par `getDesktopBridge()`), dans cet ordre : état de
+  l'outil (`ytdlpStatus`) ; s'il manque, installation avec progression et une
+  phrase d'explication (`installing`) ; extraction (`fetching-info`, puis
+  `downloading` en pourcentage) ; si la réponse est `needsYtdlp`, installation et
+  **une** nouvelle tentative ; octets décodés comme un fichier. Les refus du pont
+  (direct, plus de 20 minutes) montrent sa phrase française sous le message
+  général ; les autres échecs n'affichent rien de technique. Rien ne change à la
+  façon d'appeler yt-dlp : on n'appelle que le pont.
+- **Annulation** : l'extraction et le téléchargement de l'outil ne peuvent pas
+  être interrompus (le pont n'a pas de moyen de le faire). La fenêtre ne propose
+  « Annuler » que pour la lecture et le décodage (`isCancellablePhase`), sinon elle
+  dit « Cette étape ne peut pas être interrompue ». Un seul import à la fois : une
+  seconde demande (y compris un fichier déposé) est ignorée.
+- **Mise à jour de l'outil** : au lancement (`checkToolUpdate`), si `ytdlpCheck`
+  signale une version plus récente d'un outil installé, la fenêtre « Nouveau
+  morceau » propose discrètement « Mettre à jour » (`ui.toolUpdate`) ; jamais de
+  fenêtre bloquante.
+- **Après le décodage**, `controller.ts` ouvre le morceau (`openImportedPiece`, une
+  piste « morceau ») puis le fait garder (`keepNewProject`).
 
 ### Frise du temps — `src/timeline/`
 
