@@ -205,7 +205,8 @@ function watchDevice(ort, run) {
       run.deviceFeatures = dev.features ? [...dev.features].sort() : undefined;
       if (dev.lost && !dev.__fabticeWatched) {
         dev.__fabticeWatched = true;
-        dev.lost.then((info) => logError('WebGPU', new Error(`périphérique perdu (${info.reason}) : ${info.message}`)));
+        // 'destroyed' is ONNX Runtime releasing its device with the session, not a failure.
+        dev.lost.then((info) => { if (info.reason !== 'destroyed') logError('WebGPU', new Error(`périphérique perdu (${info.reason}) : ${info.message}`)); });
       }
     }
   } catch (_) { /* engine without device access */ }
@@ -465,7 +466,11 @@ $('bench').addEventListener('click', async () => {
         }
       }
     }
-    lsSet(LS_BENCH, { key: deviceKey(state.env), date: new Date().toISOString(), results: results.map(({ tier, backend, rtf }) => ({ tier, backend, rtf })) });
+    // Keep earlier measurements of the tiers and backends not run this time.
+    const prev = lsGet(LS_BENCH);
+    const kept = prev && prev.key === deviceKey(state.env)
+      ? prev.results.filter((p) => !results.some((r) => r.tier === p.tier && r.backend === p.backend)) : [];
+    lsSet(LS_BENCH, { key: deviceKey(state.env), date: new Date().toISOString(), results: kept.concat(results.map(({ tier, backend, rtf }) => ({ tier, backend, rtf }))) });
     const rec = benchRecommendation(results);
     setStatus(rec ? `Banc d’essai terminé. Recommandé ici : ${MODELS[rec.tier].label} (${rec.backend === 'webgpu' ? 'carte graphique' : 'processeur'}).` : 'Banc d’essai terminé, sans résultat utilisable.');
     renderTiers();
@@ -530,6 +535,12 @@ function diagText() {
     }
     const rec = benchRecommendation(state.bench);
     if (rec) L.push(`Recommandation pour cet appareil : ${MODELS[rec.tier].label} sur ${rec.backend === 'webgpu' ? 'carte graphique' : 'processeur'} (${rec.rtf.toFixed(2)} × la durée)`);
+  }
+
+  const saved = lsGet(LS_BENCH);
+  if (!state.bench.length && saved && saved.key === deviceKey(e) && saved.results.length) {
+    L.push('');
+    L.push(`Banc d’essai précédent (${saved.date}) : ` + saved.results.map((r) => `${MODELS[r.tier].label}/${r.backend} ${r.rtf != null ? r.rtf.toFixed(2) + ' ×' : 'échec'}`).join(' · '));
   }
 
   if (state.runs.length) {
