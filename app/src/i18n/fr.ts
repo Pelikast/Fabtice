@@ -88,6 +88,9 @@ export const fr = {
   'metronome.short': 'Clic',
 
   // Display tools
+  'timeline.label': 'Frise du temps',
+  'timeline.scrollbar': 'Défilement horizontal des pistes',
+
   'tools.label': 'Affichage des pistes',
   'tools.magnet': 'Magnétisme : caler la tête de lecture sur la sous-grille',
   'tools.magnetTitle': 'Magnétisme',

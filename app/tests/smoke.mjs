@@ -56,7 +56,7 @@ try {
     check('top bar: brand and title', (await text(page, '.marque')) === 'Fabtice' && (await text(page, '.projet-titre')) === 'Blues du dimanche');
     check('top bar: export visible but disabled', await page.locator('button:has-text("Exporter")').isDisabled());
     check('four track headers', (await page.locator('.piste-tete').count()) === 4);
-    check('four timeline lanes (placeholder)', (await page.locator('.frise-voie').count()) === 4);
+    check('four timeline lanes', (await page.locator('.frise-voie').count()) === 4);
     check('ruler heads: tempo and bars, no chords row', (await page.locator('.rang-tete').count()) === 2 && (await text(page, '.rang-tete.tempo')).toUpperCase().includes('TEMPO · 110'));
     check('dialog closed with a project', !(await page.locator('.voile').evaluate((el) => el.classList.contains('ouverte'))));
     check('transport position', (await text(page, '.temps')) === '0:09,3' && (await text(page, '.ou')).includes('mesure 5 · temps 1 · boucle 5–8'), await text(page, '.ou'));

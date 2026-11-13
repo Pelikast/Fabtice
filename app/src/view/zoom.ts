@@ -4,7 +4,7 @@
 import { clamp } from '../grid/tempoMap';
 
 /** Horizontal scale, pixels per second of source time. */
-export const PX_PER_SECOND = { min: 2, max: 400, default: 40 } as const;
+export const PX_PER_SECOND = { min: 1, max: 400, default: 40 } as const;
 /** Track lane height, CSS pixels (DESIGN.md: 74 px by default). */
 export const TRACK_HEIGHT = { min: 44, max: 150, default: 74 } as const;
 /** Phone: the lanes scroll at 86 px per bar (DESIGN.md). */

@@ -23,6 +23,7 @@ le stockage.
 | `npm run typecheck` | vérification des types |
 | `npm test` | tests unitaires (Vitest, dans Node) |
 | `npm run test:smoke` | après `build` : vérifications dans Chromium (Playwright préinstallé) et captures d'écran dans un dossier temporaire (`FABTICE_SMOKE_OUT` pour le choisir) |
+| `npm run test:timeline` | après `build` : vérifications de la frise dans Chromium (formes d'onde, grille, boucle, défilement, zoom, suivi, téléphone, morceau de dix minutes) |
 
 `?demo` à la fin de l'adresse (`http://localhost:5173/?demo`) ouvre un morceau
 synthétique de quatre pistes, généré dans le code, sans fichier audio ;
@@ -46,8 +47,8 @@ src/
   audio/              contrat du moteur (AudioEngine.ts), moteur factice
                       (MockEngine.ts), fabrique (index.ts), branchement au
                       magasin (connect.ts), registre de l'audio décodé
-  timeline/           TOUT ce qui se dessine le long du temps (à construire) ;
-                      pour l'instant un emplacement vide aux bonnes hauteurs
+  timeline/           TOUT ce qui se dessine le long du temps : formes d'onde,
+                      grille, règle, boucle, tête de lecture, défilement, zoom
   components/         l'écran : barre du haut, en-têtes de pistes, transport,
                       outils d'affichage, fenêtres, affichage Grille d'accords
   ui/                 boucle d'animation, icônes, clavier, glisser-déposer
@@ -58,7 +59,7 @@ src/
   demo/               le morceau synthétique de ?demo
   styles/             jetons, base, une feuille par zone, téléphone
   assets/fonts/       polices (woff2) et leurs licences OFL
-tests/                vérifications dans Chromium (smoke.mjs) et petit serveur
+tests/                vérifications dans Chromium (smoke.mjs, timeline.mjs) et petit serveur
 ```
 
 ## Règles de fond
@@ -161,19 +162,93 @@ vérifié, puis `not-implemented`. Le déroulé décrit dans leurs commentaires 
 
 ### Frise du temps — `src/timeline/`
 
-À construire entièrement : contenu de la règle (courbe de tempo, accords,
-numéros de mesure, bande de boucle), formes d'onde, grille et sous-grille
-(effacée sous 5 px, `isSubGridVisible`), voile de boucle, tête de lecture,
-défilement, zoom, Auto (`applyAutoFit`), suivi de la tête de lecture,
-interactions (déplacement avec `snapTime` si le magnétisme est actif,
-sélection de mesures → `setLoopRegion(loopFromBars(...))`, pincement sur
-téléphone, 86 px par mesure sur téléphone). Le commentaire en tête de
-`Timeline.tsx` donne le contrat de mise en page : la colonne de droite de
-`.plan`, dans le défileur vertical `.travail`, qui ne défile **jamais**
-horizontalement ; le défilement horizontal doit être virtuel (canvas de la
-taille de la vue), ce qui garde aussi la règle collée en haut. Les hauteurs
-des rangs de la règle viennent de `rulerRows()` (`timeline/layout.ts`),
-partagé avec la colonne des en-têtes.
+Tout ce qui se dessine le long du temps, dans l'affichage Pistes : règle
+(courbe de tempo, numéros de mesure, bande de boucle), formes d'onde, grille
+et sous-grille, voile de boucle, tête de lecture, défilement, zoom, Auto,
+suivi de la tête de lecture et interactions. L'accord (rang « Accords » de la
+règle) n'est pas dessiné au lot 1 (`rulerRows({ hasChords: false })`).
+
+**Mise en page.** La frise remplit la colonne de droite de `.plan`, dans le
+défileur vertical `.travail`, qui ne défile **jamais** horizontalement : le
+défilement horizontal est virtuel. Le commentaire en tête de `Timeline.tsx`
+donne le contrat (hauteurs des rangs par `rulerRows()`, voies de
+`view.trackHeight`, règle collée en haut).
+
+**Fichiers.**
+
+| Fichier | Rôle |
+|---|---|
+| `Timeline.tsx`, `timeline.css` | squelette React (règle, voies, bande, voile, tête, barre de défilement) ; React ne rend rien d'autre |
+| `controller.ts` | cœur impératif : vue (`t0` = temps au bord gauche, `pps` = pixels par seconde), dessin, souris, toucher, molette, suivi, Auto |
+| `drawing.ts` | dessin des canvas : grille, forme d'onde, règle (fonctions sans état) |
+| `geometry.ts` | calculs purs et testés : zoom, Auto, suivi, éclaircissement des mesures, sélection de mesures |
+| `peaks.ts`, `peakCache.ts` | pyramide de crêtes multi-résolution, calculée par tranches de 3 ms, mise en cache |
+| `layout.ts` | hauteurs des rangs, partagées avec la colonne des en-têtes |
+
+**Couches de dessin.** Règle : fonds des rangs (DOM), bande de boucle (DOM,
+laiton plein), un canvas (courbe de tempo, traits et numéros de mesure), tête
+de lecture (DOM). Voies : un canvas de grille sous toutes les voies (mesures à
+26 % d'encre, sous-grille `--trait-fin`), un canvas par voie pour la forme
+d'onde (l'opacité à 22 % d'une piste coupée est une transition CSS), le voile
+de boucle (DOM) et la tête de lecture (DOM). Les canvas ont la taille de la vue
+(nets à tout rapport de pixels) et ne sont redessinés que si ce qu'ils
+montrent change : défilement, zoom, grille, pistes, boucle, taille. La tête de
+lecture se déplace par `transform` dans la boucle d'animation commune, sans
+aucun redessin ni rendu React.
+
+**Formes d'onde.** `getAudio()` est lu une seule fois par piste pour bâtir la
+pyramide (une case de 64 échantillons, puis des niveaux ×4 ; crête et énergie
+par case). Le calcul se fait par tranches de 3 ms entre deux images, sans copie
+de l'audio ; la forme d'onde se remplit de la gauche vers la droite. Deux tons
+comme dans la maquette : crêtes à 38 %, corps (RMS) à 95 %. Chaque piste est
+affichée à son propre niveau (sa crête la plus forte atteint la hauteur de la
+voie, gain limité à 8) ; la courbe d'affichage est une puissance 0,8.
+
+**Interactions.**
+
+| Geste | Effet |
+|---|---|
+| clic (sans glisser) sur une voie ou dans la rangée Mesures | `seek()`, calé par `snapTime()` si le magnétisme est actif |
+| glisser à la souris sur une voie ou dans Mesures | sélection de mesures entières, `setLoopRegion(loopFromBars(...))` en direct |
+| glisser un bord de la boucle (règle ou voie) | ajuste la boucle mesure par mesure (au moins une mesure) |
+| glisser dans la rangée Tempo | fait défiler (comme le doigt) |
+| molette horizontale, balayage au pavé tactile | défilement horizontal |
+| Maj + molette | défilement horizontal |
+| Ctrl/⌘ + molette, pincement au pavé tactile (Safari : événements `gesture*`) | zoom horizontal autour du pointeur |
+| barre de défilement fine sous les voies | glisser la poignée, cliquer la règle (une page), flèches, Début, Fin au clavier |
+| tactile : un doigt sur les voies | défile (avec inertie) ; un tapotement place la tête |
+| tactile : un doigt dans Mesures | sélectionne des mesures ; un tapotement place la tête |
+| tactile : deux doigts | zoom horizontal autour des doigts |
+
+La molette verticale reste au défileur vertical des pistes. Le zoom par les
+curseurs, la molette ou le pincement garde en place la tête de lecture si elle
+est visible, sinon le milieu de la vue.
+
+**Auto** (`view.auto`) : tant qu'il est actif, la frise ajuste le morceau à la
+largeur et les pistes à la hauteur sans débordement (`fitToView()`, bornes de
+`view/zoom.ts`) et l'écrit par `applyAutoFit()` ; recalcul au
+redimensionnement et quand les pistes changent. Sur téléphone (moins de
+760 px), Auto est éteint et une mesure fait 86 px (`PHONE_BAR_WIDTH`) tant que
+l'utilisateur n'a pas zoomé.
+
+**Suivi** (`view.follow`) : en lecture, la page se tourne quand la tête atteint
+le bord droit (28 px) ou revient en arrière (boucle), la tête se plaçant à 12 %
+de la largeur. Le suivi attend pendant un geste, une inertie, et tant que
+l'utilisateur a fait défiler la tête hors de la vue ; il reprend quand elle
+redevient visible, à la lecture suivante ou après un déplacement. Suivi
+éteint : la vue ne bouge jamais d'elle-même.
+
+**Éclaircissement.** Quand les traits de mesure seraient à moins de 6 px, on
+n'en garde qu'une sur 2, 4, 8… ; les numéros demandent 30 px et s'éclaircissent
+de même (mesures 1, 5, 9… à une sur quatre). La sous-grille disparaît sous 5 px
+(`isSubGridVisible`).
+
+**Pour les tests et le débogage.** La racine `.frise` publie `data-t0`,
+`data-pps`, `data-peaks` (`ready` quand toutes les crêtes sont calculées) et
+`data-flush` (nombre de redessins, coût total et pire coût en ms).
+`npm run test:timeline` (après `build`) lance les vérifications dans Chromium
+(`TIMELINE_ONLY=desktop|stress|phone` pour une seule partie ;
+`FABTICE_TIMELINE_OUT` pour le dossier des captures).
 
 ## Saisie de la grille (lot 1, sans analyse)
 
