@@ -217,7 +217,7 @@ async function loadModelSession(model, opt, run, label) {
   const ort = await loadOrt(opt.engine, opt.threads);
   const f = await fetchModel(model, (p) => setStatus(
     `${label} : téléchargement du modèle ${Math.round((p * model.bytes) / 1e6)} / ${Math.round(model.bytes / 1e6)} Mo`, p));
-  run.download = { fromCache: f.fromCache, seconds: f.seconds, bytes: model.bytes, cacheError: f.cacheError };
+  run.download = { fromCache: f.fromCache, store: f.store, seconds: f.seconds, bytes: model.bytes, cacheError: f.cacheError };
   setStatus(`${label} : préparation du modèle (peut prendre une minute)…`, null);
   const s = await createSession(ort, f.bytes, run.backendAsked, opt.verbose);
   run.backend = s.backend;
@@ -526,7 +526,7 @@ function diagText() {
       if (r.error) s += `ÉCHEC : ${r.error}`;
       else if (!r.times) s += 'en cours…';
       else {
-        s += `télécharg. ${r.download.fromCache ? 'cache' : sec(r.download.seconds)} · session ${sec(r.sessionSeconds)} · morceaux ${r.times.map((t) => t.toFixed(2)).join(' / ')} s`;
+        s += `télécharg. ${r.download.fromCache ? r.download.store : sec(r.download.seconds) + (r.download.store ? '' : ' (non gardé)')} · session ${sec(r.sessionSeconds)} · morceaux ${r.times.map((t) => t.toFixed(2)).join(' / ')} s`;
         s += ` (morceau ${(m.segment / RATE).toFixed(1)} s) → ${r.rtf.toFixed(2)} × la durée du morceau`;
         if (r.heap) s += ` · tas JS ${mb(r.heap)}`;
       }
@@ -548,7 +548,7 @@ function diagText() {
     L.push('Séparations :');
     for (const r of state.runs) {
       L.push(`  #${r.n} « ${r.file} » ${fmtTime(r.duration)} (${r.duration.toFixed(1)} s) · ${MODELS[r.tier].label} = ${r.model} · choix ${r.choice} · calcul demandé ${r.backendAsked} → utilisé ${r.backend || '?'}`);
-      if (r.download) L.push(`     modèle ${mb(r.download.bytes)} ${r.download.fromCache ? 'depuis le cache' : `téléchargé en ${sec(r.download.seconds)}`}${r.download.cacheError ? ` (cache : ${r.download.cacheError})` : ''} · session créée en ${sec(r.sessionSeconds)}`);
+      if (r.download) L.push(`     modèle ${mb(r.download.bytes)} ${r.download.fromCache ? `relu depuis ${r.download.store} en ${sec(r.download.seconds)}` : `téléchargé en ${sec(r.download.seconds)}, gardé dans ${r.download.store || 'RIEN'}`}${r.download.cacheError ? ` (${r.download.cacheError})` : ''} · session créée en ${sec(r.sessionSeconds)}`);
       if (r.seconds != null) L.push(`     traitement ${sec(r.seconds)} = ${r.rtf.toFixed(2)} × la durée · ${r.chunks} morceaux · premier ${sec(r.firstChunk)} · médiane ${sec(r.medianChunk)} (dont iSTFT ${sec(r.medianPost)})${r.heap ? ` · tas JS ${mb(r.heap)}` : ''}`);
       if (r.deviceLimits) L.push(`     périphérique ORT : ${Object.entries(r.deviceLimits).map(([k, v]) => `${k} ${v >= 1048576 ? Math.round(v / 1048576) + ' Mio' : v}`).join(' · ')}`);
       if (r.attempts && r.attempts.length) L.push(`     essais refusés : ${r.attempts.map((a) => `${a.backend}: ${a.error}`).join(' | ')}`);

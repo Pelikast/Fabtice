@@ -32,24 +32,56 @@ async function sha256Hex(bytes) {
   return [...new Uint8Array(d)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-// Returns { bytes: Uint8Array, fromCache, seconds, cacheError }.
-export async function fetchModel(model, onProgress) {
-  const t0 = performance.now();
-  let cache = null, cacheError = null;
+// Models are kept in Cache Storage; when that refuses a large file (seen in Chromium for
+// 353 MB), in the origin private file system (OPFS) under their SHA-256.
+async function opfsDir() {
+  const root = await navigator.storage.getDirectory();
+  return root.getDirectoryHandle('fabtice-models', { create: true });
+}
+
+async function readStored(model) {
+  const errors = [];
   try {
-    cache = await caches.open(CACHE_NAME);
+    const cache = await caches.open(CACHE_NAME);
     const hit = await cache.match(model.url);
     if (hit) {
       const bytes = new Uint8Array(await hit.arrayBuffer());
-      if (bytes.length === model.bytes) {
-        return { bytes, fromCache: true, seconds: (performance.now() - t0) / 1000 };
-      }
+      if (bytes.length === model.bytes) return { bytes, store: 'Cache Storage' };
       await cache.delete(model.url);
     }
+  } catch (e) { errors.push('cache : ' + String(e && e.message || e)); }
+  try {
+    const fh = await (await opfsDir()).getFileHandle(model.sha256 + '.onnx');
+    const file = await fh.getFile();
+    if (file.size === model.bytes) return { bytes: new Uint8Array(await file.arrayBuffer()), store: 'OPFS' };
   } catch (e) {
-    cacheError = String(e && e.message || e);
-    cache = null;
+    if (!(e && e.name === 'NotFoundError')) errors.push('OPFS : ' + String(e && e.message || e));
   }
+  return { bytes: null, errors };
+}
+
+async function store(model, bytes) {
+  const errors = [];
+  try {
+    const cache = await caches.open(CACHE_NAME);
+    await cache.put(model.url, new Response(bytes, { headers: { 'Content-Type': 'application/octet-stream' } }));
+    return { store: 'Cache Storage', errors };
+  } catch (e) { errors.push('cache : ' + String(e && e.message || e)); }
+  try {
+    const fh = await (await opfsDir()).getFileHandle(model.sha256 + '.onnx', { create: true });
+    const w = await fh.createWritable();
+    await w.write(bytes);
+    await w.close();
+    return { store: 'OPFS', errors };
+  } catch (e) { errors.push('OPFS : ' + String(e && e.message || e)); }
+  return { store: null, errors };
+}
+
+// Returns { bytes: Uint8Array, fromCache, store, seconds, cacheError }.
+export async function fetchModel(model, onProgress) {
+  const t0 = performance.now();
+  const hit = await readStored(model);
+  if (hit.bytes) return { bytes: hit.bytes, fromCache: true, store: hit.store, seconds: (performance.now() - t0) / 1000 };
   const resp = await fetch(model.url, { mode: 'cors', credentials: 'omit' });
   if (!resp.ok) throw new Error(`téléchargement du modèle : HTTP ${resp.status}`);
   const total = model.bytes;
@@ -68,18 +100,14 @@ export async function fetchModel(model, onProgress) {
   const hash = await sha256Hex(bytes);
   if (hash !== model.sha256) throw new Error('empreinte SHA-256 du modèle incorrecte');
   const seconds = (performance.now() - t0) / 1000;
-  if (cache) {
-    try {
-      await cache.put(model.url, new Response(bytes, { headers: { 'Content-Type': 'application/octet-stream' } }));
-    } catch (e) {
-      cacheError = String(e && e.message || e);
-    }
-  }
-  return { bytes, fromCache: false, seconds, cacheError };
+  const saved = await store(model, bytes);
+  const errs = hit.errors.concat(saved.errors);
+  return { bytes, fromCache: false, store: saved.store, seconds, cacheError: errs.length ? errs.join(' ; ') : null };
 }
 
 export async function clearModelCache() {
-  return caches.delete(CACHE_NAME);
+  await caches.delete(CACHE_NAME);
+  try { await (await navigator.storage.getDirectory()).removeEntry('fabtice-models', { recursive: true }); } catch (_) { /* none */ }
 }
 
 // ---------------------------------------------------------------- sessions
