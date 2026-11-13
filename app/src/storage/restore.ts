@@ -18,6 +18,7 @@ import { decodeAudioBytes } from '../import/decode';
 import { ImportError } from '../import/types';
 import { t } from '../i18n';
 import { openNewPiece, restoreProject, setDialogNotice, setImportStatus } from '../store/actions';
+import { appStore } from '../store/store';
 import type { ProjectKeeper } from './keeper';
 import { StorageError, type ProjectStorage, type StoredAudio } from './ProjectStorage';
 
@@ -93,8 +94,9 @@ export async function restoreAtLaunch(deps: RestoreDeps): Promise<RestoreOutcome
     openNewPiece();
     return 'none';
   }
-  if (!doc || doc.project.source.kind === 'demo') {
-    openNewPiece();
+  // Nothing to reopen, or the user was faster than the device (a file already dropped): leave things be.
+  if (!doc || doc.project.source.kind === 'demo' || appStore.getState().project !== null || appStore.getState().ui.import.kind === 'busy') {
+    if (appStore.getState().project === null && appStore.getState().ui.import.kind !== 'busy') openNewPiece();
     return 'none';
   }
   const title = doc.project.title;

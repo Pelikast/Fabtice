@@ -112,6 +112,8 @@ export async function decodeAudioBytes(bytes: ArrayBuffer, options: DecodeOption
   const format = detectAudioFormat(view);
   const announced = probeDuration(view, format);
   if (announced !== null && announced > MAX_DURATION_SECONDS) throw new ImportError('too-long', `${Math.round(announced)} s`);
+  // A header that announces no sound at all (a file saved empty).
+  if (announced !== null && announced < MIN_DURATION_SECONDS) throw new ImportError('empty-audio');
 
   onProgress?.({ phase: 'decoding', fraction: null, title });
   let decoded: DecodedAudio;

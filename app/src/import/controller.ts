@@ -92,11 +92,14 @@ export function startLinkImport(link: string): Promise<void> {
 /**
  * « Annuler »: stops the running import and returns to the dialog's first
  * screen, but only where that is true (`isCancellablePhase`); otherwise nothing happens.
+ * With nothing running it just clears a stale progress view.
  */
 export function cancelImport(): void {
-  if (!running || !isCancellablePhase(running.phase)) return;
-  running.controller.abort();
-  running = null;
+  if (running) {
+    if (!isCancellablePhase(running.phase)) return;
+    running.controller.abort();
+    running = null;
+  }
   setImportStatus({ kind: 'idle' });
 }
 

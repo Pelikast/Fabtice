@@ -191,15 +191,15 @@ try {
     await sleep(300);
     check('Escape closes the dialog', !(await page.locator('.voile').evaluate((el) => el.classList.contains('ouverte'))));
 
-    // Import: unsupported file, then the stub's error, then progress
+    // Import: unsupported file, then an undecodable one, then progress
     await page.click('button:has-text("Nouveau projet")');
     await page.locator('.accueil input[type="file"]').setInputFiles({ name: 'partition.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF') });
     check('unsupported file refused', (await text(page, '.import-erreur')).includes('Formats acceptés'));
     await page.click('button:has-text("Réessayer")');
     await page.locator('.accueil input[type="file"]').setInputFiles({ name: 'morceau.mp3', mimeType: 'audio/mpeg', buffer: Buffer.from([0xff, 0xfb, 0x90, 0]) });
-    check('file import reaches the stub', (await text(page, '.import-erreur')).includes('pas encore branché'));
+    check('file import: a file that is not audio gets the plain « abîmé » message', (await text(page, '.import-erreur')).includes('pas pu être lu'));
     await page.screenshot({ path: path.join(out, 'app-1280-import-erreur.png') });
-    await page.evaluate(() => window.__fabtice.actions.setImportStatus({ kind: 'busy', progress: { phase: 'downloading', fraction: 0.42, title: 'Blues du dimanche' } }));
+    await page.evaluate(() => window.__fabtice.actions.setImportStatus({ kind: 'busy', progress: { phase: 'decoding', fraction: 0.42, title: 'Blues du dimanche' } }));
     check('import progress view', (await text(page, '.import-etat')).includes('42 %'));
     await sleep(300);
     await page.screenshot({ path: path.join(out, 'app-1280-import-progres.png') });
@@ -252,7 +252,7 @@ try {
     check('Mac app: file link as an alternative', await page.locator('.sinon .lien').isVisible());
     await page.fill('.champ input', 'https://www.youtube.com/watch?v=abc');
     await page.click('.champ .plein');
-    check('Mac app: link import reaches the stub', (await text(page, '.import-erreur')).includes('pas encore branché'));
+    check('Mac app: link import goes through the bridge (its failure gets the plain message)', (await text(page, '.import-erreur')).includes('Le téléchargement n’a pas abouti'));
     await page.click('button:has-text("Réessayer")');
     await page.screenshot({ path: path.join(out, 'app-1280-accueil-mac.png') });
     check('no page errors (Mac app)', errors.length === 0, errors.join(' | '));

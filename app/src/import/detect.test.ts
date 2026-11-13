@@ -22,6 +22,18 @@ describe('format detection by content', () => {
     expect(detectAudioFormat(read('desktop/test/fixtures/tone-dash.m4a'))).toBe('m4a');
   });
 
+  it('recognises the test fixtures and reads their length from the header', () => {
+    const fixture = (n: string) => new Uint8Array(fs.readFileSync(path.join(root, 'app/tests/fixtures', n)));
+    expect(detectAudioFormat(fixture('tone.wav'))).toBe('wav');
+    expect(detectAudioFormat(fixture('tone.aiff'))).toBe('aiff');
+    expect(detectAudioFormat(fixture('tone.flac'))).toBe('flac');
+    expect(detectAudioFormat(fixture('tone.mp3'))).toBe('mp3');
+    expect(probeDuration(fixture('tone.wav'), 'wav')).toBeCloseTo(1.5, 3);
+    expect(probeDuration(fixture('tone.aiff'), 'aiff')).toBeCloseTo(1, 3);
+    expect(probeDuration(fixture('tone.flac'), 'flac')).toBeCloseTo(1.5, 3);
+    expect(probeDuration(fixture('tone.mp3'), 'mp3')).toBeCloseTo(1.5, 1);
+  });
+
   it('answers null for anything else', () => {
     expect(detectAudioFormat(new TextEncoder().encode('%PDF-1.7 ...'))).toBeNull();
     expect(detectAudioFormat(new Uint8Array(0))).toBeNull();

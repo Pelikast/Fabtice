@@ -89,6 +89,9 @@ export class IndexedDbStorage implements ProjectStorage {
       try {
         tx = db.transaction(stores, mode);
         last = work(tx);
+        // Commit now rather than when the event loop is next idle: a page that is
+        // being closed (the save on « page hidden ») would otherwise lose the write.
+        (tx as IDBTransaction & { commit?: () => void }).commit?.();
       } catch (e) {
         // A request that throws (data that cannot be stored) leaves the transaction alive: cancel what it did.
         try {

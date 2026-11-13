@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { makeAiff, sine } from '../test/audioFiles';
 import { AiffError, aiffDuration, decodeAiff, isAiff, parseAiff } from './aiff';
@@ -62,5 +64,19 @@ describe('AIFF reader', () => {
     expect(full.length - cut.length).toBe(9);
     // 9 bytes = two whole stereo frames (8 bytes) and one stray byte lost.
     expect(decodeAiff(cut).channels[0]!.length).toBe(ramp.length - 3);
+  });
+
+  it('reads the AIFF test fixture written by another tool: 1 s of a 440 Hz tone', () => {
+    const file = new Uint8Array(fs.readFileSync(path.resolve(import.meta.dirname, '../../tests/fixtures/tone.aiff')));
+    const pcm = decodeAiff(file);
+    expect(pcm).toMatchObject({ sampleRate: 44100 });
+    expect(pcm.channels).toHaveLength(1);
+    expect(pcm.channels[0]!.length).toBe(44100);
+    // Frequency by zero crossings of the steady part: 440 Hz.
+    const x = pcm.channels[0]!;
+    let crossings = 0;
+    for (let i = 4410; i < 39690; i++) if (x[i]! <= 0 && x[i + 1]! > 0) crossings++;
+    expect(crossings / ((39690 - 4410) / 44100)).toBeGreaterThan(430);
+    expect(crossings / ((39690 - 4410) / 44100)).toBeLessThan(450);
   });
 });

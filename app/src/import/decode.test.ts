@@ -69,6 +69,9 @@ describe('decodeAudioBytes', () => {
   it('refuses silence of length zero and empty files', async () => {
     expect((await rejection(decodeAudioBytes(wav(), { decodeWebAudio: async () => ({ channels: [new Float32Array(0)], sampleRate: 48000 }) }))).code).toBe('empty-audio');
     expect((await rejection(decodeAudioBytes(new ArrayBuffer(0)))).code).toBe('empty-audio');
+    // A WAV saved with a header and no samples: refused before decoding.
+    const headerOnly = toArrayBuffer(makeWav(1, 44100, [[]]));
+    expect((await rejection(decodeAudioBytes(headerOnly, { decodeWebAudio: async () => mono48(1) }))).code).toBe('empty-audio');
     const tiny = await rejection(decodeAudioBytes(wav(), { decodeWebAudio: async () => ({ channels: [new Float32Array(100)], sampleRate: 48000 }) }));
     expect(tiny.code).toBe('empty-audio');
   });
