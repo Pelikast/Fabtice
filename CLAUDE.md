@@ -7,9 +7,11 @@ Gratuit, sans publicité, sans compte. Licence GPL-3.0-or-later.
 
 ## Deux formes, un seul code
 
-- **App Mac** (`desktop/`, Electron, universelle Intel + Apple Silicon, macOS 12
-  Monterey minimum). C'est la forme principale : elle seule importe un lien
-  YouTube, en extrayant l'audio sur la machine de l'utilisateur avec yt-dlp.
+- **App Mac** (`desktop/`, Electron, macOS 12 Monterey minimum), livrée en deux
+  téléchargements séparés, un pour les Mac à puce Apple et un pour les Mac
+  Intel, pour diviser le poids par deux. C'est la forme principale : elle
+  seule importe un lien YouTube, en extrayant l'audio sur la machine de
+  l'utilisateur avec yt-dlp.
 - **App web** (`web/`, site statique sur Netlify, https://fabtice.netlify.app).
   Même interface, ordinateur et mobile, import de fichiers audio uniquement.
 
@@ -27,6 +29,15 @@ aucune technique de contournement des protections de YouTube.
    (kick, caisse claire, charleston, toms, cymbales ; saxophone…). Le modèle
    est choisi automatiquement selon la puissance de l'appareil, avec réglage
    manuel en mode avancé.
+   - **Modèles** : décision du propriétaire, tous les modèles utiles sont
+     proposés, y compris ceux dont la licence des poids est floue ou réservée
+     à un usage non commercial (BS-RoFormer SW, HTDemucs 6 sources, batterie
+     détaillée). L'app ne redistribue aucun poids : elle les télécharge depuis
+     leur emplacement public, à la demande de l'utilisateur, en affichant la
+     source et la licence connue. La liste des modèles est un fichier distant,
+     pour pouvoir en retirer un sans publier de nouvelle version.
+   - Si le calcul sur la carte graphique échoue, l'app repasse sur le
+     processeur **avec un modèle plus léger**, jamais avec le plus lourd.
 3. **Lecteur / boucleur** : forme d'onde par piste à 60 images/s, grille de
    mesures et de temps, tempo fixe ou variable (courbe de tempo), sélection de
    mesures à la souris pour boucler, solo / mute / volume par piste,
@@ -98,8 +109,8 @@ Pas prévu pour l'instant : apps Windows, Android, iOS.
 - Les prototypes de la phase 0 vivent dans `web/spikes/<nom>/` (pages de test
   ouvrables depuis le site) et ne préjugent pas de l'architecture de la v1.
 - Ne jamais mettre de secret dans le dépôt : il est public.
-- **Chaque envoi sur `main` déclenche un déploiement Netlify, et le quota de
-  déploiements est limité.** Ne pousser sur `main` que pour une étape
-  réellement terminée, avec l'accord du propriétaire. Le travail courant reste
-  en local ou sur une autre branche, et se vérifie avec un serveur local, pas
-  sur le site.
+- **Netlify ne déploie plus automatiquement** : le propriétaire a arrêté les
+  builds et déclenche lui-même un déploiement à chaque étape réellement
+  terminée, car le quota est limité. Pousser sur `main` ne publie donc rien.
+  Ne jamais demander un déploiement pour du travail intermédiaire, et vérifier
+  son travail avec un serveur local ou dans l'app Mac, pas sur le site.
