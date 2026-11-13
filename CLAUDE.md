@@ -105,6 +105,27 @@ Pas prévu pour l'instant : apps Windows, Android, iOS.
   existe. Ne pas produire une interface générique.
 - Interface en français, structure prête pour l'anglais.
 
+## Mesures de la phase 0 sur les appareils du propriétaire
+
+À connaître avant de retravailler ces parties ; ce sont des relevés réels, pas
+des estimations.
+
+- **Séparation, MacBook M1 Pro 16 Go, Chrome 157, carte graphique (WebGPU)**,
+  modèle BS-RoFormer SW : 809 s pour un morceau de 223 s, soit 3,6 fois sa
+  durée (7 s par tranche de 4 s, 114 tranches, 1,1 Go de mémoire JavaScript).
+  Qualité jugée très satisfaisante, mais attente longue et machine qui chauffe.
+- **Même Mac, Safari 27.2** : le calcul graphique échoue (périphérique perdu au
+  premier essai), repli sur le processeur à 4,0 fois la durée.
+- **iPhone 14 Pro Max, Safari** : la page est fermée par le système pendant la
+  séparation d'un morceau de 4 min 21 avec le modèle le plus léger (SCNet),
+  très probablement par manque de mémoire.
+- **Lecteur, Safari sur le M1** : six pistes en direct avec Signalsmith à 16 %
+  de charge moyenne, sans coupure, alors que la machine tournait en 96 kHz.
+  Rubber Band R3 en direct sur sept pistes dépasse largement le budget.
+- **Import par lien, app Mac sur le M1** : quatre liens extraits sans erreur ;
+  Chromium décode le fichier reçu sans conversion.
+- Le Mac Intel sous Monterey n'a encore rien testé.
+
 ## Conventions
 
 - Code et commentaires en anglais ; textes d'interface et documents en français.
