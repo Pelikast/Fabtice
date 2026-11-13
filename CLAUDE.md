@@ -37,7 +37,9 @@ aucune technique de contournement des protections de YouTube.
      source et la licence connue. La liste des modèles est un fichier distant,
      pour pouvoir en retirer un sans publier de nouvelle version.
    - Si le calcul sur la carte graphique échoue, l'app repasse sur le
-     processeur **avec un modèle plus léger**, jamais avec le plus lourd.
+     processeur **en gardant le modèle choisi** : la qualité prime sur
+     l'attente. Elle affiche simplement un avertissement pendant le calcul
+     (séparation par le processeur, plus longue).
 3. **Lecteur / boucleur** : forme d'onde par piste à 60 images/s, grille de
    mesures et de temps, tempo fixe ou variable (courbe de tempo), sélection de
    mesures à la souris pour boucler, solo / mute / volume par piste,
