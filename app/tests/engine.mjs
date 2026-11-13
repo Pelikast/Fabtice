@@ -113,12 +113,12 @@ function installHelpers() {
           if (e.data === 'start') { this.on = true; this.b = []; this.first = -1; }
           else if (e.data === 'stop') {
             this.on = false;
-            const n = this.b.reduce((a, x) => a + x.length, 0), out = new Float32Array(n);
-            let o = 0; for (const x of this.b) { out.set(x, o); o += x.length; }
-            this.port.postMessage({ data: out, first: this.first }, [out.buffer]); this.b = [];
+            const n = this.b.reduce((a, x) => a + x[0].length, 0), out = new Float32Array(n), outR = new Float32Array(n);
+            let o = 0; for (const x of this.b) { out.set(x[0], o); outR.set(x[1], o); o += x[0].length; }
+            this.port.postMessage({ data: out, dataR: outR, first: this.first }, [out.buffer, outR.buffer]); this.b = [];
           }
         }; }
-      process(inputs) { if (this.on && inputs[0] && inputs[0][0]) { if (this.first < 0) this.first = currentFrame; this.b.push(inputs[0][0].slice()); } return true; }
+      process(inputs) { if (this.on && inputs[0] && inputs[0][0]) { if (this.first < 0) this.first = currentFrame; this.b.push([inputs[0][0].slice(), (inputs[0][1] || inputs[0][0]).slice()]); } return true; }
     }
     registerProcessor('fab-rec', Rec);`;
     await ctx.audioWorklet.addModule(URL.createObjectURL(new Blob([code], { type: 'text/javascript' })));
@@ -221,7 +221,11 @@ function installHelpers() {
   /** Waits on the audio clock (not the wall clock). */
   T.audioWait = async (sec) => {
     const t0 = T.clock();
-    while (T.clock() - t0 < sec) await T.sleep(5);
+    const w0 = performance.now();
+    while (T.clock() - t0 < sec) {
+      if (performance.now() - w0 > sec * 3000 + 5000) throw new Error(`the audio clock does not advance (context ${T.ctx().state})`);
+      await T.sleep(5);
+    }
   };
   /** Samples [audio frame, engine position (frames)] every few ms while `fn` runs. */
   T.samplePosition = async (fn) => {
@@ -526,20 +530,16 @@ try {
       const accents = Uint8Array.from(beats.map((_, i) => (i % 4 === 0 ? 1 : 0)));
       const out = {};
       for (const ratio of [1, 0.6, 1.4]) {
-        await T.load([{ id: 'p', data: T.pulses(40, beats), mix: { mute: false, solo: false, volume: 1 } }]);
+        // pulses on the left only, so L - R holds the pulses alone and R holds the clicks alone
+        const pulses = T.pulses(40, beats);
+        await T.load([{ id: 'p', channels: [pulses, new Float32Array(pulses.length)] }]);
         e.setTempoRatio(ratio);
         e.setClickTrack({ times: Float64Array.from(beats), accents });
-        const run = async (metronome) => {
-          e.setMetronome(metronome);
-          e.setTrackMix('p', { mute: metronome, solo: false, volume: 1 });
-          e.seek(0.2);
-          await T.sleep(50);
-          const { data } = await T.record(Math.round((8 / ratio) * 1000), () => e.play());
-          e.pause();
-          return data;
-        };
-        const stems = await run(false);
-        const clicks = await run(true);
+        e.setMetronome(true);
+        e.seek(0.2);
+        const { data, dataR } = await T.record(Math.round((8 / ratio) * 1000), () => e.play());
+        e.pause();
+        const diff = data.map((v, i) => v - dataR[i]);
         const onsets = (a, thr) => {
           const o = [];
           let last = -1e9;
@@ -551,20 +551,23 @@ try {
           }
           return o;
         };
-        const so = onsets(stems, 0.05), co = onsets(clicks, 0.05);
+        const so = onsets(diff, 0.1), co = onsets(dataR, 0.1);
         const n = Math.min(so.length, co.length);
-        let worst = 0;
-        // both runs start the same way; compare onset k of each, relative to their first onset
-        for (let i = 0; i < n; i++) worst = Math.max(worst, Math.abs(so[i] - so[0] - (co[i] - co[0])));
-        // absolute: the first click against the first pulse
-        out[ratio] = { n, so: so.length, co: co.length, worstMs: (worst / 48000) * 1000, firstMs: ((co[0] - so[0]) / 48000) * 1000 };
+        let worst = 0, sum = 0;
+        // onset k of the clicks against onset k of the pulses, in the same recording
+        for (let i = 0; i < n; i++) {
+          const d = co[i] - so[i];
+          sum += d;
+          worst = Math.max(worst, Math.abs(d - (co[0] - so[0])));
+        }
+        out[ratio] = { n, so: so.length, co: co.length, worstMs: (worst / 48000) * 1000, firstMs: ((co[0] - so[0]) / 48000) * 1000, meanMs: (sum / n / 48000) * 1000 };
       }
       // a click is not time-stretched: its length does not depend on the ratio
       return out;
     });
     for (const ratio of ['1', '0.6', '1.4']) {
       const c = r[ratio];
-      check(`metronome clicks on the click track at ratio ${ratio}`, c.n >= 8 && c.worstMs < 6 && Math.abs(c.firstMs) < 12, `${c.co} clicks vs ${c.so} pulses, spacing error max ${c.worstMs.toFixed(2)} ms, first click vs first pulse ${c.firstMs.toFixed(2)} ms`);
+      check(`metronome clicks land on the click track at ratio ${ratio}`, c.n >= 8 && c.worstMs < 6 && Math.abs(c.meanMs) < 6, `${c.co} clicks vs ${c.so} pulses in the same recording, mean offset ${c.meanMs.toFixed(2)} ms, spread max ${c.worstMs.toFixed(2)} ms`);
     }
   }
 
@@ -576,14 +579,14 @@ try {
       const events = [];
       const off = e.on('ended', () => events.push(['ended', T.clock(), e.getState(), e.getPosition()]));
       e.seek(2.5);
-      const t0 = T.clock();
       await e.play();
-      await T.audioWait(3);
-      const res = { events, t0, state: e.getState(), pos: e.getPosition(), dur: e.getDuration() };
+      const t0 = T.clock();
+      await T.sleep(3200);
+      const res = { events: [...events], t0, state: e.getState(), pos: e.getPosition(), dur: e.getDuration() };
       await e.play(); // at the end: restarts from 0
       await T.sleep(50);
       res.restart = e.getPosition();
-      await T.audioWait(0.5);
+      await T.sleep(500);
       res.restartLater = e.getPosition();
       e.pause();
       // loop never ends
@@ -591,12 +594,13 @@ try {
       e.seek(1.5);
       events.length = 0;
       await e.play();
-      await T.audioWait(3);
+      await T.sleep(3200);
       res.loopEnded = events.length;
       e.pause();
       off();
       return res;
     });
+    if (process.env.ENGINE_TRACE) console.log('ended events', JSON.stringify(r.events), 't0', r.t0, 'res', r.state, r.pos, r.dur);
     const ev = r.events[0];
     check('ended fires once, engine ready at the end', r.events.length === 1 && r.state === 'ready' && Math.abs(r.pos - r.dur) < 1e-6 && ev && ev[2] === 'ready', `fired ${((ev?.[1] ?? 0) - r.t0).toFixed(2)} audio s after play (1.5 s of material + latency)`);
     check('play at the end restarts from 0', r.restart < 0.3 && r.restartLater > 0.3 && r.restartLater < 1.5, `${r.restart.toFixed(3)} then ${r.restartLater.toFixed(3)}`);

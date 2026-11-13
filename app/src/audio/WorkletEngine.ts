@@ -202,8 +202,9 @@ export class WorkletEngine implements AudioEngine {
     const ctx = this.ctx;
     const token = ++this.startToken;
     this.cancelIdle();
-    // Called synchronously, before any await: this is what the user gesture allows.
-    const resumed = ctx.state === 'running' ? Promise.resolve() : ctx.resume();
+    // Called synchronously, before any await: this is what the user gesture allows. Always called, even
+    // when the context looks running: an idle `suspend()` may be in flight, and the resume queues after it.
+    const resumed = ctx.resume();
     try {
       await resumed;
     } catch (e) {
