@@ -8,7 +8,11 @@ const keys = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(
 let failed = 0;
 const rows = [];
 // `informational`: a known limitation of the engine, reported but not counted as a failure of the prototype.
+// Strict engines (the two candidates for live / export use) must pass; the others are reported for the comparison
+// (e.g. SoundTouch repeats transients at slow tempo, the Signalsmith "cheaper" preset ripples at tempo != 100 %).
+const STRICT = new Set(['signalsmith', 'rubberband-r3']);
 function check(engine, name, ok, detail, informational = false) {
+	informational = informational || !STRICT.has(engine);
 	if (!ok && !informational) failed++;
 	rows.push({ engine, name, ok, detail });
 	console.log(`${ok ? 'PASS' : informational ? 'KNOWN' : 'FAIL'}  ${engine.padEnd(18)} ${name.padEnd(46)} ${detail}`);

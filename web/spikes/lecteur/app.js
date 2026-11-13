@@ -3,6 +3,8 @@ import { chunkize, storeBytes, computePeaks, peaksBytes, encodeWav, canShare } f
 import { synthDemo, tile, DEMO } from './demo.js';
 import { WaveformView } from './waveform.js';
 import { ENGINES, createNode, setEngine, sendStem, hasSimd } from './player.js';
+import { opusSupported, encodeOpus, OpusReader } from './opus.js';
+import { CHUNK, CHUNK_BITS } from './stems.js';
 
 const $ = (id) => document.getElementById(id);
 const S = {
@@ -45,7 +47,9 @@ function sendLoop() {
 function getCtx() {
 	if (S.ctx) return S.ctx;
 	const AC = window.AudioContext || window.webkitAudioContext;
-	S.ctx = new AC({ latencyHint: 'interactive' });
+	const qsSr = +new URLSearchParams(location.search).get('sr') || 0;
+	const wantSr = qsSr || ($('mem').value === 'opus' ? 48000 : 0); // Opus mode needs 48 kHz
+	S.ctx = wantSr ? new AC({ latencyHint: 'interactive', sampleRate: wantSr }) : new AC({ latencyHint: 'interactive' });
 	S.sr = S.ctx.sampleRate;
 	S.ctxReady = (async () => {
 		S.node = await createNode(S.ctx, false);
@@ -85,7 +89,7 @@ function onNodeMsg(m) {
 			S.loadMaxWin = m.load.max; if (m.load.max > S.loadPeak) S.loadPeak = m.load.max;
 		}
 		S.over = m.over; S.underruns = m.underruns; S.wasmBytes = m.wasmBytes || 0;
-		S.active = m.active; S.missing += m.missing.length;
+		S.active = m.active; S.missing += m.missing.length; if (m.missing.length) S.missingList = m.missing;
 	} else if (m.type === 'ended') {
 		S.playing = false; $('btn-play').textContent = '▶ Lecture';
 	} else if (m.type === 'error') logErr('worklet: ' + m.message);
@@ -129,7 +133,7 @@ function renderStemRows() {
 		so.onclick = () => { s.solo = !s.solo; so.classList.toggle('on', s.solo); postStem(i); refreshDims(); };
 		row.querySelector('input[type=range]').oninput = (e) => { s.vol = e.target.value / 100; postStem(i); };
 		nt.onchange = () => { s.noTranspose = nt.checked; postStem(i); };
-		row.querySelector('small').textContent = `${s.store.mono ? 'mono' : 'stéréo'} · ${MB(storeBytes(s.store))}`;
+		row.querySelector('small').textContent = `${s.store.mono ? 'mono' : 'stéréo'} · ${MB(stemBytes(s))}`;
 		box.appendChild(row);
 	});
 }
@@ -137,10 +141,18 @@ function renderStemRows() {
 async function addStem({ name, l, r }) {
 	await ensureAudio();
 	const kind = $('mem').value;
-	const store = chunkize(l, r, kind);
 	const peaks = computePeaks(l, r);
+	let store, opus = null;
+	if (kind === 'opus') {
+		if (!opusSupported || S.sr !== 48000) throw new Error('Mode Opus indisponible (WebCodecs absent ou contexte audio pas à 48 kHz : ajoutez ?sr=48000 à l’adresse)');
+		const t0 = performance.now();
+		const enc = await encodeOpus(l, r, S.sr, 96000);
+		S.encodeMs = (S.encodeMs || 0) + performance.now() - t0;
+		store = { frames: l.length, mono: !r, kind: 'i16', chunks: new Array(Math.ceil(l.length / CHUNK)).fill(null) };
+		opus = { enc, reader: new OpusReader(enc, canShare), resident: new Set(), pending: new Set() };
+	} else store = chunkize(l, r, kind);
 	const i = S.stems.length;
-	const s = { name, store, peaks, vol: 1, mute: false, solo: false, noTranspose: /batterie|drum|perc/i.test(name) };
+	const s = { name, store, peaks, opus, vol: 1, mute: false, solo: false, noTranspose: /batterie|drum|perc/i.test(name) };
 	S.stems.push(s);
 	sendStem(S.node, i, name, store);
 	postStem(i);
@@ -211,6 +223,7 @@ function seek(t) {
 	if (S.node) S.node.port.postMessage({ type: 'seek', frame: t * S.sr });
 	if (S.st) S.st = { ...S.st, t: performance.now(), heard: t * S.sr };
 	view.setPlayhead(t);
+	if (S.stems.some((x) => x.opus)) streamTick();
 }
 $('btn-play').onclick = () => (S.playing ? pause() : play());
 $('btn-start').onclick = () => seek(S.loop.enabled && S.loop.end > S.loop.start ? S.loop.start : 0);
@@ -293,9 +306,13 @@ $('metro-vol').oninput = sendMetro;
 for (const id of ['bpm', 'offset', 'bpb']) $(id).onchange = onGridChange;
 
 // ---------------------------------------------------------------- stats
+function stemBytes(s) {
+	if (!s.opus) return storeBytes(s.store);
+	return s.opus.enc.bytes + s.opus.resident.size * CHUNK * 2 * (s.store.mono ? 1 : 2);
+}
 function totals() {
 	let store = 0, peaks = 0, frames = 0, f32eq = 0;
-	for (const s of S.stems) { store += storeBytes(s.store); peaks += peaksBytes(s.peaks); frames = Math.max(frames, s.store.frames); f32eq += s.store.frames * 2 * 4; }
+	for (const s of S.stems) { store += stemBytes(s); peaks += peaksBytes(s.peaks); frames = Math.max(frames, s.store.frames); f32eq += s.store.frames * 2 * 4; }
 	return { store, peaks, frames, f32eq };
 }
 function updateStats() {
@@ -352,7 +369,7 @@ async function buildDiagnostic() {
 	push('chargement du moteur (ms, total / worklet)', S.loadMs.map((x) => `${x[0]}: ${x[1]}/${x[2]}`).join(' ; ') || '—');
 	if (S.engineInfo) push('retard du moteur (sorties: a + b/tempo, images)', `a=${S.engineInfo.lat.a.toFixed(0)} b=${S.engineInfo.lat.b.toFixed(0)} → ${((S.engineInfo.lat.a + S.engineInfo.lat.b) / S.sr * 1000).toFixed(0)} ms à 100 %`);
 	push('pistes', `${S.stems.length} · durée ${S.duration.toFixed(1)} s · ${S.stems.map((s) => `${s.name}(${s.store.mono ? 'mono' : 'stéréo'}${s.noTranspose ? ',fixe' : ''}${s.mute ? ',muet' : ''}${s.solo ? ',solo' : ''})`).join(' ')}`);
-	push('stockage des pistes', `${S.stems[0] ? S.stems[0].store.kind : '—'}`);
+	push('stockage des pistes', S.stems[0] ? (S.stems[0].opus ? `Opus 96 kb/s (encodage ${(S.encodeMs / 1000).toFixed(1)} s au total), blocs 16 bits décodés à la demande` : S.stems[0].store.kind) : '—');
 	push('réglages', `tonalité ${(+$('semi').value + $('cents').value / 100).toFixed(2)} demi-tons · tempo ${$('tempo').value} % · formants ${$('formant').checked} · métronome ${$('metro-on').checked} (${$('bpm').value} BPM) · boucle ${S.loop.end > S.loop.start ? `${S.loop.start.toFixed(2)}–${S.loop.end.toFixed(2)} s ${S.loop.enabled ? 'active' : 'inactive'}` : 'aucune'}`);
 	const avg = S.loadN ? S.loadSum / S.loadN : 0;
 	push('charge du fil audio (moyenne sur la lecture / pic de fenêtre / pic absolu)', S.loadN ? `${(avg * 100).toFixed(1)} % / ${(S.loadMaxWin * 100).toFixed(0)} % / ${(S.loadPeak * 100).toFixed(0)} %` : 'aucune lecture mesurée');
@@ -384,6 +401,14 @@ $('btn-diag').onclick = async () => {
 window.buildDiagnostic = buildDiagnostic;
 
 // ---------------------------------------------------------------- offline rendering (export)
+// Compressed mode: decode just the chunks the export needs (the offline worklet has its own store).
+async function exportStore(s, fromF, toF) {
+	if (!s.opus) return s.store;
+	const st = { frames: s.store.frames, mono: s.store.mono, kind: 'i16', chunks: new Array(s.store.chunks.length).fill(null) };
+	const c0 = Math.max(0, Math.floor(fromF) >> CHUNK_BITS), c1 = Math.min(st.chunks.length - 1, Math.floor(toF) >> CHUNK_BITS);
+	for (let c = c0; c <= c1; c++) st.chunks[c] = await s.opus.reader.decodeChunk(c);
+	return st;
+}
 async function exportWav() {
 	const out = $('exp-state');
 	try {
@@ -402,7 +427,12 @@ async function exportWav() {
 		const errs = [];
 		node.onmsg = (m) => { if (m.type === 'error') errs.push(m.message); };
 		await setEngine(node, eng);
-		S.stems.forEach((s, i) => { sendStem(node, i, s.name, s.store); node.port.postMessage({ type: 'stem-params', index: i, vol: s.vol, mute: s.mute, solo: s.solo, noTranspose: s.noTranspose }); });
+		for (let i = 0; i < S.stems.length; i++) {
+			const s = S.stems[i];
+			out.textContent = `préparation de la piste ${i + 1}/${S.stems.length}…`;
+			sendStem(node, i, s.name, await exportStore(s, startF - 16384, endF + Math.ceil((lat.a + 4 * lat.b) * rate) + 16384));
+			node.port.postMessage({ type: 'stem-params', index: i, vol: s.vol, mute: s.mute, solo: s.solo, noTranspose: s.noTranspose });
+		}
 		node.port.postMessage({ type: 'params', rate, semitones: +$('semi').value + +$('cents').value / 100, formant: $('formant').checked, skipMuted: true });
 		node.port.postMessage({ type: 'loop', enabled: false, start: 0, end: 0 });
 		if ($('metro-on').checked) {
@@ -435,6 +465,46 @@ async function exportWav() {
 }
 $('btn-export').onclick = exportWav;
 window.exportWav = exportWav;
+
+// ---------------------------------------------------------------- compressed mode: decode chunks near the playhead
+function wanted(frames, margin) {
+	const sr = S.sr, set = new Set(), last = Math.ceil(frames / CHUNK) - 1;
+	const add = (a, b) => { for (let c = Math.max(0, Math.floor(a) >> CHUNK_BITS); c <= Math.min(last, Math.floor(b) >> CHUNK_BITS); c++) set.add(c); };
+	const rate = Math.max(1, +$('tempo').value / 100), pos = S.pos * sr, m = margin;
+	add(pos - 1.5 * sr * m, pos + (S.playing ? 7 : 3) * sr * rate * m);
+	const L = S.loop;
+	if (L.enabled && L.end > L.start && L.end - L.start < 120) add(L.start * sr - 0.2 * sr, L.end * sr + 0.2 * sr);
+	return set;
+}
+function streamTick() {
+	S.stems.forEach((s, i) => {
+		const o = s.opus; if (!o) return;
+		const want = wanted(s.store.frames, 1);
+		for (const [si, list] of S.missingList || []) if (si === i) for (const c of list) want.add(c);
+		const keep = wanted(s.store.frames, 2);
+		const drop = [];
+		for (const c of o.resident) if (!keep.has(c)) { drop.push(c); }
+		if (drop.length) { for (const c of drop) o.resident.delete(c); S.node.port.postMessage({ type: 'chunks', index: i, drop }); }
+		const pc = Math.floor(S.pos * S.sr) >> CHUNK_BITS;
+		const need = [...want].filter((c) => !o.resident.has(c) && !o.pending.has(c)).sort((a, b) => a - b);
+		// contiguous runs of at most 6 chunks, nearest to the playhead first
+		const runs = [];
+		for (const c of need) { const r = runs[runs.length - 1]; if (r && c === r[1] + 1 && r[1] - r[0] < 5) r[1] = c; else runs.push([c, c]); }
+		runs.sort((a, b) => Math.abs(a[0] - pc) - Math.abs(b[0] - pc));
+		for (const [a, b] of runs) {
+			for (let c = a; c <= b; c++) o.pending.add(c);
+			o.reader.decodeChunks(a, b).then((chs) => {
+				for (let c = a; c <= b; c++) o.pending.delete(c);
+				if (!S.stems.includes(s)) return;
+				const put = [];
+				chs.forEach((ch, k) => { o.resident.add(a + k); put.push([a + k, ch]); });
+				S.node.port.postMessage({ type: 'chunks', index: i, put });
+			}).catch((e) => { for (let c = a; c <= b; c++) o.pending.delete(c); logErr('Opus: ' + (e && e.message || e)); });
+		}
+	});
+	S.missingList = null;
+}
+setInterval(() => { if (S.node && S.stems.some((s) => s.opus)) streamTick(); }, 120);
 
 // handles for the automated checks
 window.__fab = { addStem, clearStems, view, seek, play, pause, loadDemo, sendParams };

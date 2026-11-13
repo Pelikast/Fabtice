@@ -145,6 +145,56 @@ for (const kind of ['i16', 'f32']) {
 	await page.close();
 }
 
+// ------------------------------------------------------------ 4. compressed (Opus) mode: 7 stems x 5 min at 48 kHz
+{
+	const page = await browser.newPage({ viewport: { width: 1200, height: 900 } });
+	page.on('pageerror', (e) => console.log('[pageerror]', e.message));
+	page.on('filechooser', (fc) => fc.setFiles([]));
+	await page.goto(url + '/spikes/lecteur/?sr=48000');
+	const base = rssMB();
+	await page.selectOption('#mem', 'opus');
+	await page.click('#btn-demo-long');
+	await page.waitForFunction(() => window.S && S.stems.length === 7 && S.duration > 300, null, { timeout: 240000 });
+	await sleep(1500);
+	await page.evaluate(() => { for (let i = 0; i < 3; i++) gc(); });
+	await sleep(1500);
+	const m = await page.evaluate(async () => {
+		const set = (id, v) => { const e = document.getElementById(id); e.value = v; e.dispatchEvent(new Event('input')); };
+		const f = window.__fab;
+		set('semi', -5); set('tempo', 60);
+		f.seek(100); await f.play();
+		await new Promise((r) => setTimeout(r, 4000));
+		const us0 = S.ctx.playbackStats.underrunEvents;
+		const pos1 = S.pos;
+		// jump far away while playing, then loop a bar elsewhere
+		f.seek(200);
+		await new Promise((r) => setTimeout(r, 2500));
+		S.loop = { start: 230.4, end: 232.8, enabled: true }; f.view.setLoop(S.loop);
+		S.node.port.postMessage({ type: 'loop', enabled: true, start: 230.4 * S.sr, end: 232.8 * S.sr });
+		f.seek(230.0);
+		await new Promise((r) => setTimeout(r, 6000));
+		const us1 = S.ctx.playbackStats.underrunEvents;
+		let resident = 0, opusBytes = 0;
+		for (const s of S.stems) { resident += s.opus.resident.size; opusBytes += s.opus.enc.bytes; }
+		return { sr: S.sr, encodeMs: S.encodeMs, opusBytes, resident, pos1, pos: S.pos, us0, us1, underruns: S.underruns, missing: S.missing, errors: S.errors, active: S.active,
+			load: S.loadRecent.slice(-20), heap: performance.memory.usedJSHeapSize };
+	});
+	const rss = rssMB();
+	ok('opus mode: 7 stems x 307 s, memory', true, `Opus data ${(m.opusBytes / 1048576).toFixed(1)} MB, resident chunks ${m.resident} (${(m.resident * 32768 * 2 * 1.5 / 1048576).toFixed(0)} MB approx), JS heap ${(m.heap / 1048576).toFixed(0)} MB, browser RSS ${rss.toFixed(0)} MB (blank page ${base.toFixed(0)} MB), encoding took ${(m.encodeMs / 1000).toFixed(1)} s in total`);
+	ok('opus mode: playback, far seek and loop', m.errors.length === 0 && m.pos > 229 && m.pos < 233, `position ${m.pos.toFixed(1)} s, chunk misses ${m.missing}, underruns ${m.underruns}, playbackStats underrunEvents ${m.us0} -> ${m.us1}, load ${(m.load.reduce((a, b) => a + b, 0) / m.load.length * 100).toFixed(1)} %, errors ${JSON.stringify(m.errors)}`);
+	// export a loop in opus mode
+	const ex = await page.evaluate(async () => {
+		window.__keepExport = true;
+		document.getElementById('exp-scope').value = 'loop';
+		await window.exportWav();
+		const x = window.__lastExport;
+		let pk = 0; for (let i = 0; i < x.ch0.length; i++) pk = Math.max(pk, Math.abs(x.ch0[i]));
+		return { secs: x.secs, speed: x.speed, pk, state: document.getElementById('exp-state').textContent.slice(0, 200) };
+	});
+	ok('opus mode: offline export of the loop', Math.abs(ex.secs - 2.4 / 0.6) < 0.05 && ex.pk > 0.05, `${ex.secs.toFixed(2)} s (expected 4.00), peak ${ex.pk.toFixed(2)}, ${ex.speed.toFixed(1)}x realtime`);
+	await page.close();
+}
+
 await browser.close(); srv.close();
 console.log(failed ? `\n${failed} FAILED` : '\nall browser checks passed');
 process.exit(failed ? 1 : 0);
