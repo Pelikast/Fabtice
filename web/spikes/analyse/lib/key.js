@@ -23,7 +23,10 @@ function corr(a, b) {
   return s / Math.sqrt(sa * sb || 1);
 }
 
-export const KEY_DEFAULTS = { profile: 'temperley', wChroma: 1, wChords: 1, temperature: 0.08 };
+// Measured on GTZAN (jazz, blues), GuitarSet and synthetic jazz: Krumhansl-Kessler on the
+// chord model's pitch-class output alone was best or close to best everywhere; adding the
+// chord-fit term (wChords) helped on synthetic jazz but hurt on GTZAN and GuitarSet.
+export const KEY_DEFAULTS = { profile: 'kk', wChroma: 1, wChords: 0, temperature: 0.08 };
 
 // chroma: 12 values (any scale). chordSegs: [{chord, dur}] or null.
 export function estimateKey(chroma, chordSegs, options = {}) {
