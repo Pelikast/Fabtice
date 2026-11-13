@@ -36,6 +36,10 @@ async function launchApp(env) {
       await new Promise((r) => setTimeout(r, 100));
     }
     await app.evaluate(() => globalThis.__fabticeOpenFirstWindow());
+    // Let the first window exist before the test does anything else with the
+    // main process (creating a second window while it is still opening made
+    // app.evaluate calls fail with "Resulting promise was garbage collected").
+    await app.firstWindow({ timeout: 30000 });
   } catch (error) {
     const trace = stderr.join('').split('\n').filter((l) => l.startsWith('[fabtice]')).join('\n');
     await app.close().catch(() => {});
