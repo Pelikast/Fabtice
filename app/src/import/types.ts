@@ -1,6 +1,6 @@
-// Import boundary: turning a file or a link into a decoded piece.
-// Lot 1 defines the entry points and their progress/error shapes; the real
-// work (reading, yt-dlp through the Mac app, decoding to 48 kHz) is wired later.
+// Import boundary: turning a file or a link into a decoded piece (reading,
+// yt-dlp through the Mac app, decoding to 48 kHz), with its progress and
+// error shapes.
 
 import type { DecodedAudio } from '../audio/registry';
 import type { ProjectSource, Seconds } from '../model/project';
@@ -9,6 +9,8 @@ import type { StoredAudio } from '../storage/ProjectStorage';
 export type ImportPhase =
   /** Mac app: yt-dlp is being downloaded and verified before the first link import. */
   | 'installing'
+  /** Mac app: yt-dlp is being replaced by a newer version, on the user's request. */
+  | 'updating'
   /** Mac app: yt-dlp reads the video's details. */
   | 'fetching-info'
   /** Mac app: the audio is downloaded. */
@@ -18,7 +20,9 @@ export type ImportPhase =
   /** The audio is decoded and resampled to 48 kHz. */
   | 'decoding'
   /** Tracks are handed to the engine. */
-  | 'preparing';
+  | 'preparing'
+  /** Launch: the piece kept on the device is being opened again (not an import). */
+  | 'restoring';
 
 export interface ImportProgress {
   phase: ImportPhase;
@@ -49,23 +53,35 @@ export interface ImportedPiece {
 export type ImportErrorCode =
   /** Not one of mp3, wav, aiff, m4a, flac. */
   | 'unsupported-format'
-  /** The browser could not decode the file. */
+  /** The browser could not read the file from the disk. */
+  | 'read-failed'
+  /** The file is damaged or not really audio: the decoder refused it. */
   | 'decode-failed'
-  /** Longer than the app accepts. */
+  /** Decoded to nothing: no sound at all. */
+  | 'empty-audio'
+  /** Longer than `MAX_DURATION_SECONDS`. */
   | 'too-long'
+  /** Larger than `MAX_FILE_BYTES`, or too big for the device's memory once decoded. */
+  | 'too-large'
   /** Mac app: the text is not a link it recognises. */
   | 'link-invalid'
   /** Mac app: refused on purpose (live stream, unknown duration, over 20 minutes). */
   | 'link-refused'
-  /** Mac app: yt-dlp must be installed first. */
+  /** Mac app: yt-dlp still missing after its installation. */
   | 'needs-ytdlp'
+  /** Mac app: yt-dlp could not be downloaded or verified. */
+  | 'install-failed'
+  /** Mac app: yt-dlp could not be replaced by its newer version. */
+  | 'update-failed'
   /** Mac app: yt-dlp failed. */
   | 'link-failed'
+  /** Mac app: the app is already extracting another link. */
+  | 'busy'
   /** Link import asked for outside the Mac app. */
   | 'not-available'
-  | 'cancelled'
-  /** Lot 1 stubs. */
-  | 'not-implemented';
+  /** The tracks could not be handed to the audio engine. */
+  | 'prepare-failed'
+  | 'cancelled';
 
 export class ImportError extends Error {
   constructor(

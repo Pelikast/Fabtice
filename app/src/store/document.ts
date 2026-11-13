@@ -32,6 +32,7 @@ export function fromProjectDocument(doc: ProjectDocument, current: AppState): Pa
     tempoMap: doc.tempoMap,
     loop: doc.loop,
     playback: doc.playback,
-    view: { ...doc.view, mode: current.view.mode },
+    // Fields a stored document lacks (added since it was written) keep their current value.
+    view: { ...current.view, ...doc.view, mode: current.view.mode },
   };
 }

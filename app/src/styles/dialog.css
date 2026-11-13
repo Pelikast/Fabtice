@@ -122,6 +122,16 @@
 .import-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
 .import-actions .bouton-cadre { width: auto; padding: 0 16px; }
 
+/* Notes: a calm sentence above the choices, the tool update offer, waiting remarks */
+.accueil .accueil-avis {
+  margin: 0 0 18px;
+  padding: 2px 0 2px 14px;
+  border-left: 3px solid var(--laiton);
+  color: var(--encre);
+}
+.mise-a-jour { margin-top: 10px; font-size: 13.5px; color: var(--encre-douce); }
+.accueil .import-note { margin: 14px 0 0; font-size: 13.5px; color: var(--encre-douce); }
+
 /* Import error: ink text on a brass rule, never red (the ember is for playback only). */
 .import-erreur {
   margin: 4px 0 4px;
@@ -163,3 +173,27 @@
 }
 .depot span { color: var(--encre-douce); }
 @keyframes apparait { from { opacity: 0; } to { opacity: 1; } }
+
+/* ---------- Notice: the piece will not be kept on this device ---------- */
+
+.avis-stockage {
+  position: fixed;
+  top: 66px;
+  left: 50%;
+  z-index: 35;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: min(620px, calc(100% - 32px));
+  padding: 12px 14px 12px 16px;
+  transform: translateX(-50%);
+  background: var(--papier-clair);
+  border: 1px solid var(--trait);
+  border-left: 3px solid var(--laiton);
+  border-radius: var(--rayon-fenetre);
+  box-shadow: var(--ombre-fenetre);
+  font-size: 14px;
+  animation: apparait var(--pose) var(--courbe);
+}
+.avis-stockage p { flex: 1; margin: 0; }
+.avis-stockage .bouton-cadre { width: auto; padding: 0 16px; }

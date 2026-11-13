@@ -1,18 +1,18 @@
 // Contract for keeping the current project on the device, so that reopening
 // the app brings the piece back as it was left (CLAUDE.md: automatic local
-// save at every action). Interface only in lot 1; the implementation (likely
-// IndexedDB for the document and the origin private file system for audio,
-// as the separation spike does for large models) comes later.
+// save at every action). One project at a time in lot 1. The implementation is
+// `indexedDb.ts` (IndexedDB), `memoryStorage.ts` serves the tests.
 //
 // What is stored
-//   - the project document (small JSON, rewritten often, debounced by the caller);
+//   - the project document (small JSON, rewritten often, debounced by the
+//     caller, see `keeper.ts`);
 //   - the ORIGINAL audio bytes as imported (the m4a, mp3, flac… file), once
 //     per audio, so the piece can be decoded again at next launch. Decoded PCM
 //     is never stored (too large); separated tracks (lot 3) may be stored
 //     under their own audio ids.
 //
 // Errors: every method rejects with a `StorageError` on failure; callers keep
-// working in memory and may tell the user that the piece will not be kept.
+// working in memory and tell the user that the piece will not be kept.
 
 import type { ProjectDocument } from '../model/document';
 
@@ -55,11 +55,22 @@ export interface ProjectStorage {
 
   estimate(): Promise<StorageEstimate>;
 
-  /** The document of the project open at last exit, or null if none (or unreadable: then rejects with `corrupt`). */
+  /**
+   * The document of the project open at last exit, or null if none, or if it
+   * was written by an unknown (newer) version. Older versions are migrated.
+   * Rejects with `corrupt` if what is stored cannot be read.
+   */
   loadCurrent(): Promise<ProjectDocument | null>;
 
   /** Replaces the current project's document. Cheap enough to call after every action (debounced). */
   saveCurrent(doc: ProjectDocument): Promise<void>;
+
+  /**
+   * Makes a new project the current one: its document and audio replace the
+   * previous project's, all or nothing (on failure the previous project is
+   * untouched). The keys of `audio` are the `AudioRef.id`s of the document.
+   */
+  replaceCurrent(doc: ProjectDocument, audio: ReadonlyMap<string, StoredAudio>): Promise<void>;
 
   /** Stores an audio file under an id (`AudioRef.id`); called once at import. */
   saveAudio(audioId: string, audio: StoredAudio): Promise<void>;

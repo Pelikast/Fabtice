@@ -35,11 +35,20 @@ export type ImportStatus =
 /** Small floating panels; only one is open at a time. */
 export type PanelId = 'none' | 'settings' | 'grid' | 'tuning';
 
+/** Why the piece will not be kept on this device (shown as a calm notice). */
+export type StorageNotice = 'unavailable' | 'full';
+
 export interface UiState {
   /** The new-piece dialog. Opened at launch when no project is loaded. */
   newPieceOpen: boolean;
   panel: PanelId;
   import: ImportStatus;
+  /** A calm sentence shown in the dialog above the choices (e.g. the last piece could not be reopened). */
+  notice: string | null;
+  /** Mac app: a newer version of the import tool exists (proposed, never imposed, in the dialog). */
+  toolUpdate: boolean;
+  /** Set when saving to the device fails; the piece stays usable in memory. */
+  storageNotice: StorageNotice | null;
 }
 
 export interface TransportState {
@@ -86,7 +95,7 @@ export function initialState(): AppState {
     view: defaultView(),
     settings: { minorNotation: 'm' },
     transport: { engine: 'empty', error: null },
-    ui: { newPieceOpen: true, panel: 'none', import: { kind: 'idle' } },
+    ui: { newPieceOpen: true, panel: 'none', import: { kind: 'idle' }, notice: null, toolUpdate: false, storageNotice: null },
   };
 }
 
