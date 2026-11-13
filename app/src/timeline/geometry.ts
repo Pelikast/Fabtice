@@ -117,7 +117,7 @@ export function followT0(input: FollowInput): Seconds | null {
 /** Spacing under which bar lines are thinned out. */
 export const MIN_BAR_LINE_GAP_PX = 6;
 /** Spacing a bar number needs (digits, left padding and some air). */
-export const MIN_BAR_LABEL_GAP_PX = 40;
+export const MIN_BAR_LABEL_GAP_PX = 30;
 
 /**
  * Regular thinning of bars when they get crowded: the smallest power of two

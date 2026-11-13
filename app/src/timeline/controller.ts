@@ -58,6 +58,9 @@ const TAP_MAX_MS = 600;
 
 type Region = 'tempo' | 'mesures' | 'lane';
 
+/** Where the view was when the timeline last went away (switching to the chord chart and back keeps it). */
+let remembered: { projectId: string; t0: Seconds } | null = null;
+
 interface Lane {
   id: string;
   el: HTMLElement;
@@ -171,11 +174,18 @@ export class TimelineController {
       fonts.addEventListener('loadingdone', onFonts);
       this.cleanups.push(() => fonts.removeEventListener('loadingdone', onFonts));
     }
-    if (this.s.project) this.onProjectOpened();
+    if (this.s.project) {
+      this.onProjectOpened();
+      if (remembered && remembered.projectId === this.s.project.id) {
+        this.t0 = remembered.t0;
+        this.lastPos = getEngine().getPosition(); // not a jump: keep the view where it was
+      }
+    }
     this.resize();
   }
 
   dispose(): void {
+    if (this.s.project) remembered = { projectId: this.s.project.id, t0: this.t0 };
     this.alive = false;
     this.cleanups.forEach((fn) => fn());
     this.cleanups.length = 0;

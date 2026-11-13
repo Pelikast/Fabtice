@@ -132,20 +132,20 @@ describe('following the playhead', () => {
 
 describe('bar thinning', () => {
   it('keeps every bar while they are far enough apart', () => {
-    expect(barStride(50, 40)).toBe(1);
-    expect(barStride(40, 40)).toBe(1);
+    expect(barStride(50, 30)).toBe(1);
+    expect(barStride(30, 30)).toBe(1);
   });
 
   it('thins out by powers of two', () => {
-    expect(barStride(30, 40)).toBe(2);
-    expect(barStride(15, 40)).toBe(4);
-    expect(barStride(6, 40)).toBe(8);
+    expect(barStride(20, 30)).toBe(2);
+    expect(barStride(9, 30)).toBe(4);
+    expect(barStride(4, 30)).toBe(8);
     expect(barStride(2.5, 6)).toBe(4);
   });
 
   it('always keeps the spacing of the kept bars at the minimum or more', () => {
     for (const gap of [0.4, 1, 2.2, 3, 7, 11, 19, 33]) {
-      expect(gap * barStride(gap, 40)).toBeGreaterThanOrEqual(40);
+      expect(gap * barStride(gap, 30)).toBeGreaterThanOrEqual(30);
     }
   });
 

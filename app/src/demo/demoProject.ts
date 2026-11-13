@@ -38,13 +38,13 @@ function seeded(seed: number): () => number {
 const hz = (midi: number) => 440 * 2 ** ((midi - 69) / 12);
 
 /** Adds a decaying tone (fundamental plus two soft harmonics) at time `t`. */
-function tone(out: Float32Array, t: number, midi: number, amp: number, decay: number, length: number, vibrato = 0): void {
+function tone(out: Float32Array, t: number, midi: number, amp: number, decay: number, length: number, vibrato = 0, attack = 240): void {
   const start = Math.round(t * SR);
   const n = Math.min(out.length - start, Math.round(length * SR));
   const w = (2 * Math.PI * hz(midi)) / SR;
   for (let i = 0; i < n; i++) {
     const s = i / SR;
-    const env = Math.min(1, i / 240) * Math.exp(-s * decay) * Math.min(1, (n - i) / 480);
+    const env = Math.min(1, i / attack) * Math.exp(-s * decay) * Math.min(1, (n - i) / 480);
     const ph = w * i + (vibrato ? vibrato * Math.sin(2 * Math.PI * 5.2 * s) * Math.min(1, s * 2) : 0);
     out[start + i]! += amp * env * (Math.sin(ph) + 0.35 * Math.sin(2 * ph) + 0.12 * Math.sin(3 * ph));
   }
@@ -116,7 +116,9 @@ export function demoProject(): NewProjectInput {
       const notes = [chord[3]!, chord[2]!, chord[1]!, 9, chord[2]!];
       notes.forEach((iv, k) => {
         const t = at(bar, k * 1.25);
-        tone(horns, t, 67 + ((root + iv) % 12) - 12 * (iv > 9 ? 1 : 0), 0.13, 0.6, beat * (k === notes.length - 1 ? 2.8 : 1.2), 0.012);
+        // Soft attack and a slow fade, each note a little different: swelling phrases, not blocks.
+        const velocity = 0.7 + 0.5 * rand();
+        tone(horns, t, 67 + ((root + iv) % 12) - 12 * (iv > 9 ? 1 : 0), 0.13 * velocity, 1.5 + rand(), beat * (k === notes.length - 1 ? 2.8 : 1.2), 0.012, Math.round(SR * 0.06));
       });
     }
   }
