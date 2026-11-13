@@ -13,7 +13,7 @@ const fs = require('node:fs');
 const http = require('node:http');
 const os = require('node:os');
 const path = require('node:path');
-const { _electron: electron } = require('playwright-core');
+const { launchApp, openDiagnostic } = require('./helpers');
 
 const ROOT = path.join(__dirname, '..', '..');
 const OUT = process.env.FABTICE_E2E_OUT || null;
@@ -63,20 +63,13 @@ function startServer() {
 
 async function launch(server, userData) {
   const env = {
-    ...process.env,
     FABTICE_USER_DATA: userData,
     FABTICE_RELEASE_BASE: server.base,
     FABTICE_RETRY_DELAYS_MS: '100,200,300',
   };
-  delete env.FABTICE_YTDLP_PATH;
-  delete env.ELECTRON_RUN_AS_NODE;
-  const extraArgs = process.platform === 'linux' ? ['--no-sandbox'] : [];
-  const options = process.env.FABTICE_E2E_APP
-    ? { executablePath: process.env.FABTICE_E2E_APP, args: extraArgs, env }
-    : { executablePath: require('electron'), args: [ROOT, ...extraArgs], env };
-  const app = await electron.launch({ ...options, timeout: 60000 });
-  const page = await app.firstWindow();
-  await page.waitForSelector('body[data-ready="true"]', { timeout: 60000 });
+  delete process.env.FABTICE_YTDLP_PATH;
+  const app = await launchApp(env);
+  const page = await openDiagnostic(app);
   return { app, page };
 }
 

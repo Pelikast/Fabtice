@@ -1,6 +1,6 @@
 'use strict';
 
-// Drives the real app window with the stub yt-dlp: link → two yt-dlp calls →
+// Drives the diagnostic window (Aide > Diagnostic…) with the stub yt-dlp: link → two yt-dlp calls →
 // bytes to the renderer → decodeAudioData → playback → diagnostics copy.
 //
 // Linux: xvfb-run -a npm run test:e2e
@@ -12,7 +12,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { _electron: electron } = require('playwright-core');
+const { launchApp, openDiagnostic } = require('./helpers');
 
 const ROOT = path.join(__dirname, '..', '..');
 const STUB = path.join(ROOT, 'test', 'fixtures', 'stub-yt-dlp.js');
@@ -21,22 +21,13 @@ const OUT = process.env.FABTICE_E2E_OUT || null;
 async function launch(mode) {
   const userData = fs.mkdtempSync(path.join(os.tmpdir(), 'fabtice-e2e-'));
   const log = path.join(userData, 'stub-calls.jsonl');
-  const env = {
-    ...process.env,
+  const app = await launchApp({
     FABTICE_YTDLP_PATH: STUB,
     FABTICE_STUB_MODE: mode,
     FABTICE_STUB_LOG: log,
     FABTICE_USER_DATA: userData,
-  };
-  delete env.ELECTRON_RUN_AS_NODE;
-  const extraArgs = process.platform === 'linux' ? ['--no-sandbox'] : [];
-  const options = process.env.FABTICE_E2E_APP
-    ? { executablePath: process.env.FABTICE_E2E_APP, args: extraArgs, env }
-    : { executablePath: require('electron'), args: [ROOT, ...extraArgs], env };
-  const app = await electron.launch({ ...options, timeout: 60000 });
-  const page = await app.firstWindow();
-  page.on('console', (msg) => console.log(`[renderer ${msg.type()}] ${msg.text()}`));
-  await page.waitForSelector('body[data-ready="true"]', { timeout: 60000 });
+  });
+  const page = await openDiagnostic(app);
   return { app, page, log };
 }
 

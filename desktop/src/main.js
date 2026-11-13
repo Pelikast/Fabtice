@@ -3,18 +3,25 @@
 const path = require('node:path');
 const os = require('node:os');
 const fsp = require('node:fs/promises');
-const { pathToFileURL } = require('node:url');
-const { app, BrowserWindow, ipcMain, net, clipboard, session } = require('electron');
+const fs = require('node:fs');
+const { app, BrowserWindow, ipcMain, net, clipboard, session, protocol, dialog } = require('electron');
 const { YtDlpManager } = require('./ytdlp-manager');
 const { extractAudio } = require('./extract');
 const { parseVideoId } = require('./video-id');
 const { collectSystemInfo, jsRuntime } = require('./system-info');
+const fabticeProtocol = require('./protocol');
+const { buildMenu } = require('./menu');
 
-const PAGE_PATH = path.join(__dirname, 'renderer', 'index.html');
-const PAGE_URL = pathToFileURL(PAGE_PATH).href;
+// The interface is built by app/ (npm run build:desktop) into desktop/ui/.
+const UI_DIR = path.join(__dirname, '..', 'ui');
+const DIAGNOSTIC_DIR = path.join(__dirname, 'renderer');
+
+// Must happen before the app is ready.
+fabticeProtocol.registerScheme(protocol);
 const HOME = os.homedir();
 
 let win = null;
+let diagnosticWin = null;
 let manager = null;
 let systemInfo = null;
 let updateCheck = null;
@@ -34,13 +41,18 @@ function redact(value) {
 
 function handle(channel, fn) {
   ipcMain.handle(channel, async (event, ...args) => {
-    if (!event.senderFrame || event.senderFrame.url !== PAGE_URL) throw new Error('unexpected IPC sender');
+    // Top frame of one of our two pages only (custom scheme, exact origin).
+    const frame = event.senderFrame;
+    if (!frame || frame.parent !== null || !fabticeProtocol.isTrustedUrl(frame.url)) throw new Error('unexpected IPC sender');
     return fn(event, ...args);
   });
 }
 
+// Progress events go to every open window; each page only listens if it asked.
 function send(channel, payload) {
-  if (win && !win.isDestroyed()) win.webContents.send(channel, payload);
+  for (const w of [win, diagnosticWin]) {
+    if (w && !w.isDestroyed()) w.webContents.send(channel, payload);
+  }
 }
 
 async function removeStaleTempDirs() {
@@ -57,27 +69,56 @@ async function removeStaleTempDirs() {
   }
 }
 
+const WEB_PREFERENCES = {
+  preload: path.join(__dirname, 'preload.js'),
+  contextIsolation: true,
+  nodeIntegration: false,
+  sandbox: true,
+  webSecurity: true,
+  spellcheck: false,
+};
+
 function createWindow() {
   win = new BrowserWindow({
+    width: 1280,
+    height: 820,
+    minWidth: 960,
+    minHeight: 640,
+    title: 'Fabtice',
+    backgroundColor: '#f4ecdf',
+    show: false,
+    webPreferences: WEB_PREFERENCES,
+  });
+  win.once('ready-to-show', () => win.show());
+  win.on('closed', () => {
+    win = null;
+    if (diagnosticWin && !diagnosticWin.isDestroyed()) diagnosticWin.close();
+  });
+  win.loadURL(fabticeProtocol.APP_URL);
+}
+
+// The phase 0 prototype page, kept to copy technical details on a machine
+// where something fails. Same bridge, its own window.
+function openDiagnostic() {
+  if (diagnosticWin && !diagnosticWin.isDestroyed()) {
+    if (diagnosticWin.isMinimized()) diagnosticWin.restore();
+    diagnosticWin.focus();
+    return diagnosticWin;
+  }
+  diagnosticWin = new BrowserWindow({
     width: 940,
     height: 860,
     minWidth: 640,
     minHeight: 560,
-    title: 'Fabtice',
+    title: 'Fabtice — Diagnostic',
     backgroundColor: '#f4ece0',
     show: false,
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-      contextIsolation: true,
-      nodeIntegration: false,
-      sandbox: true,
-      webSecurity: true,
-      spellcheck: false,
-    },
+    webPreferences: WEB_PREFERENCES,
   });
-  win.once('ready-to-show', () => win.show());
-  win.on('closed', () => { win = null; });
-  win.loadFile(PAGE_PATH);
+  diagnosticWin.once('ready-to-show', () => diagnosticWin.show());
+  diagnosticWin.on('closed', () => { diagnosticWin = null; });
+  diagnosticWin.loadURL(fabticeProtocol.DIAGNOSTIC_URL);
+  return diagnosticWin;
 }
 
 function registerIpc() {
@@ -157,6 +198,11 @@ if (!app.requestSingleInstanceLock()) {
   });
 
   app.whenReady().then(() => {
+    fabticeProtocol.installHandler(protocol, {
+      [fabticeProtocol.HOST_APP]: UI_DIR,
+      [fabticeProtocol.HOST_DIAGNOSTIC]: DIAGNOSTIC_DIR,
+    });
+    buildMenu({ openDiagnostic });
     session.defaultSession.setPermissionRequestHandler((_wc, _perm, cb) => cb(false));
     session.defaultSession.setPermissionCheckHandler(() => false);
 
@@ -168,10 +214,16 @@ if (!app.requestSingleInstanceLock()) {
     updateCheck = manager.checkForUpdate().catch((e) => ({ error: e.message }));
     removeStaleTempDirs();
     registerIpc();
-    createWindow();
+    if (fs.existsSync(path.join(UI_DIR, 'index.html'))) {
+      createWindow();
+    } else {
+      // Build mistake: say so plainly and fall back on the diagnostic page.
+      dialog.showErrorBox('Fabtice', 'L’interface est introuvable dans cette version de l’app. La fenêtre de diagnostic s’ouvre à la place.');
+      openDiagnostic();
+    }
 
     app.on('activate', () => {
-      if (BrowserWindow.getAllWindows().length === 0) createWindow();
+      if (BrowserWindow.getAllWindows().length === 0 && fs.existsSync(path.join(UI_DIR, 'index.html'))) createWindow();
     });
   });
 

@@ -2,7 +2,7 @@
   "name": "fabtice-desktop",
   "productName": "Fabtice",
   "version": "0.1.0",
-  "description": "Fabtice, app Mac : prototype d'import audio depuis un lien YouTube",
+  "description": "Fabtice, app Mac : interface et import audio depuis un lien YouTube",
   "license": "GPL-3.0-or-later",
   "private": true,
   "main": "src/main.js",
@@ -10,7 +10,11 @@
     "start": "electron .",
     "test": "node --test \"test/unit/*.test.js\"",
     "test:e2e": "node --test --test-concurrency=1 \"test/e2e/*.test.js\"",
-    "dist:mac": "electron-builder --mac --universal --publish never"
+    "check:ui": "node ci/check-ui.js",
+    "build:ui": "npm --prefix ../app ci && npm --prefix ../app run build:desktop",
+    "dist:dir": "node ci/check-ui.js && electron-builder --dir --publish never",
+    "dist:mac:arm64": "node ci/check-ui.js && electron-builder --mac --arm64 --publish never -c.mac.artifactName=Fabtice-mac-apple-silicon.'${ext}' -c.dmg.artifactName=Fabtice-mac-apple-silicon.'${ext}'",
+    "dist:mac:x64": "node ci/check-ui.js && electron-builder --mac --x64 --publish never -c.mac.artifactName=Fabtice-mac-intel.'${ext}' -c.dmg.artifactName=Fabtice-mac-intel.'${ext}'"
   },
   "devDependencies": {
     "electron": "43.8.9",
@@ -26,30 +30,20 @@
     },
     "files": [
       "src/**/*",
+      "ui/**/*",
       "package.json",
       "build-info.json"
     ],
     "mac": {
       "target": [
-        {
-          "target": "dmg",
-          "arch": [
-            "universal"
-          ]
-        },
-        {
-          "target": "zip",
-          "arch": [
-            "universal"
-          ]
-        }
+        "dmg",
+        "zip"
       ],
       "category": "public.app-category.music",
       "minimumSystemVersion": "12.0",
       "identity": "-",
       "hardenedRuntime": false,
-      "gatekeeperAssess": false,
-      "artifactName": "Fabtice-mac-universal.${ext}"
+      "gatekeeperAssess": false
     },
     "dmg": {
       "title": "Fabtice",
