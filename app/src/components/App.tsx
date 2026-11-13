@@ -4,6 +4,7 @@ import { useFileDrop } from '../ui/useFileDrop';
 import { useGlobalKeys } from '../ui/useGlobalKeys';
 import { ChartView } from './ChartView';
 import { NewPieceDialog } from './NewPieceDialog';
+import { StorageNotice } from './StorageNotice';
 import { TopBar } from './TopBar';
 import { TracksView } from './TracksView';
 import { Transport } from './Transport';
@@ -20,6 +21,7 @@ export function App() {
         <main className="milieu">{mode === 'pistes' ? <TracksView /> : <ChartView />}</main>
         <Transport />
       </div>
+      <StorageNotice />
       <NewPieceDialog />
       {dragging && (
         <div className="depot" aria-hidden="true">

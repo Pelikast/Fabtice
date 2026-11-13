@@ -7,6 +7,7 @@ import { clearAudio, engineTrack, registerAudio, type DecodedAudio } from '../au
 import { clipRange } from '../grid/lines';
 import { defaultTempoMap, withManualGrid, type ManualGridChange } from '../grid/tempoMap';
 import type { ImportedPiece } from '../import/types';
+import type { ProjectDocument } from '../model/document';
 import type {
   MinorNotation,
   Project,
@@ -23,7 +24,8 @@ import { t } from '../i18n';
 import { newId } from '../util/id';
 import { clampScale, clampTrackHeight } from '../view/zoom';
 import { clampCents, clampSemitones, originalBpm, steppedTempoRatio, TEMPO_RATIO } from './derived';
-import { appStore, DEFAULT_PLAYBACK, type AppState, type ImportStatus, type PanelId } from './store';
+import { fromProjectDocument } from './document';
+import { appStore, DEFAULT_PLAYBACK, type AppState, type ImportStatus, type PanelId, type StorageNotice } from './store';
 
 const get = () => appStore.getState();
 const set = (patch: Partial<AppState> | ((s: AppState) => Partial<AppState>)) => appStore.setState(patch);
@@ -93,10 +95,52 @@ export async function openProject(input: NewProjectInput): Promise<void> {
     loop: { region, enabled: region !== null },
     playback: { ...DEFAULT_PLAYBACK },
     view: { ...s.view, mode: 'pistes' },
-    ui: { ...s.ui, newPieceOpen: false, panel: 'none', import: { kind: 'idle' } },
+    ui: { ...s.ui, newPieceOpen: false, panel: 'none', import: { kind: 'idle' }, notice: null },
   }));
   const mixes = Object.fromEntries(tracks.map((tr) => [tr.id, { mute: tr.mute, solo: tr.solo, volume: tr.volume }]));
   await engine.loadTracks(tracks.map((tr) => engineTrack(tr.id, tr.audio.id)), mixes);
+}
+
+/**
+ * Opens a stored project again: same project, track and audio ids, settings as
+ * saved. `audio` holds the decoded audio of each track by `AudioRef.id`. The
+ * duration and audio references come from what was actually decoded. Resolves
+ * once playable; rejects if the audio is missing or the engine refuses it.
+ */
+export async function restoreProject(doc: ProjectDocument, audio: ReadonlyMap<string, DecodedAudio>): Promise<void> {
+  const decoded = doc.tracks.map((tr) => audio.get(tr.audio.id));
+  if (decoded.some((a) => !a)) throw new Error('a track has no decoded audio');
+  const engine = getEngine();
+  engine.pause();
+  clearAudio();
+  const tracks: Track[] = doc.tracks.map((tr, i) => {
+    const a = decoded[i]!;
+    registerAudio(tr.audio.id, a);
+    return {
+      ...tr,
+      volume: Math.min(1, Math.max(0, tr.volume)),
+      audio: { ...tr.audio, channels: a.channels.length, sampleRate: a.sampleRate, frames: a.channels[0]?.length ?? 0 },
+    };
+  });
+  const duration = tracks.reduce((d, tr) => Math.max(d, tr.audio.frames / tr.audio.sampleRate), 0);
+  const region = doc.loop.region ? clipRange(doc.loop.region, duration) : null;
+  set((s) => ({
+    ...fromProjectDocument(doc, s),
+    project: { ...doc.project, duration, sampleRate: engine.sampleRate },
+    tracks,
+    loop: { region, enabled: region !== null && doc.loop.enabled },
+    playback: {
+      ...DEFAULT_PLAYBACK,
+      ...doc.playback,
+      semitones: clampSemitones(doc.playback.semitones),
+      cents: clampCents(doc.playback.cents),
+      tempoRatio: Math.min(TEMPO_RATIO.max, Math.max(TEMPO_RATIO.min, doc.playback.tempoRatio)),
+    },
+  }));
+  const mixes = Object.fromEntries(tracks.map((tr) => [tr.id, { mute: tr.mute, solo: tr.solo, volume: tr.volume }]));
+  await engine.loadTracks(tracks.map((tr) => engineTrack(tr.id, tr.audio.id)), mixes);
+  // The « Ouverture… » state of the dialog stays until the piece can play.
+  set((s) => ({ ui: { ...s.ui, newPieceOpen: false, panel: 'none', import: { kind: 'idle' }, notice: null } }));
 }
 
 /** Opens what an import produced: one track, the whole piece. */
@@ -286,6 +330,19 @@ export function closeNewPiece(): void {
 
 export function setImportStatus(status: ImportStatus): void {
   set((s) => ({ ui: { ...s.ui, import: status } }));
+}
+
+/** A calm sentence for the dialog (null removes it). */
+export function setDialogNotice(notice: string | null): void {
+  set((s) => ({ ui: { ...s.ui, notice } }));
+}
+
+export function setToolUpdateAvailable(toolUpdate: boolean): void {
+  set((s) => ({ ui: { ...s.ui, toolUpdate } }));
+}
+
+export function setStorageNotice(storageNotice: StorageNotice | null): void {
+  set((s) => (s.ui.storageNotice === storageNotice ? {} : { ui: { ...s.ui, storageNotice } }));
 }
 
 /** Escape: closes the open panel first, then the dialog. */

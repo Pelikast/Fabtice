@@ -17,7 +17,8 @@
     "test": "vitest run",
     "test:smoke": "node tests/smoke.mjs",
     "test:engine": "node tests/engine.mjs",
-    "test:timeline": "node tests/timeline.mjs"
+    "test:timeline": "node tests/timeline.mjs",
+    "test:import": "node tests/import.mjs"
   },
   "dependencies": {
     "react": "^19.3.1",
@@ -29,6 +30,7 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.3.0",
+    "fake-indexeddb": "^6.2.8",
     "typescript": "^7.0.2",
     "vite": "^8.3.8",
     "vitest": "^5.1.0"
