@@ -32,12 +32,29 @@ aucune technique de contournement des protections de YouTube.
    mesures à la souris pour boucler, solo / mute / volume par piste,
    transposition et changement de tempo en direct, réglage fin en cents,
    détection de l'accordage (enregistrements pas à 440 Hz).
+   - **Sous-grille** : en plus des barres de mesure, une grille plus pâle dont
+     le pas se choisit dans une liste (noires, croches, doubles-croches,
+     triples-croches) et se combine avec un bouton « Triolets » (croches +
+     triolets = triolets de croches, doubles + triolets = sextolets…).
+   - **Magnétisme** : la tête de lecture se cale sur la sous-grille active, ou
+     se place librement quand il est désactivé.
+   - **Zoom** horizontal et vertical par deux curseurs, et bouton « Auto » qui
+     ajuste les pistes à la fenêtre sans débordement.
+   - **Réglage** : suivre ou non la tête de lecture pendant la lecture.
 4. **Analyse** : tempo et temps, tonalité, accords (fondamentale et couleur
    fiables ; extensions proposées comme suggestions), en tenant compte de
    l'harmonie jazz. Tout est corrigeable à la main : premier temps, métrique,
    tempo doublé ou divisé, tonalité, chaque accord.
 5. **Grille d'accords façon Real Book** : édition, transposition, affichage
-   pour instruments en Si♭ et Mi♭, impression, export iReal Pro.
+   pour instruments en Si♭ et Mi♭, impression, export iReal Pro. Notation des
+   chartes de jazz : triangle pour l'accord majeur 7, altérations serrées
+   contre la fondamentale, extensions en exposant ; mineur noté « m » ou « – »
+   au choix dans les réglages.
+   - **Trois affichages** se partagent la zone centrale, la barre du haut et
+     le transport restant identiques : *Pistes* (formes d'onde), *Grille
+     d'accords* (façon iReal Pro), *Partition* (un instrument, ou un
+     conducteur si plusieurs sont cochés ; imprimable, export PDF). Boucle,
+     tempo et tonalité se règlent de la même façon dans les trois.
 6. **Métronome** : activable, volume, métriques composées (5/4, 7/8…), réglage
    avancé des temps forts et faibles par métrique ; décompte avant la boucle ;
    accélération progressive de la boucle.
@@ -47,7 +64,9 @@ aucune technique de contournement des protections de YouTube.
 9. **Sauvegarde automatique** locale à chaque action ; installation hors ligne
    (PWA) pour l'app web.
 
-Reporté en v2 : partitions (mélodies, solos), export MusicXML et MIDI.
+Reporté en v2 : la transcription qui alimente l'affichage Partition
+(mélodies, solos), l'export MusicXML et MIDI. L'affichage lui-même est déjà
+prévu dans l'interface.
 Pas prévu pour l'instant : apps Windows, Android, iOS.
 
 ## Exigences de qualité

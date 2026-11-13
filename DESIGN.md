@@ -65,6 +65,9 @@ Pas de dégradés, pas de transparence décorative, pas de violet ni de bleu vif
 - **Instrument Sans** (variable, licence OFL) pour tout le reste : libellés,
   boutons, menus. Chiffres tabulaires partout.
 
+- **Noto Music** (licence OFL) pour les signes que les deux autres n'ont
+  pas : bémol, dièse, bécarre, clés.
+
 Les polices sont servies par l'app elle-même, jamais depuis un service tiers.
 
 | Rôle | Police | Taille / graisse |
@@ -76,8 +79,14 @@ Les polices sont servies par l'app elle-même, jamais depuis un service tiers.
 | Texte | Instrument Sans | 15 px / 400–600 |
 | Libellé | Instrument Sans | 11 px / 600, capitales, interlettrage 0,09 em |
 
-Les accords s'écrivent comme sur une grille de jazz : lettre de la fondamentale
-en grand, qualité plus petite, extensions en exposant (`A♭7` puis `13`).
+Les accords s'écrivent comme sur une grille de jazz :
+
+- fondamentale en grand, qualité à 74 %, extensions en exposant (`A♭7` puis
+  `13`) ;
+- **majeur 7 : un triangle**, jamais « maj7 » ;
+- bémol et dièse collés à la fondamentale, à 128 % de la taille du texte et
+  légèrement remontés, épaissis pour s'accorder à la graisse de Fraunces ;
+- mineur noté « m » par défaut, « – » au choix dans les réglages.
 
 ## Formes et espace
 
@@ -90,17 +99,30 @@ en grand, qualité plus petite, extensions en exposant (`A♭7` puis `13`).
 
 ## Écran principal
 
-De haut en bas :
+Trois affichages se partagent la zone centrale : **Pistes**, **Grille
+d'accords**, **Partition**. La barre du haut et le transport ne changent pas
+de l'un à l'autre ; boucle, tempo et tonalité y agissent de la même façon.
+L'affichage actif est souligné à l'encre, pas à la braise.
 
-1. **Barre du haut** (58 px) : nom de l'app, titre du morceau, quatre menus au
-   plus (Nouveau projet, Grille d'accords, Exporter, Réglages).
+De haut en bas, pour l'affichage Pistes :
+
+1. **Barre du haut** (58 px) : nom de l'app, titre du morceau, puis Nouveau
+   projet, les trois affichages, Exporter, Réglages.
 2. **Bandeau fixe** : courbe de tempo, accords, numéros de mesure. Il reste
    visible quand on fait défiler les pistes.
 3. **Pistes** (74 px chacune) : à gauche la pastille de couleur, le nom, les
    boutons M (muet) et S (solo), le volume ; à droite la forme d'onde en deux
    tons, les crêtes claires et le corps plein.
-4. **Transport** : à gauche le temps et la position (mesure, temps, boucle) ;
-   au centre retour, lecture, boucle ; à droite tonalité, tempo, métronome.
+4. **Transport** : à gauche le temps et la position (mesure, temps, boucle),
+   puis la sous-grille (liste et bouton Triolets) ; au centre retour, lecture,
+   boucle ; à droite tonalité, tempo, métronome.
+5. **Outils d'affichage** : une petite barre posée en bas à droite des pistes,
+   au-dessus du tempo — magnétisme (aimant), Auto, zoom horizontal, zoom
+   vertical.
+
+La grille des pistes a deux niveaux : les barres de mesure, nettes
+(encre à 26 %), et la sous-grille, plus pâle (`--trait-fin`). La sous-grille
+s'efface d'elle-même quand ses traits seraient à moins de 5 px l'un de l'autre.
 
 La boucle se lit à deux endroits : une bande de laiton pleine dans la règle des
 mesures, un voile de laiton sur les pistes. La tête de lecture est un filet
@@ -108,12 +130,25 @@ braise coiffé d'un petit triangle.
 
 Une piste coupée reste en place, sa forme d'onde tombe à 22 % d'opacité.
 
+**Grille d'accords** : quatre mesures par ligne, barres de mesure à l'encre,
+lettres de section encadrées, double barre aux changements de section. La
+boucle est un voile de laiton sur les mesures concernées ; la mesure en cours
+se remplit d'un filet braise.
+
+**Partition** : une page claire (`#fffdf8`) posée sur le papier, la liste des
+instruments à cocher à gauche. Plusieurs instruments cochés donnent un
+conducteur. Accords au-dessus de la première portée, boucle et tête de lecture
+comme ailleurs.
+
 ## Téléphone
 
 Sous 760 px de large : la colonne des pistes se réduit à 92 px (nom, M, S), la
-zone des pistes défile horizontalement à 86 px par mesure, les menus se
-replient derrière un seul bouton, et le transport s'empile en trois rangs avec
-la lecture au pouce. La page elle-même ne défile jamais horizontalement.
+zone des pistes défile horizontalement à 86 px par mesure, les trois
+affichages deviennent une rangée d'onglets sous la barre du haut, les autres
+menus se replient derrière un seul bouton, et le transport s'empile en trois
+rangs avec la lecture au pouce. Le zoom se fait en pinçant : la barre d'outils
+ne garde que le magnétisme et Auto. La page elle-même ne défile jamais
+horizontalement.
 
 ## Mouvement
 

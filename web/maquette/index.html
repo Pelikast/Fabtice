@@ -7,10 +7,11 @@
 <title>Fabtice — maquette</title>
 <link rel="preload" href="fonts/fraunces-latin-full-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/instrument-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/noto-music-music-400-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div class="app">
+<div class="app" id="app" data-vue="pistes">
 
   <header class="haut">
     <div class="marque">Fab<i>t</i>ice</div>
@@ -19,45 +20,122 @@
       <span class="projet-source">4 min 33 · importé d’un lien</span>
     </div>
     <nav class="menus" aria-label="Menus">
-      <button class="menu" id="ouvrir-accueil">Nouveau projet</button>
-      <button class="menu">Grille d’accords</button>
-      <button class="menu">Exporter</button>
-      <button class="menu">Réglages</button>
-      <button class="menu menu-plus" id="ouvrir-accueil-mobile" aria-label="Menu">⋯</button>
+      <button class="menu cache-tel" id="ouvrir-accueil">Nouveau projet</button>
+      <span class="modes" role="tablist" aria-label="Affichage">
+        <button class="menu mode" role="tab" data-vue="pistes" aria-selected="true">Pistes</button>
+        <button class="menu mode" role="tab" data-vue="grille" aria-selected="false">Grille<span class="long"> d’accords</span></button>
+        <button class="menu mode" role="tab" data-vue="partition" aria-selected="false">Partition</button>
+      </span>
+      <button class="menu cache-tel">Exporter</button>
+      <button class="menu cache-tel" id="ouvrir-reglages" aria-expanded="false">Réglages</button>
+      <button class="menu menu-plus" id="ouvrir-reglages-tel" aria-label="Menu">⋯</button>
     </nav>
+
+    <div class="reglages-app" id="reglages-app" hidden>
+      <label class="option">
+        <input type="checkbox" id="suivre" checked>
+        <span>Suivre la tête de lecture</span>
+      </label>
+      <div class="option">
+        <span>Accords mineurs</span>
+        <span class="duo" role="group" aria-label="Notation des accords mineurs">
+          <button data-mineur="m" aria-pressed="true">Cm7</button>
+          <button data-mineur="–" aria-pressed="false">C–7</button>
+        </span>
+      </div>
+      <button class="option lien-option" id="nouveau-tel">Nouveau projet…</button>
+    </div>
   </header>
 
-  <main class="travail" id="travail">
-    <div class="plan" id="plan">
+  <main class="milieu">
 
-      <div class="regle">
-        <div class="rang rang-tempo">
-          <div class="tete">Tempo · ≈ 110</div>
-          <div class="corps"><canvas id="courbe-tempo"></canvas></div>
+    <!-- Vue Pistes -->
+    <div class="travail vue vue-pistes" id="travail">
+      <div class="plan" id="plan">
+        <div class="regle">
+          <div class="rang rang-tempo">
+            <div class="tete">Tempo · ≈ 110</div>
+            <div class="corps"><canvas id="courbe-tempo"></canvas></div>
+          </div>
+          <div class="rang rang-accords">
+            <div class="tete">Accords</div>
+            <div class="corps"><div class="accords" id="accords"></div></div>
+          </div>
+          <div class="rang rang-mesures">
+            <div class="tete">Mesures</div>
+            <div class="corps"><div class="boucle-regle"></div><div class="mesures-num" id="mesures"></div></div>
+          </div>
         </div>
-        <div class="rang rang-accords">
-          <div class="tete">Accords</div>
-          <div class="corps"><div class="accords" id="accords"></div></div>
-        </div>
-        <div class="rang rang-mesures">
-          <div class="tete">Mesures</div>
-          <div class="corps"><div class="boucle-regle" id="boucle-regle"></div><div class="mesures-num" id="mesures"></div></div>
+        <div id="pistes"></div>
+        <div class="calque" aria-hidden="true">
+          <div class="boucle" id="boucle"></div>
+          <div class="lecture" id="lecture"></div>
         </div>
       </div>
+    </div>
 
-      <div id="pistes"></div>
+    <div class="outils" id="outils" role="toolbar" aria-label="Affichage des pistes">
+      <button class="outil" id="aimant" aria-pressed="true" aria-label="Magnétisme : caler la tête de lecture sur la sous-grille" title="Magnétisme">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3.5v6.2a5 5 0 0 0 10 0V3.5h-3.2v6.2a1.8 1.8 0 0 1-3.6 0V3.5z"/><path d="M5 6.6h3.2M11.8 6.6H15"/></svg>
+      </button>
+      <button class="outil outil-texte" id="auto" aria-pressed="true" title="Ajuster les pistes à la fenêtre">Auto</button>
+      <label class="zoom" title="Zoom horizontal">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10h14M6 6.8 3 10l3 3.2M14 6.8l3 3.2-3 3.2"/></svg>
+        <input type="range" id="zoom-h" min="36" max="260" value="76" aria-label="Zoom horizontal">
+      </label>
+      <label class="zoom" title="Zoom vertical">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3v14M6.8 6 10 3l3.2 3M6.8 14l3.2 3 3.2-3"/></svg>
+        <input type="range" id="zoom-v" min="44" max="150" value="74" aria-label="Zoom vertical">
+      </label>
+    </div>
 
-      <div class="calque" aria-hidden="true">
-        <div class="boucle" id="boucle"></div>
-        <div class="lecture" id="lecture"></div>
+    <!-- Vue Grille d'accords -->
+    <div class="vue vue-grille">
+      <div class="feuille">
+        <div class="feuille-tete">
+          <h1>Blues du dimanche</h1>
+          <p><span id="grille-ton"></span> · 4/4 · swing moyen</p>
+        </div>
+        <div class="grille" id="grille"></div>
+      </div>
+    </div>
+
+    <!-- Vue Partition -->
+    <div class="vue vue-partition">
+      <aside class="portees" id="portees" aria-label="Instruments affichés"></aside>
+      <div class="page-zone">
+        <div class="page" id="page">
+          <div class="feuille-tete">
+            <h1>Blues du dimanche</h1>
+            <p id="partition-sous-titre"></p>
+          </div>
+          <div id="systemes"></div>
+        </div>
       </div>
     </div>
   </main>
 
   <footer class="bas">
-    <div class="position">
-      <span class="temps" id="temps">0:16,0</span>
-      <span class="ou">mesure <b id="ou-mesure">5</b> · temps <b id="ou-temps">1</b><span id="ou-boucle"> · boucle <b>5–8</b></span></span>
+    <div class="gauche">
+      <div class="position">
+        <span class="temps" id="temps">0:16,0</span>
+        <span class="ou">mesure <b id="ou-mesure">5</b> · temps <b id="ou-temps">1</b><span id="ou-boucle"> · boucle <b>5–8</b></span></span>
+      </div>
+      <div class="sous-grille" role="group" aria-label="Sous-grille">
+        <label class="choix">
+          <span class="reglage-nom">Sous-grille</span>
+          <select id="sous-grille">
+            <option value="1">Noires</option>
+            <option value="2" selected>Croches</option>
+            <option value="4">Doubles-croches</option>
+            <option value="8">Triples-croches</option>
+          </select>
+        </label>
+        <button class="bascule" id="triolets" aria-pressed="false">
+          <svg viewBox="0 0 26 14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 12V6.5h7.2M17.3 6.5h7.2V12"/><text x="13" y="10.2" text-anchor="middle" font-size="9.5" font-weight="700" fill="currentColor" stroke="none" font-family="inherit">3</text></svg>
+          Triolets
+        </button>
+      </div>
     </div>
 
     <div class="commandes">
@@ -77,7 +155,7 @@
       <div class="reglage" role="group" aria-label="Tonalité">
         <span class="reglage-nom">Tonalité</span>
         <button id="ton-moins" aria-label="Un demi-ton plus bas">−</button>
-        <span class="valeur"><strong id="ton-valeur">+5</strong><small id="ton-detail">A♭ → D♭</small></span>
+        <span class="valeur"><strong id="ton-valeur">+5</strong><small id="ton-detail"></small></span>
         <button id="ton-plus" aria-label="Un demi-ton plus haut">+</button>
       </div>
       <div class="reglage" role="group" aria-label="Tempo">
