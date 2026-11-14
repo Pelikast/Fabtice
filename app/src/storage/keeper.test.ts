@@ -107,6 +107,9 @@ describe('autosave', () => {
       (s) => ({ playback: { ...s.playback, cents: 13 } }),
       (s) => ({ tracks: s.tracks.map((tr) => ({ ...tr, mute: true })) }),
       (s) => ({ view: { ...s.view, pxPerSecond: 77 } }),
+      // Since version 2 of the document: what the user corrected by hand.
+      (s) => ({ corrections: { ...s.corrections, tuningCents: 12 } }),
+      (s) => ({ corrections: { ...s.corrections, sections: [{ time: 0, label: 'A' }] } }),
     ];
     for (const change of changes) {
       storage.writes = 0;
@@ -117,6 +120,7 @@ describe('autosave', () => {
     expect(stored()).toMatchObject({ project: { title: 'Nouveau titre' }, playback: { cents: 13 }, view: { pxPerSecond: 77 } });
     expect(stored().tracks[0]!.mute).toBe(true);
     expect(stored().tempoMap.segments[0]!.bpm).toBe(96);
+    expect(stored().corrections).toMatchObject({ tuningCents: 12, sections: [{ time: 0, label: 'A' }] });
   });
 
   it('ignores what is not in the document: view mode, transport, panels', async () => {

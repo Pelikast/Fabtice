@@ -14,7 +14,7 @@
 //     sentence, once.
 
 import type { ProjectDocument } from '../model/document';
-import { toProjectDocument } from '../store/document';
+import { documentChanged, toProjectDocument } from '../store/document';
 import type { AppState, AppStore, StorageNotice } from '../store/store';
 import { StorageError, type ProjectStorage, type StoredAudio } from './ProjectStorage';
 import { withTimeout } from './timeout';
@@ -34,16 +34,6 @@ export const AUTOSAVE_DELAY_MS = 700;
 export const AUTOSAVE_MAX_WAIT_MS = 5000;
 /** Generous: a long piece is tens of MB to write; a write that never answers must still not block every later save. */
 export const WRITE_TIMEOUT_MS = 120_000;
-
-/** The parts of the state a stored document is made of. `view.mode` is not one. */
-function changed(a: AppState, b: AppState): boolean {
-  if (a.project !== b.project || a.tracks !== b.tracks || a.tempoMap !== b.tempoMap || a.loop !== b.loop || a.playback !== b.playback) return true;
-  if (a.view === b.view) return false;
-  for (const key of Object.keys(a.view) as (keyof AppState['view'])[]) {
-    if (key !== 'mode' && a.view[key] !== b.view[key]) return true;
-  }
-  return false;
-}
 
 export class ProjectKeeper {
   private readonly delayMs: number;
@@ -170,7 +160,7 @@ export class ProjectKeeper {
       if (prev.project?.id !== state.project?.id) this.cancelTimer();
       return;
     }
-    if (this.saved && !changed(state, this.saved)) {
+    if (this.saved && !documentChanged(state, this.saved)) {
       this.cancelTimer();
       return;
     }
@@ -190,7 +180,7 @@ export class ProjectKeeper {
         const state = this.store.getState();
         const doc: ProjectDocument | null = toProjectDocument(state);
         if (!doc || doc.project.id !== this.attached) return;
-        if (this.saved && !changed(state, this.saved)) return;
+        if (this.saved && !documentChanged(state, this.saved)) return;
         await withTimeout(this.storage.saveCurrent(doc), this.writeTimeoutMs, 'write');
         this.saved = state;
         this.notify(null);
