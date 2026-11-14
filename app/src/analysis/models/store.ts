@@ -40,6 +40,8 @@ export interface ModelStore {
   clearParts(id: string): Promise<void>;
   /** Removes every file and every part (diagnostics, tests). */
   clearAll(): Promise<void>;
+  /** The complete files kept, with their size (nothing is read back). */
+  listFiles(): Promise<{ id: string; bytes: number }[]>;
 }
 
 /** Memory only: the fallback, and what the unit tests use. */
@@ -79,6 +81,9 @@ export class MemoryModelStore implements ModelStore {
     this.files.clear();
     this.parts.clear();
   }
+  async listFiles() {
+    return [...this.files.values()].map((f) => ({ id: f.id, bytes: f.bytes }));
+  }
 }
 
 /** The analysis tools' database. The separation tools have their own (`separation/index.ts#SEPARATION_TOOLS_DB`), same layout. */
@@ -106,12 +111,33 @@ interface PartRecord {
   data: ArrayBuffer;
 }
 
+export interface ModelStoreOptions {
+  /**
+   * Keep each complete file as a `Blob` (the separation tools, up to 353 MB):
+   * the browser keeps its bytes on disk, so checking that a file is there, or
+   * listing the files, never reads it into memory; only `getFile` does.
+   * Off for the analysis tools (small, kept as they always were).
+   */
+  blobs?: boolean;
+}
+
+/** A stored record: the bytes as an ArrayBuffer, or as a Blob (`ModelStoreOptions.blobs`). */
+interface FileRecord {
+  id: string;
+  bytes: number;
+  sha256: string;
+  data: ArrayBuffer | Blob;
+}
+
+const recordBytes = (data: unknown): number => (data instanceof ArrayBuffer ? data.byteLength : typeof Blob !== 'undefined' && data instanceof Blob ? data.size : -1);
+
 export class IdbModelStore implements ModelStore {
   private opening: Promise<IDBDatabase> | null = null;
 
   constructor(
     private readonly factory: IDBFactory = indexedDB,
     private readonly dbName: string = ANALYSIS_TOOLS_DB,
+    private readonly options: ModelStoreOptions = {},
   ) {}
 
   private db(): Promise<IDBDatabase> {
@@ -141,21 +167,31 @@ export class IdbModelStore implements ModelStore {
 
   async getFile(id: string): Promise<StoredFile | null> {
     const db = await this.db();
-    const rec = (await wrap(db.transaction('files').objectStore('files').get(id))) as StoredFile | undefined;
-    return rec && rec.data instanceof ArrayBuffer ? rec : null;
+    const rec = (await wrap(db.transaction('files').objectStore('files').get(id))) as FileRecord | undefined;
+    if (!rec) return null;
+    if (rec.data instanceof ArrayBuffer) return rec as StoredFile;
+    if (typeof Blob !== 'undefined' && rec.data instanceof Blob) return { id: rec.id, bytes: rec.bytes, sha256: rec.sha256, data: await rec.data.arrayBuffer() };
+    return null;
   }
 
   async hasFile(id: string, bytes: number, sha256: string): Promise<boolean> {
     const db = await this.db();
-    const rec = (await wrap(db.transaction('files').objectStore('files').get(id))) as StoredFile | undefined;
-    return !!rec && rec.bytes === bytes && rec.sha256 === sha256 && rec.data instanceof ArrayBuffer && rec.data.byteLength === bytes;
+    const rec = (await wrap(db.transaction('files').objectStore('files').get(id))) as FileRecord | undefined;
+    return !!rec && rec.bytes === bytes && rec.sha256 === sha256 && recordBytes(rec.data) === bytes;
   }
 
   async putFile(file: StoredFile): Promise<void> {
     const db = await this.db();
+    const record: FileRecord = this.options.blobs ? { ...file, data: new Blob([file.data]) } : file;
     const tx = db.transaction('files', 'readwrite');
-    tx.objectStore('files').put(file);
+    tx.objectStore('files').put(record);
     await done(tx);
+  }
+
+  async listFiles(): Promise<{ id: string; bytes: number }[]> {
+    const db = await this.db();
+    const all = (await wrap(db.transaction('files').objectStore('files').getAll())) as FileRecord[];
+    return all.filter((r) => recordBytes(r.data) === r.bytes).map((r) => ({ id: r.id, bytes: r.bytes }));
   }
 
   async deleteFile(id: string): Promise<void> {
@@ -212,13 +248,13 @@ const fallbacks = new Map<string, MemoryModelStore>();
  * the separation tools pass `SEPARATION_TOOLS_DB`): one database each, so
  * that each family's room can be shown and freed on its own.
  */
-export async function openModelStore(dbName: string = ANALYSIS_TOOLS_DB): Promise<ModelStore> {
+export async function openModelStore(dbName: string = ANALYSIS_TOOLS_DB, options: ModelStoreOptions = {}): Promise<ModelStore> {
   const known = shared.get(dbName);
   if (known) return known;
   let store: ModelStore;
   try {
     if (typeof indexedDB === 'undefined') throw new Error('no IndexedDB');
-    const idb = new IdbModelStore(indexedDB, dbName);
+    const idb = new IdbModelStore(indexedDB, dbName, options);
     await idb.hasFile('probe', 0, ''); // opens the database
     store = idb;
   } catch {

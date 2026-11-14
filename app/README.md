@@ -29,8 +29,11 @@ le stockage.
 | `npm run test:engine` | après `build` (et, en option, `build:desktop`) : mesures du vrai moteur audio dans Chromium (tonalité, tempo, boucle, métronome, limiteur, charge ; sections 14 à 18 : le rendu d'« Appliquer » joué tel quel, passages préécoute/rendu, boucle, métronome, sept pistes) |
 | `npm run test:analysis` | après `build` : le **vrai** analyseur dans Chromium (télécharge les outils d'analyse depuis Hugging Face : réseau nécessaire). Le morceau d'essai du prototype passe par l'interface et le résultat est comparé à ce qu'on en sait et à ce que le prototype trouve ; deuxième usage sans téléchargement ; le panneau d'état qui s'ouvre seul au premier téléchargement (il se referme seul à la fin de l'analyse, reste ouvert si l'utilisateur y a touché ou en cas d'erreur) ; annulation (panneau, nouvel import, pendant le téléchargement) ; réseau absent ; téléchargement abîmé (refusé, repris, refusé pour de bon) ; reprise d'un téléchargement interrompu ; lecture pendant l'analyse ; morceau de 4 minutes ; chiffres de durée, de mémoire et de plus longue tâche du fil principal. `FABTICE_ANALYSIS_ONLY=<nom>` n'en lance qu'une partie |
 | `npm run test:separation` | après `build` : les écrans du lot 3 dans Chromium (séparation : fenêtre « Nouveau morceau », panneau, téléchargement, progression, repli, annulation, échec, pistes dans leurs teintes, morceau entier et retour, « Libérer la place » ; réglages avancés ; « Appliquer » ; « Exporter le son » avec un WAV et une archive téléchargés et relus) à 1280 × 800, 960 × 640 et 390 × 844 (dans la fenêtre, au-dessus du transport), puis des instruments de **taille réelle** gardés et rouverts après rechargement (profil persistant). `FABTICE_SEPARATION_OUT` pour les captures, `FABTICE_SEPARATION_ONLY=screens\|flows\|export\|storage` |
+| `npm run test:separation-real` | après `build` : le **vrai** séparateur dans Chromium, sur le processeur (télécharge SCNet, 13 Mo, depuis Hugging Face : réseau nécessaire ; quelques minutes) : 25 s du morceau d'essai de l'analyse importées puis séparées par l'interface (progression qui ne recule pas, temps restant, longueurs exactes, somme des parties comparée au morceau, « Copier le rapport »), deuxième séparation sans téléchargement puis `forgetTools`, annulation en cours de route, repli du chemin « graphique » simulé au segment 3 (`&repli-essai=2`) avec un résultat identique. `FABTICE_SEPARATION_TOOLS=1` : HTDemucs et BS-RoFormer sur 12 s (409 Mo téléchargés) ; `FABTICE_SEPARATION_MEMORY=1` : mémoire de pointe de chaque outil sur un morceau de quatre minutes (long ; `FABTICE_SEPARATION_MEMORY_TOOLS`, `FABTICE_SEPARATION_MEMORY_SECONDS`). `FABTICE_SEPARATION_REAL_ONLY=first\|cancel\|fallback\|tools\|memory` |
 | `npm run test:memory` | après `build`, au premier plan : la mémoire d'un morceau de cinq minutes stéréo en une piste puis en sept, avec le vrai moteur ; puis le jeu « Appliquer » de ces sept pistes à 0,7 (taille, budget de l'appareil, libération) (chiffres affichés) |
 | `npm run test:render` | après `build`, au premier plan : le vrai rendu (Rubber Band R3 dans un worker) dans Chromium : alignement d'un train de clics à plusieurs tempos et hauteurs, cinq minutes sans dérive, vitesse (secondes de calcul par minute stéréo, gain de plusieurs workers), annulation, binaire chargé au premier rendu seulement et licence servie ; puis « Appliquer » dans l'app avec le vrai moteur (progression réelle, rendu joué tel quel, retour à la préécoute, refus calme d'un appareil trop petit) à 1280 × 800 et 390 × 844. `FABTICE_RENDER_OUT` pour les captures, `FABTICE_RENDER_ONLY=renderer\|app`, `FABTICE_RENDER_QUICK=1` saute les cinq minutes |
+| `npm run test:export-audio` | après `build` : « Exporter le son » avec les vrais encodeurs MP3 et FLAC (WAV, MP3, FLAC relus et comparés, archive, boucle, annulation, encodeur qui ne se charge pas, export à une autre tonalité et un autre tempo par le rendu), vitesses, captures du dialogue |
+| `npm run test:export-memory` | après `build`, au premier plan : la mémoire de l'export de sept pistes de cinq minutes (archive de WAV, de MP3, mélange en WAV, FLAC et MP3), chiffres affichés |
 | `npm run test:chart` | après `build` : la grille d'accords comparée à la maquette (même balisage des accords, mêmes tailles, sections, boucle, mesure en cours, instruments, états vide et « analyse en cours », téléphone), puis les gestes (clic, glisser, suivi), l'éditeur d'accord (toujours entier et dans la fenêtre, à 1280 × 800 et 960 × 640), tous les panneaux flottants (Tempo, analyse, réglages, Exporter, accord fin, tonalité : dans la fenêtre, au-dessus du transport, dernier bouton cliquable, à 1280 × 800, 1024 × 700 et 960 × 640 ; `ui/useFitPanel.ts` leur donne une hauteur maximale et un défilement propre quand la fenêtre est trop basse), la tonalité, les sections, le clavier, l'autosauvegarde (rechargement d'un morceau gardé), le toucher réel sur téléphone (390 × 844) et l'impression (feuille de style d'impression, PDF A4 et Letter lus avec `pdftotext`, sauts de page) ; panneaux de corrections et d'accordage ; captures de l'app, de la maquette et des pages imprimées dans `FABTICE_CHART_OUT` (`pdftotext`, `pdfinfo` et `pdftoppm` de poppler sont nécessaires pour la partie impression) |
 
 Les fichiers audio de test de `test:import` sont dans `tests/fixtures/` (quelques
@@ -104,7 +107,8 @@ src/
                       (IREAL-FORMAT.md : le format et ses sources) ; audio/ : export
                       du son (lot 3 : plan, rendu, encodeurs, archive, remise)
   separation/         séparation des instruments (lot 3) : contrat, liste des outils
-                      (models.json), choix selon l'appareil, séparateur factice, lancement
+                      (models.json), choix selon l'appareil, séparateur factice, vrai
+                      séparateur (onnx.ts + worker/ + engine/), rapport, lancement
   render/             rendu hors ligne et « Appliquer » (lot 3) : contrat, rendu réel
                       (rubberband.ts + rubberband/ : worker, wasm, licence), rendu
                       factice, budget de mémoire, contrôleur
@@ -361,38 +365,183 @@ séparation est abandonné et une phrase calme le dit
 | `models.ts` | lecture de la liste : copie embarquée, et au lancement `refreshModelList()` va chercher `models.json` à son adresse brute publique (`REMOTE_MODEL_LIST_URL`, branche `main`), avec une limite de temps ; **validation stricte** (`validateModelList` : https, hôte autorisé `huggingface.co`, révision de 40 caractères, SHA-256, taille, parties connues ; un document qui échoue est ignoré en entier, jamais à moitié). Une liste distante vide est valable : tous les outils sont retirés. Pas de requête sur les adresses de test et de démonstration, ni depuis la machine elle-même (développement, vérifications), sauf `?outils=distant` |
 | `device.ts` | **choix automatique, pur et testé** : `assessDevice` (téléphone, navigateur, puce graphique, mémoire, cœurs), `chooseModel` (téléphone → le plus léger ; Safari → processeur, le meilleur outil sur puce Apple ; puce Apple ailleurs → le meilleur sur la carte graphique ; autre puce ou aucune → l'outil équilibré ; un outil que la mémoire ne tient pas est sauté), `resolveModel` (le réglage avancé gagne tant que son outil est dans la liste), `estimateSeconds` (vitesse de la liste × durée, plus lent avec peu de cœurs) ; `probeDevice()` (WebGPU, mémoire) une fois par page |
 | `mock.ts` | `MockSeparator` : copies filtrées par bandes (graves pour la basse, médium pour la voix…), au rythme voulu, avec premier téléchargement, repli sur le processeur, annulation et erreurs ; le panneau dit « Outil d'essai » quand il est en service |
-| `index.ts` | la fabrique `getSeparator()` (aujourd'hui toujours le factice ; `?separation=lente\|instant\|repli\|echec`), `SEPARATION_TOOLS_DB` |
+| `index.ts` | la fabrique `getSeparator()` : le vrai séparateur par défaut dans un navigateur, le factice dans Node et sur les adresses de test et de démonstration (`?separation=lente\|instant\|repli\|echec`…), `?separation=reel` pour forcer le vrai ; `SEPARATION_TOOLS_DB` |
 | `runner.ts` | lancement (`startSeparation({ stems })`, `startAutoSeparation` après un import), annulation, rassemblement des parties non demandées dans « Autres » (`gatherParts`), écriture sur l'appareil puis mise en place, `freeSeparatedTracks`, `separationUsage` |
 | `progress.ts`, `useChoice.ts` | progression fine ; l'outil et l'estimation pour l'écran (`formatWait`, `formatSize`) |
+| `onnx.ts` | **le vrai séparateur**, `OnnxSeparator` (côté fil principal, léger : ONNX Runtime n'est chargé que par son worker, quand une séparation démarre) : donne le morceau au worker tel qu'il est en mémoire (blocs 16 bits partagés, aucune copie), écrit les parties que le worker rend, tronçon par tronçon, dans une piste 16 bits par partie (`PcmWriter`), progression et temps restant, repli, annulation, rapport ; `isCached`, `toolsUsage`, `forgetTools` lisent et vident la base des outils |
+| `worker/` | `separation.worker.ts` (le worker : outil depuis l'appareil ou téléchargé et vérifié, ONNX Runtime Web sur la carte graphique ou le processeur, le calcul) et `protocol.ts` (les messages) |
+| `engine/` | les calculs, **purs** et testés dans Node : `stft.ts` (FFT, STFT / iSTFT au sens de torch pour deux canaux à la fois, fenêtres, reflets : le portage de `dsp.js`), `resample.ts` (48 kHz ⇄ 44,1 kHz), `plan.ts` (réglages d'un outil, découpage en segments), `runners.ts` (ce que chaque réseau prend et rend), `pipeline.ts` (le morceau entier, segment après segment) |
+| `report.ts` | le rapport de mesure d'une vraie séparation (texte à copier, sans donnée personnelle), gardé par l'appareil et transmis à l'app Mac |
+| `toolsDb.ts` | `SEPARATION_TOOLS_DB` et sa façon d'ouvrir la base (fichiers gardés en `Blob`) |
 
-**Ce que l'agent de la séparation doit construire** : un `OnnxSeparator`
-(fichiers à lui dans `src/separation/`, branché dans `index.ts` comme le vrai
-analyseur l'est dans `analysis/index.ts` : le vrai par défaut dans un
-navigateur, le factice dans Node, sur `?demo` et les adresses de test), porté
-du prototype `web/spikes/separation/` (paliers, STFT, découpage en tranches,
-recouvrement), dans un **Web Worker** (ONNX Runtime Web, variante WebGPU puis
-WebAssembly, fichiers servis par l'app comme pour l'analyse). Exigences du
-contrat : lire l'audio par plages et ne pas le garder ; rendre chaque partie en
-`PcmAudio` de même longueur (48 kHz, rééchantillonnage aller et retour à sa
-charge) ; progression régulière avec un **temps restant honnête** ; au premier
-échec de la carte graphique, continuer **avec le même outil** sur le
-processeur et le dire tout de suite (`fellBack`), jamais changer d'outil seul ;
-annulation rapide qui libère la mémoire (terminer le worker) ; mémoire basse
-sur téléphone (la page de l'iPhone a été fermée par le système avec SCNet :
-tranches courtes, rien en double). Téléchargement : réutiliser
-`analysis/models/download.ts` (reprise, SHA-256) avec
-`openModelStore(SEPARATION_TOOLS_DB)` (une base à part, pour que la place des
-outils se montre et se libère à part) et traduire `AnalysisError` en
-`SeparationError` ; `toolsUsage`/`forgetTools` lisent et vident cette base.
-Mesurer sur le morceau d'essai et noter les vitesses réelles dans
-`models.json` (`speed`, `measured: true`). Les séparations détaillées
-(batterie détaillée, saxophone) : une entrée `kind: 'detail'` avec `input` dans
-la liste, **seulement si un outil existe** ; leur mise en place (une piste
-remplacée par ses parties) demandera un document v4. **L'app Mac** : sa
-politique de sécurité (`desktop/src/protocol.js`, `connect-src`) doit ouvrir
-`https://raw.githubusercontent.com` pour la liste distante (aujourd'hui l'app
-Mac utilise la copie embarquée), et rien d'autre ne change pour les outils
-(Hugging Face est déjà ouvert).
+**Quel séparateur ?** Comme pour l'analyseur : dans un navigateur, le **vrai**
+est celui par défaut. Le factice sert dans Node (tests unitaires) et sur les
+adresses des suites de tests et de la démo : `?separation=lente|instant|repli|echec|entier|faite`,
+`?demo`, `?debug`, `?moteur=factice`, **sauf** `?separation=reel`, qui demande
+le vrai (c'est ce que font `test:separation-real` et le test de bout en bout de
+l'app Mac). Un navigateur qui ne sait pas le faire tourner (pas de worker, pas de
+WebAssembly) reçoit quand même le vrai, qui le dit (`unsupported`) au lieu de
+rendre des copies filtrées comme si c'étaient des instruments. Le panneau ne dit
+« Outil d'essai » que quand le factice est en service.
+
+#### Le vrai séparateur (ce qui existe)
+
+**Le calcul**, porté du prototype `web/spikes/separation/` (mêmes adaptateurs de
+réseau, même STFT, même normalisation, mêmes segments et pondérations que les
+implémentations de référence, MSST pour SCNet et BS-RoFormer, Demucs pour
+HTDemucs ; les trois outils de `models.json`), avec une différence de fond : **où
+vivent les échantillons**. Le prototype gardait le morceau et chaque partie en
+Float32 sur toute la durée, plusieurs fois (entrée, copie normalisée,
+accumulateurs, résultat : une vingtaine de copies du morceau). Ici
+(`engine/pipeline.ts`) :
+
+- le morceau est lu **par plages** (`readPcm`) à 48 kHz, et seule la plage d'un
+  segment est passée à 44,1 kHz, au moment de ce segment ;
+- les parties du réseau sont additionnées (recouvrement pondéré) dans des
+  tampons **longs d'un segment** ; dès qu'un tronçon ne peut plus changer (aucun
+  segment suivant ne le touche), il est repassé à 48 kHz, envoyé au fil principal
+  (transfert, sans copie) et oublié ; le fil principal l'écrit en 16 bits ;
+- un seul segment à la fois sur le processeur ; sur la carte graphique, le
+  segment suivant est préparé pendant que le courant calcule (comme le
+  prototype) ;
+- un morceau mono (le cas du vieux jazz) donne des parties mono (la moyenne des
+  deux canaux du réseau) : moitié moins de mémoire, comme le morceau.
+
+**Rééchantillonnage 48 ⇄ 44,1 kHz** (`engine/resample.ts`) : polyphasé
+rationnel exact (160/147), noyau sinc fenêtré de Kaiser, phase linéaire centrée
+(aucun retard : un aller-retour garde chaque échantillon à sa place), plat
+jusqu'à 20 kHz, coupé à 21,5 kHz, au moins 100 dB d'atténuation dès 23 kHz (ce
+qui se trouve entre 22,05 et 23 kHz ne peut se replier qu'au-dessus de 21 kHz).
+Accès direct à n'importe quelle plage (chaque échantillon est lu deux fois avec
+le recouvrement de 2). **Mesuré** (`engine/engine.test.ts`) : un la à 1 kHz
+revient de l'aller-retour avec une erreur de −129 dB, aucune autre composante
+au-dessus de −116 dB ; un balayage de 20 Hz à 20 kHz revient à −109 dB (−111 dB
+jusqu'à 18 kHz) ; 23,2 et 23,9 kHz à 48 kHz sortent à −102 et −104 dB à 44,1 kHz
+(rien ne se replie dans l'audible) ; dans l'autre sens, l'image d'un 10 kHz est
+à −117 dB.
+
+**Le worker et ONNX Runtime** (`worker/separation.worker.ts`) : la version npm
+déjà dans l'app (1.31.1), chargée **seulement quand une séparation démarre** (le
+démarrage de l'app n'y perd rien) et seulement la variante du chemin choisi :
+carte graphique, `ort.webgpu.min.mjs` et son WebAssembly (`asyncify`, 28,7 Mo,
+servi par l'app, alias dans `vite.config.ts`) ; processeur, la variante
+WebAssembly simple, celle de l'analyse (14,8 Mo, déjà servie). Fils de calcul :
+tous les cœurs moins un (la page, le son), huit au plus, un seul si la page
+n'est pas isolée.
+
+**Repli sur le processeur, avec le même outil.** Tout échec du chemin graphique
+— pas de WebGPU dans le worker, outil qui ne se charge pas, segment qui échoue,
+résultat absurde (valeurs non numériques, ou parties presque muettes pour un
+segment sonore : le contrôle du prototype), périphérique perdu, worker qui
+s'arrête ou ne répond plus (plus de 5 min pour le premier segment, ou dix fois
+le temps habituel) — termine ce worker et en lance un sur le processeur **avec
+le même outil**, qui **reprend à partir des images déjà écrites** : le pipeline
+sait repartir de n'importe quelle image de sortie (il recalcule les un ou deux
+segments qui touchent encore ce qui reste à écrire). `fellBack` est annoncé tout
+de suite. L'outil n'est jamais changé seul. Vérifié dans Chromium : le chemin
+« graphique » simulé (`?separation=reel&repli-essai=2`) échoue au segment 3, le
+processeur reprend, et le résultat est **identique** à l'échantillon près à
+celui d'une séparation sans échec.
+
+**Temps restant et progression** (`onnx.ts`) : une fraction pour tout (premier
+téléchargement 15 %, préparation, séparation selon les images écrites et le
+segment en cours à l'horloge, jamais jusqu'à son bout, mise en place), qui ne
+recule jamais ; le temps restant est **mesuré** sur le rythme réel des segments
+du chemin en cours, dit dès que deux segments sont chronométrés (le premier, qui
+comprend la mise en route, est laissé de côté ensuite), et recalculé de zéro
+après un repli.
+
+**Annulation** : la promesse rejette tout de suite (`cancelled`), le worker est
+prié de s'arrêter puis terminé 200 ms après. L'écran est revenu au repos en
+0,1 s ; le worker, lui, disparaît **environ 4 s** plus tard quand il est au milieu
+d'un segment sur le processeur (Chromium termine le fil quand le calcul de
+WebAssembly rend la main) ; sa mémoire est alors rendue.
+
+**Téléchargement et place** : `analysis/models/download.ts` (reprise, SHA-256,
+trois essais) avec `openModelStore(SEPARATION_TOOLS_DB, { blobs: true })`. Deux
+changements dans ce module partagé, sans effet sur l'analyse : le fichier est
+désormais assemblé dans **un seul tampon** de sa taille (avant : les morceaux de
+2 Mo plus leur concaténation, soit 706 Mo pour les 353 Mo de BS-RoFormer), et la
+base des outils de séparation garde chaque fichier en **`Blob`** (le navigateur
+le laisse sur le disque : vérifier qu'il est là ou lister les outils ne le relit
+jamais, alors qu'un enregistrement `ArrayBuffer` de 353 Mo était chargé en
+entier par chaque `hasFile`) ; `listFiles()` ajouté au magasin. Le panneau
+« Instruments » montre la place des outils et propose « Effacer les outils
+téléchargés » (`forgetTools`) quand il y en a.
+
+**Rapport de mesure** (`report.ts`) : après chaque vraie séparation, un court
+texte (outil et son empreinte, demandé / terminé sur la carte graphique ou le
+processeur, adaptateur graphique tel que le navigateur le décrit, repli et à
+quel segment, durée du morceau et canaux, segments, temps total et par segment
+sur chaque chemin, chargement de l'outil, téléchargement ou relecture, fils,
+cœurs, mémoire annoncée, isolation, moteur, navigateur). Aucune donnée
+personnelle : ni titre, ni nom de fichier, ni chemin. Gardé avec l'identifiant
+de la séparation (`localStorage`) : le panneau, une fois séparé, offre
+« Copier le rapport » ; dans l'app Mac le même texte part par le pont
+(`reportSeparation`, `desktop/src/main.js` le garde dans le dossier de l'app) et
+paraît dans Aide → Diagnostic… (« Dernière séparation »).
+
+**Liste distante dans l'app Mac** : `connect-src` de `desktop/src/protocol.js`
+ouvre `https://raw.githubusercontent.com` (et rien d'autre de nouveau) ; l'app
+Mac va chercher la liste comme l'app web (`main.tsx`). La liste n'est pas
+encore sur `main` : la requête reçoit un 404 et la copie embarquée reste en
+service, sans un mot à l'écran (Chromium note seulement le 404 dans sa
+console) ; une liste illisible ou invalide fait de même (tests unitaires de
+`models.test.ts`, test de bout en bout de l'app Mac).
+
+#### Mesures (cette machine : 4 cœurs, pas de carte graphique, Chromium sans tête ; d'autres travaux tournaient en même temps : elles ne valent pas pour les appareils du propriétaire)
+
+Toutes sur le **processeur** (WebAssembly, 3 fils), aucune sur une carte
+graphique. Les temps varient du simple au double selon la charge de la machine
+(SCNet : 10,8 s par segment au calme, 25 s quand d'autres calculs tournaient).
+
+| Outil | Essai | Par segment | Fois la durée | Somme des parties / morceau | Mémoire de pointe, morceau de 4 min stéréo |
+|---|---|---|---|---|---|
+| SCNet (11 s par segment, un tous les 5,5 s) | 25 s du morceau d'essai, 7 segments | 10,8 s | 1,95 | −40,9 dB | **+1,5 Go** (calcul complet : 913 s, machine chargée), plus 176 Mo de pistes |
+| HTDemucs 6 sources (7,8 s, un tous les 5,85 s) | 12 s | 15,6 s | 2,7 | −13,8 dB | **+2,9 Go** (calcul complet : 386 s), plus 264 Mo de pistes |
+| BS-RoFormer SW (4 s, un tous les 2 s) | 12 s | 35,3 s | 17,7 | −29,9 dB | **+4,7 Go** sur les six premières minutes de calcul (arrêté là : 122 segments à 35 s), plus 264 Mo de pistes |
+
+- Mémoire : résidente du navigateur et de tous ses processus (son arbre de
+  processus seulement, pas les autres Chromium de la machine), de l'ouverture du
+  morceau à la pointe pendant la séparation. Elle tient presque toute au réseau
+  dans ONNX Runtime (ses poids, élargis en 32 bits sur le processeur, et ses
+  activations pour un segment) : pour SCNet, ni l'arène désactivée, ni le plan
+  mémoire désactivé, ni l'optimisation « basic », ni un seul fil ne la font
+  descendre sous +1,3 Go. Ce qui dépend du morceau est compté une fois : les
+  pistes en 16 bits (176 Mo pour les quatre parties stéréo de SCNet, 264 Mo
+  pour six) et des tampons d'un segment.
+- La somme des parties n'est pas exacte par construction (aucun de ces réseaux
+  n'y est contraint) ; −40,9 dB pour SCNet veut dire qu'il ne perd presque rien
+  du morceau. Les longueurs, elles, sont exactes à l'image près pour les trois.
+- Repli simulé au segment 3 (SCNet) : résultat identique à celui d'une
+  séparation sans repli (écart nul sur les échantillons 16 bits comparés).
+- App Mac (Electron 43, ce Linux, `xvfb`) : SCNet sur les 37,6 s du morceau
+  d'essai, de l'import aux quatre pistes affichées, 251 s téléchargement compris
+  (machine chargée) ; le rapport paraît dans Aide → Diagnostic… ; la liste
+  distante répond 404, la copie embarquée est utilisée, rien à l'écran.
+- Annulation : écran au repos en 0,1 s, worker disparu environ 4 s après.
+
+#### Ce qui reste
+
+- **Le chemin graphique n'a été mesuré nulle part ici** (pas de carte
+  graphique) : sa vitesse, sa mémoire et son repli réel (périphérique perdu dans
+  Safari) sont à relever sur le Mac du propriétaire avec « Copier le rapport ».
+  Les vitesses de `models.json` restent celles du propriétaire pour BS-RoFormer
+  (`measured: true`) et des estimations pour les deux autres (`measured: false`).
+- **Mémoire de SCNet** : le réseau lui-même demande plus d'un gigaoctet pendant
+  un segment sur le processeur, quels que soient les réglages de session
+  essayés (arène désactivée, plan mémoire désactivé, optimisation « basic »,
+  un seul fil : entre +1,3 et +2,2 Go), et son graphe a une durée de segment
+  **figée** à 11 s (476 trames : un segment plus court est refusé). La page de
+  l'iPhone sera donc probablement encore fermée par le système avec cet outil,
+  même si tout ce qui dépend du morceau est désormais compté une seule fois en
+  16 bits. Pistes : une conversion du réseau à durée libre (segments de 3 à 4 s),
+  ou un outil plus petit pour le téléphone ; à décider.
+- Les séparations détaillées (batterie détaillée, saxophone) : aucun outil dans
+  la liste, rien de fait.
+- Le chemin graphique libère sa mémoire en terminant le worker ; une seconde
+  séparation sur la carte graphique dans la même page recharge l'outil (quelques
+  secondes, relu depuis l'appareil).
 
 ##### Rendu hors ligne et « Appliquer » — `src/render/`
 
@@ -621,17 +770,125 @@ jamais la braise. Vérifié à 1280 × 800 et 390 × 844 (captures de `test:rend
 | `types.ts` | le contrat : `AudioEncoder.encode(PcmAudio, { onProgress, signal })` → `Blob` (lecture par blocs, jamais une copie Float32 entière), `ExportPlan` (format, plage, tonalité, tempo, formants, fichiers et leurs pistes avec leur gain, archive), `ExportError` (`cancelled`, `nothing`, `encoder-missing`, `memory`, `failed`) |
 | `plan.ts` | ce qu'on fabrique, pur et testé : **le mélange tel qu'on l'entend** (muet, solo et volumes compris) en un fichier, ou **les pistes séparément, chacune à son plein niveau** (muet, solo et volume ignorés : une piste séparée est une matière première ; on coche celles qu'on veut) en une archive ; le morceau entier ou la boucle ; noms de fichiers lisibles (« Blues du dimanche – Basse – boucle (+2 demi-tons, tempo 80 %).wav ») |
 | `run.ts` | rend chaque piste par le rendu hors ligne (ou reprend le rendu appliqué s'il correspond, ou copie la plage telle quelle à la tonalité et au tempo d'origine), mélange dans un seul accumulateur (une piste rendue à la fois en mémoire), baisse le tout uniformément si le mélange dépasse la pleine échelle (jamais d'écrêtage), encode, met en archive |
-| `encoders.ts`, `wav.ts` | le registre des encodeurs (`registerEncoder`) ; WAV 16 bits, écrit directement depuis les blocs 16 bits. MP3 et FLAC sont affichés « bientôt » tant qu'ils manquent |
+| `encoders.ts`, `wav.ts` | le registre des encodeurs (`registerEncoder` ; WAV, MP3 et FLAC y sont inscrits) ; WAV 16 bits, écrit directement depuis les blocs 16 bits, le `Blob` construit par groupes de 4 Mo |
+| `encoders/` | MP3 et FLAC : `workerEncoder.ts` (côté page : un worker par fichier, les blocs 16 bits partent un à un, au plus trois en vol, annulation = `terminate()`), `encode.worker.ts` (côté worker : charge l'encodeur au premier fichier de son format, convertit un bloc en Float32, encode, renvoie les morceaux), `protocol.ts`, `settings.ts` (la qualité, une seule), `id3.ts` (titre), `mp3Info.ts` (trame « Info »), `assets.ts` (adresse du `.wasm` du MP3), `LICENSE-*.txt` |
 | `zip.ts` | archive ZIP sans compression (l'audio ne se compresse guère), noms UTF-8, CRC lu par tranches (le fichier reste un `Blob`) |
-| `deliver.ts` | remise : un lien normal vers le fichier (`download`), comme pour iReal Pro ; le navigateur l'enregistre, l'app Mac en fait un vrai téléchargement |
+| `deliver.ts` | remise : un lien normal vers le fichier (`download`), comme pour iReal Pro ; le navigateur l'enregistre, l'app Mac en fait un vrai téléchargement (`desktop/src/downloads.js`) |
 
-**Ce que l'agent de l'export doit construire** : les encodeurs MP3 et FLAC
-(portages WebAssembly d'encodeurs libres, chargés au premier usage, dans un
-worker, licences jointes), enregistrés par `registerEncoder` ; vérifier la
-remise du fichier dans l'app Mac (dialogue d'enregistrement d'Electron) avec un
-test de bout en bout ; mesurer la mémoire d'un export de sept pistes de cinq
-minutes (le WAV de sept pistes en archive pèse environ 400 Mo) et, s'il le
-faut, écrire par morceaux (flux) plutôt qu'en `Blob` entier.
+**Ce qui existe (agent de l'export)**
+
+*Encodeurs.* Deux bibliothèques libres, compilées en WebAssembly, prises sur npm à
+version figée (exacte dans `package.json`), chargées **au premier fichier de leur
+format**, dans un Web Worker (le worker, donc la mémoire de WebAssembly, n'existe
+que le temps d'un fichier) :
+
+| Format | Paquet npm (version) | Ce qu'il contient | Licence |
+|---|---|---|---|
+| MP3 | `wasm-media-encoders` 0.7.0 | LAME 3.100 en WebAssembly (133 Ko, servi comme fichier de l'app : `assets/mp3-….wasm`) | enveloppe MIT ; **LAME : LGPL 2.1 ou ultérieure** (texte complet dans `LICENSE-lame.txt`), compatible avec la GPL-3.0-or-later du projet |
+| FLAC | `@audio/encode-flac` 1.4.3 | libFLAC compilée par libflac.js 5.6.0, binaire dans le module JavaScript (244 Ko, aucun accès réseau) | enveloppe MIT ; **libFLAC : BSD-3-Clause** (Xiph.Org) ; libflac.js : MIT |
+
+Les textes (`LICENSE-lame.txt`, `LICENSE-wasm-media-encoders.txt`,
+`LICENSE-libflac.txt`, `LICENSE-audio-encode-flac.txt`) sont dans
+`src/export/audio/encoders/` et copiés dans `assets/` à la construction, comme
+ceux du moteur audio (`vite.config.ts`). Le paquet `wasm-media-encoders` a une
+faute dans sa table d'exports (`./wasm/mp3.wasm` pointe vers un chemin qui
+n'existe pas) : on importe `wasm-media-encoders/wasm/mp3?url`, qui marche, et
+`assets.ts` le dit.
+
+*Qualité, une seule par format* (`encoders/settings.ts`) :
+
+- **MP3 : 256 kbit/s constant, stéréo conjointe (réglage par défaut de LAME pour
+  deux canaux), 48 kHz.** À ce débit le MP3 est transparent sur de la musique pour
+  presque tout le monde ; le débit **constant** parce qu'un MP3 à débit variable
+  sans en-tête Xing affiche une durée fausse et se déplace mal dans beaucoup de
+  lecteurs (et cet encodeur n'en écrit aucun). 1,9 Mo par minute. Titre dans
+  l'étiquette ID3v2.3 (UTF-16, accents conservés).
+- **Trame « Info » (`mp3Info.ts`)** : l'encodeur n'écrit pas l'en-tête de LAME ; sans
+  lui un lecteur ne peut pas savoir qu'il y a 576 échantillons de silence devant
+  (+ 529 de retard du décodeur) ni combien de remplissage à la fin : le fichier
+  jouerait 23 ms en retard et un peu trop long, et une boucle exportée ne
+  retomberait pas sur le temps. L'app écrit donc en tête une trame « Info » (nombre de
+  trames, octets, retard 576, remplissage qui rend la longueur **exacte**), remplie
+  à la fin (la place est réservée, puis remplacée dans le `Blob`). Mesuré :
+  Chromium (`decodeAudioData`) et ffmpeg décodent **exactement** le nombre d'images
+  du morceau, sans retard. Un lecteur qui ignore cette trame (rare) la prend pour une
+  trame de silence et ajoute 23 ms.
+- **FLAC : 16 bits, 48 kHz, niveau de compression 5** (celui de libFLAC par défaut ;
+  l'audio est le même à tous les niveaux, seule la taille change). L'en-tête
+  STREAMINFO porte la longueur exacte dès le début, puis ses totaux et le MD5 des
+  échantillons sont remplacés à la fin. Titre dans un commentaire Vorbis.
+
+*Preuves* (`npm run test:export-audio`, Chromium, vrais encodeurs, morceau de trois
+pistes stéréo de 12 s aux échantillons connus ; 49 vérifications) : le mélange tel qu'on
+l'entend (muet, solo, volumes : à un pas de 16 bits près ; le solo l'emporte sur le muet) ;
+les pistes à plein niveau, échantillon pour échantillon ; la boucle seule, exacte en
+images (120 000 pour 2,5 s) et en contenu ; **FLAC décodé par `decodeAudioData`
+identique échantillon pour échantillon** au WAV 16 bits (0 écart ; le navigateur
+convertit un code 16 bits en flottant en divisant par 32 768 sous zéro et par 32 767
+au-dessus, le test applique l'inverse) **et par ffmpeg** (un autre décodeur), MD5 de
+STREAMINFO = MD5 des échantillons calculé par le test, longueur exacte ; **MP3** :
+en-tête de trame (MPEG-1 couche III, 48 kHz, 256 kbit/s, stéréo conjointe), étiquette,
+trame Info, aucun octet en trop, longueur décodée exacte (Chromium et ffmpeg), rapport
+signal/erreur de **36,5 dB** sur ce signal (seuil du test : 30 dB ; erreur maximale
+0,0115 de la pleine échelle) une fois aligné (retard trouvé : 0) ; l'archive (noms
+UTF-8 avec accents et « – », drapeau UTF-8, CRC-32 relus, ouverte par `unzip -t` et par
+Python `zipfile`) en WAV, MP3 et FLAC ; l'annulation au milieu d'un MP3 (rejet immédiat,
+worker terminé) et depuis le dialogue (aucun fichier proposé, aucun lien créé) et avant
+le départ (aucun worker créé) ; un encodeur qui ne peut pas se charger (le `.wasm`
+refusé) : phrase calme, « Réessayer », et FLAC marche ensuite ; l'export à une autre
+tonalité et un autre tempo (+3 demi-tons, tempo 75 %) passe par le rendu hors ligne (une
+demande par piste écoutée, avec la plage de la boucle s'il y en a une) et dure exactement
+`round(images / tempo)`. Captures du dialogue à 1280 × 800 et 390 × 844 (choix des
+formats, erreur d'encodeur, fichier prêt, en cours).
+
+*Vitesse* (`test:export-audio`, Chromium sans carte graphique, **cette machine de
+développement, pas le Mac du propriétaire**, par minute d'audio stéréo) : WAV
+≈ 40 ms (1 400 fois le temps réel), FLAC ≈ 0,4 s (150 fois), MP3 ≈ 1,4 à 1,6 s (40 fois).
+Un mélange de cinq minutes : WAV 1,7 s, FLAC 3,9 s, MP3 8 s ; sept pistes de cinq
+minutes en archive de MP3 : 53 s (le rendu de la tonalité et du tempo s'y ajoute).
+
+*Mémoire* (`npm run test:export-memory`, sept pistes stéréo de 5 min ouvertes avec le
+vrai moteur, mémoire résidente de tous les processus Chromium échantillonnée toutes les
+50 ms ; les échantillons 16 bits pèsent 385 Mo) :
+
+| Export | Fichier | Crête au-dessus de l'état d'avant | Fichier gardé après (attend l'enregistrement) |
+|---|---|---|---|
+| Pistes, archive de 7 WAV | 385 Mo | **+546 Mo** (1,4 fois le fichier) | +384 Mo |
+| Mélange en WAV | 55 Mo | +251 Mo | +54 Mo |
+| Mélange en FLAC | 40 Mo | +226 Mo | +46 Mo |
+| Mélange en MP3 | 9 Mo | +188 Mo | +10 Mo |
+| Pistes, archive de 7 MP3 | 64 Mo | +106 Mo | +47 Mo |
+
+Le mélange ajoute son accumulateur Float32 (115 Mo pour cinq minutes) ; les pistes à
+part n'en ont pas. Avant la correction, l'archive de WAV montait à +602 Mo (1,56 fois le
+fichier) parce que les morceaux de 128 Ko des sept pistes restaient dans le tas
+JavaScript jusqu'au ramasse-miettes ; le WAV remplit maintenant des `Blob` de 4 Mo qui en
+sortent aussitôt. Pas de flux d'écriture : à 1,4 fois le fichier la crête est
+raisonnable, et le fichier (385 Mo) doit de toute façon exister en entier pour le lien de
+téléchargement. Au-delà de 4 Go l'archive est refusée (pas de ZIP64, voir `zip.ts`) ;
+un flux vers le disque serait l'étape suivante si on veut aller plus loin.
+
+*Remise dans l'app Mac* (`desktop/src/downloads.js`, branché dans `main.js`) : le lien
+« Enregistrer … » devient un vrai téléchargement Electron, et Electron ouvre le panneau
+d'enregistrement du système. L'app y ajoute le nom nettoyé (aucun chemin, aucun caractère
+de contrôle ou réservé ; accents et « – » conservés), un titre français (« Enregistrer le
+fichier »), le départ dans « Téléchargements » puis dans le dossier du dernier fichier
+enregistré. Rien n'est écrit sans le panneau ; le test donne la place du fichier depuis le
+processus principal comme celui d'iReal Pro (`setSavePath`, après le gestionnaire de l'app,
+dont il relit les options). `desktop/test/e2e/audio-export.test.js` : « Exporter » →
+« Le son… » avec les vrais boutons ; un WAV du mélange, une archive de pistes, un FLAC et
+un MP3 arrivent sur le disque avec le bon nom (accents), la bonne taille (celle du
+téléchargement ; WAV = 44 octets + échantillons), un en-tête valide, des CRC justes, sans
+navigation ni nouvelle fenêtre et **sans violation de la politique de sécurité** (pas
+d'`unsafe-eval`, pas de réseau : le `.wasm` du MP3 vient de `fabtice://app`). Sous Linux
+le test impose une locale UTF-8 (sans elle Chromium rend « download » pour un nom
+accentué ; tout Mac en a une).
+
+*Ce qui reste* : l'écoute des fichiers par le propriétaire (le MP3 surtout : ici des
+mesures, pas d'oreille) ; les vitesses sur son Mac ; tant que `render/` est le
+remplaçant, l'export à une autre tonalité ou un autre tempo respecte les durées mais ne
+transpose pas ; le panneau d'enregistrement de macOS lui-même (non vérifiable ici) ;
+pas de ZIP64 ; une seule qualité par format, à dessein ; étiquettes : le titre seulement.
 
 #### Écrans
 
@@ -643,7 +900,7 @@ faut, écrire par morceaux (flux) plutôt qu'en `Blob` entier.
 | Panneau « Instruments » (`SeparationPanel.tsx`) | outil, estimation (« estimation, pas encore mesurée » quand c'est le cas), premier téléchargement (taille, hôte, page source, licence connue, et pour une licence floue : Fabtice ne distribue pas ces poids), instruments voulus, « Séparer » ; pendant : étape, jauge, temps restant, carte graphique ou processeur, **avis calme du repli** (filet de laiton), « Annuler » ; après : outil et durée, « Revenir au morceau entier » / « Revoir les instruments », place prise sur l'appareil (instruments, outils), « Libérer la place » (confirmé), « Séparer de nouveau » |
 | Réglages (`SettingsPopover.tsx`) | « Réglages avancés », replié : outil de séparation (« Automatique : Le plus fin », et pourquoi), « Conserver le timbre » |
 | Transport (`ApplyRender.tsx`) | « Appliquer » quand la tonalité ou le tempo diffèrent de l'original et que le rendu n'est pas en place ; écran d'attente court (« Calcul des pistes… », jauge, « Annuler ») ; une fois appliqué, « rendu appliqué », discret (pointillé, encre douce) ; jamais la braise |
-| « Exporter » → « Le son… » (`ExportAudioDialog.tsx`) | quoi, durée (avec les mesures de la boucle), format, rappel de la tonalité et du tempo, « Exporter », progression, « Enregistrer « nom » » |
+| « Exporter » → « Le son… » (`ExportAudioDialog.tsx`) | quoi, durée (avec les mesures de la boucle), format (WAV, MP3, FLAC ; si un encodeur ne se charge pas, une phrase calme et « Réessayer »), rappel de la tonalité et du tempo, « Exporter », progression, « Enregistrer « nom » » |
 
 Tous les panneaux sont vérifiés dans la fenêtre et au-dessus du transport à
 1280 × 800, 960 × 640 et 390 × 844 (`test:separation`, `ui/useFitPanel.ts`).

@@ -26,8 +26,14 @@ const DIAGNOSTIC_URL = `${SCHEME}://${HOST_DIAGNOSTIC}/index.html`;
 // Hugging Face's own content network, `us.aws.cdn.hf.co` as observed (the first
 // label is the region of the server, hence the wildcard on that one label of
 // the domain `cdn.hf.co`); the policy is checked on every hop of a redirect.
+// The separation tools come from the same hub. One more address: the list of
+// separation tools (`app/src/separation/models.json`), read at launch from the
+// project's public repository on GitHub (`raw.githubusercontent.com`), so that
+// a tool can be withdrawn without a new version of the app; the interface
+// checks it strictly and keeps its bundled copy if it cannot be had.
 // Nothing else is allowed: no other host, no plain http.
 const MODEL_HOSTS = ['https://huggingface.co', 'https://*.cdn.hf.co'];
+const LIST_HOSTS = ['https://raw.githubusercontent.com'];
 const CSP = [
   "default-src 'none'",
   "script-src 'self' 'wasm-unsafe-eval'",
@@ -36,7 +42,7 @@ const CSP = [
   "font-src 'self'",
   "media-src 'self' blob:",
   "worker-src 'self' blob:",
-  `connect-src 'self' blob: ${MODEL_HOSTS.join(' ')}`,
+  `connect-src 'self' blob: ${[...MODEL_HOSTS, ...LIST_HOSTS].join(' ')}`,
   "object-src 'none'",
   "base-uri 'none'",
   "form-action 'none'",
@@ -158,6 +164,6 @@ function installHandler(protocol, roots) {
 }
 
 module.exports = {
-  SCHEME, HOST_APP, HOST_DIAGNOSTIC, APP_URL, DIAGNOSTIC_URL, CSP, MODEL_HOSTS,
+  SCHEME, HOST_APP, HOST_DIAGNOSTIC, APP_URL, DIAGNOSTIC_URL, CSP, MODEL_HOSTS, LIST_HOSTS,
   mimeFor, resolveRequest, respond, isTrustedUrl, registerScheme, installHandler,
 };

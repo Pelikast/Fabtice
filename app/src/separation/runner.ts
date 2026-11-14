@@ -27,6 +27,7 @@ import { newId } from '../util/id';
 import { getDevice, knownDevice, resolveModel } from './device';
 import { getModelList } from './models';
 import { setSeparationProgress, separationProgressStore } from './progress';
+import { keepSeparationReport } from './report';
 import { getSeparator } from './index';
 import { SeparationError, type ModelChoice, type SeparatedTrack, type SeparationProgress, type ToolsUsage } from './types';
 
@@ -139,6 +140,8 @@ export async function startSeparation(options: StartOptions = {}): Promise<void>
     };
     const before = [...store.getState().tracks, ...store.getState().separation.aside].filter((tr) => tr.audio.origin === 'separated').map((tr) => tr.audio.id);
     await applySeparation(summary, registered);
+    // A real separation leaves its measurement report (« Copier le rapport », the Mac app's diagnostics).
+    if (out.report) keepSeparationReport(id, out.report);
     setSeparationProgress({ fraction: 1, remainingSeconds: 0, download: null });
     setSeparationRun({ status: 'idle' });
     if (before.length) void getProjectStorage().deleteTrackAudio(before).catch(() => {});

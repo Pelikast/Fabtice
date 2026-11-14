@@ -127,6 +127,19 @@ jobs:
           FABTICE_E2E_APP="$RUNNER_TEMP/arm64/Fabtice.app/Contents/MacOS/Fabtice" \
           FABTICE_E2E_OUT="$RUNNER_TEMP/ci-logs/e2e-arm64" node --test test/e2e/analysis.test.js
 
+      # The real separation in the packaged app: SCNet (13 MB) downloaded from its
+      # public location, a 38 s piece separated (graphics chip if the runner offers
+      # one, else the processor), the tracks shown, the report in the diagnostic
+      # window. Network and speed are the runner's: reported, not required.
+      - name: Real separation in the app (arm64, downloads SCNet)
+        id: separation
+        continue-on-error: true
+        run: |
+          source "$GITHUB_WORKSPACE/desktop/ci/log-step.sh" 08c-separation-arm64
+          FABTICE_E2E_SEPARATION=1 \
+          FABTICE_E2E_APP="$RUNNER_TEMP/arm64/Fabtice.app/Contents/MacOS/Fabtice" \
+          FABTICE_E2E_OUT="$RUNNER_TEMP/ci-logs/e2e-arm64" node --test test/e2e/separation.test.js
+
       - name: yt-dlp with the app as JS runtime
         id: ytdlp
         continue-on-error: true
@@ -254,6 +267,15 @@ jobs:
           FABTICE_E2E_ANALYSIS=1 \
           FABTICE_E2E_APP="$RUNNER_TEMP/app/Fabtice.app/Contents/MacOS/Fabtice" \
           FABTICE_E2E_OUT="$RUNNER_TEMP/ci-logs/e2e-x64" node --test test/e2e/analysis.test.js
+
+      - name: Real separation in the app (x64, downloads SCNet)
+        id: separation
+        continue-on-error: true
+        run: |
+          source "$GITHUB_WORKSPACE/desktop/ci/log-step.sh" 13c-separation-x64
+          FABTICE_E2E_SEPARATION=1 \
+          FABTICE_E2E_APP="$RUNNER_TEMP/app/Fabtice.app/Contents/MacOS/Fabtice" \
+          FABTICE_E2E_OUT="$RUNNER_TEMP/ci-logs/e2e-x64" node --test test/e2e/separation.test.js
 
       - name: yt-dlp with the app as JS runtime (x64)
         id: ytdlp

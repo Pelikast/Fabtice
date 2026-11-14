@@ -27,13 +27,19 @@ export function wavHeader(frames: number, channels: number, sampleRate: number):
   return b;
 }
 
+/** Chunks per sub-Blob: 32 chunks of 32 768 frames, stereo 16-bit: 4 MB. */
+const GROUP = 32;
+
 export const wavEncoder: AudioEncoder = {
   format: 'wav',
   extension: 'wav',
   mimeType: 'audio/wav',
   async encode(audio: PcmAudio, { onProgress, signal } = {}) {
     const channels = audio.channelCount;
+    // The samples go into the Blob a group of chunks at a time (a Blob of its own each, 4 MB): the browser
+    // takes them out of the JavaScript heap at once, so a seven-track archive never holds all its samples twice.
     const parts: BlobPart[] = [wavHeader(audio.frames, channels, audio.sampleRate)];
+    let group: ArrayBuffer[] = [];
     for (let c = 0; c < audio.chunks.length; c++) {
       if (signal?.aborted) throw new ExportError('cancelled');
       const ch = audio.chunks[c]!;
@@ -47,12 +53,17 @@ export const wavEncoder: AudioEncoder = {
           out[2 * i + 1] = r[i]!;
         }
       }
-      parts.push(out.buffer);
+      group.push(out.buffer);
+      if (group.length === GROUP) {
+        parts.push(new Blob(group));
+        group = [];
+      }
       if (c % 64 === 63) {
         onProgress?.(c / audio.chunks.length);
         await new Promise((r) => setTimeout(r, 0));
       }
     }
+    if (group.length) parts.push(new Blob(group));
     onProgress?.(1);
     return new Blob(parts, { type: 'audio/wav' });
   },

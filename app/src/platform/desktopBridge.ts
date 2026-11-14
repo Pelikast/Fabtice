@@ -196,6 +196,14 @@ export interface DesktopBridge {
   openInIRealPro?(link: string): Promise<{ ok: true } | { ok: false; reason: 'invalid' | 'failed' }>;
   /** Timings of the last import made from the interface (a Mac app that predates it lacks this method). */
   lastImportReport?(): Promise<LastImportReport>;
+  /**
+   * Hands the Mac app the measurement report of the last real separation (plain text, no personal data,
+   * `separation/report.ts`): it keeps it and adds it to its diagnostic report (Aide → Diagnostic…).
+   * A Mac app that predates it lacks this method.
+   */
+  reportSeparation?(text: string): Promise<true>;
+  /** The report kept by `reportSeparation` (diagnostic window). A Mac app that predates it lacks this method. */
+  lastSeparationReport?(): Promise<LastImportReport>;
   onYtdlpProgress(callback: (progress: YtdlpProgress) => void): Unsubscribe;
   onExtractProgress(callback: (progress: ExtractProgress) => void): Unsubscribe;
 }

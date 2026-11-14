@@ -14,6 +14,7 @@ const { buildMenu } = require('./menu');
 const messages = require('./messages');
 const { formatImportReport } = require('./report');
 const { validateIRealLink } = require('./ireal-link');
+const { installDownloads } = require('./downloads');
 
 // The interface is built by app/ (npm run build:desktop) into desktop/ui/.
 const UI_DIR = path.join(__dirname, '..', 'ui');
@@ -50,6 +51,27 @@ const LAST_IMPORT_FILE = 'last-import-report.json';
 function rememberImport(entry) {
   lastImport = entry;
   fsp.writeFile(path.join(app.getPath('userData'), LAST_IMPORT_FILE), JSON.stringify(entry)).catch(() => {});
+}
+
+// The measurement report of the last real separation, as text, handed over by the interface
+// (`app/src/separation/report.ts`: no personal data in it) and kept like the import report, so
+// that it reaches the diagnostic report even after a restart.
+let lastSeparation = null;
+const LAST_SEPARATION_FILE = 'last-separation-report.json';
+const SEPARATION_REPORT_MAX = 20000;
+
+function rememberSeparation(text) {
+  lastSeparation = { at: new Date().toISOString(), text };
+  fsp.writeFile(path.join(app.getPath('userData'), LAST_SEPARATION_FILE), JSON.stringify(lastSeparation)).catch(() => {});
+}
+
+async function readLastSeparation() {
+  try {
+    const entry = JSON.parse(await fsp.readFile(path.join(app.getPath('userData'), LAST_SEPARATION_FILE), 'utf8'));
+    return entry && typeof entry.at === 'string' && typeof entry.text === 'string' ? entry : null;
+  } catch {
+    return null;
+  }
 }
 
 async function readLastImport() {
@@ -212,6 +234,20 @@ function registerIpc() {
     return { available: true, at: entry.at, text: formatImportReport(entry) };
   });
 
+  // The interface hands over the report of each real separation; the diagnostic window shows it.
+  handle('fabtice:separation-report', async (event, text) => {
+    if (!event.senderFrame.url.startsWith(`${fabticeProtocol.SCHEME}://${fabticeProtocol.HOST_APP}/`)) throw new Error('unexpected sender');
+    if (typeof text !== 'string' || text.length === 0 || text.length > SEPARATION_REPORT_MAX) throw new Error('invalid report');
+    rememberSeparation(redact(text));
+    return true;
+  });
+
+  handle('fabtice:last-separation-report', async () => {
+    const entry = lastSeparation || (await readLastSeparation());
+    if (!entry) return { available: false, text: 'Aucune séparation n’a encore été faite dans cette app.' };
+    return { available: true, at: entry.at, text: entry.text };
+  });
+
   // « Ouvrir dans iReal Pro »: an irealb:// link (and nothing else, see ireal-link.js) goes to the system, which
   // starts iReal Pro if it is installed. `shell.openExternal` is read at call time so a test can stand in for it.
   handle('fabtice:open-ireal', async (_e, link) => {
@@ -277,6 +313,8 @@ if (!app.requestSingleInstanceLock()) {
     buildMenu({ openDiagnostic });
     session.defaultSession.setPermissionRequestHandler((_wc, _perm, cb) => cb(false));
     session.defaultSession.setPermissionCheckHandler(() => false);
+    // Files the interface exports (audio, iReal Pro chart): a clean name and a French save panel.
+    installDownloads(session.defaultSession, { downloadsDir: () => app.getPath('downloads') });
 
     manager = new YtDlpManager({
       userDataDir: app.getPath('userData'),

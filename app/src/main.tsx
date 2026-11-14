@@ -5,7 +5,6 @@ import { connectEngine } from './audio/connect';
 import { App } from './components/App';
 import * as actions from './store/actions';
 import { checkToolUpdate } from './import/controller';
-import { getDesktopBridge } from './platform/desktopBridge';
 import { refreshModelList } from './separation/models';
 import { setLanguage } from './i18n';
 import { startStorage } from './storage';
@@ -18,13 +17,13 @@ persistPreferences(appStore);
 connectEngine(appStore, getEngine());
 
 const params = new URLSearchParams(window.location.search);
-// Lot 3: the list of separation tools is fetched from the repository (the bundled copy stays in use if that fails). Not fetched, unless
-// `?outils=distant` asks for it: on the test and demo addresses (`?debug`, `?demo`, `?moteur=factice`)
-// and on a page served from this machine (development, the browser checks), which must never depend
-// on the network; in the Mac app, whose security policy does not allow that address yet
-// (`desktop/src/protocol.js`, see app/README.md « Séparateur »).
+// Lot 3: the list of separation tools is fetched from the repository (the bundled copy stays in use if that
+// fails, silently: a 404, a refused or invalid list). Not fetched, unless `?outils=distant` asks for it: on
+// the test and demo addresses (`?debug`, `?demo`, `?moteur=factice`) and on a page served from this machine
+// (development, the browser checks), which must never depend on the network. The Mac app fetches it like the
+// web app (its security policy allows that one address, `desktop/src/protocol.js`).
 const localPage = ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname);
-const testAddress = params.has('debug') || params.has('demo') || params.get('moteur') === 'factice' || localPage || getDesktopBridge() !== null;
+const testAddress = params.has('debug') || params.has('demo') || params.get('moteur') === 'factice' || localPage;
 if (!testAddress || params.get('outils') === 'distant') void refreshModelList();
 // The dialog stays closed from the first paint instead of flashing: it opens
 // once we know whether a piece is kept on the device (see storage/restore.ts).

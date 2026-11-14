@@ -252,6 +252,9 @@ try {
       await sleep(2500);
       const p2 = await pct();
       check(`${tag}: the waiting screen shows a real progress that advances`, p2 > p1 && p1 >= 0 && p2 <= 100, `${p1} % then ${p2} %`);
+      const left = await page.waitForSelector('.attente .panneau-note', { timeout: 15000 }).then(() => page.locator('.attente .panneau-note').innerText(), () => null);
+      check(`${tag}: once the pace is known the waiting screen says how long is left`, !!left && /restante|environ/.test(left), String(left));
+      if (left) await page.screenshot({ path: path.join(out, `appliquer-attente-reste-${tag}.png`) });
       await page.waitForSelector('[data-testid="applique"]', { timeout: 120000 });
       note(`${tag}: two stereo tracks of 36 s rendered in ${((Date.now() - t0) / 1000).toFixed(1)} s`);
       const st = await page.evaluate(async () => {

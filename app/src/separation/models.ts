@@ -9,9 +9,10 @@
 // refused. A remote document that fails the check is ignored as a whole (the
 // bundled list is used), never half-trusted.
 //
-// The Mac app: its security policy (`desktop/src/protocol.js`, `connect-src`)
-// must allow `https://raw.githubusercontent.com` for the remote list; until
-// it does, the fetch is refused and the bundled list is used (no error shown).
+// The Mac app fetches it the same way: its security policy
+// (`desktop/src/protocol.js`, `connect-src`) allows `https://raw.githubusercontent.com`
+// for this one document. Any failure (refused, 404, invalid) keeps the bundled
+// list, without a word on screen.
 
 import { isStemId } from '../model/separation';
 import bundled from './models.json';

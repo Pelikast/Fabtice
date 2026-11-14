@@ -22,6 +22,8 @@ import type { ModelChoice } from '../separation/types';
 import { closePanel, togglePanel } from '../store/actions';
 import { showInstruments, showWholePiece, stemName } from '../store/separationActions';
 import { useApp } from '../store/store';
+import { getDesktopBridge } from '../platform/desktopBridge';
+import { onSeparationReport, separationReportFor } from '../separation/report';
 import { useFitPanel } from '../ui/useFitPanel';
 import { useOutsideClose } from '../ui/useOutsideClose';
 
@@ -221,6 +223,7 @@ function Done() {
   const [confirming, setConfirming] = useState(false);
   const [usage, setUsage] = useState<SeparationUsage | null>(null);
   const [again, setAgain] = useState(false);
+  const [toolsForgotten, setToolsForgotten] = useState(false);
   useEffect(() => {
     let alive = true;
     void separationUsage().then((u) => alive && setUsage(u));
@@ -278,7 +281,71 @@ function Done() {
             </button>
           </div>
         )}
+        {usage?.tools && usage.tools.bytes > 0 && !confirming && (
+          <div className="separation-actions">
+            <button
+              className="lien discret"
+              data-testid="oublier-outils"
+              onClick={() =>
+                void getSeparator()
+                  .forgetTools()
+                  .catch(() => {})
+                  .then(() => separationUsage())
+                  .then((u) => {
+                    setUsage(u);
+                    setToolsForgotten(true);
+                  })
+              }
+            >
+              {t('separation.forgetTools')}
+            </button>
+          </div>
+        )}
+        {toolsForgotten && <p className="panneau-note discret">{t('separation.forgetToolsDone')}</p>}
       </div>
+      <CopyReport id={result.id} />
     </>
+  );
+}
+
+/** « Copier le rapport »: the measurement report of the real separation just done, as plain text. */
+function CopyReport({ id }: { id: string }) {
+  const [text, setText] = useState<string | null>(() => separationReportFor(id));
+  const [status, setStatus] = useState<'idle' | 'copied' | 'shown'>('idle');
+  useEffect(() => {
+    setText(separationReportFor(id));
+    setStatus('idle');
+    return onSeparationReport(() => setText(separationReportFor(id)));
+  }, [id]);
+  if (!text) return null;
+  const copy = async () => {
+    try {
+      const bridge = getDesktopBridge();
+      if (bridge) await bridge.copyText(text);
+      else await navigator.clipboard.writeText(text);
+      setStatus('copied');
+    } catch {
+      setStatus('shown');
+    }
+  };
+  return (
+    <div className="separation-rapport" data-testid="rapport">
+      <button className="lien discret" data-testid="copier-rapport" onClick={() => void copy()}>
+        {t('separation.copyReport')}
+      </button>
+      {status === 'copied' && (
+        <p className="panneau-note discret" role="status">
+          {t('separation.reportCopied')}
+        </p>
+      )}
+      {status === 'shown' && (
+        <>
+          <p className="panneau-note discret" role="status">
+            {t('separation.reportNotCopied')}
+          </p>
+          <textarea className="separation-rapport-texte" readOnly value={text} rows={8} aria-label={t('separation.copyReport')} />
+        </>
+      )}
+    </div>
   );
 }
