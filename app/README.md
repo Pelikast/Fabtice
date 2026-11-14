@@ -286,30 +286,21 @@ chantiers suivent, chacun dans son dossier.
   suivre la mesure en cours en lecture (défilement, réglage « Suivre ») ; les
   entrées « Exporter » dans le menu du téléphone.
 
-#### Frise du temps — `src/timeline/` (seulement ceci)
+#### Frise du temps — `src/timeline/`
 
-- **Rang des accords** : l'afficher quand `selectHasChords(state)` est vrai
-  (`rulerRows({ hasChords })`, aujourd'hui `false` en dur dans `Timeline.tsx`,
-  `controller.ts` et `components/RulerHeads.tsx`, qui a déjà `ChordsHead`). Lire
-  `selectChartBars(state)` (mesures, accords avec `beatInBar`, `repeat`, sections)
-  ou `selectChords(state)` (chaque accord et son temps `beat` sur la grille ;
-  position x par `beatToTime(tempoMap, beat)`), et `selectDisplayContext(state)`
-  pour l'écrire (`displayChord(chord, ctx).parts` : fondamentale, qualité ou
-  triangle, extensions, basse ; ou `displayChordText`). Styles de la maquette :
-  `.accord`, `.accord.deux` (18 px et 14,5 px). Les accords douteux à l'encre
-  douce, comme dans la grille. Redessiner quand `analysis`, `corrections`,
-  `tempoMap`, `playback.semitones`, `view.instrument` ou
-  `settings.minorNotation` changent.
-- **Courbe de tempo** : une carte analysée a un segment **par temps** ; dessinée
-  segment par segment (comme aujourd'hui), elle tremble et porte un point à
-  chaque temps. Dessiner `grid/tempoCurve.ts#tempoCurve(map, t0, t1)` (un point
-  par mesure, tempo moyen de la mesure) avec `curveRange()` pour l'échelle, et la
-  ligne pointillée au tempo nominal (`nominalBpm`, mémorisé par carte).
+- **Fait** : le rang « Accords » de la règle et la courbe de tempo mesure par
+  mesure (détail dans « Frise du temps » plus bas). Le rang existe quand
+  `selectHasChords(state)` est vrai ; `rulerRows({ hasChords })` donne les
+  hauteurs à la colonne des en-têtes (`components/RulerHeads.tsx`) comme à la
+  frise, si bien que rien ne bouge quand une analyse se termine et que le rang
+  apparaît.
 - **Temps analysés** : `barLines`, `subGridLines`, `snapTime`, `loopFromBars`,
-  `barsOfRange`, `metronomeClicks` donnent déjà les bonnes lignes sur une carte
-  variable (tests sur les vrais temps de `demo-swing.json`,
-  `grid/beats.test.ts`). L'effacement de la sous-grille se décide sur le tempo
-  le plus rapide de la carte (`maxBpm`).
+  `barsOfRange`, `metronomeClicks` donnent les bonnes lignes sur une carte
+  variable ; `test:timeline` le vérifie sur `?demo` (lignes de mesure sur les
+  temps analysés, clic calé sur un temps analysé, sélection de mesures dans le
+  rang des accords). Seule correction faite dans la frise : l'échelle du
+  téléphone (86 px par mesure) part du tempo nominal de la carte, non du tempo
+  de son premier temps.
 
 #### Export iReal Pro — `src/export/`
 
@@ -531,8 +522,7 @@ d'origine, audio décodé à 48 kHz, une ou deux voies) ou rejettent avec une
 Tout ce qui se dessine le long du temps, dans l'affichage Pistes : règle
 (courbe de tempo, numéros de mesure, bande de boucle), formes d'onde, grille
 et sous-grille, voile de boucle, tête de lecture, défilement, zoom, Auto,
-suivi de la tête de lecture et interactions. L'accord (rang « Accords » de la
-règle) n’est pas encore dessiné (`rulerRows({ hasChords: false })`) : voir « Lot 2 », plus haut, pour ce que la frise doit lire.
+suivi de la tête de lecture et interactions. Le rang « Accords » s'affiche dès que le morceau a des accords (analysés ou écrits à la main).
 
 **Mise en page.** La frise remplit la colonne de droite de `.plan`, dans le
 défileur vertical `.travail`, qui ne défile **jamais** horizontalement : le
@@ -550,6 +540,8 @@ donne le contrat (hauteurs des rangs par `rulerRows()`, voies de
 | `geometry.ts` | calculs purs et testés : zoom, Auto, suivi, éclaircissement des mesures, sélection de mesures |
 | `peaks.ts`, `peakCache.ts` | pyramide de crêtes multi-résolution, calculée par tranches de 3 ms, mise en cache |
 | `layout.ts` | hauteurs des rangs, partagées avec la colonne des en-têtes |
+| `chordRow.ts` | rang des accords, fonctions pures et testées : quels accords s'écrivent (un accord répété n'est pas réécrit), où (au temps, 9 px après la barre) et lequel garder quand on dézoome |
+| `chordMarkup.ts`, `chordLayer.ts` | le balisage d'un accord (identique à `<ChordSymbol>`, vérifié par `chordMarkup.test.ts`) et le DOM du rang : une étiquette par accord visible, déplacée par `transform`, gardée par clé |
 
 **Couches de dessin.** Règle : fonds des rangs (DOM), bande de boucle (DOM,
 laiton plein), un canvas (courbe de tempo, traits et numéros de mesure), tête
@@ -561,6 +553,34 @@ de boucle (DOM) et la tête de lecture (DOM). Les canvas ont la taille de la vue
 montrent change : défilement, zoom, grille, pistes, boucle, taille. La tête de
 lecture se déplace par `transform` dans la boucle d'animation commune, sans
 aucun redessin ni rendu React.
+
+**Rang des accords.** Les accords viennent de `selectChartBars` (ceux de la
+grille d'accords : mêmes accords, mêmes corrections) et s'écrivent par
+`selectDisplayContext` (transposition, instrument, « m » ou « – »), avec le
+balisage et les styles de `<ChordSymbol>` (`styles/chords.css`) : triangle,
+extensions en exposant, altérations serrées ; un accord douteux est à l'encre
+douce, pointillé dessous. Ce sont des éléments DOM positionnés (`translate3d`)
+pour la seule partie visible, dans `.frise-accords` : pendant la lecture sans
+défilement, aucun élément n'est créé, retiré ni touché (vérifié). Un accord est
+posé 9 px après la barre qui le commence (6 px pour un accord au milieu de la
+mesure, qui se range à son temps ou juste après le précédent, et s'efface
+s'il gênerait l'accord de la mesure suivante : celui du temps 1 est prioritaire) ;
+une mesure à deux accords les écrit à 14,5 px, comme la maquette. Un accord qui
+répète le précédent n'est pas réécrit. **Éclaircissement** : comme les numéros de
+mesure, une étiquette toutes les 2, 4, 8… mesures, la plus petite foulée qui
+laisse sa place à l'étiquette la plus large *du morceau* (donc la foulée ne
+change pas selon ce qui défile) ; chaque étiquette est alors l'accord en
+vigueur sur la barre gardée. Les traits de mesure du rang suivent la même
+foulée, pour ne jamais couper une étiquette. `data-chord-labels` et
+`data-chord-stride` sur `.frise` servent aux vérifications.
+
+**Courbe de tempo.** Un point par mesure (tempo moyen de la mesure, posé au
+milieu de la mesure) tiré de `grid/tempoCurve.ts`, relié par une courbe lisse
+d'encre fine, au-dessus d'un pointillé au tempo nominal ; un petit point sur les
+mesures qui ont 24 px de place. L'échelle est celle du morceau entier, calculée
+une fois par carte (elle ne bouge pas en défilant). Un tempo constant est une
+droite au milieu du rang, sans points. L'en-tête lit « Tempo · ≈ N » quand le
+tempo varie.
 
 **Formes d'onde.** `getAudio()` est lu une seule fois par piste pour bâtir la
 pyramide (une case de 64 échantillons, puis des niveaux ×4 ; crête et énergie
@@ -613,7 +633,7 @@ de même (mesures 1, 5, 9… à une sur quatre). La sous-grille disparaît sous 
 `data-pps`, `data-peaks` (`ready` quand toutes les crêtes sont calculées) et
 `data-flush` (nombre de redessins, coût total et pire coût en ms).
 `npm run test:timeline` (après `build`) lance les vérifications dans Chromium
-(`TIMELINE_ONLY=desktop|stress|phone` pour une seule partie ;
+(`TIMELINE_ONLY=desktop|chords|stress|phone` pour une seule partie ;
 `FABTICE_TIMELINE_OUT` pour le dossier des captures).
 
 ## Saisie et correction de la grille

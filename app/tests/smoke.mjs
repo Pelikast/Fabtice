@@ -66,7 +66,8 @@ try {
     check('Escape closes the export menu', (await page.locator('.menu-export').count()) === 0);
     check('four track headers', (await page.locator('.piste-tete').count()) === 4);
     check('four timeline lanes', (await page.locator('.frise-voie').count()) === 4);
-    check('ruler heads: tempo and bars, no chords row', (await page.locator('.rang-tete').count()) === 2 && (await text(page, '.rang-tete.tempo')).toUpperCase().includes('TEMPO · 110'));
+    // The demo is analysed: variable tempo (≈) and a chords row between tempo and bars.
+    check('ruler heads: tempo, chords and bars', (await page.locator('.rang-tete').count()) === 3 && (await text(page, '.rang-tete.tempo')).toUpperCase().includes('TEMPO · ≈ 110'));
     check('dialog closed with a project', !(await page.locator('.voile').evaluate((el) => el.classList.contains('ouverte'))));
     check('transport position', (await text(page, '.temps')) === '0:09,3' && (await text(page, '.ou')).includes('mesure 5 · temps 1 · boucle 5–8'), await text(page, '.ou'));
     await page.screenshot({ path: path.join(out, 'app-1280.png') });
