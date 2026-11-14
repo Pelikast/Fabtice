@@ -429,8 +429,8 @@ try {
   // ------------------------------------------------------------------ the two other tools load and run (long)
   if (run('tools', process.env.FABTICE_SEPARATION_TOOLS === '1')) {
     browser = await launch();
-    const context = await browser.newContext();
-    for (const id of ['htdemucs-6s', 'bs-roformer-sw']) {
+    for (const id of (process.env.FABTICE_SEPARATION_TOOLS_LIST || 'htdemucs-6s,bs-roformer-sw').split(',')) {
+      const context = await browser.newContext();
       const { page, errors } = await open(context);
       const wav = await excerpt(page, 4, 12);
       await importPiece(page, wav, `outil-${id}.wav`);
@@ -443,9 +443,8 @@ try {
       check(`tools: ${id} runs on the processor, six parts of the exact length`, c.result.modelId === id && c.stems.length === 6 && c.frames.every((f) => f === c.wholeFrames), c.names.join(','));
       note(`${id} on 12 s (processor, this machine): ${((Date.now() - t0) / 1000).toFixed(0)} s with the download, compute ${c.result.computeSeconds.toFixed(1)} s, ${per ? per[1] : '?'} s per segment; sum of the parts vs the piece ${c.errorDb.toFixed(1)} dB`);
       check(`tools: ${id}: no page errors`, errors.length === 0, errors.join(' | '));
-      await page.close();
+      await context.close();
     }
-    await context.close();
     await browser.close();
     browser = null;
   }
