@@ -8,6 +8,10 @@ import { forgetKeptPiece, reopenKeptPiece } from '../storage';
 import { closeNewPiece, setImportStatus } from '../store/actions';
 import { useApp, type ImportStatus, type ReopenOffer } from '../store/store';
 import { CloseIcon } from '../ui/icons';
+import { getModelList } from '../separation/models';
+import { estimateWait, useSeparationChoice } from '../separation/useChoice';
+import { toggleImportStem } from '../store/separationActions';
+import { offeredStems, StemChips } from './SeparationPanel';
 
 /**
  * « Nouveau morceau »: a link (Mac app only) or an audio file. Shown over the
@@ -174,6 +178,7 @@ function Choices({ open, desktop }: { open: boolean; desktop: boolean }) {
             </button>
           </div>
         )}
+        <ImportStems />
         <div className="pied">
           <span>{t('new.formats')}</span>
           <span>{t('new.dropHint')}</span>
@@ -189,11 +194,68 @@ function Choices({ open, desktop }: { open: boolean; desktop: boolean }) {
         {t('new.chooseFileButton')}
       </button>
       {fileInput}
+      <ImportStems />
       <div className="pied">
         <span>{t('new.formats')}</span>
         <span>{t('new.dropHint')}</span>
       </div>
     </>
+  );
+}
+
+/** A typical piece, for the estimate shown before its length is known. */
+const TYPICAL_PIECE_SECONDS = 240;
+
+/**
+ * « Instruments à séparer » (the mockup): none ticked by default. Ticked
+ * instruments are separated once the piece has been imported and can play,
+ * in the background; the estimate is honest (this device, a typical piece).
+ * Only the instruments the tool in use provides are offered.
+ */
+function ImportStems() {
+  const stems = useApp((s) => s.ui.importStems);
+  const choice = useSeparationChoice();
+  const [more, setMore] = useState(false);
+  const offered = offeredStems(choice);
+  const details = getModelList().list.models.filter((m) => m.kind === 'detail');
+  return (
+    <section className="stems-choix" aria-labelledby="stems-titre">
+      <h3 id="stems-titre">{t('new.stemsTitle')}</h3>
+      {choice ? (
+        <StemChips stems={offered} pressed={stems} onToggle={toggleImportStem} label={t('new.stemsTitle')} />
+      ) : (
+        <p className="stems-note">{t('new.stemsNone')}</p>
+      )}
+      {choice && stems.length > 0 && (
+        <p className="stems-note" data-testid="estimation-import">
+          {t('new.stemsEstimate', { time: estimateWait(choice, TYPICAL_PIECE_SECONDS) })} {stems.length < offered.length && t('new.stemsOthers')}
+        </p>
+      )}
+      {more && (
+        <div className="stems-note" data-testid="aller-plus-loin">
+          {details.length === 0 ? (
+            <p>{t('new.detailNone')}</p>
+          ) : (
+            <>
+              <p>{t('new.detailAvailable')}</p>
+              <ul>
+                {details.map((m) => (
+                  <li key={m.id}>
+                    <strong>{m.name}</strong> — {m.summary}
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </div>
+      )}
+      <div className="pied-separation">
+        <button className="lien" aria-expanded={more} onClick={() => setMore((m) => !m)}>
+          {t('new.stemsMore')}
+        </button>
+        <span>{t('new.stemsLater')}</span>
+      </div>
+    </section>
   );
 }
 

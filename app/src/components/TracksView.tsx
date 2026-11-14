@@ -2,6 +2,7 @@ import { useRef, type CSSProperties } from 'react';
 import { useApp } from '../store/store';
 import { Timeline } from '../timeline';
 import { RulerHeads } from './RulerHeads';
+import { SeparationEntry } from './SeparationPanel';
 import { ToolsBar } from './ToolsBar';
 import { TrackHeader } from './TrackHeader';
 
@@ -20,6 +21,7 @@ export function TracksView() {
             {tracks.map((tr) => (
               <TrackHeader key={tr.id} track={tr} silenced={anySolo ? !tr.solo : tr.mute} />
             ))}
+            <SeparationEntry />
           </div>
           <Timeline scroller={scroller} />
         </div>

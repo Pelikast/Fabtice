@@ -7,6 +7,7 @@ import { useApp } from '../store/store';
 import { useOutsideClose } from '../ui/useOutsideClose';
 import { AnalysisStatus } from './AnalysisStatus';
 import { ExportMenu } from './ExportMenu';
+import { SeparationStatus } from './SeparationPanel';
 import { SettingsPopover } from './SettingsPopover';
 
 const VIEWS: ViewMode[] = ['pistes', 'grille'];
@@ -32,6 +33,7 @@ export function TopBar() {
         <span className={`projet-titre${project ? '' : ' vide'}`}>{project ? project.title : t('top.noPiece')}</span>
         {project && <span className="projet-source">{source}</span>}
         {project && <AnalysisStatus />}
+        {project && <SeparationStatus />}
       </div>
       <nav className="menus" aria-label={t('top.menus')}>
         <button className="menu cache-tel" onClick={openNewPiece}>

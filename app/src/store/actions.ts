@@ -413,6 +413,7 @@ export function setStorageNotice(storageNotice: StorageNotice | null): void {
 /** Escape: closes the open panel first, then the dialog. */
 export function escape(): void {
   const s = get();
-  if (s.ui.panel !== 'none') closePanel();
+  if (s.ui.exportAudioOpen) set({ ui: { ...s.ui, exportAudioOpen: false } });
+  else if (s.ui.panel !== 'none') closePanel();
   else if (s.ui.newPieceOpen) closeNewPiece();
 }

@@ -1,0 +1,237 @@
+/* ---------- Lot 3: separation, « Appliquer », « Exporter le son » ---------- */
+
+/* « Instruments à séparer »: the mockup's chips, in the track hues. */
+.accueil h3,
+.panneau-separation h3 {
+  margin: 0 0 10px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--encre-douce);
+}
+.stems-choix { margin-top: 22px; }
+.stems { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.stem {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 8px 13px 8px 10px;
+  border: 1px solid var(--trait);
+  border-radius: var(--rayon);
+  background: var(--papier);
+  font-weight: 500;
+  color: var(--encre-douce);
+  cursor: pointer;
+  transition: background var(--vite) var(--courbe), color var(--vite) var(--courbe), border-color var(--vite) var(--courbe);
+}
+.stem::before {
+  content: "";
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 1.5px solid var(--encre-pale);
+  transition: background var(--vite) var(--courbe), border-color var(--vite) var(--courbe);
+}
+.stem:hover { border-color: var(--encre-pale); color: var(--encre); }
+.stem[aria-pressed="true"], .stem.coche[data-on="true"] { color: var(--encre); background: #fff; border-color: var(--encre-pale); }
+.stem[aria-pressed="true"]::before, .stem.coche[data-on="true"]::before { background: var(--teinte); border-color: var(--teinte); }
+/* A checkbox dressed as a chip (the tracks of « Exporter le son »). */
+.stem.coche input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.stem.coche { position: relative; }
+.stem.coche:focus-within { outline: 2px solid var(--encre); outline-offset: 2px; }
+.accueil .stems-note, .stems-note { margin: 0 0 4px; font-size: 13.5px; color: var(--encre-douce); }
+.stems-note p { margin: 0 0 6px; }
+.stems-note ul { margin: 0 0 6px; padding-left: 18px; }
+.pied-separation {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px 12px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+  font-size: 13.5px;
+  color: var(--encre-douce);
+}
+.pied-separation .lien { font-size: 13.5px; min-height: 32px; text-align: left; }
+
+/* The way into the separation, under the last track header. */
+.pistes-pied {
+  display: flex;
+  align-items: center;
+  height: 44px;
+  padding: 0 8px;
+  border-right: 1px solid var(--trait);
+}
+.separer {
+  min-height: 40px;
+  padding: 0 10px;
+  border-radius: var(--rayon);
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--encre-douce);
+  text-decoration: underline;
+  text-decoration-color: var(--trait);
+  text-underline-offset: 4px;
+  transition: background var(--vite) var(--courbe), color var(--vite) var(--courbe);
+}
+.separer:hover, .separer[aria-expanded="true"] { background: var(--papier-fonce); color: var(--encre); text-decoration-color: var(--encre-pale); }
+.separer .court { display: none; }
+
+/* The separation panel: a sheet under the top bar, on the left (over the track headers). */
+.panneau-separation {
+  position: fixed;
+  top: 66px;
+  left: 16px;
+  width: 380px;
+  max-width: calc(100vw - 32px);
+  padding: 14px 16px 16px;
+}
+.panneau-separation h2 { margin: 0 0 8px; }
+.panneau-separation h3 { margin-top: 14px; }
+.panneau-separation .panneau-note { margin: 6px 2px 8px; font-size: 13px; }
+.panneau-separation .panneau-note.discret { font-size: 12.5px; }
+.panneau-separation .bouton-cadre { margin-top: 10px; }
+.panneau-separation .stems { margin-bottom: 4px; }
+.panneau-separation .stem { padding: 6px 11px 6px 9px; font-size: 14px; }
+.panneau-avis {
+  margin: 8px 0;
+  padding: 2px 0 2px 12px;
+  border-left: 3px solid var(--laiton);
+  font-size: 13px;
+  color: var(--encre);
+}
+.separation-source {
+  margin: 8px 0 4px;
+  padding: 10px 12px;
+  background: var(--papier-fonce);
+  border: 1px solid var(--trait-fin);
+  border-radius: var(--rayon);
+  font-size: 12.5px;
+  color: var(--encre-douce);
+}
+.separation-source p { margin: 0; }
+.separation-source p + p { margin-top: 5px; }
+.separation-source .lien { font-weight: 500; overflow-wrap: anywhere; }
+.separation-cours .analyse-progres { margin-top: 10px; }
+.separation-place { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--trait-fin); }
+.separation-actions { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.separation-actions .lien, .separation-place .lien { min-height: 36px; font-size: 13px; }
+.lien.discret { color: var(--encre-douce); text-decoration-color: var(--trait); }
+.separation-place .reprise-actions .bouton-cadre { width: auto; margin-top: 0; padding: 0 14px; }
+
+/* « Appliquer », in the transport: a box like the metronome's; once applied, a quiet line. */
+.appliquer, .applique {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 84px;
+  padding: 0 12px;
+  border-radius: var(--rayon);
+  font-size: 13.5px;
+  font-weight: 600;
+  text-align: center;
+  line-height: 1.15;
+}
+.appliquer {
+  border: 1px solid var(--encre-pale);
+  background: var(--papier-clair);
+  color: var(--encre);
+  transition: background var(--vite) var(--courbe), border-color var(--vite) var(--courbe);
+}
+.appliquer:hover:not(:disabled) { background: var(--papier-fonce); border-color: var(--encre-douce); }
+.appliquer:disabled { color: var(--encre-douce); cursor: default; }
+.applique {
+  border: 1px dashed var(--trait);
+  color: var(--encre-douce);
+  font-weight: 500;
+  font-style: italic;
+  font-size: 12.5px;
+}
+/* The waiting screen of « Appliquer »: the new-piece dialog's look, smaller. */
+.attente { width: min(440px, 100%); }
+.attente h2 { font-size: 26px; }
+
+/* « Exporter le son ». */
+.export-son { width: min(560px, 100%); }
+.export-son h3 { margin-top: 18px; }
+.choix-export { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.choix-export .choix {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  min-height: 44px;
+  padding: 9px 12px;
+  border: 1px solid var(--trait);
+  border-radius: var(--rayon);
+  background: var(--papier);
+  text-align: left;
+  font-weight: 600;
+  transition: background var(--vite) var(--courbe), border-color var(--vite) var(--courbe);
+}
+.choix-export .choix small { font-size: 12.5px; font-weight: 400; color: var(--encre-douce); line-height: 1.35; }
+.choix-export .choix:hover:not(:disabled) { border-color: var(--encre-pale); }
+.choix-export .choix[aria-checked="true"] { background: #fff; border-color: var(--encre); box-shadow: inset 0 0 0 1px var(--encre); }
+.choix-export .choix:disabled { color: var(--encre-douce); cursor: default; }
+.pistes-export { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.formats-export { display: flex; gap: 8px; }
+.formats-export button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 72px;
+  min-height: 44px;
+  padding: 4px 12px;
+  border: 1px solid var(--trait);
+  border-radius: var(--rayon);
+  background: var(--papier);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+.formats-export button small { font-size: 11px; font-weight: 400; font-style: italic; letter-spacing: 0; color: var(--encre-douce); }
+.formats-export button[aria-checked="true"] { background: var(--encre); border-color: var(--encre); color: var(--papier-clair); }
+.formats-export button:disabled { color: var(--encre-douce); cursor: default; }
+.accueil .export-resume { margin: 16px 0 0; font-size: 13.5px; color: var(--encre-douce); }
+.fichier-pret {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-decoration: none;
+}
+
+@media (max-width: 760px) {
+  .pistes-pied { padding: 0 2px; }
+  .separer { padding: 0 6px; font-size: 12.5px; }
+  .separer .long { display: none; }
+  .separer .court { display: inline; }
+  .panneau-separation { position: fixed; top: 50px; left: 10px; right: 10px; width: auto; max-width: none; }
+  .appliquer, .applique { min-width: 0; flex: 0 1 auto; padding: 0 8px; font-size: 12.5px; }
+  .applique { font-size: 11px; }
+  .choix-export { grid-template-columns: 1fr; }
+  .stems-choix { margin-top: 18px; }
+}
+
+/* « Réglages avancés », folded in the settings. */
+.avance { margin-top: 4px; padding-top: 4px; border-top: 1px solid var(--trait-fin); }
+.avance-titre { font-weight: 600; color: var(--encre-douce); }
+.avance-titre:hover { background: var(--papier-fonce); color: var(--encre); }
+.avance-titre .chevron { font-size: 16px; line-height: 1; }
+.option-colonne { flex-direction: column; align-items: stretch; gap: 6px; }
+label.option.option-colonne { justify-content: flex-start; }
+.option-colonne small { font-size: 12px; color: var(--encre-douce); line-height: 1.35; }
+.option-colonne select { width: 100%; height: 36px; padding: 0 8px; border: 1px solid var(--trait); border-radius: var(--rayon); background: #fff; color: var(--encre); }
+.option-ligne { display: flex; align-items: center; gap: 10px; }
+
+/* The transport's right side gets one more box: nothing may shrink the metronome. */
+.reglages .metronome { flex: none; }
+@media (max-width: 1040px) and (min-width: 761px) {
+  .appliquer, .applique { min-width: 0; padding: 0 9px; font-size: 13px; }
+}

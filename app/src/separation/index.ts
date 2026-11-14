@@ -41,7 +41,9 @@ export function mockOptionsFor(mode: string | null): MockSeparatorOptions {
 }
 
 export function createSeparator(): Separator {
-  return new MockSeparator(mockOptionsFor(param()));
+  const mode = param();
+  // `?demo&separation=faite`: separated at once, as if the tool had been there for long.
+  return new MockSeparator(mockOptionsFor(mode === 'faite' ? 'instant' : mode));
 }
 
 let current: Separator | null = null;

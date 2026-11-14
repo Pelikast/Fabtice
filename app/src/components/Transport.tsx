@@ -24,6 +24,7 @@ import { appStore, useApp } from '../store/store';
 import { useFrame } from '../ui/frameLoop';
 import { BackIcon, LoopIcon, MetronomeIcon, PauseIcon, PlayIcon, TripletIcon } from '../ui/icons';
 import { useOutsideClose } from '../ui/useOutsideClose';
+import { ApplyControl } from './ApplyRender';
 import { TuningPanel } from './TuningPanel';
 
 const SUBDIVISIONS: Subdivision[] = [1, 2, 4, 8];
@@ -40,6 +41,7 @@ export function Transport() {
       <div className="reglages">
         <KeyControl />
         <TempoControl />
+        <ApplyControl />
         <MetronomeButton />
       </div>
     </footer>
