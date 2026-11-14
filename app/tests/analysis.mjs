@@ -634,6 +634,39 @@ scenarios.resume = async () => {
   await context.close();
 };
 
+/** The piece plays (real audio engine) while the analysis works: the audio thread is not starved. */
+scenarios.playing = async () => {
+  const context = await browser.newContext();
+  const { page, errors } = await open(context, { query: '?debug&analyse=reel' });
+  await importFile(page, SWING);
+  await analysisEnded(page); // the tools are on the device
+  await sleep(6000); // memory and threads settle
+  await openDialog(page);
+  await page.evaluate(() => {
+    window.__marks = { start: null, end: null };
+  });
+  await importLong(page, 240);
+  await page.waitForFunction(() => window.__fabtice.store.getState().analysisRun.status === 'running', null, { timeout: 10000 }).catch(() => {});
+  await waitStep(page, 'beats');
+  const t0 = Date.now();
+  await page.locator('button.jouer').click();
+  await page.waitForFunction(() => window.__fabtice.store.getState().transport.engine === 'playing', null, { timeout: 20000 });
+  const position = () => page.locator('[data-testid="temps"]').innerText();
+  const p0 = await position();
+  await sleep(5000);
+  const p1 = await position();
+  const running = (await runStep(page)) !== 'idle';
+  const diag = await page.evaluate(() => window.__fabtice.engine.diagnostics());
+  note(`playing during the analysis of a 4-minute piece: clock ${p0} -> ${p1} in ${((Date.now() - t0) / 1000).toFixed(1)} s, analysis still running: ${running}, audio thread: ${diag.overBudget} quanta over budget, ${diag.missingChunks} missing chunks, load average ${diag.loadAvg.toFixed(2)}, worst ${diag.loadMax.toFixed(2)}`);
+  check('playing during the analysis: the clock moves', p1 !== p0);
+  check('playing during the analysis: the audio thread keeps up (no quantum over budget, no missing chunk)', diag.overBudget === 0 && diag.missingChunks === 0, JSON.stringify(diag));
+  await page.locator('button.jouer').click();
+  await analysisEnded(page, 300000);
+  check('playing during the analysis: the analysis still ends', (await state(page)).hasAnalysis);
+  check('playing during the analysis: no console error', errors.length === 0, errors.join(' | '));
+  await context.close();
+};
+
 /** A 4-minute piece: the cost of a real piece, and the memory it takes. */
 scenarios.long = async () => {
   const context = await browser.newContext();
