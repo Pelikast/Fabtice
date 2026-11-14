@@ -170,6 +170,15 @@ describe('resampling 48 kHz ⇄ 44.1 kHz', () => {
     expect(spurious).toBeLessThan(-100);
   });
 
+  it('the same rate on both sides is the identity (a piece already at the tool rate goes through untouched)', () => {
+    const same = designResampler(44100, 44100);
+    const x = sweep(5000, 100, 15000, 44100);
+    const y = new Float32Array(1200);
+    resampleRange(same, reader(x), 1000, y);
+    expect(Array.from(y)).toEqual(Array.from(x.subarray(1000, 2200)));
+    expect(resampledLength(same, 5000)).toBe(5000);
+  });
+
   it('any range can be computed alone (random access), the same as in one go', () => {
     const x = sweep(20000, 100, 15000, 48000);
     const all = to44(x);

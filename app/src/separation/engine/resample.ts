@@ -63,6 +63,8 @@ function besselI0(x: number): number {
 /** The resampler from `inRate` to `outRate` (integers, Hz). */
 export function designResampler(inRate: number, outRate: number, design: ResamplerDesign = DEFAULT_DESIGN): Polyphase {
   if (!Number.isInteger(inRate) || !Number.isInteger(outRate) || inRate <= 0 || outRate <= 0) throw new Error('rates must be positive integers');
+  // Same rate: the identity (one tap), so that a piece already at the tool's rate goes through untouched.
+  if (inRate === outRate) return { inRate, outRate, L: 1, M: 1, H: 1, table: Float32Array.of(1, 0) };
   const g = gcd(inRate, outRate);
   const L = outRate / g;
   const M = inRate / g;

@@ -28,6 +28,9 @@ import { setDevice } from '../separation/device';
 import { getSeparator } from '../separation';
 import { getModelList } from '../separation/models';
 import { separationReportFor } from '../separation/report';
+import { separatePiece } from '../separation/engine/pipeline';
+import { parseConfig } from '../separation/engine/plan';
+import { makeRunner } from '../separation/engine/runners';
 import * as separationRunner from '../separation/runner';
 import { getProjectStorage } from '../storage';
 import * as exportActions from '../store/exportActions';
@@ -59,7 +62,7 @@ export const lot2Actions = { analysis: analysisActions, grid: gridActions, harmo
 
 /** Lot 3 handles for the browser checks (`?demo`, `?debug`). */
 export const lot3Handle = {
-  separation: { ...separationRunner, ...separationActions, models: getModelList, separator: getSeparator, setDevice, report: separationReportFor },
+  separation: { ...separationRunner, ...separationActions, models: getModelList, separator: getSeparator, setDevice, report: separationReportFor, engine: { separatePiece, makeRunner, parseConfig } },
   render: renderController,
   exportAudio: { ...exportActions, planAudioExport, exportWithApp, getEncoder },
   /** The offline renderer the export uses (a test wraps it to see what it is asked). */

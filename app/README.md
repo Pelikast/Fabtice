@@ -30,6 +30,7 @@ le stockage.
 | `npm run test:analysis` | après `build` : le **vrai** analyseur dans Chromium (télécharge les outils d'analyse depuis Hugging Face : réseau nécessaire). Le morceau d'essai du prototype passe par l'interface et le résultat est comparé à ce qu'on en sait et à ce que le prototype trouve ; deuxième usage sans téléchargement ; le panneau d'état qui s'ouvre seul au premier téléchargement (il se referme seul à la fin de l'analyse, reste ouvert si l'utilisateur y a touché ou en cas d'erreur) ; annulation (panneau, nouvel import, pendant le téléchargement) ; réseau absent ; téléchargement abîmé (refusé, repris, refusé pour de bon) ; reprise d'un téléchargement interrompu ; lecture pendant l'analyse ; morceau de 4 minutes ; chiffres de durée, de mémoire et de plus longue tâche du fil principal. `FABTICE_ANALYSIS_ONLY=<nom>` n'en lance qu'une partie |
 | `npm run test:separation` | après `build` : les écrans du lot 3 dans Chromium (séparation : fenêtre « Nouveau morceau », panneau, téléchargement, progression, repli, annulation, échec, pistes dans leurs teintes, morceau entier et retour, « Libérer la place » ; réglages avancés ; « Appliquer » ; « Exporter le son » avec un WAV et une archive téléchargés et relus) à 1280 × 800, 960 × 640 et 390 × 844 (dans la fenêtre, au-dessus du transport), puis des instruments de **taille réelle** gardés et rouverts après rechargement (profil persistant). `FABTICE_SEPARATION_OUT` pour les captures, `FABTICE_SEPARATION_ONLY=screens\|flows\|export\|storage` |
 | `npm run test:separation-real` | après `build` : le **vrai** séparateur dans Chromium, sur le processeur (télécharge SCNet, 13 Mo, depuis Hugging Face : réseau nécessaire ; quelques minutes) : 25 s du morceau d'essai de l'analyse importées puis séparées par l'interface (progression qui ne recule pas, temps restant, longueurs exactes, somme des parties comparée au morceau, « Copier le rapport »), deuxième séparation sans téléchargement puis `forgetTools`, annulation en cours de route, repli du chemin « graphique » simulé au segment 3 (`&repli-essai=2`) avec un résultat identique. `FABTICE_SEPARATION_TOOLS=1` : HTDemucs et BS-RoFormer sur 12 s (409 Mo téléchargés) ; `FABTICE_SEPARATION_MEMORY=1` : mémoire de pointe de chaque outil sur un morceau de quatre minutes (long ; `FABTICE_SEPARATION_MEMORY_TOOLS`, `FABTICE_SEPARATION_MEMORY_SECONDS`). `FABTICE_SEPARATION_REAL_ONLY=first\|cancel\|fallback\|tools\|memory` |
+| `npm run test:separation-prototype` | après `build` : le port contre le prototype, dans Chromium sur le processeur : pour chaque outil, le code du prototype et celui de l'app sur la même entrée à 44,1 kHz avec la même session ; chaque partie doit coïncider à moins de −80 dB. Télécharge les trois outils (422 Mo) ; quelques minutes. `FABTICE_PROTO_TOOLS` pour en choisir, `FABTICE_PROTO_FP32=1` pour comparer aussi HTDemucs en poids 32 bits |
 | `npm run test:memory` | après `build`, au premier plan : la mémoire d'un morceau de cinq minutes stéréo en une piste puis en sept, avec le vrai moteur (chiffres affichés) |
 | `npm run test:export-audio` | après `build` : « Exporter le son » avec les vrais encodeurs MP3 et FLAC (WAV, MP3, FLAC relus et comparés, archive, boucle, annulation, encodeur qui ne se charge pas, export à une autre tonalité et un autre tempo par le rendu), vitesses, captures du dialogue |
 | `npm run test:export-memory` | après `build`, au premier plan : la mémoire de l'export de sept pistes de cinq minutes (archive de WAV, de MP3, mélange en WAV, FLAC et MP3), chiffres affichés |
@@ -509,6 +510,25 @@ graphique. Les temps varient du simple au double selon la charge de la machine
 - La somme des parties n'est pas exacte par construction (aucun de ces réseaux
   n'y est contraint) ; −40,9 dB pour SCNet veut dire qu'il ne perd presque rien
   du morceau. Les longueurs, elles, sont exactes à l'image près pour les trois.
+- **Le port donne les parties du prototype** (`npm run test:separation-prototype`) :
+  le code du prototype (`separator.js` + `dsp.js`, avec son propre ONNX Runtime)
+  et le pipeline de l'app tournent sur la **même entrée à 44,1 kHz** (le morceau
+  d'essai rendu stéréo) avec **la même session** du réseau, sur au moins deux
+  segments (recouvrement ; pour SCNet, 12,5 s : cinq segments et les bords en
+  miroir). Écart par partie, relatif au niveau de la partie : SCNet de −98,5 à
+  −145,7 dB ; HTDemucs de −202 dB à l'identité ; BS-RoFormer identique à
+  l'échantillon près. Les réglages de `models.json` sont vérifiés égaux à ceux du
+  prototype. Ce qui diffère volontairement n'est pas dans ce test : le passage
+  48 ⇄ 44,1 kHz (le prototype laissait le décodeur du navigateur produire du
+  44,1 kHz) et la moyenne des deux canaux de sortie pour un morceau mono.
+- **Pourquoi HTDemucs ne se « reboucle » qu'à −13 dB** : c'est le réseau, pas le
+  port. Le prototype donne le même résidu (−12,8 dB, au centième près) ; un
+  recouvrement de 0,5 au lieu de 0,25 n'y change presque rien (−13,1 dB) ; les
+  poids en 32 bits du même dépôt, à la même révision, donnent des parties
+  **identiques** aux poids en 16 bits sur le processeur (les poids publiés de
+  Demucs sont déjà en demi-précision). Sur ce morceau d'essai synthétique, ce
+  réseau met l'essentiel du son dans « piano » et « guitare » et ses six parties
+  ne somment pas au mélange (rien ne l'y contraint, comme pour les deux autres).
 - Repli simulé au segment 3 (SCNet) : résultat identique à celui d'une
   séparation sans repli (écart nul sur les échantillons 16 bits comparés).
 - App Mac (Electron 43, ce Linux, `xvfb`) : SCNet sur les 37,6 s du morceau
