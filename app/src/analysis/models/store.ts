@@ -60,7 +60,12 @@ export class MemoryModelStore implements ModelStore {
     this.files.delete(id);
   }
   async readParts(id: string) {
-    return [...(this.parts.get(id) ?? [])];
+    const out: ArrayBuffer[] = [];
+    for (const part of this.parts.get(id) ?? []) {
+      if (!part) break; // only an unbroken run from the first is usable
+      out.push(part);
+    }
+    return out;
   }
   async putPart(id: string, index: number, data: ArrayBuffer) {
     const list = this.parts.get(id) ?? [];

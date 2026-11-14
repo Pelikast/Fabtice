@@ -74,6 +74,7 @@ export class FabticeAnalyzer implements Analyzer {
   readonly id = 'fabtice';
   private readonly beatModel: BeatModelChoice;
   private readonly createWorker: () => Worker;
+  private readonly injected: boolean;
   /** The analysis in progress (its signal tells when it is being given up: a new one may then start at once). */
   private active: { signal?: AbortSignal } | null = null;
   private current: Worker | null = null;
@@ -82,6 +83,7 @@ export class FabticeAnalyzer implements Analyzer {
   constructor(options: FabticeAnalyzerOptions = {}) {
     this.beatModel = options.beatModel ?? 'light';
     this.createWorker = options.createWorker ?? defaultWorker;
+    this.injected = !!options.createWorker;
   }
 
   async models(): Promise<AnalysisModelInfo[]> {
@@ -102,7 +104,7 @@ export class FabticeAnalyzer implements Analyzer {
     // One analysis at a time. One that was just cancelled may still be unwinding (its promise has
     // not yet rejected when the runner starts the next one): it does not count.
     if (this.active && !this.active.signal?.aborted) throw new AnalysisError('failed', 'an analysis is already running');
-    if (!analysisSupported()) throw new AnalysisError('unsupported');
+    if (!this.injected && !analysisSupported()) throw new AnalysisError('unsupported');
     const { signal } = request;
     if (signal?.aborted) throw new AnalysisError('cancelled');
     const { channels, sampleRate } = request;
@@ -232,6 +234,7 @@ export class FabticeAnalyzer implements Analyzer {
       signal?.addEventListener('abort', onAbort, { once: true });
 
       worker.onmessage = (ev: MessageEvent<FromWorker>) => {
+        if (settled) return; // a cancelled worker may still be talking for a moment
         const m = ev.data;
         switch (m.type) {
           case 'plan':

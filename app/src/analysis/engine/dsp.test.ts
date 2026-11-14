@@ -100,7 +100,7 @@ describe('tuning', () => {
   const cases = { sharp30: [22050, 6, 30, 1], flat17: [22050, 6, -17, 7], inTune: [22050, 6, 0, 8] } as const;
   for (const [name, args] of Object.entries(cases)) {
     it(`finds what the prototype finds (${name})`, () => {
-      const t = estimateTuning(tonePiece(...args), 22050);
+      const t = estimateTuning(tonePiece(args[0], args[1], args[2], args[3]), 22050);
       const want = values.tuning[name as keyof typeof cases];
       expect(t.cents).toBeCloseTo(want.cents, 9);
       expect(t.refHz).toBeCloseTo(want.refHz, 9);
