@@ -24,6 +24,7 @@ import { useApp } from '../store/store';
 import { hasBarEdit, SECTION_LABEL_MAX } from './edits';
 import { EXTENSION_CHOICES, noteChoices, patchChord, QUALITY_CHOICES, type EditorAction, type EditorState } from './editor';
 import { chordGoingOn } from './layout';
+import { placeEditor } from './editorPlacement';
 import { CloseIcon } from '../ui/icons';
 
 const SECTION_QUICK = ['A', 'B', 'C', 'D'];
@@ -61,6 +62,7 @@ export function ChordEditor({ state, dispatch, grid, scroller, onClose, onTyped 
   const [text, setText] = useState(state.seed);
   const [unknown, setUnknown] = useState(false);
   // Null until measured (hidden meanwhile); 'sheet' on a phone, where CSS places it.
+  const [, setResized] = useState(0);
   const [placement, setPlacement] = useState<{ left: number; top: number } | 'sheet' | null>(null);
 
   // Another chord, another typed text.
@@ -96,12 +98,15 @@ export function ChordEditor({ state, dispatch, grid, scroller, onClose, onTyped 
     if (!host || !sc || !pop || !cell) return;
     const phone = window.matchMedia(SHEET_QUERY).matches;
     const smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    // On a window, never so tall that the bar and the window do not both fit in the sheet (it scrolls inside, then).
-    pop.style.maxHeight = phone ? '' : `${Math.max(240, sc.clientHeight - cell.offsetHeight - 28)}px`;
     // Brought into view when it opens, moves to another bar, or grows (« Extension et basse »).
-    const first = placedFor.current?.bar !== target.bar || placedFor.current.height !== pop.offsetHeight;
-    placedFor.current = { bar: target.bar, height: pop.offsetHeight };
+    // The height compared is the natural one (what it would be without a maximum), read without changing anything.
+    const natural = pop.scrollHeight + pop.offsetHeight - pop.clientHeight;
+    const first = placedFor.current?.bar !== target.bar || placedFor.current.height !== natural;
+    placedFor.current = { bar: target.bar, height: natural };
     if (phone) {
+      pop.style.removeProperty('max-height');
+      pop.style.removeProperty('left');
+      pop.style.removeProperty('top');
       host.style.setProperty('--editeur-bas', `${pop.offsetHeight}px`);
       if (first) {
         const overlap = cell.getBoundingClientRect().bottom + 12 - pop.getBoundingClientRect().top;
@@ -112,29 +117,35 @@ export function ChordEditor({ state, dispatch, grid, scroller, onClose, onTyped 
       setPlacement('sheet');
       return;
     }
-    const gridTop = host.offsetTop;
-    const cellLeft = cell.offsetLeft;
-    const cellTop = cell.offsetTop;
-    const left = Math.max(0, Math.min(cellLeft, host.clientWidth - pop.offsetWidth));
-    const below = cellTop + cell.offsetHeight + 6;
-    const over = cellTop - pop.offsetHeight - 6;
-    const viewTop = sc.scrollTop;
-    const viewBottom = sc.scrollTop + sc.clientHeight;
-    const roomBelow = viewBottom - (gridTop + below);
-    const roomAbove = gridTop + cellTop - viewTop;
-    const useAbove = roomBelow < pop.offsetHeight + 8 && roomAbove > roomBelow && over >= -gridTop;
-    const top = useAbove ? over : below;
+    // On a window: measured at its natural height, then placed by `placeEditor` (under, over or beside the
+    // bar, the sheet scrolled if needed, its own scrolling as a last resort) so that all of it and the bar are in view.
+    if (!first) return;
+    pop.style.maxHeight = 'none';
+    const hostLeft = host.offsetLeft;
+    const hostTop = host.offsetTop;
+    const plan = placeEditor({
+      view: { left: sc.scrollLeft, top: sc.scrollTop, width: sc.clientWidth, height: sc.clientHeight },
+      cell: { left: hostLeft + cell.offsetLeft, top: hostTop + cell.offsetTop, width: cell.offsetWidth, height: cell.offsetHeight },
+      size: { width: pop.offsetWidth, height: pop.offsetHeight },
+    });
+    const left = plan.left - hostLeft;
+    const top = plan.top - hostTop;
+    pop.style.maxHeight = plan.maxHeight === null ? '' : `${plan.maxHeight}px`;
+    pop.style.left = `${left}px`;
+    pop.style.top = `${top}px`;
     setPlacement((p) => (p && p !== 'sheet' && p.left === left && p.top === top ? p : { left, top }));
-    if (first) {
-      // The bar and the window both in view.
-      const regionTop = gridTop + Math.min(cellTop, top);
-      const regionBottom = gridTop + Math.max(cellTop + cell.offsetHeight, top + pop.offsetHeight);
-      let to = sc.scrollTop;
-      if (regionBottom > viewBottom - 8) to = regionBottom - sc.clientHeight + 8;
-      if (regionTop < to + 8) to = regionTop - 8;
-      if (Math.abs(to - sc.scrollTop) > 2) sc.scrollTo({ top: Math.max(0, to), behavior: smooth ? 'smooth' : 'auto' });
-    }
+    if (Math.abs(plan.scrollTop - sc.scrollTop) > 1) sc.scrollTo({ top: plan.scrollTop, behavior: smooth ? 'smooth' : 'auto' });
   });
+
+  // A new window size means a new placement.
+  useEffect(() => {
+    const onResize = () => {
+      placedFor.current = null;
+      setResized((n) => n + 1);
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   // Leaving the editor on the phone gives the room back.
   useEffect(() => {

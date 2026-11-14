@@ -372,7 +372,7 @@ Chromium (`npm run test:chart`).
 | `hit.ts` | quelle mesure est sous un point, même dans l'espace entre deux lignes ou au-delà de la dernière ; sélection d'une mesure à l'autre, dans les deux sens |
 | `useChartGestures.ts` | branche les événements du pointeur sur `gesture.ts` et en applique les effets (`seek`, `setLoopRegion(loopFromBars(…))`, `enterLoop()`) ; défilement automatique en bord de feuille pendant un glisser |
 | `stops.ts` | les arrêts du clavier (chaque accord, et la zone d'accord d'une mesure sans accord) et les déplacements aux flèches |
-| `editor.ts`, `ChordEditor.tsx` | l'état de l'éditeur, ce qu'un clic change à un accord (`patchChord`), la fenêtre elle-même |
+| `editor.ts`, `editorPlacement.ts`, `ChordEditor.tsx` | l'état de l'éditeur, ce qu'un clic change à un accord (`patchChord`), la place de la fenêtre (fonction pure), la fenêtre elle-même |
 | `KeyEditor.tsx` | la correction de la tonalité depuis « Tonalité de … » |
 | `useFollowLine.ts` | « Suivre la tête de lecture » sur la feuille |
 | `print.ts`, `../styles/print.css` | « Imprimer la grille » |
@@ -402,9 +402,15 @@ un tapotement est trop court (moins de 0,42 s) et un défilement bouge avant
 écran tactile, une ligne d'aide sous le titre le dit (`.aide-doigt`, affichée
 seulement si `(pointer: coarse)`).
 
-**L'éditeur d'accord** (`ChordEditor.tsx`) : une petite fenêtre accrochée sous la
-mesure (au-dessus s'il n'y a pas de place ; la feuille défile pour garder la
-mesure et la fenêtre en vue), et sur téléphone (moins de 760 px) un panneau qui
+**L'éditeur d'accord** (`ChordEditor.tsx`) : une petite fenêtre accrochée à la
+mesure. Sa place est choisie par une fonction pure (`editorPlacement.ts`, testée),
+toujours avec la fenêtre entière et la mesure dans la partie visible de la feuille,
+au-dessus du transport : sous la mesure, sinon au-dessus, sinon à côté (à droite
+puis à gauche), sinon sous la mesure après avoir fait défiler la feuille ; en
+dernier recours (fenêtre très basse, « Extension et basse » déplié), la fenêtre
+reçoit une hauteur maximale et défile à l'intérieur, à côté de la mesure. Elle est
+recalculée à l'ouverture, au changement de mesure, quand elle change de taille et
+quand la fenêtre de l'app change de taille. Sur téléphone (moins de 760 px) un panneau qui
 monte du bas de l'écran, la mesure restant visible au-dessus. Chaque choix
 s'applique aussitôt (pas de bouton « Valider »), par les actions de
 `store/harmonyActions.ts`. Champs, de haut en bas :
