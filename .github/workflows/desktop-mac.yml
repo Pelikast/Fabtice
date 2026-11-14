@@ -115,6 +115,18 @@ jobs:
           FABTICE_E2E_APP="$RUNNER_TEMP/arm64/Fabtice.app/Contents/MacOS/Fabtice" \
           FABTICE_E2E_OUT="$RUNNER_TEMP/ci-logs/e2e-arm64" npm run test:e2e
 
+      # The real analysis in the packaged app. It downloads the analysis tools
+      # (about 18 MB) from their public location, so a network problem must not
+      # block the build: the result is reported, not required.
+      - name: Real analysis in the app (arm64, downloads the tools)
+        id: analysis
+        continue-on-error: true
+        run: |
+          source "$GITHUB_WORKSPACE/desktop/ci/log-step.sh" 08b-analysis-arm64
+          FABTICE_E2E_ANALYSIS=1 \
+          FABTICE_E2E_APP="$RUNNER_TEMP/arm64/Fabtice.app/Contents/MacOS/Fabtice" \
+          FABTICE_E2E_OUT="$RUNNER_TEMP/ci-logs/e2e-arm64" node --test test/e2e/analysis.test.js
+
       - name: yt-dlp with the app as JS runtime
         id: ytdlp
         continue-on-error: true
@@ -233,6 +245,15 @@ jobs:
           source "$GITHUB_WORKSPACE/desktop/ci/log-step.sh" 13-e2e-x64
           FABTICE_E2E_APP="$RUNNER_TEMP/app/Fabtice.app/Contents/MacOS/Fabtice" \
           FABTICE_E2E_OUT="$RUNNER_TEMP/ci-logs/e2e-x64" npm run test:e2e
+
+      - name: Real analysis in the app (x64, downloads the tools)
+        id: analysis
+        continue-on-error: true
+        run: |
+          source "$GITHUB_WORKSPACE/desktop/ci/log-step.sh" 13b-analysis-x64
+          FABTICE_E2E_ANALYSIS=1 \
+          FABTICE_E2E_APP="$RUNNER_TEMP/app/Fabtice.app/Contents/MacOS/Fabtice" \
+          FABTICE_E2E_OUT="$RUNNER_TEMP/ci-logs/e2e-x64" node --test test/e2e/analysis.test.js
 
       - name: yt-dlp with the app as JS runtime (x64)
         id: ytdlp

@@ -39,13 +39,24 @@ export function AnalysisStatus() {
 
   // The first download of the tools explains itself: the panel opens once, by itself.
   const explained = useRef(false);
+  // True while the panel on screen is the one that opened by itself (the user has not touched it).
+  const openedByItself = useRef(false);
   const downloading = run.status === 'running' && run.step === 'download';
   useEffect(() => {
     if (downloading && !explained.current && appStore.getState().ui.panel === 'none') {
       explained.current = true;
+      openedByItself.current = true;
       openPanel('analysis');
     }
   }, [downloading]);
+  // A panel that came by itself also leaves by itself once the analysis is over:
+  // it must not stay over the chords it has just found. An error keeps it open.
+  useEffect(() => {
+    if (run.status === 'idle' && openedByItself.current) {
+      openedByItself.current = false;
+      if (appStore.getState().ui.panel === 'analysis') closePanel();
+    }
+  }, [run.status]);
 
   const text = statusText(run, fraction);
   if (!text && !open) return null;
@@ -58,7 +69,10 @@ export function AnalysisStatus() {
           aria-expanded={open}
           aria-haspopup="dialog"
           data-testid="analyse-etat"
-          onClick={() => togglePanel('analysis')}
+          onClick={() => {
+            openedByItself.current = false;
+            togglePanel('analysis');
+          }}
         >
           {text}
         </button>
