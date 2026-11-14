@@ -23,6 +23,8 @@ import { pcmFromChannels, readPcm } from '../audio/pcm';
 import { audioSeconds, getAudio, registryBytes, type DecodedAudio } from '../audio/registry';
 import { exportWithApp, planAudioExport } from '../export/audio';
 import * as renderController from '../render/controller';
+import * as renderModule from '../render';
+import * as renderBudget from '../render/budget';
 import { setDevice } from '../separation/device';
 import { getModelList } from '../separation/models';
 import * as separationRunner from '../separation/runner';
@@ -58,6 +60,7 @@ export const lot2Actions = { analysis: analysisActions, grid: gridActions, harmo
 export const lot3Handle = {
   separation: { ...separationRunner, ...separationActions, models: getModelList },
   render: renderController,
+  renderer: { ...renderModule, ...renderBudget },
   exportAudio: { ...exportActions, planAudioExport, exportWithApp },
   registry: { getAudio, registryBytes },
   pcm: { pcmFromChannels, readPcm },

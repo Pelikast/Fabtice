@@ -69,9 +69,12 @@ export function appliedFits(tracks: readonly Pick<PcmAudio, 'frames' | 'mono'>[]
 /**
  * How many tracks are worth rendering at once: one worker per core but one
  * (the audio thread and the page need theirs while the preview plays), at most
- * 4 (each worker holds a WebAssembly instance and a few blocks), 1 on a phone.
+ * 3, 1 on a phone. Measured on a 4-core virtual machine, 4 stereo tracks of
+ * 60 s: 1.5 to 1.9 times faster with 2 workers, no better beyond (the wasm
+ * engines share the memory bandwidth), so 3 is a ceiling, not a promise; each
+ * worker also holds a WebAssembly instance and a few blocks.
  */
 export function renderParallelism(facts: DeviceFacts = readDeviceFacts()): number {
   if (facts.phone) return 1;
-  return Math.max(1, Math.min(4, (facts.cores ?? 2) - 1));
+  return Math.max(1, Math.min(3, (facts.cores ?? 2) - 1));
 }
