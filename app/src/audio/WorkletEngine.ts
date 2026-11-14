@@ -27,7 +27,7 @@ import {
   type TrackMix,
 } from './AudioEngine';
 import type { Seconds, TimeRange } from '../model/project';
-import { isShared, pcmToChannels } from './pcm';
+import { isShared, pcmToChannels, type PcmAudio } from './pcm';
 import { storeTrack, type StoredTrack } from './storage';
 import {
   FLAG_PLAYING,
@@ -52,6 +52,14 @@ interface TrackEntry {
   mix: TrackMix;
 }
 
+/** The « Appliquer » set the engine holds (kept as given: its chunks are the ones the audio thread reads). */
+interface AppliedSet {
+  semitones: number;
+  cents: number;
+  tempoRatio: number;
+  tracks: Map<string, PcmAudio>;
+}
+
 /** Why the browser cannot run this engine, or null when it can. */
 export function unsupportedReason(): string | null {
   if (typeof AudioContext === 'undefined' || typeof AudioWorkletNode === 'undefined') return 'no AudioWorklet';
@@ -72,6 +80,7 @@ export class WorkletEngine implements AudioEngine {
   private sharedBuffer: SharedArrayBuffer | null = null;
   private views: SharedViews | null = null;
   private readonly tracks = new Map<string, TrackEntry>();
+  private applied: AppliedSet | null = null;
   private duration = 0;
   private disposed = false;
   private listeners: Listeners = { state: new Set(), ended: new Set(), error: new Set() };
@@ -126,6 +135,13 @@ export class WorkletEngine implements AudioEngine {
     return b;
   }
 
+  /** Bytes of rendered audio the « Appliquer » set holds (the page's own chunks, shared with the audio thread, not a copy). */
+  renderedBytes(): number {
+    let b = 0;
+    for (const p of this.applied?.tracks.values() ?? []) b += p.bytes;
+    return b;
+  }
+
   // ---------------------------------------------------------------- tracks
 
   async loadTracks(tracks: EngineTrack[], mixes: Record<string, TrackMix>): Promise<void> {
@@ -143,6 +159,7 @@ export class WorkletEngine implements AudioEngine {
       if (token !== this.loadToken) return;
       this.post({ type: 'clear' });
       this.tracks.clear();
+      this.applied = null;
       for (const t of tracks) {
         await this.put(t, mixes[t.id] ?? DEFAULT_MIX);
         if (token !== this.loadToken) return;
@@ -178,6 +195,7 @@ export class WorkletEngine implements AudioEngine {
 
   removeTrack(id: string): void {
     if (!this.tracks.delete(id)) return;
+    this.applied?.tracks.delete(id);
     this.post({ type: 'remove', id });
     if (this.tracks.size === 0) {
       this.clear();
@@ -191,6 +209,7 @@ export class WorkletEngine implements AudioEngine {
     this.stopPlayback();
     this.post({ type: 'clear' });
     this.tracks.clear();
+    this.applied = null;
     this.duration = 0;
     this.pos = 0;
     this.lastPos = 0;
@@ -331,19 +350,56 @@ export class WorkletEngine implements AudioEngine {
   // ---------------------------------------------------------------- « Appliquer » (lot 3)
 
   /**
-   * NOT YET IMPLEMENTED: the render agent owns this path (see the contract in
-   * `AudioEngine.ts#setRenderedTracks` and `app/README.md`, « Rendu
-   * Appliquer »). Until then it rejects without touching the engine's state,
-   * and the interface stays on the live preview.
+   * Hands the audio thread the audio rendered offline (the very chunks the
+   * page holds, in shared memory: nothing is copied). The worklet plays it as
+   * it is while the live key and tempo are exactly the set's and it covers
+   * every track (see `AudioEngine.setRenderedTracks`); `isRenderedInUse()` says
+   * the same on this side. Rejects, changing nothing, for an unknown track,
+   * another rate, an empty or oddly shaped audio.
    */
-  setRenderedTracks(set: RenderedSet | null): Promise<void> {
-    if (set === null) return Promise.resolve();
-    return Promise.reject(new EngineFailure('unsupported', 'playing rendered audio is not implemented in this engine yet'));
+  async setRenderedTracks(set: RenderedSet | null): Promise<void> {
+    if (set === null) {
+      if (this.applied) this.post({ type: 'rendered-clear' });
+      this.applied = null;
+      return;
+    }
+    if (this.disposed) throw new EngineFailure('load', 'engine disposed');
+    const seen = new Set<string>();
+    for (const t of set.tracks) {
+      if (!this.tracks.has(t.id)) throw new EngineFailure('load', `rendered audio for an unknown track ${t.id}`);
+      if (seen.has(t.id)) throw new EngineFailure('load', `rendered audio twice for track ${t.id}`);
+      seen.add(t.id);
+      if (t.pcm.sampleRate !== this.sampleRate) throw new EngineFailure('load', `rendered track ${t.id}: sample rate ${t.pcm.sampleRate}, expected ${this.sampleRate}`);
+      if (t.pcm.frames === 0 || t.pcm.channelCount < 1 || t.pcm.channelCount > 2) throw new EngineFailure('load', `rendered track ${t.id}: empty or ${t.pcm.channelCount} channels`);
+    }
+    if (!(set.tempoRatio >= 0.25 && set.tempoRatio <= 2)) throw new EngineFailure('load', `rendered set: tempo ${set.tempoRatio}`);
+    if (!this.node) throw new EngineFailure('context', 'no audio worklet to play the rendered audio');
+    const token = this.loadToken;
+    this.applied = { semitones: set.semitones, cents: set.cents, tempoRatio: set.tempoRatio, tracks: new Map(set.tracks.map((t) => [t.id, t.pcm])) };
+    this.post({
+      type: 'rendered',
+      semitones: set.semitones + set.cents / 100,
+      ratio: set.tempoRatio,
+      tracks: set.tracks.map((t) => ({ id: t.id, frames: t.pcm.frames, mono: t.pcm.mono, chunks: t.pcm.chunks })),
+    });
+    try {
+      await this.roundTrip();
+    } catch (e) {
+      // not sure what the audio thread holds: nothing, on both sides
+      this.applied = null;
+      this.post({ type: 'rendered-clear' });
+      throw e;
+    }
+    if (token !== this.loadToken) throw new EngineFailure('load', 'the tracks were replaced while the rendered audio was sent');
   }
 
-  /** NOT YET IMPLEMENTED (see `setRenderedTracks`): never in use. */
+  /** True while the rendered set is what is heard: same key and tempo as the live ones, every loaded track covered. */
   isRenderedInUse(): boolean {
-    return false;
+    const a = this.applied;
+    if (!a || this.tracks.size === 0) return false;
+    if (Math.abs(a.semitones + a.cents / 100 - (this.semitones + this.cents / 100)) > 1e-9 || a.tempoRatio !== this.ratio) return false;
+    for (const id of this.tracks.keys()) if (!a.tracks.has(id)) return false;
+    return true;
   }
 
   on<K extends keyof EngineEvents>(event: K, listener: EngineEvents[K]): () => void {
@@ -454,7 +510,7 @@ export class WorkletEngine implements AudioEngine {
         const timer = setTimeout(() => reject(new EngineFailure('context', 'the audio worklet did not start in time')), 30000);
         this.onReady = (m) => {
           clearTimeout(timer);
-          this.diag = { loadAvg: 0, loadMax: 0, overBudget: 0, activeTracks: 0, missingChunks: 0, wasmBytes: m.wasmBytes, latencyA: m.latencyA, latencyB: m.latencyB };
+          this.diag = { loadAvg: 0, loadMax: 0, overBudget: 0, activeTracks: 0, missingChunks: 0, wasmBytes: m.wasmBytes, latencyA: m.latencyA, latencyB: m.latencyB, applied: 0 };
           resolve();
         };
       });

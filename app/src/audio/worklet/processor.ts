@@ -67,6 +67,15 @@ class FabticePlayer extends AudioWorkletProcessor {
       case 'track':
         c.addTrack(m.id, new TrackData(m.frames, m.mono, m.chunks), { volume: m.volume, mute: m.mute, solo: m.solo });
         break;
+      case 'rendered': {
+        const entries = new Map<string, TrackData>();
+        for (const t of m.tracks) entries.set(t.id, new TrackData(t.frames, t.mono, t.chunks));
+        c.setRendered(m.semitones, m.ratio, entries);
+        break;
+      }
+      case 'rendered-clear':
+        c.clearRendered();
+        break;
       case 'remove':
         c.removeTrack(m.id);
         break;
@@ -110,7 +119,7 @@ class FabticePlayer extends AudioWorkletProcessor {
     Atomics.store(i32, 0, this.seq - 1); // odd: being written
     f64[0] = c.heardPos();
     f64[1] = currentFrame;
-    f64[2] = c.rate;
+    f64[2] = c.heardRate;
     Atomics.store(i32, 1, c.playing ? FLAG_PLAYING : 0);
     Atomics.store(i32, 0, this.seq); // even: consistent
   }
@@ -134,6 +143,7 @@ class FabticePlayer extends AudioWorkletProcessor {
         wasmBytes: c.memoryBytes,
         latencyA: c.latency.a,
         latencyB: c.latency.b,
+        applied: c.mixApplied,
       };
       this.send({ type: 'status', diagnostics: d });
     }

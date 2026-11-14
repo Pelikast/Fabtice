@@ -26,12 +26,13 @@ le stockage.
 | `npm run test:import` | après `build` : import des cinq formats (sélecteur et glisser-déposer), rouverture du projet après rechargement (dont des morceaux de **taille réelle**, 0,5 à 32 Mo, dans un profil de navigateur persistant), morceau gardé mais impossible à rouvrir (offre « Rouvrir » / « Oublier »), autosauvegarde, stockage en échec, import par lien contre un faux `window.fabtice`, coût d'un morceau de cinq minutes (captures dans `FABTICE_IMPORT_OUT`) |
 | `npm run test:timeline` | après `build` : vérifications de la frise dans Chromium (formes d'onde, grille, boucle, défilement, zoom, suivi, téléphone, morceau de dix minutes) |
 | `npm run test:export` | après `build` : le menu « Exporter », le fichier iReal Pro téléchargé par le navigateur, et son lien relu (par un lecteur écrit dans le test) et comparé aux accords de la grille, avec une transposition et un instrument réglés, un accord tapé à la main, une analyse qui se termine |
-| `npm run test:engine` | après `build` (et, en option, `build:desktop`) : mesures du vrai moteur audio dans Chromium (tonalité, tempo, boucle, métronome, limiteur, charge) |
+| `npm run test:engine` | après `build` (et, en option, `build:desktop`) : mesures du vrai moteur audio dans Chromium (tonalité, tempo, boucle, métronome, limiteur, charge ; sections 14 à 18 : le rendu d'« Appliquer » joué tel quel, passages préécoute/rendu, boucle, métronome, sept pistes) |
 | `npm run test:analysis` | après `build` : le **vrai** analyseur dans Chromium (télécharge les outils d'analyse depuis Hugging Face : réseau nécessaire). Le morceau d'essai du prototype passe par l'interface et le résultat est comparé à ce qu'on en sait et à ce que le prototype trouve ; deuxième usage sans téléchargement ; le panneau d'état qui s'ouvre seul au premier téléchargement (il se referme seul à la fin de l'analyse, reste ouvert si l'utilisateur y a touché ou en cas d'erreur) ; annulation (panneau, nouvel import, pendant le téléchargement) ; réseau absent ; téléchargement abîmé (refusé, repris, refusé pour de bon) ; reprise d'un téléchargement interrompu ; lecture pendant l'analyse ; morceau de 4 minutes ; chiffres de durée, de mémoire et de plus longue tâche du fil principal. `FABTICE_ANALYSIS_ONLY=<nom>` n'en lance qu'une partie |
 | `npm run test:separation` | après `build` : les écrans du lot 3 dans Chromium (séparation : fenêtre « Nouveau morceau », panneau, téléchargement, progression, repli, annulation, échec, pistes dans leurs teintes, morceau entier et retour, « Libérer la place » ; réglages avancés ; « Appliquer » ; « Exporter le son » avec un WAV et une archive téléchargés et relus) à 1280 × 800, 960 × 640 et 390 × 844 (dans la fenêtre, au-dessus du transport), puis des instruments de **taille réelle** gardés et rouverts après rechargement (profil persistant). `FABTICE_SEPARATION_OUT` pour les captures, `FABTICE_SEPARATION_ONLY=screens\|flows\|export\|storage` |
 | `npm run test:separation-real` | après `build` : le **vrai** séparateur dans Chromium, sur le processeur (télécharge SCNet, 13 Mo, depuis Hugging Face : réseau nécessaire ; quelques minutes) : 25 s du morceau d'essai de l'analyse importées puis séparées par l'interface (progression qui ne recule pas, temps restant, longueurs exactes, somme des parties comparée au morceau, « Copier le rapport »), deuxième séparation sans téléchargement puis `forgetTools`, annulation en cours de route, repli du chemin « graphique » simulé au segment 3 (`&repli-essai=2`) avec un résultat identique. `FABTICE_SEPARATION_TOOLS=1` : HTDemucs et BS-RoFormer sur 12 s (409 Mo téléchargés) ; `FABTICE_SEPARATION_MEMORY=1` : mémoire de pointe de chaque outil sur un morceau de quatre minutes (long ; `FABTICE_SEPARATION_MEMORY_TOOLS`, `FABTICE_SEPARATION_MEMORY_SECONDS`). `FABTICE_SEPARATION_REAL_ONLY=first\|cancel\|fallback\|tools\|memory` |
 | `npm run test:separation-prototype` | après `build` : le port contre le prototype, dans Chromium sur le processeur : pour chaque outil, le code du prototype et celui de l'app sur la même entrée à 44,1 kHz avec la même session ; chaque partie doit coïncider à moins de −80 dB. Télécharge les trois outils (422 Mo) ; quelques minutes. `FABTICE_PROTO_TOOLS` pour en choisir, `FABTICE_PROTO_FP32=1` pour comparer aussi HTDemucs en poids 32 bits |
-| `npm run test:memory` | après `build`, au premier plan : la mémoire d'un morceau de cinq minutes stéréo en une piste puis en sept, avec le vrai moteur (chiffres affichés) |
+| `npm run test:memory` | après `build`, au premier plan : la mémoire d'un morceau de cinq minutes stéréo en une piste puis en sept, avec le vrai moteur ; puis le jeu « Appliquer » de ces sept pistes à 0,7 (taille, budget de l'appareil, libération) (chiffres affichés) |
+| `npm run test:render` | après `build`, au premier plan : le vrai rendu (Rubber Band R3 dans un worker) dans Chromium : alignement d'un train de clics à plusieurs tempos et hauteurs, cinq minutes sans dérive, vitesse (secondes de calcul par minute stéréo, gain de plusieurs workers), annulation, binaire chargé au premier rendu seulement et licence servie ; puis « Appliquer » dans l'app avec le vrai moteur (progression réelle, rendu joué tel quel, retour à la préécoute, refus calme d'un appareil trop petit) à 1280 × 800 et 390 × 844. `FABTICE_RENDER_OUT` pour les captures, `FABTICE_RENDER_ONLY=renderer\|app`, `FABTICE_RENDER_QUICK=1` saute les cinq minutes |
 | `npm run test:export-audio` | après `build` : « Exporter le son » avec les vrais encodeurs MP3 et FLAC (WAV, MP3, FLAC relus et comparés, archive, boucle, annulation, encodeur qui ne se charge pas, export à une autre tonalité et un autre tempo par le rendu), vitesses, captures du dialogue |
 | `npm run test:export-memory` | après `build`, au premier plan : la mémoire de l'export de sept pistes de cinq minutes (archive de WAV, de MP3, mélange en WAV, FLAC et MP3), chiffres affichés |
 | `npm run test:chart` | après `build` : la grille d'accords comparée à la maquette (même balisage des accords, mêmes tailles, sections, boucle, mesure en cours, instruments, états vide et « analyse en cours », téléphone), puis les gestes (clic, glisser, suivi), l'éditeur d'accord (toujours entier et dans la fenêtre, à 1280 × 800 et 960 × 640), tous les panneaux flottants (Tempo, analyse, réglages, Exporter, accord fin, tonalité : dans la fenêtre, au-dessus du transport, dernier bouton cliquable, à 1280 × 800, 1024 × 700 et 960 × 640 ; `ui/useFitPanel.ts` leur donne une hauteur maximale et un défilement propre quand la fenêtre est trop basse), la tonalité, les sections, le clavier, l'autosauvegarde (rechargement d'un morceau gardé), le toucher réel sur téléphone (390 × 844) et l'impression (feuille de style d'impression, PDF A4 et Letter lus avec `pdftotext`, sauts de page) ; panneaux de corrections et d'accordage ; captures de l'app, de la maquette et des pages imprimées dans `FABTICE_CHART_OUT` (`pdftotext`, `pdfinfo` et `pdftoppm` de poppler sont nécessaires pour la partie impression) |
@@ -56,7 +57,8 @@ Variantes :
 | `?demo&analyse=echec` | l'analyse (factice) échoue |
 | `?demo&analyse=aucune` | le morceau du lot 1 : 110 BPM fixe saisi à la main, pas d'analyse automatique (les vérifications de la frise s'en servent) |
 | `?demo&separation=entier\|faite\|lente\|repli\|echec` | lot 3 : le morceau en une piste entière, pas encore séparé, déjà séparé, en cours (lent, premier téléchargement), avec repli sur le processeur, en échec |
-| `?demo&rendu=lent`, `?demo&export=ouvert` | lot 3 : « Appliquer » assez lent pour voir l'attente ; « Exporter le son » ouvert |
+| `?demo&rendu=lent`, `?demo&export=ouvert` | lot 3 : « Appliquer » assez lent pour voir l'attente (rendu factice) ; « Exporter le son » ouvert |
+| `?rendu=reel`, `?rendu=factice` | lot 3 : le vrai rendu (Rubber Band) même sur une page de test (c'est ce que font `test:render` et le test de l'app Mac), ou le factice |
 
 En mode démo, `window.__fabtice` donne accès au magasin, au moteur, aux actions
 et, sous `lot2`, aux actions d'analyse, de grille et d'harmonie, sous `lot3` à la
@@ -108,8 +110,9 @@ src/
   separation/         séparation des instruments (lot 3) : contrat, liste des outils
                       (models.json), choix selon l'appareil, séparateur factice, vrai
                       séparateur (onnx.ts + worker/ + engine/), rapport, lancement
-  render/             rendu hors ligne et « Appliquer » (lot 3) : contrat, rendu factice,
-                      contrôleur
+  render/             rendu hors ligne et « Appliquer » (lot 3) : contrat, rendu réel
+                      (rubberband.ts + rubberband/ : worker, wasm, licence), rendu
+                      factice, budget de mémoire, contrôleur
   store/              état de l'app (store.ts), actions (actions.ts), valeurs
                       dérivées (derived.ts), préférences, document de projet
   audio/              contrat du moteur (AudioEngine.ts), vrai moteur
@@ -117,7 +120,8 @@ src/
                       (MockEngine.ts), fabrique (index.ts), branchement au
                       magasin (connect.ts), registre de l'audio décodé, forme
                       16 bits partagée unique (pcm.ts, storage.ts), binaire wasm
-                      de Signalsmith et ses licences (wasm/)
+                      de Signalsmith et ses licences (wasm/) ; la lecture du rendu
+                      d'« Appliquer » (worklet/core.ts)
   timeline/           TOUT ce qui se dessine le long du temps : formes d'onde,
                       grille, règle, boucle, tête de lecture, défilement, zoom
   components/         l'écran : barre du haut, en-têtes de pistes, transport,
@@ -561,40 +565,223 @@ graphique. Les temps varient du simple au double selon la charge de la machine
 
 ##### Rendu hors ligne et « Appliquer » — `src/render/`
 
+**Fait** (rendu réel, lecteur du rendu, mémoire, écran). Rubber Band R3
+« finer » rend les pistes hors ligne dans des workers, le moteur joue le rendu
+tel quel, et tout se vérifie par des mesures : `npm test` (Node, vrai wasm),
+`npm run test:render` et `npm run test:engine` (Chromium), `npm run test:memory`,
+et dans l'app Mac `desktop/test/e2e/apply-render.test.js`.
+
 | Fichier | Rôle |
 |---|---|
-| `types.ts` | le contrat : `OfflineRenderer.render(request)` → `PcmAudio` ; `RenderRequest` (audio, demi-tons, cents, rapport de tempo, formants, plage en temps source facultative, progression, annulation), `supportsFormants`, `RenderError`. La sortie dure **exactement** `round(images de la plage / tempo)`, est **alignée** (l'image k correspond au temps source `début + k × tempo / 48 000` : le moteur compense son propre retard, aucun silence ajouté), commence et finit sans clic |
+| `types.ts` | le contrat : `OfflineRenderer.render(request)` → `PcmAudio` ; `RenderRequest` (audio, demi-tons, cents, rapport de tempo, formants, plage en temps source facultative, progression, annulation), `supportsFormants`, `parallel` (combien de rendus à la fois valent la peine), `RenderError`. La sortie dure **exactement** `round(images de la plage / tempo)`, est **alignée** (l'image k correspond au temps source `début + k × tempo / 48 000`), commence et finit sans clic |
+| `rubberband.ts` | `RubberBandRenderer` : côté page. Lit l'audio **par blocs de 16 384 images** (`readPcm`) et les transfère au worker (au plus trois en vol, le worker en accuse réception : un rendu lent n'entasse rien), écrit la sortie qui revient avec `PcmWriter` ; jamais une copie Float32 d'une piste entière. Un piste stockée une seule fois (mono, ou deux canaux égaux : le cas du jazz ancien) n'est calculée qu'**une fois** (moitié moins de calcul). Un worker par rendu, terminé à la fin ou à l'annulation (la mémoire d'une instance WebAssembly ne se rend que comme cela) : annulation en moins d'une milliseconde mesurée |
+| `rubberband/` | `worker.ts` (le worker : récupère le binaire sur l'origine de l'app, au premier rendu seulement), `job.ts` (le travail du worker, séparé de sa plomberie pour les tests Node), `protocol.ts`, `stretcher.ts` (Rubber Band hors ligne : flux d'entrée, silence derrière la fin jusqu'à la dernière image voulue, retard mesuré, fondus de bord), `rubberband-nosimd.wasm` (**le binaire du prototype tel quel**), `LICENSE-rubberband-GPL.txt` (copiée dans `assets/` à la construction), `SOURCES.md`, `testing.ts` |
+| `budget.ts` | ce que l'appareil peut tenir (voir « Mémoire ») et combien de pistes rendre à la fois |
 | `mock.ts` | `MockRenderer` : grains fenêtrés superposés, sans rééchantillonnage : durées et alignement justes, ni transposition ni timbre |
-| `index.ts` | la fabrique `getRenderer()` (`?rendu=lent` pour voir l'attente) |
-| `controller.ts` | « Appliquer » : rend chaque piste affichée l'une après l'autre (écran d'attente, annulable, la lecture continue en préécoute), garde **la seule copie** du rendu (16 bits partagés) et la donne au moteur ; tout changement de tonalité, tempo, formants ou pistes le périme : il est lâché aussitôt, retour à la préécoute ; `appliedAudioFor` (l'export s'en sert quand il correspond) |
+| `index.ts` | la fabrique `getRenderer()` : **le vrai rendu dans un navigateur**, le factice dans Node, sur `?demo`, `?debug`, `?moteur=factice`, `?rendu=lent` (à voir : l'attente) ; `?rendu=reel` force le vrai sur une page de test, `?rendu=factice` le factice (comme `analysis/index.ts`) |
+| `controller.ts` | « Appliquer » : refuse d'emblée ce que l'appareil ne tiendrait pas (`memory`), rend les pistes affichées **les plus longues d'abord, `renderer.parallel` à la fois** (progression comptée en images : le travail y est proportionnel), la première erreur arrête les autres, garde **la seule copie** du rendu (16 bits partagés) et la donne au moteur ; tout changement de tonalité, tempo, formants ou pistes le périme : il est lâché aussitôt, retour à la préécoute ; `appliedAudioFor` (l'export s'en sert quand il correspond) |
 
 **Ajout au contrat du moteur** (`audio/AudioEngine.ts`, rétrocompatible) :
 `setRenderedTracks(set | null)` et `isRenderedInUse()`. Un `RenderedSet` donne,
 pour chaque piste chargée, l'audio rendu et les réglages qu'il contient
 (demi-tons, cents, tempo). Le moteur le fait entendre **tel quel** (ni étirement
-ni transposition) seulement tant que ses réglages en direct sont exactement
-ceux du jeu et qu'il couvre toutes les pistes ; sinon il joue la préécoute,
-et le passage de l'un à l'autre se fait aussitôt, à la même position, sans
-arrêt ni clic. **Tout reste en temps source** pour l'interface : position,
-déplacement, boucle, clics, durée ; correspondance linéaire (image rendue k =
-temps source `k × tempo / 48 000`). Mixage, boucle (fondu au repli), métronome
-et limiteur comme en préécoute. `loadTracks()` et `clear()` lâchent le jeu,
-`removeTrack()` retire l'entrée de la piste. `MockEngine` l'implémente
-(`snapshot().rendered`). `WorkletEngine` rejette pour l'instant (chemin marqué
-« NOT YET IMPLEMENTED ») : l'écran reste en préécoute et le dit calmement.
+ni transposition) seulement tant que ses réglages en direct sont ceux du jeu et
+qu'il couvre toutes les pistes ; sinon il joue la préécoute. **Tout reste en
+temps source** pour l'interface : position, déplacement, boucle, clics, durée ;
+correspondance linéaire (image rendue k = temps source `k × tempo / 48 000`).
+Mixage, boucle (fondu au repli), métronome et limiteur comme en préécoute.
+`loadTracks()` et `clear()` lâchent le jeu, `removeTrack()` retire l'entrée de la
+piste. `MockEngine` l'implémente (`snapshot().rendered`), `WorkletEngine` aussi
+(voir « Le lecteur du rendu » ; `renderedBytes()` donne la mémoire du jeu).
 
-**Ce que l'agent du rendu doit construire** : un `RubberBandRenderer`
-(Rubber Band R3 « finer », binaires `web/spikes/lecteur/engines/rubberband*.wasm`
-et leur source, à reprendre sans recompiler sans nouvelles mesures), dans un
-worker, respectant durée et alignement exacts (compenser le retard de
-démarrage de Rubber Band, mesurer), formants en option ; le brancher dans
-`render/index.ts` ; et le chemin de lecture des fichiers appliqués dans
-`WorkletEngine` + `worklet/` (un lecteur sans étirement par piste, choix
-préécoute / appliqué au quantum avec fondu court, positions converties), avec
-ses mesures dans `test:engine`. Mémoire : le rendu de 7 pistes est une copie de
-plus à l'allure jouée (à 0,7 fois, 1,4 fois la taille des sources) ; à
-mesurer, et à garder hors mémoire (fichiers temporaires) si c'est trop pour un
-téléphone (question ouverte).
+**Le binaire est celui du prototype, sans recompilation.** Son interface
+(`fe_*`) est celle du temps réel (`OptionProcessRealTime`, R3 « finer »,
+`OptionPitchHighConsistency`), mais elle porte tout ce qu'un rendu hors ligne
+demande : échelle de hauteur (demi-tons et cents ensemble), rapport de temps,
+option de timbre (`fe_set` : formants conservés ou déplacés, avant la première
+image), et la recette d'alignement de Rubber Band (`fe_reset` donne le début de
+silence préféré et retire le retard de démarrage). Le mode hors ligne
+d'origine (`OptionProcessOffline`, `study()`) n'est pas atteignable par cette
+interface ; il n'a pas semblé nécessaire (voir « Alignement »), et sa
+compilation demanderait Zig et de nouvelles mesures. La variante SIMD (509 Ko)
+n'est pas livrée : mesurée sur 30 s de mono, 2,7 s contre 3,1 s sans SIMD, 4,4 s
+contre 4,1 s selon le réglage : dans le bruit, pour un fichier de plus. Le
+binaire (486 Ko) n'est demandé que **quand « Appliquer » (ou un export)
+démarre**, par le worker, sur l'origine de l'app (`fabtice://app` : vérifié
+sous sa politique de sécurité), et sa licence GPL (Rubber Band est
+GPL-2.0-or-later, compatible avec ce projet) est servie à côté.
+
+**Alignement : ce qui est mesuré.** Au rapport 1 et sans transposition le
+binaire tombe juste (0,07 ms). Ailleurs son retard de démarrage est faux de
+plusieurs millisecondes (jusqu'à −10 ms à 0,5 fois le tempo et +7 demi-tons),
+toujours du même montant pour les mêmes réglages et **sans dérive** le long d'un
+fichier. `measureDelay` mesure ce retard sur un court signal de clics (11
+clics, 3 s, 0,4 s de calcul, gardé pour la vie de la page) et le rendu décale
+sa sortie d'autant (images retirées, ou silence devant). Reste la gigue propre
+à Rubber Band (sa grille de sauts de 128 à 256 images, soit 2,7 à 5,3 ms) : on
+ne peut pas l'enlever. Un train de clics de 20 s (un clic toutes les 0,27 s,
+bruit de 1 ms), rendu dans Chromium, position de chaque clic contre sa place
+(`npm run test:render`, erreur du premier au dernier clic, pire écart) :
+
+| Tempo | −3 demi-tons | +2 | +7 |
+|---|---|---|---|
+| 0,5 | 97 % à ±2 ms, pire 2,2 ms | 90 % à ±2 ms, **pire 4,2 ms** | 99 % à ±2 ms, pire 2,6 ms |
+| 0,7 | pire 0,6 ms | pire 1,1 ms | pire 1,4 ms |
+| 1,25 | pire 1,1 ms | pire 0,3 ms | pire 0,3 ms |
+
+Donc **±2 ms pour tous les clics aux tempos 0,7 et 1,25, pas à 0,5** : là, un
+clic sur dix s'écarte de plus (jusqu'à 4,2 ms mesurés) ; c'est le pas de
+l'algorithme, pas un retard. Cinq minutes (155 clics, tempo 0,7, +2 demi-tons,
+mono, 35 s de calcul) : moyenne des 20 premiers clics −0,22 ms, des 20 derniers
+−0,19 ms (dérive 0,03 ms), pire 1,24 ms, longueur exacte. 
+
+**Justesse et timbre.** Hauteur à moins de 5 cents sur un sinus (+7 demi-tons ; −5 à 0,7 ;
++2 et 30 cents à 1,25 ; −40 cents ; +3 et 50 cents à 0,8 : test Node) ; les cents sont
+pris en compte. « Conserver le timbre » (formants) ne change le résultat que
+demandé : deux rendus sans sont identiques, avec, la fréquence moyenne d'une
+voix synthétique reste à 15 % de l'origine à +7 demi-tons, contre +30 % ou plus
+sans. Il coûte un tiers de calcul en plus (24,7 à 25,9 s contre 19 à 21 s par
+minute stéréo à 0,7). Sans clic : la sortie démarre et finit en douceur ; sur
+une plage prise **dans** l'audio (export de boucle) l'audio d'avant et d'après
+(170 ms) nourrit le moteur pour que son démarrage ne soit pas dans ce qu'on
+garde, plus un fondu de 2 ms au bord. Image stéréo : les deux canaux passent
+ensemble dans une seule instance (un son à gauche reste à gauche, niveaux et
+phase tiennent, vérifié).
+
+**Vitesse (ce poste, Xeon virtuel à 4 cœurs, 2,1 GHz : ne dit rien des autres
+machines).** Une minute d'audio **stéréo**, un worker, +2 demi-tons : **15 à 16
+secondes à tempo 1, 19 à 21 secondes à 0,7** (23 à 26 en conservant le timbre).
+Une piste stockée une fois (mono) en demande la moitié. Quatre pistes stéréo
+d'une minute à 0,7, trois essais : 77 à 86 s avec un worker, 40 à 55 s avec deux
+(1,5 à 1,9 fois plus vite), 44 à 57 s avec trois, 30 à 51 s avec quatre : un gain
+net avec deux, incertain au-delà (la machine est partagée ; les chiffres varient
+du simple au double d'un essai à l'autre). `renderParallelism()` : un worker par
+cœur moins un (le fil audio et la page gardent le leur pendant que la préécoute
+joue), trois au plus, un seul sur téléphone. **Sept pistes stéréo de cinq minutes
+demanderaient ici de l'ordre de onze minutes de calcul, cinq à six avec deux ou
+trois workers** (la moitié en mono) : l'attente d'« Appliquer » est longue sur une
+grosse pièce, avec une estimation du temps restant sur l'écran ; elle n'a pas été
+mesurée sur un Mac.
+
+**Le lecteur du rendu (`audio/worklet/core.ts`, `WorkletEngine.ts`).**
+`setRenderedTracks` envoie au fil audio **les blocs mêmes de la page**
+(mémoire partagée, rien n'est copié) ; `isRenderedInUse()` dit ce qu'on
+entend. Le lecteur a deux curseurs : celui de la préécoute (ce qui est
+**donné** aux étireurs, en avance de leur latence) et celui du rendu (ce qui est
+**lu**, donc entendu : pas de latence). Le rendu est lu tel quel, une image
+rendue par image de sortie, à la position `source / rapport` ; position, boucle,
+clics et durée restent en temps source. Il est utilisé tant que la tonalité
+(demi-tons et cents) et le tempo vivants sont exactement ceux du jeu (le lissage
+du tempo est fini) et que le jeu couvre toutes les pistes. Mixage, sourdine, solo,
+volume, boucle (même fondu de 20 ms au repli), métronome et limiteur sont ceux de
+la préécoute ; la préécoute elle-même, sans jeu utilisable, est **identique au
+bit près** (test : deux lecteurs, avec et sans jeu inutilisable, même sortie).
+`loadTracks()`, `clear()` et `removeTrack()` lâchent ce qu'ils doivent ; une piste
+ajoutée n'a pas de rendu, donc le jeu cesse d'être entendu jusqu'à un nouveau.
+- *Préécoute → rendu* : immédiat, au même endroit entendu, fondu enchaîné de
+  15 ms (puissances égales).
+- *Rendu → préécoute* : **différent de ce que la spécification dit**, voir plus
+  bas : les étireurs doivent être nourris depuis la position entendue et
+  mettent leur latence (152 ms à vitesse normale, 340 ms à 0,25 fois, mesurées)
+  avant de sonner ; le rendu continue, à son propre tempo, pendant ce temps
+  (0,17 s vers un tempo de 0,9 ou 1, 0,22 s vers 0,5), puis fondu de 15 ms ;
+  le curseur des étireurs est calculé pour que leur son et le rendu se
+  retrouvent à la même position (le lissage du tempo est pris en compte :
+  l'écart entre les deux au moment du fondu est de 0,7 ms, contre 6 ms avant ce
+  calcul).
+- Le métronome suit le chemin le plus entendu : au changement, les clics pas
+  encore commencés sont oubliés et placés de nouveau d'après la nouvelle
+  position (aucun clic perdu ni doublé, mesuré sur quatre allers-retours).
+
+Mesures (`npm test` : `audio/worklet/core.test.ts`, 13 vérifications du rendu ;
+`npm run test:engine`, sections 14 à 18, vrai moteur dans Chromium) :
+- le rendu est joué **échantillon pour échantillon** (écart au rendu 1,5 e-5,
+  l'arrondi 16 bits), retardé du seul limiteur ;
+- position entendue (`getPosition`) contre la fréquence d'un glissando qui dit
+  la seconde source entendue, avant, pendant et après les deux passages : 1 à 3
+  ms d'écart en régime, 5 à 9 ms au plus aux passages (les instants où les deux
+  rendus sont mélangés pendant 15 ms ne sont pas comparés : une fréquence lue
+  sur 43 ms n'y veut rien dire) ; la position rapportée ne saute jamais (entre
+  deux relevés distants de moins de 20 ms, elle avance de ce que l'horloge dit à
+  12 ms près au pire sur plusieurs essais (21 ms une fois, la machine chargée), le
+  plus souvent à 1 ou 2 ms ; un saut de la latence du moteur serait de 152 ms) ;
+- pas de discontinuité : le plus grand pas d'échantillon reste à **1,3 à 1,4
+  fois** celui d'un sinus stable de 2 kHz (un clic serait bien plus), dans les
+  deux sens (seuil du test : 1,5) ;
+- boucle : 100 tours à 0,7 dans Node, 14 en réel : chaque repère revient
+  exactement un tour plus tard (écart ≤ 0,02 ms, tour moyen juste à 0 µs sur 13
+  tours), la position reste dans la boucle ;
+- métronome à 0,7 : chaque clic tombe sur le battement du rendu (même espacement
+  à 0,02 ms) ;
+- processeur, sept pistes stéréo, métronome : **rendu 1,0 à 1,4 % du budget d'un
+  quantum, préécoute 23 à 26 %** (Node 1,0–1,2 contre 23,4–23,6 ; Chromium 1,4
+  contre 26,1) : environ vingt fois moins ;
+- sept pistes stéréo de 120 s lues en rendu : aucun quantum hors budget, aucun
+  trou (plus longue suite d'échantillons nuls : 1), aucune sous-alimentation.
+
+**Mémoire : le rendu vit en mémoire, pas dans des fichiers temporaires.**
+Un jeu appliqué est une copie de plus des pistes **à la vitesse jouée** (16 bits,
+en mémoire partagée : le moteur lit les blocs de la page, sans copie) : à 0,7 fois
+le tempo, 1,43 fois la taille des sources. Mesuré avec sept pistes stéréo de
+cinq minutes (`npm run test:memory`) : sources 385 Mo, jeu appliqué **550 Mo**
+(1,43) ; ces tailles sont exactes (les blocs sont comptés). La mémoire résidente
+de Chromium que le test relève avec `ps` est trop bruitée ici pour être citée
+(de −1,4 Go à +0,6 Go selon l'essai, des processus d'autres essais finissant
+entre-temps ; le test construit aussi les pistes en Float32, une à une). Lâché, le
+moteur n'en tient plus aucun octet. Pourquoi pas des fichiers temporaires (la question ouverte du lot) : le
+lecteur lit des blocs de 64 Ko dans la mémoire partagée du fil audio, au quantum ;
+il n'y a pas de lecture de fichier possible dans un AudioWorklet, il faudrait un
+second flux fait de messages, des tampons de préchargement, et rater un
+quantum se paie par un trou sonore, pour garder des octets que l'appareil sait
+déjà tenir ; et IndexedDB (la seule place disponible partout, y compris
+`fabtice://app`) relirait les blocs par des promesses. En contrepartie un
+**budget** (`budget.ts`) refuse calmement ce qui ne tiendrait pas : un dixième de
+`navigator.deviceMemory` quand il est donné (un quinzième sur téléphone, entre
+128 Mo et 1,5 Go), sinon 768 Mo sur ordinateur et 192 Mo sur téléphone (la page
+d'un iPhone 14 Pro Max a été fermée par le système pendant une séparation). Sept
+pistes stéréo de cinq minutes à 0,7 (550 Mo) passent sur un ordinateur de 8 Go ;
+elles ne passeraient pas sur un téléphone ; à 0,25 fois le tempo elles
+demandent 1,5 Go. Le refus se fait **avant tout calcul** : « Cet appareil ne peut
+pas contenir le rendu de qualité de ce morceau ; la préécoute continue. »
+Le même texte sert si la mémoire manque pendant le calcul (une erreur de
+mémoire du worker ou de la page). Rien ne plante la page : un jeu refusé n'est
+simplement pas construit.
+
+**L'écran** (`components/ApplyRender.tsx`, inchangé dans son principe) :
+progression **réelle** (la part des images rendues, qui ne recule pas), le
+temps restant une fois le rythme connu (cinq secondes, 3 %), « Annuler » (le
+worker est terminé aussitôt), la phrase du refus ou de l'échec avec « Compris »,
+jamais la braise. Vérifié à 1280 × 800 et 390 × 844 (captures de `test:render`).
+
+**Écarts avec la spécification.**
+1. *Rendu → préécoute pas instantané* : voir plus haut. La préécoute en direct
+   suit un changement de tonalité ou de tempo sans attendre parce que ses
+   étireurs tournent déjà ; revenus du rendu ils ne tournent plus et leur latence
+   (152 ms à vitesse normale) est incompressible avec le binaire actuel (`outputSeek` de
+   Signalsmith, qui la supprimerait au prix d'un pic de calcul, n'est pas exporté
+   par le wasm). Le **nouveau réglage s'entend donc 0,17 s (vers 0,9 ou 1) à 0,22 s (vers 0,5), jusqu'à 0,35 s (0,25 fois) après le geste**
+   (ancien rendu entre-temps), sans arrêt ni clic ni saut de position. Un
+   changement continu (curseur) ne paie ce délai qu'une fois.
+2. *Même tonalité = mêmes demi-tons et cents au centième* : le moteur compare la
+   hauteur totale (`demi-tons + cents / 100`), pas la paire ; (1, −50) et (0, +50)
+   sont le même son et le même jeu. `MockEngine` compare les paires.
+3. *±2 ms pour tous les clics* : tenu à 0,7 et 1,25, **pas à 0,5** (voir plus
+   haut).
+4. *Rubber Band hors ligne (`OptionProcessOffline`)* : non utilisé, voir plus haut.
+
+**Ce qui reste.**
+- Mesurer sur un **Mac** (M1, et Intel sous Monterey, jamais essayé) la vitesse
+  du rendu et le parallélisme ; sept pistes de cinq minutes demandent des
+  minutes ici. Pistes : ne rendre d'abord que ce qui s'entend (solo, sourdine),
+  rendre en tâche de fond pendant que la préécoute joue, regrouper les pistes
+  mono.
+- Le temps restant est une règle de trois sur la part déjà faite ; pas calibré.
+- Le mode hors ligne de Rubber Band ou un plus petit pas (`WindowShort`) pour
+  descendre la gigue sous ±2 ms à 0,5 : demande de recompiler.
+- Le rendu n'est pas gardé : un jeu appliqué ne survit pas à un rechargement ou à
+  un changement de pistes (voulu).
+- Safari : le worker de module, WebAssembly et la mémoire partagée viennent d'être
+  essayés dans Chromium seulement.
 
 ##### Export audio — `src/export/audio/`
 
@@ -1102,7 +1289,9 @@ vrai moteur (pas d'AudioWorklet, pas d'isolation COOP/COEP donc pas de
 - **Un seul AudioWorklet pour toutes les pistes** (`worklet/processor.ts`),
   moteur d'étirement **Signalsmith Stretch** seul (version sans SIMD, mesurée
   comme la bonne) : c'est la préécoute en direct. Rubber Band (rendu
-  « Appliquer » et export) viendra au lot 3, hors de ce moteur.
+  « Appliquer » et export) est **hors de ce moteur**, dans des workers ; ce moteur
+  sait en revanche **jouer le rendu tel quel** (lot 3 : voir « Rendu hors ligne et
+  « Appliquer » » plus haut, `setRenderedTracks`).
 - **Contexte forcé à 48 kHz** (`ENGINE_SAMPLE_RATE`) quel que soit le réglage de
   la machine ; créé (suspendu) par `loadTracks()`, **repris à l'intérieur de
   `play()`**, appelé de façon synchrone avant tout `await` : `play()` doit donc

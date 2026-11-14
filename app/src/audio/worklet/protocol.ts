@@ -23,9 +23,25 @@ export interface TrackMessage {
   solo: boolean;
 }
 
+/** One rendered track of the « Appliquer » set: the same blocks as a track, at the played speed. */
+export interface RenderedTrackMessage {
+  id: string;
+  frames: number;
+  mono: boolean;
+  chunks: readonly Chunk[];
+}
+
 export type ToWorklet =
   | { type: 'init'; wasm: ArrayBuffer }
   | TrackMessage
+  /**
+   * The rendered set (« Appliquer »): `semitones` already includes the cents, `ratio` is the tempo ratio the
+   * audio was rendered at (rendered frame k is source frame k * ratio). Replaces any earlier set; the audio is
+   * played, as it is, only while the live settings equal these and every track has an entry.
+   */
+  | { type: 'rendered'; semitones: number; ratio: number; tracks: readonly RenderedTrackMessage[] }
+  /** Drops the rendered set. */
+  | { type: 'rendered-clear' }
   | { type: 'remove'; id: string }
   | { type: 'clear' }
   | { type: 'mix'; id: string; volume: number; mute: boolean; solo: boolean }
@@ -53,6 +69,8 @@ export interface Diagnostics {
   /** Stretcher delay model: output latency = a + b / rate, in frames. */
   latencyA: number;
   latencyB: number;
+  /** Weight of the rendered (« Appliquer ») audio in the output: 0 = the preview, 1 = the rendered audio as it is. */
+  applied: number;
 }
 
 export type FromWorklet =

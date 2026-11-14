@@ -1,8 +1,8 @@
 // Contract of the offline renderer: the best-quality change of key and tempo,
 // computed ahead of time (not live). Used by « Appliquer » (`./controller.ts`)
 // and by the audio export (`export/audio/`). The real one is Rubber Band R3
-// « finer » (GPL, the prototype `web/spikes/lecteur/engines/`), the render
-// agent's work; until then `MockRenderer` (./mock.ts) stands in.
+// « finer » (GPL, the prototype's binary) in a Web Worker (`./rubberband.ts`);
+// `MockRenderer` (./mock.ts) stands in for the tests, the demo and Node.
 //
 // Units: audio in and out is the app's in-memory form (`audio/pcm.ts`,
 // 16-bit, 48 kHz). Read the input with `readPcm` (a range at a time); build the
@@ -46,6 +46,12 @@ export interface OfflineRenderer {
   readonly kind: string;
   /** True when « Conserver le timbre » is honoured (the advanced setting is offered only then). */
   readonly supportsFormants: boolean;
+  /**
+   * How many `render()` calls may usefully run at the same time (one worker
+   * each, bounded by the cores and by memory). Absent or 1: one at a time.
+   * « Appliquer » renders its tracks that many at once.
+   */
+  readonly parallel?: number;
   /**
    * Renders one track. The output, at the input's rate and with its channel
    * layout:

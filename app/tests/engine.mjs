@@ -89,6 +89,28 @@ function installHelpers() {
     }
     return a;
   };
+  /** A chirp in SOURCE time (frequency f0 + beta t at source second t), and the same as an ideal tempo change makes it. */
+  T.chirp = (f0, beta, sec, amp = 0.5) => {
+    const a = new Float32Array(Math.round(sec * SR));
+    for (let i = 0; i < a.length; i++) {
+      const t = i / SR;
+      a[i] = amp * Math.sin(2 * Math.PI * (f0 * t + (beta * t * t) / 2));
+    }
+    return a;
+  };
+  T.chirpRendered = (f0, beta, sec, ratio, amp = 0.5) => {
+    const a = new Float32Array(Math.round((sec / ratio) * SR));
+    for (let i = 0; i < a.length; i++) {
+      const tau = i / SR;
+      a[i] = amp * Math.sin(2 * Math.PI * (f0 * tau + (beta * ratio * tau * tau) / 2));
+    }
+    return a;
+  };
+  /** The app's in-memory audio (16-bit chunks in shared memory) of Float32 channels: what a render hands the engine. */
+  T.pcm = (channels) => window.__fabtice.lot3.pcm.pcmFromChannels(channels, SR);
+  /** « Appliquer » set for the loaded tracks: `ratio`, semitones/cents, and one Float32 array (or [l, r]) per track id. */
+  T.applySet = (ratio, byId, semitones = 0, cents = 0) =>
+    T.eng().setRenderedTracks({ semitones, cents, tempoRatio: ratio, tracks: Object.entries(byId).map(([id, ch]) => ({ id, pcm: T.pcm(Array.isArray(ch) ? ch : [ch]) })) });
   /** Loads tracks given as { id, data (Float32Array, mono) | channels, mix? } and resets every setting. */
   T.load = async (specs) => {
     const e = T.eng();
@@ -751,6 +773,327 @@ try {
       return { held, suspended, whileSuspended, resumed };
     });
     check('context sleeps after a pause, seek works asleep, play() resumes', r.suspended === 'suspended' && r.whileSuspended === 7 && r.resumed[0] === 'running' && r.resumed[1] === 'playing' && r.resumed[2] > 7.2 && r.resumed[2] < 8, `${r.suspended}; position ${r.whileSuspended} then ${r.resumed[2].toFixed(2)}`);
+  }
+
+  // ============================================================ « Appliquer »: the rendered audio played as it is
+  // The offline renderer is replaced here by the ideal one for each signal (a chirp whose frequency says the source
+  // second, a sine, pulses at known times), so what is measured is the engine.
+
+  // ---- 14. the rendered set is accepted, used only for its own key and tempo, played as it is, positions in source time
+  if (want('14')) {
+    const r = await page.evaluate(async () => {
+      const e = T.eng();
+      const F0 = 400, BETA = 100, SEC = 60, RATIO = 0.7;
+      await T.load([{ id: 'a', data: T.chirp(F0, BETA, SEC) }]);
+      const rendered = T.chirpRendered(F0, BETA, SEC, RATIO);
+      const out = {};
+      e.setTempoRatio(RATIO);
+      out.beforeSet = e.isRenderedInUse();
+      await T.applySet(RATIO, { a: rendered });
+      out.inUse = e.isRenderedInUse();
+      e.setTempoRatio(0.9);
+      out.otherTempo = e.isRenderedInUse();
+      e.setTempoRatio(RATIO);
+      e.setTransposition(1, 0);
+      out.otherKey = e.isRenderedInUse();
+      e.setTransposition(0, 0);
+      out.back = e.isRenderedInUse();
+      out.rejects = [];
+      for (const bad of [{ semitones: 0, cents: 0, tempoRatio: RATIO, tracks: [{ id: 'zz', pcm: T.pcm([rendered.slice(0, 48000)]) }] }, { semitones: 0, cents: 0, tempoRatio: 5, tracks: [{ id: 'a', pcm: T.pcm([rendered.slice(0, 48000)]) }] }]) {
+        try {
+          await e.setRenderedTracks(bad);
+          out.rejects.push(false);
+        } catch {
+          out.rejects.push(true);
+        }
+      }
+      out.afterReject = [e.getState(), e.isRenderedInUse()];
+      out.memory = [e.renderedBytes(), e.memoryBytes()];
+      e.seek(10);
+      const rec = await T.recorder();
+      rec.start();
+      await e.play();
+      const series = await T.samplePosition(() => T.audioWait(4));
+      e.pause();
+      const { data, first } = await rec.stop();
+      out.weight = e.diagnostics().applied;
+      // 1. the sound is the rendered audio, sample for sample (to the 16-bit rounding): find where it comes from by its frequency
+      const i0 = Math.round(2.5 * 48000);
+      const sec = (T.zeroCrossFreq(data, i0, i0 + 4096) - F0) / BETA;
+      const j = Math.round((sec / RATIO) * 48000);
+      let best = 1e9, bestLag = 0;
+      for (let lag = -4000; lag <= 4000; lag++) {
+        let m = 0;
+        for (let i = 0; i < 4096; i += 7) m = Math.max(m, Math.abs(data[i0 + i] - rendered[j + lag + i]));
+        if (m < best) { best = m; bestLag = lag; }
+      }
+      let exact = 0;
+      for (let i = 0; i < 4096; i++) exact = Math.max(exact, Math.abs(data[i0 + i] - rendered[j + bestLag + i]));
+      out.exact = exact;
+      // 2. the position the engine reports is the source second that is heard
+      let worst = 0, n = 0;
+      for (let t = 0.6; t < 3.6; t += 0.25) {
+        const k = Math.round(t * 48000);
+        const heardSec = (T.zeroCrossFreq(data, k, k + 2048) - F0) / BETA;
+        const F = first + k + 1024;
+        const idx = series.findIndex((s) => s[0] >= F);
+        if (idx <= 0) continue;
+        const [c0, p0] = series[idx - 1], [c1, p1] = series[idx];
+        if (c1 - c0 > 4800 || c1 === c0) continue;
+        const P = (p0 + ((p1 - p0) * (F - c0)) / (c1 - c0)) / 48000;
+        worst = Math.max(worst, Math.abs(P - heardSec) * 1000);
+        n++;
+      }
+      out.positionError = [worst, n];
+      return out;
+    });
+    check('the set is in use only for its own key and tempo', !r.beforeSet && r.inUse && !r.otherTempo && !r.otherKey && r.back, JSON.stringify([r.beforeSet, r.inUse, r.otherTempo, r.otherKey, r.back]));
+    check('a set for an unknown track or a wild tempo is rejected, the engine unchanged', r.rejects.every(Boolean) && r.afterReject[0] === 'ready' && r.afterReject[1] === true, JSON.stringify([r.rejects, r.afterReject]));
+    check('the rendered audio is played as it is (sample for sample, no stretcher)', r.exact < 2e-3 && r.weight === 1, `largest difference to the rendered samples ${r.exact.toExponential(1)}, rendered weight ${r.weight}`);
+    check('positions stay in source time: the reported position is the source second heard (tempo 0.7)', r.positionError[1] >= 8 && r.positionError[0] < 25, `${r.positionError[1]} instants compared, worst ${r.positionError[0].toFixed(1)} ms`);
+    console.log(`      the rendered set weighs ${(r.memory[0] / 1048576).toFixed(1)} MB next to ${(r.memory[1] / 1048576).toFixed(1)} MB of source (60 s mono at tempo 0.7: 1/0.7 = 1.43 times)`);
+  }
+
+  // ---- 15. preview <-> applied while playing: no jump of the heard position, the sound is where it says, no click
+  if (want('15')) {
+    const r = await page.evaluate(async () => {
+      const e = T.eng();
+      const F0 = 400, BETA = 100, SEC = 60, RATIO = 0.7;
+      const out = {};
+      // (a) the chirp: where is the sound, where does the engine say it is
+      await T.load([{ id: 'a', data: T.chirp(F0, BETA, SEC) }]);
+      await T.applySet(RATIO, { a: T.chirpRendered(F0, BETA, SEC, RATIO) });
+      e.setTempoRatio(0.9);
+      e.seek(8);
+      let rec = await T.recorder();
+      rec.start();
+      await e.play();
+      const marks = [];
+      const series = await T.samplePosition(async () => {
+        await T.audioWait(2.5);
+        e.setTempoRatio(RATIO);
+        marks.push(['to applied', T.clock(), e.isRenderedInUse()]);
+        await T.audioWait(0.4);
+        marks.push(['weight', T.clock(), e.diagnostics().applied]);
+        await T.audioWait(2.1);
+        marks.push(['weight', T.clock(), e.diagnostics().applied]);
+        e.setTempoRatio(0.9);
+        marks.push(['to preview', T.clock(), e.isRenderedInUse()]);
+        await T.audioWait(2.5);
+        marks.push(['weight', T.clock(), e.diagnostics().applied]);
+        marks.push(['key', T.clock(), null]);
+        e.setTransposition(2, 0); // a key change: the preview carries on (the chirp moves up 2 st: not compared)
+        await T.audioWait(0.3);
+        e.setTransposition(0, 0);
+        await T.audioWait(1);
+      });
+      e.pause();
+      let { data, first } = await rec.stop();
+      out.marks = marks;
+      // the sound's source second against the position, every 0.2 s
+      const rows = [];
+      let worst = 0, n = 0, worstAt = 0;
+      const t0 = first / 48000;
+      for (let t = 0.8; t < data.length / 48000 - 1; t += 0.2) {
+        const k = Math.round(t * 48000);
+        const f = T.zeroCrossFreq(data, k, k + 2048);
+        const heardSec = (f - F0) / BETA;
+        const F = first + k + 1024;
+        const idx = series.findIndex((s) => s[0] >= F);
+        if (idx <= 0) continue;
+        const [c0, p0] = series[idx - 1], [c1, p1] = series[idx];
+        if (c1 - c0 > 4800 || c1 === c0) continue;
+        const P = (p0 + ((p1 - p0) * (F - c0)) / (c1 - c0)) / 48000;
+        const at = (name) => marks.find((m) => m[0] === name)[1] - first / 48000; // clock time -> recorder time
+        const keyAt = at('key');
+        const toApplied = at('to applied');
+        const toPreview = at('to preview');
+        // not compared: the key change at the end (the chirp moves up two semitones) and the two crossfades, where
+        // two different renderings of the chirp are mixed for 15 ms and a frequency read over 43 ms means nothing
+        const mixing = (t > toApplied - 0.06 && t < toApplied + 0.06) || (t > toPreview + 0.12 && t < toPreview + 0.3);
+        if (f > 300 && f < 4000 && !mixing && !(t > keyAt - 0.2 && t < keyAt + 1.2)) {
+          const err = Math.abs(P - heardSec) * 1000;
+          rows.push([+t.toFixed(2), +((P - heardSec) * 1000).toFixed(1)]);
+          if (err > worst) { worst = err; worstAt = t; }
+          n++;
+        }
+      }
+      out.positionError = [worst, n, worstAt];
+      out.rows = rows;
+      // the position series never jumps: between two samples taken less than 20 ms apart it moves by what the clock
+      // says at the tempo of the preview (0.9) or of the rendered audio (0.7), whichever is nearer
+      let jump = 0;
+      for (let i = 1; i < series.length; i++) {
+        const dc = (series[i][0] - series[i - 1][0]) / 48000, dp = (series[i][1] - series[i - 1][1]) / 48000;
+        if (dc > 0 && dc < 0.02) jump = Math.max(jump, Math.min(Math.abs(dp - dc * 0.9), Math.abs(dp - dc * 0.7)));
+      }
+      out.maxStep = jump;
+      // (b) a sine in both: the largest sample step stays within 1.5 times a steady sine's, across both switches
+      await T.load([{ id: 'a', data: T.sine(2000, 40, 0.5) }]);
+      await T.applySet(RATIO, { a: T.sine(2000, 40 / RATIO, 0.5) });
+      e.setTempoRatio(0.9);
+      rec = await T.recorder();
+      rec.start();
+      await e.play();
+      await T.audioWait(1.2);
+      e.setTempoRatio(RATIO);
+      await T.audioWait(1.2);
+      e.setTempoRatio(0.9);
+      await T.audioWait(1.2);
+      e.pause();
+      ({ data } = await rec.stop());
+      const steady = 0.5 * 2 * Math.PI * (2000 / 48000);
+      let mx = 0;
+      for (let i = Math.round(0.5 * 48000); i < data.length - 4800; i++) mx = Math.max(mx, Math.abs(data[i] - data[i - 1]));
+      out.stepRatio = mx / steady;
+      out.errors = [];
+      return out;
+    });
+    check('the change of tempo to the set\'s is heard at once as the rendered audio, back to the preview the same', r.marks[0][2] === true && r.marks[1][2] > 0.3 && r.marks[2][2] === 1 && r.marks[3][2] === false && r.marks[4][2] === 0, JSON.stringify(r.marks.map((m) => [m[0], m[2]])));
+    if (process.env.ENGINE_TRACE) console.log('position - sound (ms) by recorder second:', JSON.stringify(r.rows), JSON.stringify(r.marks));
+    check('across both switches the sound is where the position says (chirp frequency vs reported position)', r.positionError[1] >= 14 && r.positionError[0] < 40, `${r.positionError[1]} instants, worst ${r.positionError[0].toFixed(1)} ms at ${r.positionError[2].toFixed(1)} s`);
+    check('the reported position never jumps (a jump of the engine\'s latency would be 152 ms)', r.maxStep < 0.04, `largest step beyond what the clock says ${(r.maxStep * 1000).toFixed(1)} ms`);
+    check('no click at the switches: largest sample step within 1.5 times a steady sine\'s, to the rendered audio and back', r.stepRatio < 1.5, `${r.stepRatio.toFixed(2)}`);
+  }
+
+  // ---- 16. the loop in applied mode returns to the right place, turn after turn
+  if (want('16')) {
+    const r = await page.evaluate(async () => {
+      const e = T.eng();
+      const RATIO = 0.7, t0 = 2.0, t1 = 3.5;
+      const marks = [t0 + 0.2, t0 + 0.55, t0 + 1.1, t0 + 1.3];
+      await T.load([{ id: 'a', data: new Float32Array(48000 * 40) }]);
+      await T.applySet(RATIO, { a: T.pulses(40 / RATIO, marks.map((m) => m / RATIO), 0.8, 2000) });
+      e.setTempoRatio(RATIO);
+      e.setLoop({ start: t0, end: t1 });
+      e.seek(t0 - 0.3);
+      const rec = await T.recorder();
+      rec.start();
+      await e.play();
+      const turns = 14;
+      const turn = (t1 - t0) / RATIO;
+      const positions = [];
+      const c0 = T.clock();
+      while (T.clock() - c0 < turn * turns) {
+        positions.push(e.getPosition());
+        await T.sleep(15);
+      }
+      e.pause();
+      const { data } = await rec.stop();
+      return { bursts: T.findBursts(data, 0.3), turn, per: marks.length, positions, inUse: e.isRenderedInUse() };
+    });
+    const found = r.bursts.filter((x) => x > 48000 * 0.8);
+    let worst = 0;
+    for (let i = 0; i + r.per < found.length; i++) worst = Math.max(worst, Math.abs((found[i + r.per] - found[i]) / 48000 - r.turn));
+    const n = Math.floor((found.length - 1) / r.per);
+    const mean = (found[n * r.per] - found[0]) / 48000 / n;
+    check('loop, applied, 0.7: every mark comes back exactly one turn later', found.length >= r.per * 12 && worst < 0.002 && Math.abs(mean - r.turn) < 0.0002, `${found.length} marks, worst ${(worst * 1000).toFixed(2)} ms from one turn (${r.turn.toFixed(4)} s), mean turn error ${((mean - r.turn) * 1e6).toFixed(0)} µs over ${n} turns`);
+    const inLoop = r.positions.slice(r.positions.findIndex((p) => p >= 2.0));
+    check('loop, applied: the reported position stays in the loop', inLoop.length > 100 && inLoop.every((p) => p >= 1.99 && p <= 3.52), `${Math.min(...inLoop).toFixed(3)} .. ${Math.max(...inLoop).toFixed(3)} over ${inLoop.length} samples`);
+  }
+
+  // ---- 17. the metronome in applied mode lands on the beats (tempo 0.7)
+  if (want('17')) {
+    const r = await page.evaluate(async () => {
+      const e = T.eng();
+      const RATIO = 0.7;
+      const beats = [];
+      for (let b = 1; b < 20; b += 0.5) beats.push(b);
+      const run = async (clicks) => {
+        await T.load([{ id: 'a', data: new Float32Array(48000 * 30) }]);
+        await T.applySet(RATIO, { a: clicks ? new Float32Array(Math.round((30 / RATIO) * 48000)) : T.pulses(30 / RATIO, beats.map((b) => b / RATIO), 0.8, 2000) });
+        e.setTempoRatio(RATIO);
+        if (clicks) {
+          e.setClickTrack({ times: Float64Array.from(beats), accents: Uint8Array.from(beats.map((_, i) => (i % 4 === 0 ? 1 : 0))) });
+          e.setMetronome(true);
+        }
+        e.seek(0);
+        const rec = await T.recorder();
+        rec.start();
+        await e.play();
+        await T.audioWait(12);
+        e.pause();
+        const { data } = await rec.stop();
+        e.setMetronome(false);
+        const o = [];
+        let last = -1e9;
+        for (let i = 0; i < data.length; i++) {
+          if (Math.abs(data[i]) > 0.04) {
+            if (i - last > 2000) o.push(i);
+            last = i;
+          }
+        }
+        return o;
+      };
+      const pulses = await run(false);
+      const clicks = await run(true);
+      return { pulses, clicks };
+    });
+    const m = Math.min(r.pulses.length, r.clicks.length);
+    // the two recordings start at different audio frames: compare the spacing patterns, and each click with its beat
+    let worst = 0;
+    for (let i = 0; i < m; i++) worst = Math.max(worst, Math.abs(r.pulses[i] - r.pulses[0] - (r.clicks[i] - r.clicks[0])));
+    check('metronome, applied, 0.7: each click falls on the beat of the rendered audio (same spacing to the sample)', m >= 14 && (worst / 48) < 1.5, `${m} beats compared, worst ${(worst / 48).toFixed(2)} ms`);
+  }
+
+  // ---- 18. seven stereo tracks applied: no dropout, and the processor load against the preview
+  if (want('18')) {
+    const r = await page.evaluate(async () => {
+      const e = T.eng();
+      const RATIO = 0.7;
+      const specs = [];
+      const set = {};
+      for (let k = 0; k < 7; k++) {
+        const times = [];
+        for (let t = 0.3 + 0.05 * k; t < 118; t += 0.4) times.push(t);
+        const make = (len, ratio) => {
+          const a = T.sine(110 * (k + 1), len, 1);
+          const p = T.pulses(len, times.map((x) => x / ratio), 0.2, 800 + 300 * k);
+          for (let i = 0; i < a.length; i++) a[i] = 0.15 * a[i] + p[i];
+          return [a, a.map((v, i) => (i % 97 === 0 ? v * 0.5 : v))];
+        };
+        specs.push({ id: 't' + k, channels: make(120, 1) });
+        set['t' + k] = make(120 / RATIO, RATIO);
+      }
+      await T.load(specs);
+      await T.applySet(RATIO, set);
+      e.setTempoRatio(RATIO);
+      e.setMetronome(true);
+      const measure = async (label) => {
+        const us0 = T.ctx().playbackStats ? T.ctx().playbackStats.underrunEvents : -1;
+        e.seek(5);
+        const rec = await T.recorder();
+        rec.start();
+        await e.play();
+        await T.audioWait(1.5);
+        const loads = [];
+        const c0 = T.clock();
+        while (T.clock() - c0 < 12) {
+          await T.sleep(250);
+          loads.push(e.diagnostics().loadAvg);
+        }
+        const d = e.diagnostics();
+        const us1 = T.ctx().playbackStats ? T.ctx().playbackStats.underrunEvents : -1;
+        e.pause();
+        const { data } = await rec.stop();
+        let run = 0, maxRun = 0;
+        for (let i = 48000 * 2; i < data.length; i++) {
+          if (data[i] === 0) run++;
+          else run = 0;
+          if (run > maxRun) maxRun = run;
+        }
+        return { label, avg: loads.reduce((a, b) => a + b, 0) / loads.length, d, us0, us1, maxRun, inUse: e.isRenderedInUse() };
+      };
+      const applied = await measure('applied');
+      e.setTransposition(2, 0); // a different key from the set's: the preview works
+      const preview = await measure('preview');
+      e.setTransposition(0, 0);
+      return { applied, preview, mem: [e.renderedBytes(), e.memoryBytes()] };
+    });
+    const a = r.applied, p = r.preview;
+    check('seven stereo tracks applied play without an underrun or a gap', a.inUse && a.d.overBudget === 0 && a.d.missingChunks === 0 && a.maxRun < 64 && (a.us0 < 0 || a.us1 === a.us0) && a.d.applied === 1, `over-budget quanta ${a.d.overBudget}, underrun events ${a.us0} -> ${a.us1}, longest run of exact zeros ${a.maxRun} samples, rendered weight ${a.d.applied}`);
+    check('applied costs clearly less processor than the preview', a.avg < p.avg / 4 && p.d.applied === 0 && !p.inUse, `applied ${(a.avg * 100).toFixed(2)} % of the audio-thread budget, preview ${(p.avg * 100).toFixed(2)} % (7 stereo tracks, metronome on; coarse 1 ms timer, averaged over 12 s)`);
+    console.log(`      rendered set for these 7 tracks of 120 s at 0.7: ${(r.mem[0] / 1048576).toFixed(0)} MB, next to ${(r.mem[1] / 1048576).toFixed(0)} MB of source`);
   }
 
   const errs = errorsOf.get(page);

@@ -108,6 +108,51 @@ try {
         `resident (all Chromium processes) ${mb(rssBefore)} -> ${mb(rssAfter)} (+${mb(rssAfter - rssBefore)}); for reference the samples as Float32 = ${mb(pcmFloat)}, as 16-bit = ${mb(pcmFloat / 2)}`,
     );
     check(`${count} track(s): the registry holds the samples once, in shared memory, and the engine uses those`, after.shared === true && after.registryBytes === after.engineBytes, `${after.registryBytes} / ${after.engineBytes}`);
+    if (count === 7) {
+      // « Appliquer »: an applied set is one more copy of the tracks at the played speed (1.43 times the sources at 0.7).
+      // Built track by track here (the renderer's own speed is measured in test:render), handed to the real engine
+      // like the controller does, and let go again.
+      const budget = await page.evaluate(() => window.__fabtice.lot3.renderer.renderBudgetBytes());
+      const ratio = 0.7;
+      await page.evaluate(() => window.__fabtice.actions.setTempoRatio(0.7));
+      const rssSources = rss();
+      const set = await page.evaluate(
+        async ({ ratio }) => {
+          const { pcm, renderer } = window.__fabtice.lot3;
+          const e = window.__fabtice.engine;
+          const state = window.__fabtice.store.getState();
+          const sr = 48000;
+          const n = Math.round((300 * sr) / ratio);
+          const tracks = [];
+          for (const [k, tr] of state.tracks.entries()) {
+            const l = new Float32Array(n);
+            const r = new Float32Array(n);
+            for (let i = 0; i < n; i++) {
+              const v = 0.3 * Math.sin((2 * Math.PI * (110 + 40 * k) * i) / sr);
+              l[i] = v;
+              r[i] = -v * 0.9;
+            }
+            tracks.push({ id: tr.id, pcm: pcm.pcmFromChannels([l, r], sr) }); // one track's Float32 at a time
+          }
+          const fits = renderer.appliedFits(tracks.map((t) => t.pcm), ratio);
+          await e.setRenderedTracks({ semitones: 0, cents: 0, tempoRatio: ratio, tracks });
+          return { fits, inUse: e.isRenderedInUse(), rendered: e.renderedBytes(), sources: e.memoryBytes(), shared: tracks.every((t) => t.pcm.chunks[0].l.buffer instanceof SharedArrayBuffer) };
+        },
+        { ratio },
+      );
+      const afterSet = await measure(page);
+      const rssSet = rss();
+      note(
+        `applied set for the 7 tracks of 5 min at 0.7: ${mb(set.rendered)} next to ${mb(set.sources)} of sources (${(set.rendered / set.sources).toFixed(2)} times); ` +
+          `page memory ${mb(after.total)} -> ${mb(afterSet.total)} (+${mb(afterSet.total - after.total)}); resident +${mb(rssSet - rssSources)}; the budget here is ${mb(budget)} (${set.fits ? 'fits' : 'refused'})`,
+      );
+      check('the applied set is one copy in shared memory (the engine reads the page\'s own chunks), 1/0.7 times the sources', set.inUse && set.shared && Math.abs(set.rendered / set.sources - 1 / ratio) < 0.01, `${mb(set.rendered)} / ${mb(set.sources)}`);
+      check('the budget lets seven 5-minute stereo tracks at 0.7 through on this computer', set.fits && set.rendered <= budget, `${mb(set.rendered)} against ${mb(budget)}`);
+      await page.evaluate(async () => window.__fabtice.engine.setRenderedTracks(null));
+      const freed = await measure(page);
+      note(`the set let go: page memory ${mb(afterSet.total)} -> ${mb(freed.total)}`);
+      check('letting the set go frees it (the engine holds none)', (await page.evaluate(() => window.__fabtice.engine.renderedBytes())) === 0);
+    }
     check(`${count} track(s): no page errors`, errors.length === 0, errors.join(' | '));
     await page.close();
   }

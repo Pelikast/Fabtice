@@ -13,6 +13,9 @@ const FONT_LICENCES = ['LICENSE-Fraunces.txt', 'LICENSE-InstrumentSans.txt', 'LI
 // Licence texts of the audio engine (Signalsmith Stretch and Linear, MIT) that travel with the wasm binary.
 const WASM_DIR = path.resolve(here, 'src/audio/wasm');
 const WASM_LICENCES = ['LICENSE-signalsmith-stretch.txt', 'LICENSE-signalsmith-linear.txt'];
+// Licence text of the offline renderer's binaries (Rubber Band, GPL), which travels with them.
+const RENDER_DIR = path.resolve(here, 'src/render/rubberband');
+const RENDER_LICENCES = ['LICENSE-rubberband-GPL.txt'];
 // ONNX Runtime Web (MIT), run by the analysis worker, and its licence text.
 const ANALYSIS_DIR = path.resolve(here, 'src/analysis');
 const ORT_LICENCE = 'LICENSE-onnxruntime-web.txt';
@@ -60,6 +63,9 @@ function fabticeOutput(mode: string): Plugin {
       }
       for (const name of WASM_LICENCES) {
         this.emitFile({ type: 'asset', fileName: `assets/${name}`, source: readFileSync(path.join(WASM_DIR, name)) });
+      }
+      for (const name of RENDER_LICENCES) {
+        this.emitFile({ type: 'asset', fileName: `assets/${name}`, source: readFileSync(path.join(RENDER_DIR, name)) });
       }
       for (const name of ENCODER_LICENCES) {
         this.emitFile({ type: 'asset', fileName: `assets/${name}`, source: readFileSync(path.join(ENCODERS_DIR, name)) });
