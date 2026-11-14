@@ -458,6 +458,13 @@ try {
     check('the touch targets are 40 px or more', (await box(page, `${ed} .editeur-notes button`)).height >= 40 && (await box(page, `${ed} .editeur-natures button`)).height >= 40);
     check('only ink and brass in the editor: no ember', !(await page.$$eval(`${ed} *`, (els) => els.some((e) => { const c = getComputedStyle(e); return [c.color, c.backgroundColor, c.borderTopColor].some((v) => v === 'rgb(196, 80, 42)'); }))));
 
+    await sleep(400); // the sheet has finished scrolling the bar and the window into view
+    await page.screenshot({ path: path.join(out, 'app-grille-editeur-1280.png') });
+    await page.click(`${ed} .editeur-plus`);
+    await sleep(500);
+    await page.screenshot({ path: path.join(out, 'app-grille-editeur-plus-1280.png') });
+    await page.click(`${ed} .editeur-plus`);
+    await sleep(200);
     await root(page, 'G').click();
     await sleep(80);
     let h = await handChord(page, 1);
@@ -507,7 +514,6 @@ try {
     const s0 = await edited(page);
     check('back to the analysis for this bar: Fm7 again, nothing left in the corrections', (await text(page, '.case[data-mesure="1"] .ch')) === 'Fm7' && s0.chords.length === 0 && s0.handSpans.length === 0);
     check('… and the button is not offered for a bar the analysis wrote', (await page.locator(`${ed} .editeur-actions button:has-text("Revenir à l’analyse")`).count()) === 0);
-    await page.screenshot({ path: path.join(out, 'app-grille-editeur-1280.png') });
 
     // The focus goes back to the chord when it closes.
     await page.keyboard.press('Escape');
@@ -788,8 +794,8 @@ try {
     const cNow = await box(page, '.case[data-mesure="2"]');
     check('phone: the bar being edited stays in view above the sheet', cNow.y + cNow.height <= sheet.y + 1 && cNow.y >= 0, `bar bottom ${cNow.y + cNow.height}, sheet top ${sheet.y}`);
     check('phone: no on-screen keyboard pulled up by a tap (the typing field is not focused)', (await page.evaluate(() => document.activeElement?.tagName)) !== 'INPUT');
-    const small = await page.$$eval('[data-testid="editeur"] button', (els) => els.filter((b) => b.getBoundingClientRect().height < 30 && b.getBoundingClientRect().width > 0 && getComputedStyle(b).visibility !== 'hidden').map((b) => b.textContent));
-    check('phone: every control of the sheet is easy to hit', small.length === 0, small.join(','));
+    const small = await page.$$eval('[data-testid="editeur"] button', (els) => els.filter((b) => b.getBoundingClientRect().height < 39.5 && b.getBoundingClientRect().width > 0 && getComputedStyle(b).visibility !== 'hidden').map((b) => b.textContent));
+    check('phone: every control of the sheet is a target of 40 px', small.length === 0, small.join(','));
     await page.screenshot({ path: path.join(out, 'app-grille-editeur-390.png') });
     // A note, by thumb.
     const g = await box(page, '[data-testid="editeur"] .editeur-notes button:nth-child(8)');
