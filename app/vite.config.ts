@@ -23,6 +23,9 @@ const ORT_WASM_ENTRY = path.resolve(here, 'node_modules/onnxruntime-web/dist/ort
 // The same, with WebGPU, for the separation on the graphics chip (its own WebAssembly binary, also served
 // by the app); loaded by the separation worker only when a separation runs there.
 const ORT_WEBGPU_ENTRY = path.resolve(here, 'node_modules/onnxruntime-web/dist/ort.webgpu.min.mjs');
+// Encoders of « Exporter le son »: LAME (LGPL-2.1+), libFLAC (BSD-3-Clause) and the wasm wrappers (MIT).
+const ENCODERS_DIR = path.resolve(here, 'src/export/audio/encoders');
+const ENCODER_LICENCES = ['LICENSE-lame.txt', 'LICENSE-wasm-media-encoders.txt', 'LICENSE-libflac.txt', 'LICENSE-audio-encode-flac.txt'];
 // Fonts worth preloading: needed by the first paint of the shell.
 const PRELOADED_FONTS = /^(fraunces-latin-full-normal|instrument-sans-latin-wght-normal|noto-music-music-400-normal)-.*\.woff2$/;
 
@@ -57,6 +60,9 @@ function fabticeOutput(mode: string): Plugin {
       }
       for (const name of WASM_LICENCES) {
         this.emitFile({ type: 'asset', fileName: `assets/${name}`, source: readFileSync(path.join(WASM_DIR, name)) });
+      }
+      for (const name of ENCODER_LICENCES) {
+        this.emitFile({ type: 'asset', fileName: `assets/${name}`, source: readFileSync(path.join(ENCODERS_DIR, name)) });
       }
       this.emitFile({ type: 'asset', fileName: `assets/${ORT_LICENCE}`, source: readFileSync(path.join(ANALYSIS_DIR, ORT_LICENCE)) });
     },

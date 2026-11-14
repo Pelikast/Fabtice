@@ -21,7 +21,8 @@ import { MockAnalyzer, replaceAnalyzer } from '../analysis';
 import { getEngine } from '../audio';
 import { pcmFromChannels, readPcm } from '../audio/pcm';
 import { audioSeconds, getAudio, registryBytes, type DecodedAudio } from '../audio/registry';
-import { exportWithApp, planAudioExport } from '../export/audio';
+import { exportWithApp, getEncoder, planAudioExport } from '../export/audio';
+import { getRenderer, replaceRenderer } from '../render';
 import * as renderController from '../render/controller';
 import { setDevice } from '../separation/device';
 import { getSeparator } from '../separation';
@@ -60,7 +61,9 @@ export const lot2Actions = { analysis: analysisActions, grid: gridActions, harmo
 export const lot3Handle = {
   separation: { ...separationRunner, ...separationActions, models: getModelList, separator: getSeparator, setDevice, report: separationReportFor },
   render: renderController,
-  exportAudio: { ...exportActions, planAudioExport, exportWithApp },
+  exportAudio: { ...exportActions, planAudioExport, exportWithApp, getEncoder },
+  /** The offline renderer the export uses (a test wraps it to see what it is asked). */
+  renderer: { getRenderer, replaceRenderer },
   registry: { getAudio, registryBytes },
   pcm: { pcmFromChannels, readPcm },
   storage: getProjectStorage,

@@ -24,9 +24,11 @@ export interface AudioEncoder {
   /**
    * Encodes 16-bit PCM (`PcmAudio`, read with `readPcm` a block at a time:
    * never a whole Float32 copy of a long piece) into the file's bytes.
-   * `onProgress` 0…1; rejects with `ExportError('cancelled')` on abort.
+   * `onProgress` 0…1; rejects with `ExportError('cancelled')` on abort, or with
+   * `ExportError('encoder-missing')` when the encoder itself could not be started.
+   * `title`: written in the file's tag when the format has one (mp3, flac).
    */
-  encode(audio: PcmAudio, options: { onProgress?: (fraction: number) => void; signal?: AbortSignal }): Promise<Blob>;
+  encode(audio: PcmAudio, options: { onProgress?: (fraction: number) => void; signal?: AbortSignal; title?: string }): Promise<Blob>;
 }
 
 /** One track of a file, with the gain it is mixed at (1 for a track exported on its own). */
@@ -39,6 +41,8 @@ export interface ExportSource {
 export interface ExportFileSpec {
   /** File name, with its extension. */
   name: string;
+  /** The title written in the file's tag (the name without its extension). */
+  title: string;
   /** The tracks summed into this file. */
   sources: ExportSource[];
 }

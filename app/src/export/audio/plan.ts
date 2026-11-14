@@ -53,7 +53,8 @@ export function planAudioExport(s: AppState, prefs: ExportPreferences, chosen: r
   if (prefs.what === 'mix') {
     const heard = audibleTracks(s.tracks);
     if (heard.length === 0) throw new ExportError('nothing', 'every track is muted');
-    files = [{ name: `${safeFileName(`${base} – ${t('exportAudio.nameMix')}${suffix}`)}.${ext}`, sources: heard.map((tr) => ({ trackId: tr.id, audioId: tr.audio.id, gain: tr.volume })) }];
+    const mixTitle = safeFileName(`${base} – ${t('exportAudio.nameMix')}${suffix}`);
+    files = [{ name: `${mixTitle}.${ext}`, title: mixTitle, sources: heard.map((tr) => ({ trackId: tr.id, audioId: tr.audio.id, gain: tr.volume })) }];
   } else {
     const ids = new Set(chosen ?? s.tracks.map((tr) => tr.id));
     const picked = s.tracks.filter((tr) => ids.has(tr.id));
@@ -63,7 +64,7 @@ export function planAudioExport(s: AppState, prefs: ExportPreferences, chosen: r
       let name = safeFileName(`${base} – ${tr.name}${suffix}`);
       for (let k = 2; names.has(name); k++) name = safeFileName(`${base} – ${tr.name} ${k}${suffix}`);
       names.add(name);
-      return { name: `${name}.${ext}`, sources: [{ trackId: tr.id, audioId: tr.audio.id, gain: 1 }] };
+      return { name: `${name}.${ext}`, title: name, sources: [{ trackId: tr.id, audioId: tr.audio.id, gain: 1 }] };
     });
     if (files.length > 1) archiveName = `${safeFileName(`${base} – ${t('exportAudio.nameTracks')}${suffix}`)}.zip`;
   }

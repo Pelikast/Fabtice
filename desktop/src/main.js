@@ -14,6 +14,7 @@ const { buildMenu } = require('./menu');
 const messages = require('./messages');
 const { formatImportReport } = require('./report');
 const { validateIRealLink } = require('./ireal-link');
+const { installDownloads } = require('./downloads');
 
 // The interface is built by app/ (npm run build:desktop) into desktop/ui/.
 const UI_DIR = path.join(__dirname, '..', 'ui');
@@ -312,6 +313,8 @@ if (!app.requestSingleInstanceLock()) {
     buildMenu({ openDiagnostic });
     session.defaultSession.setPermissionRequestHandler((_wc, _perm, cb) => cb(false));
     session.defaultSession.setPermissionCheckHandler(() => false);
+    // Files the interface exports (audio, iReal Pro chart): a clean name and a French save panel.
+    installDownloads(session.defaultSession, { downloadsDir: () => app.getPath('downloads') });
 
     manager = new YtDlpManager({
       userDataDir: app.getPath('userData'),
