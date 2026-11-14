@@ -289,8 +289,10 @@ partagée est partagée avec le fil audio, pas copiée. La frise lit les blocs
 (`timeline/peaks.ts`), l'analyse reçoit une copie Float32 mono **passagère**
 (`pcmToMono`, le mélange `(g + d) / 2` qu'elle faisait déjà), la séparation, le
 rendu et l'export lisent par plages (`readPcm`) ou font une copie passagère
-(`pcmToChannels`) puis la lâchent. L'import convertit dès le décodage, la
-réouverture aussi (une piste à la fois). 16 bits, c'est la précision que le
+(`pcmToChannels`) puis la lâchent. L'ouverture d'un morceau convertit par
+tranches (`pcmFromChannelsInSlices` : aucune tâche longue, 50 ms au plus pour un
+morceau de quatre minutes contre 270 ms d'un bloc), la réouverture d'un coup,
+une piste à la fois, pendant « Ouverture… ». 16 bits, c'est la précision que le
 moteur a toujours jouée (96 dB), sous le bruit des mp3, m4a et vieux disques.
 Pour écrire progressivement (séparateur, rendu) : `PcmWriter`. Après une
 séparation, le morceau entier reste en mémoire à côté des instruments (une piste

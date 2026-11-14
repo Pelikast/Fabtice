@@ -201,7 +201,14 @@ try {
         await page.waitForSelector('[data-testid="appliquer"]');
         check(`${tag}: « Appliquer » never in the ember`, await noEmber(page, '[data-testid="appliquer"]'));
         const metronome = await page.locator('.metronome').boundingBox();
-        check(`${tag}: the transport keeps the metronome whole next to « Appliquer »`, metronome.width >= 50 && metronome.x + metronome.width <= width, JSON.stringify(metronome));
+        const overlap = await page.evaluate(() => {
+          const c = document.querySelector('.commandes').getBoundingClientRect();
+          const r = document.querySelector('.reglages').getBoundingClientRect();
+          const g = document.querySelector('.gauche').getBoundingClientRect();
+          // On a phone the transport is stacked: the rows cannot overlap sideways.
+          return window.innerWidth < 760 ? false : r.left < c.right - 0.5 || g.right > c.left + 0.5;
+        });
+        check(`${tag}: with « Appliquer » the transport still fits: metronome whole, nothing over the play controls`, metronome.width >= 44 && metronome.x + metronome.width <= width && !overlap, JSON.stringify(metronome));
         await page.screenshot({ path: path.join(out, `appliquer-${tag}.png`) });
         await page.click('[data-testid="appliquer"]');
         await page.waitForSelector('[data-testid="attente-rendu"]');
