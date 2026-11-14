@@ -241,7 +241,7 @@ export const fr = {
   'import.error.link-invalid': 'Ce lien n’est pas reconnu. Collez un lien YouTube.',
   'import.error.link-refused': 'Ce lien ne peut pas être importé.',
   'import.error.needs-ytdlp': 'L’outil d’import est introuvable, même après son installation. Réessayez dans un moment.',
-  'import.error.install-failed': 'L’outil d’import n’a pas pu être téléchargé. Vérifiez votre connexion à Internet, puis relancez l’analyse : le morceau reste jouable.',
+  'import.error.install-failed': 'L’outil d’import n’a pas pu être téléchargé. Vérifiez votre connexion à Internet, puis réessayez.',
   'import.error.update-failed': 'L’outil d’import n’a pas pu être mis à jour. Celui que vous avez reste utilisable.',
   'import.error.link-failed': 'Le téléchargement n’a pas abouti. Vérifiez votre connexion à Internet et le lien, puis réessayez.',
   'import.error.busy': 'Un autre téléchargement est déjà en cours. Attendez qu’il se termine, puis réessayez.',
