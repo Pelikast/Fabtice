@@ -18,7 +18,8 @@
     "test:smoke": "node tests/smoke.mjs",
     "test:engine": "node tests/engine.mjs",
     "test:timeline": "node tests/timeline.mjs",
-    "test:import": "node tests/import.mjs"
+    "test:import": "node tests/import.mjs",
+    "test:chart": "node tests/chart.mjs"
   },
   "dependencies": {
     "react": "^19.3.1",

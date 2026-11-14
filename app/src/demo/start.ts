@@ -38,6 +38,9 @@ export function startDemo(params: URLSearchParams): Promise<void> {
   const ready = (async () => {
     if (mode === 'aucune') {
       const input = demoProject('fixed');
+      const duration = input.tracks[0]!.audio.channels[0]!.length / input.tracks[0]!.audio.sampleRate;
+      // Not analysed by itself; « Analyser le morceau » finds the demo's chords on the grid entered by hand.
+      replaceAnalyzer(new MockAnalyzer({ durationMs: 900, downloadMs: 0, fixture: () => demoAnalysis(input.tempoMap!, duration) }));
       await actions.openProject(input);
       if (input.loop) actions.seek(input.loop.start);
     } else {
