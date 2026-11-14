@@ -1,0 +1,20 @@
+### logs/logs-intel/13b-analysis-x64.log (19 lines, last 200 shown)
+### step 13b-analysis-x64 — 2026-11-14T12:18:11Z — Darwin 24.6.0 x86_64
+TAP version 13
+# analysis in the app: 18.1 s with the download; beats recall 96.3 %, precision 93.9 %, tuning 30.5 cents, 16 chords; hub requests: 6
+# second analysis in the app: no request to the hub
+# Subtest: the real analysis runs in the app under the shipped policy, keeps its tools, and does not download them twice
+ok 1 - the real analysis runs in the app under the shipped policy, keeps its tools, and does not download them twice
+  ---
+  duration_ms: 33126.43562
+  type: 'test'
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 1
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 33715.544196

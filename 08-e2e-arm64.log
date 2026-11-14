@@ -1,0 +1,177 @@
+### logs/logs-build/08-e2e-arm64.log (176 lines, last 200 shown)
+### step 08-e2e-arm64 — 2026-11-14T12:13:44Z — Darwin 24.6.0 arm64
+
+> fabtice-desktop@0.1.0 test:e2e
+> node --test --test-concurrency=1 "test/e2e/*.test.js"
+
+TAP version 13
+# Subtest: the real analysis runs in the app under the shipped policy, keeps its tools, and does not download them twice
+ok 1 - the real analysis runs in the app under the shipped policy, keeps its tools, and does not download them twice # SKIP set FABTICE_E2E_ANALYSIS=1 (downloads the analysis tools, about 18 MB)
+  ---
+  duration_ms: 0.9755
+  type: 'test'
+  ...
+# Subtest: the app starts on the real interface, isolated, with the link field
+ok 2 - the app starts on the real interface, isolated, with the link field
+  ---
+  duration_ms: 6731.614584
+  type: 'test'
+  ...
+# Subtest: the bridge called from the interface page returns audio bytes (stub yt-dlp)
+ok 3 - the bridge called from the interface page returns audio bytes (stub yt-dlp)
+  ---
+  duration_ms: 2325.184208
+  type: 'test'
+  ...
+# Subtest: yt-dlp install, then extraction refused until installed (page-driven)
+ok 4 - yt-dlp install, then extraction refused until installed (page-driven)
+  ---
+  duration_ms: 2064.830291
+  type: 'test'
+  ...
+# Subtest: the diagnostic window opens from the menu and works with the stub
+ok 5 - the diagnostic window opens from the menu and works with the stub
+  ---
+  duration_ms: 2314.589667
+  type: 'test'
+  ...
+# Subtest: the file downloads inside the app and decodes to the chart; « Ouvrir dans iReal Pro » reaches the system once, with that link only
+ok 6 - the file downloads inside the app and decodes to the chart; « Ouvrir dans iReal Pro » reaches the system once, with that link only
+  ---
+  duration_ms: 5241.592083
+  type: 'test'
+  ...
+# engine: _e, clock 0:00,0 -> 0:00,1
+# Subtest: first launch: link → import → waveform → play → loop and key → relaunch
+ok 7 - first launch: link → import → waveform → play → loop and key → relaunch
+  ---
+  duration_ms: 7884.219667
+  type: 'test'
+  ...
+# Subtest: a live stream is refused in French, the app stays usable, a file imports
+ok 8 - a live stream is refused in French, the app stays usable, a file imports
+  ---
+  duration_ms: 3008.17575
+  type: 'test'
+  ...
+# steps seen (4.7 s): ["Recherche du morceau…","Préparation du téléchargement…","Téléchargement du son…0 %","Téléchargement du son…25 %","Téléchargement du son…50 %","Téléchargement du son…75 %","Téléchargement du son…100 %","Préparation du son…"]
+# Subtest: slow start, known size: preparation first (no figure), then real percentages, then decoding
+ok 9 - slow start, known size: preparation first (no figure), then real percentages, then decoding
+  ---
+  duration_ms: 5929.68825
+  type: 'test'
+  ...
+# steps seen: ["Recherche du morceau…","Préparation du téléchargement…","Téléchargement du son…3 ko reçus","Téléchargement du son…12 ko reçus","Téléchargement du son…24 ko reçus","Téléchargement du son…34 ko reçus","Téléchargement du son…100 %","Préparation du son…"]
+# Subtest: unknown size: the amount received, never a percentage while downloading
+ok 10 - unknown size: the amount received, never a percentage while downloading
+  ---
+  duration_ms: 3146.805833
+  type: 'test'
+  ...
+# Subtest: the diagnostic window copies the report of the last import made from the interface
+ok 11 - the diagnostic window copies the report of the last import made from the interface
+  ---
+  duration_ms: 6118.211458
+  type: 'test'
+  ...
+# file: 6.2 MB or more stored, back 1.1 s after the launch
+# Subtest: a file of several MB comes back at the next launch, with its settings, and plays
+ok 12 - a file of several MB comes back at the next launch, with its settings, and plays
+  ---
+  duration_ms: 5142.940958
+  type: 'test'
+  ...
+# link: 6.2 MB or more stored, back 1.0 s after the launch
+# Subtest: a piece imported from a link, of several MB, comes back at the next launch
+ok 13 - a piece imported from a link, of several MB, comes back at the next launch
+  ---
+  duration_ms: 5252.916709
+  type: 'test'
+  ...
+# Subtest: a launch cut short during a restore: the piece is offered, kept, and opens on « Rouvrir »
+ok 14 - a launch cut short during a restore: the piece is offered, kept, and opens on « Rouvrir »
+  ---
+  duration_ms: 4844.270709
+  type: 'test'
+  ...
+# === Fabtice — diagnostic ===
+# Date : 2026-11-14T12:14:48.944Z
+# App : Fabtice 0.1.0 (commit 22e579bdb3, construit le 2026-11-14T12:10:39Z, run 43593467648)
+# Electron 43.8.9 · Chromium 150.0.7871.250 · Node 24.22.1 · V8 15.0.245.31-electron.0
+# Système : macOS 15.8.2 (noyau 24.6.0)
+# Processeur : Apple M1 (Virtual) · 3 cœurs · 7 Go de mémoire
+# Architecture du processus : arm64 · sous Rosetta : non
+# Moteur JS pour yt-dlp : node = ~/work/_temp/arm64/Fabtice.app/Contents/MacOS/Fabtice avec ELECTRON_RUN_AS_NODE=1 → répond v24.22.1 (130 ms)
+# yt-dlp : 2099.01.01-stub · source : variable FABTICE_YTDLP_PATH · chemin : ~/work/Fabtice/Fabtice/desktop/test/fixtures/stub-yt-dlp.js
+# --- Dernière importation ---
+# Lien saisi : https://youtu.be/dQw4w9WgXcQ?list=PL0123456789&t=5
+# URL transmise : https://www.youtube.com/watch?v=dQw4w9WgXcQ (id dQw4w9WgXcQ)
+# Format demandé : bestaudio[ext=m4a][acodec^=mp4a]/bestaudio[ext=m4a]/bestaudio
+# > Étape infos (-J)
+#   Exécutable : ~/work/Fabtice/Fabtice/desktop/test/fixtures/stub-yt-dlp.js
+#   Arguments : ["--ignore-config","--no-playlist","--verbose","--no-js-runtimes","--js-runtimes","node:~/work/_temp/arm64/Fabtice.app/Contents/MacOS/Fabtice","--cache-dir","/var/folders/2s/vty41l455yv698g4xkgfv7z00000gn/T/fabtice-e2e-bDjpCn/yt-dlp-cache","--format","bestaudio[ext=m4a][acodec^=mp4a]/bestaudio[ext=m4a]/bestaudio","--dump-single-json","--","https://www.youtube.com/watch?v=dQw4w9WgXcQ"]
+#   Code de sortie : 0 · durée 0.16 s
+#   stderr (4 dernières lignes) :
+#     [debug] Command-line config: ["--ignore-config","--no-playlist","--verbose","--no-js-runtimes","--js-runtimes","node:~/work/_temp/arm64/Fabtice.app/Contents/MacOS/Fabtice","--cache-dir","/var/folders/2s/vty41l455yv698g4xkgfv7z00000gn/T/fabtice-e2e-bDjpCn/yt-dlp-cache","--format","bestaudio[ext=m4a][acodec^=mp4a]/bestaudio[ext=m4a]/bestaudio","--dump-single-json","--","https://www.youtube.com/watch?v=dQw4w9WgXcQ"]
+#     [debug] yt-dlp version stub@2099.01.01 (test stub)
+#     [debug] JS runtimes: node-24.22.1
+#     [youtube] [jsc:node] stub challenge solved
+# > Étape téléchargement
+#   Exécutable : ~/work/Fabtice/Fabtice/desktop/test/fixtures/stub-yt-dlp.js
+#   Arguments : ["--ignore-config","--no-playlist","--verbose","--no-js-runtimes","--js-runtimes","node:~/work/_temp/arm64/Fabtice.app/Contents/MacOS/Fabtice","--cache-dir","/var/folders/2s/vty41l455yv698g4xkgfv7z00000gn/T/fabtice-e2e-bDjpCn/yt-dlp-cache","--load-info-json","/var/folders/2s/vty41l455yv698g4xkgfv7z00000gn/T/fabtice-Qu8FvA/info.json","--format","bestaudio[ext=m4a][acodec^=mp4a]/bestaudio[ext=m4a]/bestaudio","--fixup","never","--no-part","--no-mtime","--newline","--output","/var/folders/2s/vty41l455yv698g4xkgfv7z00000gn/T/fabtice-Qu8FvA/audio.%(ext)s"]
+#   Code de sortie : 0 · durée 0.04 s
+#   stderr (3 dernières lignes) :
+#     [debug] Command-line config: ["--ignore-config","--no-playlist","--verbose","--no-js-runtimes","--js-runtimes","node:~/work/_temp/arm64/Fabtice.app/Contents/MacOS/Fabtice","--cache-dir","/var/folders/2s/vty41l455yv698g4xkgfv7z00000gn/T/fabtice-e2e-bDjpCn/yt-dlp-cache","--load-info-json","/var/folders/2s/vty41l455yv698g4xkgfv7z00000gn/T/fabtice-Qu8FvA/info.json","--format","bestaudio[ext=m4a][acodec^=mp4a]/bestaudio[ext=m4a]/bestaudio","--fixup","never","--no-part","--no-mtime","--newline","--output","/var/folders/2s/vty41l455yv698g4xkgfv7z00000gn/T/fabtice-Qu8FvA/audio.%(ext)s"]
+#     [debug] yt-dlp version stub@2099.01.01 (test stub)
+#     [debug] stub: download starts
+# > Lignes clés de yt-dlp :
+#     [debug] yt-dlp version stub@2099.01.01 (test stub)
+#     [debug] JS runtimes: node-24.22.1
+#     [youtube] [jsc:node] stub challenge solved
+# Vidéo : « Tonalité d’essai » · Fabtice test · 0:04 · live_status not_live
+# Format choisi : 140 · ext m4a · acodec mp4a.40.2 · container m4a_dash · 64 kb/s · 44100 Hz · 2 canaux · protocole https
+# Fichier : audio.m4a · 34279 octets (33.5 Kio)
+# Conteneur détecté : MP4 fragmenté (DASH) — marque « dash », 4 fragments moof · boîtes : ftyp moov sidx moof mdat moof mdat moof mdat moof mdat
+# Durée totale : 0.20 s · dossier temporaire supprimé : oui
+# Résultat : téléchargé
+# Décodage (decodeAudioData) : OK en 17 ms · 2 canaux · 4.023 s (attendu 4 s) · tampon à 48000 Hz (contexte 48000 Hz, source 44100 Hz)
+# Conclusion ffmpeg : Chromium décode le m4a DASH non remuxé → ffmpeg inutile.
+# --- WebGPU ---
+# navigator.gpu : présent · format de canevas préféré bgra8unorm
+# Adaptateur : vendor apple · architecture ? · device ? · description ? · fallback non
+# Limites : maxBufferSize=2147483648 · maxStorageBufferBindingSize=2147483644 · maxComputeWorkgroupStorageSize=32768 · maxComputeInvocationsPerWorkgroup=1024 · maxComputeWorkgroupSizeX=1024 · maxStorageBuffersPerShaderStage=10 · maxTextureDimension2D=16384
+# Fonctions (20) : bgra8unorm-storage, clip-distances, core-features-and-limits, depth-clip-control, depth32float-stencil8, dual-source-blending, float32-blendable, float32-filterable, indirect-first-instance, rg11b10ufloat-renderable, shader-f16, subgroups, texture-component-swizzle, texture-compression-astc, texture-compression-astc-sliced-3d, texture-compression-bc, texture-compression-bc-sliced-3d, texture-compression-etc2, texture-formats-tier1, texture-formats-tier2
+# position after 1.2 s of playback: 1.19
+# Subtest: DASH m4a: import, decode, play, copy diagnostics
+ok 15 - DASH m4a: import, decode, play, copy diagnostics
+  ---
+  duration_ms: 3637.104167
+  type: 'test'
+  ...
+# Subtest: WebM/Opus fallback decodes too
+ok 16 - WebM/Opus fallback decodes too
+  ---
+  duration_ms: 2529.111458
+  type: 'test'
+  ...
+# Subtest: live streams are refused, bad links rejected
+ok 17 - live streams are refused, bad links rejected
+  ---
+  duration_ms: 2534.361583
+  type: 'test'
+  ...
+# Subtest: install: down, then retry on a flaky server, then quiet update note
+ok 18 - install: down, then retry on a flaky server, then quiet update note
+  ---
+  duration_ms: 6408.43275
+  type: 'test'
+  ...
+1..18
+# tests 18
+# suites 0
+# pass 17
+# fail 0
+# cancelled 0
+# skipped 1
+# todo 0
+# duration_ms 78051.515167

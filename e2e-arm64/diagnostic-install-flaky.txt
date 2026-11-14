@@ -1,0 +1,45 @@
+=== Fabtice — diagnostic ===
+Date : 2026-11-14T12:14:59.648Z
+App : Fabtice 0.1.0 (commit 22e579bdb3, construit le 2026-11-14T12:10:39Z, run 43593467648)
+Electron 43.8.9 · Chromium 150.0.7871.250 · Node 24.22.1 · V8 15.0.245.31-electron.0
+Système : macOS 15.8.2 (noyau 24.6.0)
+Processeur : Apple M1 (Virtual) · 3 cœurs · 7 Go de mémoire
+Architecture du processus : arm64 · sous Rosetta : non
+Moteur JS pour yt-dlp : node = ~/work/_temp/arm64/Fabtice.app/Contents/MacOS/Fabtice avec ELECTRON_RUN_AS_NODE=1 → répond v24.22.1 (106 ms)
+yt-dlp : 2099.02.02-fake · source : téléchargé par Fabtice · chemin : /var/folders/2s/vty41l455yv698g4xkgfv7z00000gn/T/fabtice-e2e-install-5bTt3g/yt-dlp/yt-dlp_macos
+yt-dlp SHA-256 : db5f6ee2d0d3958e85873d77c70d50292e80ab021e621a4b120a6f9be9ab91b4
+Mise à jour yt-dlp : dernière version 2099.02.02 · à jour
+Réseau yt-dlp (24 essais cette session) :
+  12:14:56.404 version 127.0.0.1:49313 essai 1/4 · ÉCHEC en 19 ms · net::ERR_EMPTY_RESPONSE
+  12:14:56.525 version 127.0.0.1:49313 essai 2/4 · ÉCHEC en 2 ms · net::ERR_EMPTY_RESPONSE
+  12:14:56.729 version 127.0.0.1:49313 essai 3/4 · ÉCHEC en 6 ms · net::ERR_EMPTY_RESPONSE
+  12:14:57.038 version 127.0.0.1:49313 essai 4/4 · ÉCHEC en 1 ms · net::ERR_EMPTY_RESPONSE
+  12:14:57.039 sommes 127.0.0.1:49313 essai 1/4 · ÉCHEC en 2 ms · net::ERR_EMPTY_RESPONSE
+  12:14:57.142 sommes 127.0.0.1:49313 essai 2/4 · ÉCHEC en 1 ms · net::ERR_EMPTY_RESPONSE
+  12:14:57.346 sommes 127.0.0.1:49313 essai 3/4 · ÉCHEC en 1 ms · net::ERR_EMPTY_RESPONSE
+  12:14:57.649 sommes 127.0.0.1:49313 essai 4/4 · ÉCHEC en 2 ms · net::ERR_EMPTY_RESPONSE
+  12:14:57.789 version 127.0.0.1:49313 essai 1/4 · ÉCHEC en 2 ms · net::ERR_EMPTY_RESPONSE
+  12:14:57.895 version 127.0.0.1:49313 essai 2/4 · ÉCHEC en 1 ms · net::ERR_EMPTY_RESPONSE
+  12:14:58.097 version 127.0.0.1:49313 essai 3/4 · ÉCHEC en 2 ms · net::ERR_EMPTY_RESPONSE
+  12:14:58.402 version 127.0.0.1:49313 essai 4/4 · ÉCHEC en 1 ms · net::ERR_EMPTY_RESPONSE
+  12:14:58.403 sommes 127.0.0.1:49313 essai 1/4 · ÉCHEC en 1 ms · net::ERR_EMPTY_RESPONSE
+  12:14:58.506 sommes 127.0.0.1:49313 essai 2/4 · ÉCHEC en 2 ms · net::ERR_EMPTY_RESPONSE
+  12:14:58.709 sommes 127.0.0.1:49313 essai 3/4 · ÉCHEC en 2 ms · net::ERR_EMPTY_RESPONSE
+  12:14:59.013 sommes 127.0.0.1:49313 essai 4/4 · ÉCHEC en 2 ms · net::ERR_EMPTY_RESPONSE
+  12:14:59.169 version 127.0.0.1:49313 essai 1/4 · OK en 3 ms
+  12:14:59.172 sommes 127.0.0.1:49313 essai 1/4 · ÉCHEC en 2 ms · HTTP 503 pour http://127.0.0.1:49313/yt-dlp/yt-dlp/releases/download/2099.02.02/SHA2-256SUMS
+  12:14:59.279 sommes 127.0.0.1:49313 essai 2/4 · OK en 3 ms
+  12:14:59.283 binaire 127.0.0.1:49313 essai 1/4 · ÉCHEC en 4 ms · HTTP 503 pour http://127.0.0.1:49313/yt-dlp/yt-dlp/releases/download/2099.02.02/yt-dlp_macos
+  12:14:59.390 binaire 127.0.0.1:49313 essai 2/4 · ÉCHEC en 12 ms · net::ERR_CONTENT_LENGTH_MISMATCH
+  12:14:59.604 binaire 127.0.0.1:49313 essai 3/4 · OK en 6 ms
+  12:14:59.642 version 127.0.0.1:49313 essai 1/4 · OK en 2 ms
+  12:14:59.644 sommes 127.0.0.1:49313 essai 1/4 · OK en 2 ms
+
+--- Dernière importation ---
+Aucune.
+
+--- WebGPU ---
+navigator.gpu : présent · format de canevas préféré bgra8unorm
+Adaptateur : vendor apple · architecture ? · device ? · description ? · fallback non
+Limites : maxBufferSize=2147483648 · maxStorageBufferBindingSize=2147483644 · maxComputeWorkgroupStorageSize=32768 · maxComputeInvocationsPerWorkgroup=1024 · maxComputeWorkgroupSizeX=1024 · maxStorageBuffersPerShaderStage=10 · maxTextureDimension2D=16384
+Fonctions (20) : bgra8unorm-storage, clip-distances, core-features-and-limits, depth-clip-control, depth32float-stencil8, dual-source-blending, float32-blendable, float32-filterable, indirect-first-instance, rg11b10ufloat-renderable, shader-f16, subgroups, texture-component-swizzle, texture-compression-astc, texture-compression-astc-sliced-3d, texture-compression-bc, texture-compression-bc-sliced-3d, texture-compression-etc2, texture-formats-tier1, texture-formats-tier2

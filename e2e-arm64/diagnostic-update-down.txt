@@ -1,0 +1,29 @@
+=== Fabtice — diagnostic ===
+Date : 2026-11-14T12:15:02.057Z
+App : Fabtice 0.1.0 (commit 22e579bdb3, construit le 2026-11-14T12:10:39Z, run 43593467648)
+Electron 43.8.9 · Chromium 150.0.7871.250 · Node 24.22.1 · V8 15.0.245.31-electron.0
+Système : macOS 15.8.2 (noyau 24.6.0)
+Processeur : Apple M1 (Virtual) · 3 cœurs · 7 Go de mémoire
+Architecture du processus : arm64 · sous Rosetta : non
+Moteur JS pour yt-dlp : node = ~/work/_temp/arm64/Fabtice.app/Contents/MacOS/Fabtice avec ELECTRON_RUN_AS_NODE=1 → répond v24.22.1 (121 ms)
+yt-dlp : 2099.02.02-fake · source : téléchargé par Fabtice · chemin : /var/folders/2s/vty41l455yv698g4xkgfv7z00000gn/T/fabtice-e2e-install-5bTt3g/yt-dlp/yt-dlp_macos
+yt-dlp SHA-256 : db5f6ee2d0d3958e85873d77c70d50292e80ab021e621a4b120a6f9be9ab91b4
+Mise à jour yt-dlp : vérification impossible (net::ERR_EMPTY_RESPONSE)
+Réseau yt-dlp (8 essais cette session) :
+  12:15:00.688 version 127.0.0.1:49313 essai 1/4 · ÉCHEC en 101 ms · net::ERR_EMPTY_RESPONSE
+  12:15:00.899 version 127.0.0.1:49313 essai 2/4 · ÉCHEC en 14 ms · net::ERR_EMPTY_RESPONSE
+  12:15:01.116 version 127.0.0.1:49313 essai 3/4 · ÉCHEC en 2 ms · net::ERR_EMPTY_RESPONSE
+  12:15:01.423 version 127.0.0.1:49313 essai 4/4 · ÉCHEC en 21 ms · net::ERR_EMPTY_RESPONSE
+  12:15:01.444 sommes 127.0.0.1:49313 essai 1/4 · ÉCHEC en 2 ms · net::ERR_EMPTY_RESPONSE
+  12:15:01.548 sommes 127.0.0.1:49313 essai 2/4 · ÉCHEC en 1 ms · net::ERR_EMPTY_RESPONSE
+  12:15:01.751 sommes 127.0.0.1:49313 essai 3/4 · ÉCHEC en 2 ms · net::ERR_EMPTY_RESPONSE
+  12:15:02.055 sommes 127.0.0.1:49313 essai 4/4 · ÉCHEC en 2 ms · net::ERR_EMPTY_RESPONSE
+
+--- Dernière importation ---
+Aucune.
+
+--- WebGPU ---
+navigator.gpu : présent · format de canevas préféré bgra8unorm
+Adaptateur : vendor apple · architecture ? · device ? · description ? · fallback non
+Limites : maxBufferSize=2147483648 · maxStorageBufferBindingSize=2147483644 · maxComputeWorkgroupStorageSize=32768 · maxComputeInvocationsPerWorkgroup=1024 · maxComputeWorkgroupSizeX=1024 · maxStorageBuffersPerShaderStage=10 · maxTextureDimension2D=16384
+Fonctions (20) : bgra8unorm-storage, clip-distances, core-features-and-limits, depth-clip-control, depth32float-stencil8, dual-source-blending, float32-blendable, float32-filterable, indirect-first-instance, rg11b10ufloat-renderable, shader-f16, subgroups, texture-component-swizzle, texture-compression-astc, texture-compression-astc-sliced-3d, texture-compression-bc, texture-compression-bc-sliced-3d, texture-compression-etc2, texture-formats-tier1, texture-formats-tier2

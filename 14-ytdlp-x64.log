@@ -1,0 +1,31 @@
+### logs/logs-intel/14-ytdlp-x64.log (30 lines, last 200 shown)
+### step 14-ytdlp-x64 — 2026-11-14T12:18:45Z — Darwin 24.6.0 x86_64
+yt-dlp_macos: OK
+yt-dlp_macos.zip: OK
+== yt-dlp_macos
+yt-dlp_macos: Mach-O universal binary with 2 architectures: [x86_64:Mach-O 64-bit executable x86_64] [arm64:Mach-O 64-bit executable arm64]
+yt-dlp_macos (for architecture x86_64):	Mach-O 64-bit executable x86_64
+yt-dlp_macos (for architecture arm64):	Mach-O 64-bit executable arm64
+x86_64 arm64
+2026.10.26
+== minimum macOS of the Mach-O files in yt-dlp_macos.zip (same build, unpacked)
+  41 10.9
+   1 10.13
+  65 10.15
+== Electron as Node
+v24.22.1
+{"ok":true,"node":"v24.22.1","arch":"x64"}
+exit=0
+== yt-dlp verbose header with the app as JS runtime
+[debug] Command-line config: ['-v', '--ignore-config', '--no-js-runtimes', '--js-runtimes', 'node:/Users/runner/work/_temp/app/Fabtice.app/Contents/MacOS/Fabtice']
+[debug] Encodings: locale UTF-8, fs utf-8, pref UTF-8, out utf-8 (No ANSI), error utf-8 (No ANSI), screen utf-8 (No ANSI)
+[debug] yt-dlp version stable@2026.10.26 from yt-dlp/yt-dlp [c91f8de0b] (darwin_exe)
+[debug] Python 3.14.7 (CPython x86_64 64bit) - macOS-15.7.9-x86_64-i386-64bit-Mach-O (OpenSSL 3.5.7 9 Jun 2026)
+[debug] exe versions: none
+[debug] Optional libraries: Cryptodome-3.24.1, brotli-1.2.1, certifi-2026.10.23, curl_cffi-0.17.0, mutagen-1.48.1, requests-2.34.2, sqlite3-3.50.4, urllib3-2.8.0, websockets-17.3, yt_dlp_ejs-0.8.0
+[debug] JS runtimes: node-24.22.1
+[debug] Proxy map: {}
+[debug] Request Handlers: urllib, requests, websockets, curl_cffi
+[debug] Plugin directories: none
+[debug] Loaded 1747 extractors
+

@@ -1,0 +1,43 @@
+=== Fabtice — diagnostic ===
+Date : 2026-11-14T12:18:08.374Z
+App : Fabtice 0.1.0 (commit 22e579bdb3, construit le 2026-11-14T12:10:39Z, run 43593467648)
+Electron 43.8.9 · Chromium 150.0.7871.250 · Node 24.22.1 · V8 15.0.245.31-electron.0
+Système : macOS 15.7.9 (noyau 24.6.0)
+Processeur : Intel(R) Core(TM) i7-8700B CPU @ 3.20GHz · 4 cœurs · 14 Go de mémoire
+Architecture du processus : x64 · sous Rosetta : non
+Moteur JS pour yt-dlp : node = ~/work/_temp/app/Fabtice.app/Contents/MacOS/Fabtice avec ELECTRON_RUN_AS_NODE=1 → répond v24.22.1 (437 ms)
+yt-dlp : 2099.02.02-fake · source : téléchargé par Fabtice · chemin : /var/folders/20/jp1_0n3n7kndh6rnbqb5344m0000gn/T/fabtice-e2e-install-5hbY5P/yt-dlp/yt-dlp_macos
+yt-dlp SHA-256 : db5f6ee2d0d3958e85873d77c70d50292e80ab021e621a4b120a6f9be9ab91b4
+Mise à jour yt-dlp : dernière version 2099.02.02 · à jour
+Réseau yt-dlp (24 essais cette session) :
+  12:18:04.407 version 127.0.0.1:49284 essai 1/4 · ÉCHEC en 61 ms · net::ERR_EMPTY_RESPONSE
+  12:18:04.630 version 127.0.0.1:49284 essai 2/4 · ÉCHEC en 190 ms · net::ERR_EMPTY_RESPONSE
+  12:18:05.021 version 127.0.0.1:49284 essai 3/4 · ÉCHEC en 20 ms · net::ERR_EMPTY_RESPONSE
+  12:18:05.346 version 127.0.0.1:49284 essai 4/4 · ÉCHEC en 71 ms · net::ERR_EMPTY_RESPONSE
+  12:18:05.418 sommes 127.0.0.1:49284 essai 1/4 · ÉCHEC en 5 ms · net::ERR_EMPTY_RESPONSE
+  12:18:05.527 sommes 127.0.0.1:49284 essai 2/4 · ÉCHEC en 17 ms · net::ERR_EMPTY_RESPONSE
+  12:18:05.745 sommes 127.0.0.1:49284 essai 3/4 · ÉCHEC en 2 ms · net::ERR_EMPTY_RESPONSE
+  12:18:06.049 sommes 127.0.0.1:49284 essai 4/4 · ÉCHEC en 2 ms · net::ERR_EMPTY_RESPONSE
+  12:18:06.483 version 127.0.0.1:49284 essai 1/4 · ÉCHEC en 3 ms · net::ERR_EMPTY_RESPONSE
+  12:18:06.586 version 127.0.0.1:49284 essai 2/4 · ÉCHEC en 3 ms · net::ERR_EMPTY_RESPONSE
+  12:18:06.790 version 127.0.0.1:49284 essai 3/4 · ÉCHEC en 2 ms · net::ERR_EMPTY_RESPONSE
+  12:18:07.092 version 127.0.0.1:49284 essai 4/4 · ÉCHEC en 2 ms · net::ERR_EMPTY_RESPONSE
+  12:18:07.094 sommes 127.0.0.1:49284 essai 1/4 · ÉCHEC en 2 ms · net::ERR_EMPTY_RESPONSE
+  12:18:07.197 sommes 127.0.0.1:49284 essai 2/4 · ÉCHEC en 2 ms · net::ERR_EMPTY_RESPONSE
+  12:18:07.400 sommes 127.0.0.1:49284 essai 3/4 · ÉCHEC en 2 ms · net::ERR_EMPTY_RESPONSE
+  12:18:07.704 sommes 127.0.0.1:49284 essai 4/4 · ÉCHEC en 1 ms · net::ERR_EMPTY_RESPONSE
+  12:18:07.904 version 127.0.0.1:49284 essai 1/4 · OK en 5 ms
+  12:18:07.909 sommes 127.0.0.1:49284 essai 1/4 · ÉCHEC en 3 ms · HTTP 503 pour http://127.0.0.1:49284/yt-dlp/yt-dlp/releases/download/2099.02.02/SHA2-256SUMS
+  12:18:08.013 sommes 127.0.0.1:49284 essai 2/4 · OK en 3 ms
+  12:18:08.016 binaire 127.0.0.1:49284 essai 1/4 · ÉCHEC en 4 ms · HTTP 503 pour http://127.0.0.1:49284/yt-dlp/yt-dlp/releases/download/2099.02.02/yt-dlp_macos
+  12:18:08.122 binaire 127.0.0.1:49284 essai 2/4 · ÉCHEC en 8 ms · net::ERR_CONTENT_LENGTH_MISMATCH
+  12:18:08.331 binaire 127.0.0.1:49284 essai 3/4 · OK en 6 ms
+  12:18:08.367 version 127.0.0.1:49284 essai 1/4 · OK en 2 ms
+  12:18:08.369 sommes 127.0.0.1:49284 essai 1/4 · OK en 4 ms
+
+--- Dernière importation ---
+Aucune.
+
+--- WebGPU ---
+navigator.gpu : présent · format de canevas préféré bgra8unorm
+Adaptateur : aucun (requestAdapter a renvoyé null)

@@ -1,0 +1,60 @@
+### logs/logs-build/09-ytdlp-arm64.log (59 lines, last 200 shown)
+### step 09-ytdlp-arm64 — 2026-11-14T12:15:20Z — Darwin 24.6.0 arm64
+yt-dlp_macos: OK
+yt-dlp_macos.zip: OK
+== yt-dlp_macos
+yt-dlp_macos: Mach-O universal binary with 2 architectures: [x86_64:Mach-O 64-bit executable x86_64] [arm64:Mach-O 64-bit executable arm64]
+yt-dlp_macos (for architecture x86_64):	Mach-O 64-bit executable x86_64
+yt-dlp_macos (for architecture arm64):	Mach-O 64-bit executable arm64
+x86_64 arm64
+2026.10.26
+== minimum macOS of the Mach-O files in yt-dlp_macos.zip (same build, unpacked)
+  41 10.9
+   1 10.13
+  65 10.15
+ 107 11.0
+== Electron as Node
+v24.22.1
+{"ok":true,"node":"v24.22.1","arch":"arm64"}
+exit=0
+== yt-dlp verbose header with the app as JS runtime
+[debug] Command-line config: ['-v', '--ignore-config', '--no-js-runtimes', '--js-runtimes', 'node:/Users/runner/work/_temp/arm64/Fabtice.app/Contents/MacOS/Fabtice']
+[debug] Encodings: locale UTF-8, fs utf-8, pref UTF-8, out utf-8 (No ANSI), error utf-8 (No ANSI), screen utf-8 (No ANSI)
+[debug] yt-dlp version stable@2026.10.26 from yt-dlp/yt-dlp [c91f8de0b] (darwin_exe)
+[debug] Python 3.14.7 (CPython arm64 64bit) - macOS-15.8.2-arm64-arm-64bit-Mach-O (OpenSSL 3.5.7 9 Jun 2026)
+[debug] exe versions: none
+[debug] Optional libraries: Cryptodome-3.24.1, brotli-1.2.1, certifi-2026.10.23, curl_cffi-0.17.0, mutagen-1.48.1, requests-2.34.2, sqlite3-3.50.4, urllib3-2.8.0, websockets-17.3, yt_dlp_ejs-0.8.0
+[debug] JS runtimes: node-24.22.1
+[debug] Proxy map: {}
+[debug] Request Handlers: urllib, requests, websockets, curl_cffi
+[debug] Plugin directories: none
+[debug] Loaded 1747 extractors
+
+== informational: metadata of one Creative Commons video (Big Buck Bunny), no download
+[debug] Command-line config: ['-v', '--ignore-config', '--no-playlist', '--no-js-runtimes', '--js-runtimes', 'node:/Users/runner/work/_temp/arm64/Fabtice.app/Contents/MacOS/Fabtice', '--format', 'bestaudio[ext=m4a][acodec^=mp4a]/bestaudio[ext=m4a]/bestaudio', '--print', '%(title)s | %(duration)s s | format %(format_id)s %(ext)s %(acodec)s %(container)s', '--', 'https://www.youtube.com/watch?v=aqz-KE-bpKQ']
+[debug] Encodings: locale UTF-8, fs utf-8, pref UTF-8, out utf-8 (No ANSI), error utf-8 (No ANSI), screen utf-8 (No ANSI)
+[debug] yt-dlp version stable@2026.10.26 from yt-dlp/yt-dlp [c91f8de0b] (darwin_exe)
+[debug] Python 3.14.7 (CPython arm64 64bit) - macOS-15.8.2-arm64-arm-64bit-Mach-O (OpenSSL 3.5.7 9 Jun 2026)
+[debug] exe versions: none
+[debug] Optional libraries: Cryptodome-3.24.1, brotli-1.2.1, certifi-2026.10.23, curl_cffi-0.17.0, mutagen-1.48.1, requests-2.34.2, sqlite3-3.50.4, urllib3-2.8.0, websockets-17.3, yt_dlp_ejs-0.8.0
+[debug] JS runtimes: node-24.22.1
+[debug] [youtube] [pot] PO Token Providers: none
+[debug] [youtube] [pot] PO Token Cache Providers: memory
+[debug] [youtube] [pot] PO Token Cache Spec Providers: webpo
+[debug] [youtube] [jsc] JS Challenge Providers: bun (unavailable), deno (unavailable), node, quickjs (unavailable)
+[youtube] Extracting URL: https://www.youtube.com/watch?v=aqz-KE-bpKQ
+[youtube] aqz-KE-bpKQ: Downloading webpage
+[debug] [youtube] Forcing "main" player JS variant for player fad7e4e9
+        original url = /s/player/fad7e4e9/player_es6.vflset/en_US/base.js
+[youtube] aqz-KE-bpKQ: Downloading tv samsung player API JSON
+[debug] [youtube] aqz-KE-bpKQ: tv_samsung player response playability status: LOGIN_REQUIRED
+[youtube] aqz-KE-bpKQ: Downloading visionos player API JSON
+[debug] [youtube] aqz-KE-bpKQ: visionos player response playability status: LOGIN_REQUIRED
+[debug] [youtube] aqz-KE-bpKQ: web player response playability status: LOGIN_REQUIRED
+WARNING: [youtube] No title found in player responses; falling back to title from initial data. Other metadata may also be missing
+ERROR: [youtube] aqz-KE-bpKQ: Sign in to confirm you’re not a bot. This helps protect our community. Use --cookies-from-browser or --cookies for the authentication. See  https://github.com/yt-dlp/yt-dlp/wiki/FAQ#how-do-i-pass-cookies-to-yt-dlp  for how to manually pass cookies. Also see  https://github.com/yt-dlp/yt-dlp/wiki/Extractors#exporting-youtube-cookies  for tips on effectively exporting YouTube cookies
+  File "yt_dlp/extractor/common.py", line 764, in extract
+  File "yt_dlp/extractor/youtube/_video.py", line 4083, in _real_extract
+  File "yt_dlp/extractor/common.py", line 1271, in raise_no_formats
+
+exit=1

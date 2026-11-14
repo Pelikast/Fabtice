@@ -1,0 +1,16 @@
+### logs/logs-build/10-ejs-node-test.log (15 lines, last 200 shown)
+### step 10-ejs-node-test — 2026-11-14T12:15:30Z — Darwin 24.6.0 arm64
+v24.22.1
+
+[notice] A new release of pip is available: 26.2.2 -> 26.3
+[notice] To update, run: pip install --upgrade pip
+============================= test session starts ==============================
+platform darwin -- Python 3.15.2, pytest-9.1.1, pluggy-1.7.0 -- /Users/runner/work/_temp/ejs-test/venv/bin/python
+rootdir: /Users/runner/work/_temp/ejs-test/src
+configfile: pyproject.toml
+collecting ... collected 8 items / 6 deselected / 2 selected
+
+test/test_jsc/test_ejs_integration.py::test_bulk_requests[NodeJCP] PASSED [ 50%]
+test/test_jsc/test_ejs_integration.py::test_using_cached_player[NodeJCP] PASSED [100%]
+
+======================= 2 passed, 6 deselected in 7.92s ========================

@@ -1,0 +1,95 @@
+### logs/logs-build/00-ui-check.log (94 lines, last 200 shown)
+### step 00-ui-check — 2026-11-14T12:10:17Z — Darwin 24.6.0 arm64
+ProductName:		macOS
+ProductVersion:		15.8.2
+BuildVersion:		24H232
+arm64
+v22.23.4
+10.9.9
+
+added 65 packages, and audited 66 packages in 3s
+
+12 packages are looking for funding
+  run `npm fund` for details
+
+found 0 vulnerabilities
+
+> fabtice-app@0.1.0 typecheck
+> tsc --noEmit -p tsconfig.json
+
+
+> fabtice-app@0.1.0 test
+> vitest run
+
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.1.0 [39m[90m/Users/runner/work/Fabtice/Fabtice/app[39m
+
+ [32m✓[39m src/export/ireal.test.ts [2m([22m[2m34 tests[22m[2m)[22m[32m 74[2mms[22m[39m
+ [32m✓[39m src/storage/restore.test.ts [2m([22m[2m24 tests[22m[2m)[22m[32m 151[2mms[22m[39m
+ [32m✓[39m src/analysis/fabtice.test.ts [2m([22m[2m20 tests[22m[2m)[22m[33m 363[2mms[22m[39m
+ [32m✓[39m src/analysis/models/download.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 91[2mms[22m[39m
+ [32m✓[39m src/import/fromLink.test.ts [2m([22m[2m24 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m src/store/lot2.test.ts [2m([22m[2m20 tests[22m[2m)[22m[33m 571[2mms[22m[39m
+   [32m✓[39m the analysis runner [2m(3)[22m
+     [33m[2m✓[22m[39m starts by itself once the piece can play, shows progress, applies the result[33m 406[2mms[22m[39m
+ [32m✓[39m src/analysis/engine/harmony.test.ts [2m([22m[2m23 tests[22m[2m)[22m[32m 248[2mms[22m[39m
+ [32m✓[39m src/import/controller.test.ts [2m([22m[2m18 tests[22m[2m)[22m[32m 204[2mms[22m[39m
+ [32m✓[39m src/storage/keeper.test.ts [2m([22m[2m20 tests[22m[2m)[22m[32m 19[2mms[22m[39m
+ [32m✓[39m src/storage/indexedDb.test.ts [2m([22m[2m18 tests[22m[2m)[22m[32m 41[2mms[22m[39m
+ [32m✓[39m src/harmony/harmony.test.ts [2m([22m[2m58 tests[22m[2m)[22m[32m 33[2mms[22m[39m
+ [2m[90m↓[39m[22m src/export/ireal.reference.test.ts [2m([22m[2m19 tests[22m[2m | [22m[33m19 skipped[39m[2m)[22m
+ [32m✓[39m src/timeline/chordRow.test.ts [2m([22m[2m22 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m src/timeline/geometry.test.ts [2m([22m[2m26 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m src/grid/grid.test.ts [2m([22m[2m26 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m src/store/chartEdits.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 37[2mms[22m[39m
+ [32m✓[39m src/analysis/engine/beats.test.ts [2m([22m[2m19 tests[22m[2m)[22m[32m 112[2mms[22m[39m
+ [32m✓[39m src/grid/beats.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+ [32m✓[39m src/chart/layout.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m src/store/store.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 22[2mms[22m[39m
+ [32m✓[39m src/storage/documentFormat.test.ts [2m([22m[2m30 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m src/import/decode.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 156[2mms[22m[39m
+ [32m✓[39m src/chart/editor.test.ts [2m([22m[2m19 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m src/timeline/peaks.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 275[2mms[22m[39m
+ [32m✓[39m src/chart/gesture.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+ [32m✓[39m src/analysis/engine/dsp.test.ts [2m([22m[2m13 tests[22m[2m)[22m[33m 437[2mms[22m[39m
+ [32m✓[39m src/chart/editorPlacement.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m src/import/aiff.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 64[2mms[22m[39m
+ [32m✓[39m src/analysis/models/store.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 29[2mms[22m[39m
+ [32m✓[39m src/import/detect.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 70[2mms[22m[39m
+ [32m✓[39m src/import/fromFile.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 37[2mms[22m[39m
+ [32m✓[39m src/audio/MockEngine.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m src/audio/worklet/limiter.test.ts [2m([22m[2m4 tests[22m[2m)[22m[33m 590[2mms[22m[39m
+ [32m✓[39m src/import/resample.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 102[2mms[22m[39m
+ [32m✓[39m src/export/chartExport.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m src/analysis/index.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m src/timeline/chordMarkup.test.ts [2m([22m[2m2 tests[22m[2m)[22m[33m 410[2mms[22m[39m
+   [32m✓[39m the ruler writes chords with the markup of <ChordSymbol> [2m(2)[22m
+     [33m[2m✓[22m[39m is identical for every quality, extension, bass, key, transposition, instrument and minor sign[33m 408[2mms[22m[39m
+ [32m✓[39m src/chart/stops.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m src/audio/storage.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m src/chart/hit.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m src/timeline/tempoRow.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m src/storage/timeout.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m src/chart/followLine.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 2[2mms[22m[39m
+ [32m✓[39m src/import/formats.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m src/import/amount.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 18[2mms[22m[39m
+ [32m✓[39m src/audio/worklet/core.test.ts [2m([22m[2m44 tests[22m[2m)[22m[33m 9725[2mms[22m[39m
+   [32m✓[39m tempo [2m(5)[22m
+     [33m[2m✓[22m[39m the cursor is the integral of the tempo, whatever the changes (no drift)[33m 1036[2mms[22m[39m
+   [32m✓[39m tracks [2m(3)[22m
+     [33m[2m✓[22m[39m stay aligned whatever their content (7 tracks, one untransposed... all share the transposition)[33m 877[2mms[22m[39m
+   [32m✓[39m loop [2m(9)[22m
+     [33m[2m✓[22m[39m the crossfade matters: a naive wrap is far worse[33m 313[2mms[22m[39m
+     [33m[2m✓[22m[39m does not drift over many repetitions (rate 0.6)[33m 488[2mms[22m[39m
+     [33m[2m✓[22m[39m stays continuous when the tempo changes in the middle of the loop[33m 619[2mms[22m[39m
+   [32m✓[39m metronome [2m(4)[22m
+     [33m[2m✓[22m[39m clicks land on irregular beats, rate 0.6, looping false[33m 658[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m45 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (46)[39m
+[2m      Tests [22m [1m[32m700 passed[39m[22m[2m | [22m[33m19 skipped[39m[90m (719)[39m
+[2m   Start at [22m 12:10:22
+[2m   Duration [22m 10.58s[2m (tests 86%, transform 7%, import 6%, worker 1%)[22m
+
+[2m    Isolate [22m [33m46 workers spawned[39m[2m · ~85ms startup each (spawn + environment, per file)[22m
+[2m            [22m [2mat least ~1.87s faster with [22m[33misolate: false[39m[2m — reuses workers across files instead of one per file[22m
+

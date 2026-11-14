@@ -1,0 +1,42 @@
+### logs/logs-build/05-build-x64.log (41 lines, last 200 shown)
+### step 05-build-x64 — 2026-11-14T12:12:04Z — Darwin 24.6.0 arm64
+
+> fabtice-desktop@0.1.0 dist:mac:x64
+> node ci/check-ui.js && electron-builder --mac --x64 --publish never -c.mac.artifactName=Fabtice-mac-intel.'${ext}' -c.dmg.artifactName=Fabtice-mac-intel.'${ext}'
+
+interface found: ui/index.html
+  • electron-builder  version=26.18.0 os=24.6.0
+  • loaded configuration  file=package.json ("build" field)
+  • author is missed in the package.json  appPackageFile=/Users/runner/work/Fabtice/Fabtice/desktop/package.json
+  • executing @electron/rebuild  electronVersion=43.8.9 arch=x64 buildFromSource=false workspaceRoot=/Users/runner/work/Fabtice/Fabtice/desktop projectDir=./ appDir=./
+  • installing native dependencies  arch=x64
+  • completed installing native dependencies
+  • packaging       platform=darwin arch=x64 electron=43.8.9 appOutDir=dist/mac
+  • downloaded      label=electron progress=100%
+  • downloaded electron zip extracted successfully  output=/Users/runner/work/Fabtice/Fabtice/desktop/dist/mac
+  • searching for node modules  pm=npm searchDir=/Users/runner/work/Fabtice/Fabtice/desktop
+  • no node modules found in collection, trying next search directory  pm=npm searchDir=/Users/runner/work/Fabtice/Fabtice/desktop
+  • searching for node modules  pm=traversal searchDir=/Users/runner/work/Fabtice/Fabtice/desktop
+  • using manual traversal of node_modules to build dependency tree
+  • no node modules found in collection, trying next search directory  pm=traversal searchDir=/Users/runner/work/Fabtice/Fabtice/desktop
+  • no node modules returned while searching directories  searchDirectories=[""]
+  • default Electron icon is used  reason=application icon is not set
+  • signing         file=dist/mac/Fabtice.app platform=darwin type=distribution identityName=- identityHash=none provisioningProfile=none
+  • skipped macOS notarization  reason=`notarize` options were unable to be generated
+  • building        target=macOS zip arch=x64 file=dist/Fabtice-mac-intel.zip
+  • building        target=DMG arch=x64 file=dist/Fabtice-mac-intel.dmg
+  • building block map  blockMapFile=dist/Fabtice-mac-intel.zip.blockmap
+total 1053224
+drwxr-xr-x  11 runner  staff        352 Nov 14 12:13 .
+drwxr-xr-x  13 runner  staff        416 Nov 14 12:10 ..
+-rw-r--r--   1 runner  staff        913 Nov 14 12:13 builder-debug.yml
+-rw-r--r--@  1 runner  staff  127611147 Nov 14 12:11 Fabtice-mac-apple-silicon.dmg
+-rw-r--r--   1 runner  staff  123492631 Nov 14 12:11 Fabtice-mac-apple-silicon.zip
+-rw-r--r--   1 runner  staff     130416 Nov 14 12:12 Fabtice-mac-apple-silicon.zip.blockmap
+-rw-r--r--@  1 runner  staff  133553519 Nov 14 12:12 Fabtice-mac-intel.dmg
+-rw-r--r--   1 runner  staff  129429678 Nov 14 12:13 Fabtice-mac-intel.zip
+-rw-r--r--   1 runner  staff     136532 Nov 14 12:13 Fabtice-mac-intel.zip.blockmap
+drwxr-xr-x   3 runner  staff         96 Nov 14 12:12 mac
+drwxr-xr-x   3 runner  staff         96 Nov 14 12:10 mac-arm64
+8f1a0185acca0b7c019b65573329427d4362a65a0997773a25abb305d19bb60c  dist/Fabtice-mac-intel.dmg
+1d098a843ac5b77febc525629080243bc125fbf8cdf23f57c920619d1d059ff0  dist/Fabtice-mac-intel.zip

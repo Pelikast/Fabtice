@@ -1,0 +1,63 @@
+### logs/logs-build/01-ui-build.log (62 lines, last 200 shown)
+### step 01-ui-build — 2026-11-14T12:10:32Z — Darwin 24.6.0 arm64
+
+> fabtice-app@0.1.0 build:desktop
+> vite build --mode desktop
+
+[36mvite v8.3.8 [32mbuilding client environment for desktop...[36m[39m
+transforming...
+✓ 150 modules transformed.
+rendering chunks...
+computing gzip size...
+../desktop/ui/index.html                                                    0.98 kB │ gzip:     0.47 kB
+../desktop/ui/assets/LICENSE-signalsmith-linear.txt                         1.07 kB │ gzip:     0.66 kB
+../desktop/ui/assets/LICENSE-signalsmith-stretch.txt                        1.09 kB │ gzip:     0.67 kB
+../desktop/ui/assets/LICENSE-onnxruntime-web.txt                            1.22 kB │ gzip:     0.74 kB
+../desktop/ui/assets/LICENSE-NotoMusic.txt                                  4.37 kB │ gzip:     1.97 kB
+../desktop/ui/assets/LICENSE-Fraunces.txt                                   4.50 kB │ gzip:     2.00 kB
+../desktop/ui/assets/LICENSE-InstrumentSans.txt                             4.53 kB │ gzip:     2.00 kB
+../desktop/ui/assets/processor-CMExN4Bm.js                                 15.18 kB
+../desktop/ui/assets/ort-wasm-simd-threaded-DN_1uOdW.mjs                   24.73 kB
+../desktop/ui/assets/instrument-sans-latin-wght-normal-BbzFLZTg.woff2      30.09 kB
+../desktop/ui/assets/noto-music-music-400-normal-CksxHXl6.woff2            56.32 kB
+../desktop/ui/assets/analysis.worker-BFo2aw-T.js                           83.25 kB
+../desktop/ui/assets/signalsmith-nosimd-CxQ0jmwS.wasm                      83.71 kB │ gzip:    35.25 kB
+../desktop/ui/assets/fraunces-latin-full-normal-CFFu7zhK.woff2            121.01 kB
+../desktop/ui/assets/fraunces-latin-full-italic-D2JnYqd-.woff2            149.72 kB
+../desktop/ui/assets/ort-wasm-simd-threaded-qh98TCA_.wasm              14,848.85 kB │ gzip: 3,878.24 kB
+../desktop/ui/assets/index-B73kbv8w.css                                    42.78 kB │ gzip:     9.21 kB
+../desktop/ui/assets/assets-CBPofjK2.js                                     0.16 kB │ gzip:     0.14 kB
+../desktop/ui/assets/start-BtF3nfCR.js                                      4.76 kB │ gzip:     2.21 kB
+../desktop/ui/assets/index-KYtaKZys.js                                    433.97 kB │ gzip:   138.60 kB
+
+[32m✓ built in 753ms[39m
+../desktop/ui:
+total 8
+drwxr-xr-x   4 runner  staff  128 Nov 14 12:10 .
+drwxr-xr-x  10 runner  staff  320 Nov 14 12:10 ..
+drwxr-xr-x  21 runner  staff  672 Nov 14 12:10 assets
+-rw-r--r--   1 runner  staff  983 Nov 14 12:10 index.html
+
+../desktop/ui/assets:
+total 31176
+drwxr-xr-x  21 runner  staff       672 Nov 14 12:10 .
+drwxr-xr-x   4 runner  staff       128 Nov 14 12:10 ..
+-rw-r--r--   1 runner  staff     83258 Nov 14 12:10 analysis.worker-BFo2aw-T.js
+-rw-r--r--   1 runner  staff       164 Nov 14 12:10 assets-CBPofjK2.js
+-rw-r--r--   1 runner  staff    149720 Nov 14 12:10 fraunces-latin-full-italic-D2JnYqd-.woff2
+-rw-r--r--   1 runner  staff    121016 Nov 14 12:10 fraunces-latin-full-normal-CFFu7zhK.woff2
+-rw-r--r--   1 runner  staff     42781 Nov 14 12:10 index-B73kbv8w.css
+-rw-r--r--   1 runner  staff    433976 Nov 14 12:10 index-KYtaKZys.js
+-rw-r--r--   1 runner  staff     30092 Nov 14 12:10 instrument-sans-latin-wght-normal-BbzFLZTg.woff2
+-rw-r--r--   1 runner  staff      4504 Nov 14 12:10 LICENSE-Fraunces.txt
+-rw-r--r--   1 runner  staff      4538 Nov 14 12:10 LICENSE-InstrumentSans.txt
+-rw-r--r--   1 runner  staff      4379 Nov 14 12:10 LICENSE-NotoMusic.txt
+-rw-r--r--   1 runner  staff      1225 Nov 14 12:10 LICENSE-onnxruntime-web.txt
+-rw-r--r--   1 runner  staff      1074 Nov 14 12:10 LICENSE-signalsmith-linear.txt
+-rw-r--r--   1 runner  staff      1093 Nov 14 12:10 LICENSE-signalsmith-stretch.txt
+-rw-r--r--   1 runner  staff     56324 Nov 14 12:10 noto-music-music-400-normal-CksxHXl6.woff2
+-rw-r--r--   1 runner  staff     24738 Nov 14 12:10 ort-wasm-simd-threaded-DN_1uOdW.mjs
+-rw-r--r--   1 runner  staff  14848852 Nov 14 12:10 ort-wasm-simd-threaded-qh98TCA_.wasm
+-rw-r--r--   1 runner  staff     15180 Nov 14 12:10 processor-CMExN4Bm.js
+-rw-r--r--   1 runner  staff     83719 Nov 14 12:10 signalsmith-nosimd-CxQ0jmwS.wasm
+-rw-r--r--   1 runner  staff      4764 Nov 14 12:10 start-BtF3nfCR.js

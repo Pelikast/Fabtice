@@ -1,0 +1,201 @@
+### logs/logs-build/03-unit-tests.log (303 lines, last 200 shown)
+ok 17 - known total: a real percentage, with the total and the speed
+  ---
+  duration_ms: 1.626125
+  type: 'test'
+  ...
+# Subtest: the last line is a summary, not a progress line
+ok 18 - the last line is a summary, not a progress line
+  ---
+  duration_ms: 0.161458
+  type: 'test'
+  ...
+# Subtest: unknown total: the amount received and no percentage at all
+ok 19 - unknown total: the amount received and no percentage at all
+  ---
+  duration_ms: 0.41225
+  type: 'test'
+  ...
+# Subtest: the other forms yt-dlp can print (from its source): estimated total, fragments, a percentage without size
+ok 20 - the other forms yt-dlp can print (from its source): estimated total, fragments, a percentage without size
+  ---
+  duration_ms: 0.194167
+  type: 'test'
+  ...
+# Subtest: the lines that say nothing about progress are ignored
+ok 21 - the lines that say nothing about progress are ignored
+  ---
+  duration_ms: 0.211833
+  type: 'test'
+  ...
+# Subtest: what the interface is told
+ok 22 - what the interface is told
+  ---
+  duration_ms: 0.224542
+  type: 'test'
+  ...
+# Subtest: sizes and speeds
+ok 23 - sizes and speeds
+  ---
+  duration_ms: 0.15425
+  type: 'test'
+  ...
+# Subtest: serves files with the right MIME type
+ok 24 - serves files with the right MIME type
+  ---
+  duration_ms: 20.674542
+  type: 'test'
+  ...
+# Subtest: root path serves index.html; body and length are right
+ok 25 - root path serves index.html; body and length are right
+  ---
+  duration_ms: 2.826375
+  type: 'test'
+  ...
+# Subtest: every answer carries the isolation headers and the CSP
+ok 26 - every answer carries the isolation headers and the CSP
+  ---
+  duration_ms: 1.055125
+  type: 'test'
+  ...
+# Subtest: the policy lets the interface reach the model hosts, and nothing else
+ok 27 - the policy lets the interface reach the model hosts, and nothing else
+  ---
+  duration_ms: 0.651542
+  type: 'test'
+  ...
+# Subtest: missing file, unknown host and directories are 404
+ok 28 - missing file, unknown host and directories are 404
+  ---
+  duration_ms: 0.605417
+  type: 'test'
+  ...
+# Subtest: path traversal is refused
+ok 29 - path traversal is refused
+  ---
+  duration_ms: 0.464583
+  type: 'test'
+  ...
+# Subtest: a symlink leading outside the folder is refused
+ok 30 - a symlink leading outside the folder is refused
+  ---
+  duration_ms: 0.146417
+  type: 'test'
+  ...
+# Subtest: only GET and HEAD; other schemes refused
+ok 31 - only GET and HEAD; other schemes refused
+  ---
+  duration_ms: 0.205083
+  type: 'test'
+  ...
+# Subtest: IPC sender check accepts only our two origins
+ok 32 - IPC sender check accepts only our two origins
+  ---
+  duration_ms: 0.291167
+  type: 'test'
+  ...
+# Subtest: known size: « prepare » first, then only real progress, then the report says where the time went
+ok 33 - known size: « prepare » first, then only real progress, then the report says where the time went
+  ---
+  duration_ms: 693.135208
+  type: 'test'
+  ...
+# Subtest: unknown size: amounts only, never a percentage
+ok 34 - unknown size: amounts only, never a percentage
+  ---
+  duration_ms: 119.987291
+  type: 'test'
+  ...
+# Subtest: no progress line at all: only « prepare », and the report says so
+ok 35 - no progress line at all: only « prepare », and the report says so
+  ---
+  duration_ms: 110.136375
+  type: 'test'
+  ...
+# Subtest: the yt-dlp arguments are untouched: same options as before, no cookies, no client options
+ok 36 - the yt-dlp arguments are untouched: same options as before, no cookies, no client options
+  ---
+  duration_ms: 117.781167
+  type: 'test'
+  ...
+# Subtest: the text report names the times, speed and first progress line
+ok 37 - the text report names the times, speed and first progress line
+  ---
+  duration_ms: 492.415208
+  type: 'test'
+  ...
+# Subtest: the text report of a failed or refused import still reads
+ok 38 - the text report of a failed or refused import still reads
+  ---
+  duration_ms: 0.3185
+  type: 'test'
+  ...
+# Subtest: accepts the supported link shapes
+ok 39 - accepts the supported link shapes
+  ---
+  duration_ms: 0.944375
+  type: 'test'
+  ...
+# Subtest: rejects everything else
+ok 40 - rejects everything else
+  ---
+  duration_ms: 0.20875
+  type: 'test'
+  ...
+# Subtest: canonical URL is rebuilt from the id only
+ok 41 - canonical URL is rebuilt from the id only
+  ---
+  duration_ms: 0.136333
+  type: 'test'
+  ...
+# Subtest: transient failures on every step are retried and the install succeeds
+ok 42 - transient failures on every step are retried and the install succeeds
+  ---
+  duration_ms: 50.996916
+  type: 'test'
+  ...
+# Subtest: persistent download failure leaves no partial file
+ok 43 - persistent download failure leaves no partial file
+  ---
+  duration_ms: 34.860167
+  type: 'test'
+  ...
+# Subtest: a checksum that never matches is never installed
+ok 44 - a checksum that never matches is never installed
+  ---
+  duration_ms: 10.034708
+  type: 'test'
+  ...
+# Subtest: API refusal falls back to the latest/download URLs without retrying
+ok 45 - API refusal falls back to the latest/download URLs without retrying
+  ---
+  duration_ms: 7.737458
+  type: 'test'
+  ...
+# Subtest: HTTP 404 on the binary is not retried
+ok 46 - HTTP 404 on the binary is not retried
+  ---
+  duration_ms: 2.209042
+  type: 'test'
+  ...
+# Subtest: update check failing with yt-dlp installed reports, never throws
+ok 47 - update check failing with yt-dlp installed reports, never throws
+  ---
+  duration_ms: 22.742791
+  type: 'test'
+  ...
+# Subtest: default backoff is four attempts within about 20 seconds
+ok 48 - default backoff is four attempts within about 20 seconds
+  ---
+  duration_ms: 0.162875
+  type: 'test'
+  ...
+1..48
+# tests 48
+# suites 0
+# pass 48
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1802.465625

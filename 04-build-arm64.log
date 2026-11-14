@@ -1,0 +1,40 @@
+### logs/logs-build/04-build-arm64.log (39 lines, last 200 shown)
+### step 04-build-arm64 — 2026-11-14T12:10:39Z — Darwin 24.6.0 arm64
+
+> fabtice-desktop@0.1.0 dist:mac:arm64
+> node ci/check-ui.js && electron-builder --mac --arm64 --publish never -c.mac.artifactName=Fabtice-mac-apple-silicon.'${ext}' -c.dmg.artifactName=Fabtice-mac-apple-silicon.'${ext}'
+
+interface found: ui/index.html
+  • electron-builder  version=26.18.0 os=24.6.0
+  • loaded configuration  file=package.json ("build" field)
+  • author is missed in the package.json  appPackageFile=/Users/runner/work/Fabtice/Fabtice/desktop/package.json
+  • executing @electron/rebuild  electronVersion=43.8.9 arch=arm64 buildFromSource=false workspaceRoot=/Users/runner/work/Fabtice/Fabtice/desktop projectDir=./ appDir=./
+  • installing native dependencies  arch=arm64
+  • completed installing native dependencies
+  • packaging       platform=darwin arch=arm64 electron=43.8.9 appOutDir=dist/mac-arm64
+  • downloaded      label=electron progress=100%
+  • downloaded electron zip extracted successfully  output=/Users/runner/work/Fabtice/Fabtice/desktop/dist/mac-arm64
+  • searching for node modules  pm=npm searchDir=/Users/runner/work/Fabtice/Fabtice/desktop
+  • no node modules found in collection, trying next search directory  pm=npm searchDir=/Users/runner/work/Fabtice/Fabtice/desktop
+  • searching for node modules  pm=traversal searchDir=/Users/runner/work/Fabtice/Fabtice/desktop
+  • using manual traversal of node_modules to build dependency tree
+  • no node modules found in collection, trying next search directory  pm=traversal searchDir=/Users/runner/work/Fabtice/Fabtice/desktop
+  • no node modules returned while searching directories  searchDirectories=[""]
+  • default Electron icon is used  reason=application icon is not set
+  • signing         file=dist/mac-arm64/Fabtice.app platform=darwin type=distribution identityName=- identityHash=none provisioningProfile=none
+  • skipped macOS notarization  reason=`notarize` options were unable to be generated
+  • building        target=macOS zip arch=arm64 file=dist/Fabtice-mac-apple-silicon.zip
+  • building        target=DMG arch=arm64 file=dist/Fabtice-mac-apple-silicon.dmg
+  • downloaded      label=7zip-darwin-arm64.tar.gz progress=100%
+  • downloaded      label=dmgbuild-bundle-arm64-75c8a6c.tar.gz progress=100%
+  • building block map  blockMapFile=dist/Fabtice-mac-apple-silicon.zip.blockmap
+total 526608
+drwxr-xr-x   7 runner  staff        224 Nov 14 12:12 .
+drwxr-xr-x  13 runner  staff        416 Nov 14 12:10 ..
+-rw-r--r--   1 runner  staff        915 Nov 14 12:12 builder-debug.yml
+-rw-r--r--@  1 runner  staff  127611147 Nov 14 12:11 Fabtice-mac-apple-silicon.dmg
+-rw-r--r--   1 runner  staff  123492631 Nov 14 12:11 Fabtice-mac-apple-silicon.zip
+-rw-r--r--   1 runner  staff     130416 Nov 14 12:12 Fabtice-mac-apple-silicon.zip.blockmap
+drwxr-xr-x   3 runner  staff         96 Nov 14 12:10 mac-arm64
+2b2d015da4899f6732824ad02ec2e465c8220a6c234da941c75779d725d08a8e  dist/Fabtice-mac-apple-silicon.dmg
+a44642467ca8a267762a526098c81f2dcf1db98aa621bb0bedab48d0fbf2cb78  dist/Fabtice-mac-apple-silicon.zip

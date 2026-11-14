@@ -1,0 +1,76 @@
+### logs/logs-build/07-inspect.log (75 lines, last 200 shown)
+### step 07-inspect — 2026-11-14T12:13:31Z — Darwin 24.6.0 arm64
+######## Apple Silicon
+== main executable
+/Users/runner/work/_temp/arm64/Fabtice.app/Contents/MacOS/Fabtice: Mach-O 64-bit executable arm64
+arm64
+minos arm64: main=12.0 framework=12.0
+== Info.plist
+12.0
+0.1.0
+org.fabtice.desktop
+== highest minos over every Mach-O in the bundle
+12.0 arm64 Contents/Frameworks/Mantle.framework/Versions/A/Mantle
+12.0 arm64 Contents/Frameworks/ReactiveObjC.framework/Versions/A/ReactiveObjC
+12.0 arm64 Contents/Frameworks/Squirrel.framework/Versions/A/Resources/ShipIt
+12.0 arm64 Contents/Frameworks/Squirrel.framework/Versions/A/Squirrel
+12.0 arm64 Contents/MacOS/Fabtice
+== signature
+Identifier=org.fabtice.desktop
+Format=app bundle with Mach-O thin (arm64)
+CodeDirectory v=20400 size=620 flags=0x2(adhoc) hashes=9+7 location=embedded
+Signature=adhoc
+TeamIdentifier=not set
+--validated:/Users/runner/work/_temp/arm64/Fabtice.app/Contents/Frameworks/Electron Framework.framework/Versions/Current/.
+/Users/runner/work/_temp/arm64/Fabtice.app: valid on disk
+/Users/runner/work/_temp/arm64/Fabtice.app: satisfies its Designated Requirement
+/Users/runner/work/_temp/arm64/Fabtice.app: rejected
+== Electron fuses (RunAsNode must stay enabled)
+Analyzing app: Fabtice.app
+Fuse Version: v1
+  RunAsNode is Enabled
+  EnableCookieEncryption is Disabled
+  EnableNodeOptionsEnvironmentVariable is Enabled
+  EnableNodeCliInspectArguments is Enabled
+  EnableEmbeddedAsarIntegrityValidation is Disabled
+  OnlyLoadAppFromAsar is Disabled
+  LoadBrowserProcessSpecificV8Snapshot is Disabled
+  GrantFileProtocolExtraPrivileges is Enabled
+  WasmTrapHandlers is Enabled
+######## Intel
+== main executable
+/Users/runner/work/_temp/x64/Fabtice.app/Contents/MacOS/Fabtice: Mach-O 64-bit executable x86_64
+x86_64
+minos x86_64: main=12.0 framework=12.0
+== Info.plist
+12.0
+0.1.0
+org.fabtice.desktop
+== highest minos over every Mach-O in the bundle
+12.0 x86_64 Contents/Frameworks/Mantle.framework/Versions/A/Mantle
+12.0 x86_64 Contents/Frameworks/ReactiveObjC.framework/Versions/A/ReactiveObjC
+12.0 x86_64 Contents/Frameworks/Squirrel.framework/Versions/A/Resources/ShipIt
+12.0 x86_64 Contents/Frameworks/Squirrel.framework/Versions/A/Squirrel
+12.0 x86_64 Contents/MacOS/Fabtice
+== signature
+Identifier=org.fabtice.desktop
+Format=app bundle with Mach-O thin (x86_64)
+CodeDirectory v=20400 size=460 flags=0x2(adhoc) hashes=4+7 location=embedded
+Signature=adhoc
+TeamIdentifier=not set
+--validated:/Users/runner/work/_temp/x64/Fabtice.app/Contents/Frameworks/Electron Framework.framework/Versions/Current/.
+/Users/runner/work/_temp/x64/Fabtice.app: valid on disk
+/Users/runner/work/_temp/x64/Fabtice.app: satisfies its Designated Requirement
+/Users/runner/work/_temp/x64/Fabtice.app: rejected
+== Electron fuses (RunAsNode must stay enabled)
+Analyzing app: Fabtice.app
+Fuse Version: v1
+  RunAsNode is Enabled
+  EnableCookieEncryption is Disabled
+  EnableNodeOptionsEnvironmentVariable is Enabled
+  EnableNodeCliInspectArguments is Enabled
+  EnableEmbeddedAsarIntegrityValidation is Disabled
+  OnlyLoadAppFromAsar is Disabled
+  LoadBrowserProcessSpecificV8Snapshot is Disabled
+  GrantFileProtocolExtraPrivileges is Enabled
+  WasmTrapHandlers is Enabled
