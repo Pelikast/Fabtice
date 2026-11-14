@@ -124,11 +124,9 @@ function ExportAudioBox() {
             <h3>{t('exportAudio.format')}</h3>
             <div className="formats-export" role="radiogroup" aria-label={t('exportAudio.format')}>
               {AUDIO_FORMATS.map((f: AudioFormat) => {
-                const ready = hasEncoder(f);
                 return (
-                  <button key={f} role="radio" aria-checked={prefs.format === f} disabled={!ready} data-format={f} onClick={() => set({ format: f })}>
+                  <button key={f} role="radio" aria-checked={prefs.format === f} disabled={!hasEncoder(f)} data-format={f} onClick={() => set({ format: f })}>
                     {f.toUpperCase()}
-                    {!ready && <small>{t('exportAudio.formatSoon')}</small>}
                   </button>
                 );
               })}

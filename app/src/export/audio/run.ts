@@ -134,7 +134,7 @@ export async function runAudioExport(plan: ExportPlan, deps: ExportDeps): Promis
     if (deps.signal?.aborted) throw new ExportError('cancelled');
     const file = plan.files[i]!;
     const audio = await fileAudio(plan, file, deps, (f) => report((i + 0.85 * f) / total));
-    const blob = await encoder.encode(audio, { signal: deps.signal, onProgress: (f) => report((i + 0.85 + 0.15 * f) / total) });
+    const blob = await encoder.encode(audio, { signal: deps.signal, title: file.title, onProgress: (f) => report((i + 0.85 + 0.15 * f) / total) });
     out.push({ name: file.name, blob });
   }
   if (plan.archiveName) {

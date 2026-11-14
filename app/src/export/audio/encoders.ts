@@ -1,13 +1,16 @@
-// The encoders of « Exporter le son », one per format. Today only WAV
-// (`wav.ts`); the export agent adds mp3 and flac (wasm ports of free
-// encoders, loaded on first use) through `registerEncoder`, and the dialog
-// offers a format only when its encoder is here.
+// The encoders of « Exporter le son », one per format: WAV (`wav.ts`, written
+// straight from the samples) and mp3 and flac (`encoders/`: LAME and libFLAC
+// compiled to WebAssembly, in a worker created by the first file of that format).
+// The dialog offers a format only when its encoder is registered.
 
 import type { AudioFormat } from '../../model/audioExport';
 import type { AudioEncoder } from './types';
+import { flacEncoder, mp3Encoder } from './encoders/index';
 import { wavEncoder } from './wav';
 
 const encoders = new Map<AudioFormat, AudioEncoder>([['wav', wavEncoder]]);
+registerEncoder(mp3Encoder);
+registerEncoder(flacEncoder);
 
 export function getEncoder(format: AudioFormat): AudioEncoder | null {
   return encoders.get(format) ?? null;
