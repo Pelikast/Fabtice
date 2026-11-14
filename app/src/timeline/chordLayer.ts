@@ -12,6 +12,8 @@ export interface LabelEntry {
   html: string;
   /** Written smaller (a bar with several chords). */
   small: boolean;
+  /** Size level of the whole row (`ROW_SIZES_PX`); a small label ignores it. */
+  size: number;
   /** Left edge in pixels from the left of the view. */
   x: number;
 }
@@ -20,8 +22,12 @@ interface Label {
   el: HTMLElement;
   html: string;
   small: boolean;
+  size: number;
   x: number;
 }
+
+/** The classes of a label: the base look, the two-chord size, or the row's reduced size. */
+const sizeClass = (small: boolean, size: number): string => (small ? ' deux' : size > 0 ? ` taille-${size}` : '');
 
 export class ChordLayer {
   private readonly labels = new Map<string, Label>();
@@ -36,11 +42,11 @@ export class ChordLayer {
   }
 
   /** Width of a label in CSS pixels. */
-  measure(html: string, small: boolean): number {
-    const key = `${small ? 's' : 'n'}${html}`;
+  measure(html: string, small: boolean, size = 0): number {
+    const key = `${small ? 's' : size}${html}`;
     let w = this.widths.get(key);
     if (w === undefined) {
-      this.gauge.classList.toggle('deux', small);
+      this.gauge.className = `frise-accord frise-jauge${sizeClass(small, size)}`;
       this.gauge.innerHTML = html;
       w = this.gauge.getBoundingClientRect().width;
       this.widths.set(key, w);
@@ -63,10 +69,10 @@ export class ChordLayer {
       let label = this.labels.get(e.key);
       if (!label) {
         const el = document.createElement('div');
-        el.className = e.small ? 'frise-accord deux' : 'frise-accord';
+        el.className = `frise-accord${sizeClass(e.small, e.size)}`;
         el.innerHTML = e.html;
         this.host.appendChild(el);
-        label = { el, html: e.html, small: e.small, x: Number.NaN };
+        label = { el, html: e.html, small: e.small, size: e.size, x: Number.NaN };
         this.labels.set(e.key, label);
         created++;
       } else {
@@ -74,9 +80,10 @@ export class ChordLayer {
           label.el.innerHTML = e.html;
           label.html = e.html;
         }
-        if (label.small !== e.small) {
-          label.el.classList.toggle('deux', e.small);
+        if (label.small !== e.small || label.size !== e.size) {
+          label.el.className = `frise-accord${sizeClass(e.small, e.size)}`;
           label.small = e.small;
+          label.size = e.size;
         }
       }
       if (label.x !== e.x) {

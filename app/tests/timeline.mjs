@@ -772,6 +772,118 @@ try {
       await context.close();
     }
 
+    // ---- the chord row steps down in size before it drops chords
+    {
+      const { page, context, errors } = await open({ width: 1280, height: 800 }, { query: '?demo' });
+      // What the chart writes at the start of each bar, without the ones that repeat the one before: what the row must show
+      // (a second chord inside a bar cannot fit in a 43 px bar and stays out, as the bar-first chord has priority).
+      await page.evaluate(() => window.__fabtice.actions.setViewMode('grille'));
+      await sleep(300);
+      const expected = await page.$$eval('.vue-grille .case', (cases) => {
+        const out = [];
+        for (const c of cases) {
+          const el = c.querySelector('.ch');
+          if (!el) continue;
+          const text = el.innerText.replace(/\s+/g, '');
+          if (out[out.length - 1] !== text) out.push(text);
+        }
+        return out;
+      });
+      await page.evaluate(() => window.__fabtice.actions.setViewMode('pistes'));
+      await page.evaluate(() => window.__fabtice.actions.setAuto(true));
+      await sleep(400);
+      const rowInfo = () =>
+        page.evaluate(() => {
+          const f = document.querySelector('.frise');
+          const fr = f.getBoundingClientRect();
+          const t0 = Number(f.dataset.t0);
+          const pps = Number(f.dataset.pps);
+          const segs = window.__fabtice.store.getState().tempoMap.segments;
+          const n = window.__fabtice.store.getState().tempoMap.meters[0].meter.numerator;
+          const beatTime = (beat) => {
+            let i = 0;
+            while (i + 1 < segs.length && segs[i + 1].beat <= beat) i++;
+            return segs[i].time + ((beat - segs[i].beat) * 60) / segs[i].bpm;
+          };
+          const els = [...document.querySelectorAll('.frise-accords .frise-accord:not(.frise-jauge)')];
+          const labels = els.map((el) => {
+            const r = el.querySelector('.ch').getBoundingClientRect();
+            return { text: el.querySelector('.ch').innerText.replace(/\s+/g, ''), left: r.left - fr.left, right: r.right - fr.left, size: getComputedStyle(el).fontSize, small: el.classList.contains('deux'), x: el.getBoundingClientRect().left - fr.left };
+          });
+          // Next bar line strictly after a label's left edge.
+          let crossing = 0;
+          for (const l of labels) {
+            let next = Infinity;
+            for (let b = 0; b < 4000; b += n) {
+              const px = (beatTime(b) - t0) * pps;
+              if (px > l.x + 1) {
+                next = px;
+                break;
+              }
+            }
+            if (l.right > next + 0.5) crossing++;
+          }
+          const sorted = [...labels].sort((a, b) => a.left - b.left);
+          let overlaps = 0;
+          for (let i = 1; i < sorted.length; i++) if (sorted[i].left < sorted[i - 1].right) overlaps++;
+          return { stride: Number(f.dataset.chordStride), size: Number(f.dataset.chordSize), t0, pps, labels, crossing, overlaps, sizes: [...new Set(labels.filter((l) => !l.small).map((l) => l.size))] };
+        });
+      let r = await rowInfo();
+      check('chord row fitted to 1280 px: every chord of the piece is written (no stride)', r.stride === 1 && r.labels.map((l) => l.text).join() === expected.join(), `${r.labels.length}/${expected.length} labels, stride ${r.stride}, pps ${r.pps.toFixed(2)}`);
+      check('chord row fitted: the whole row stepped down together (one size, below the comfortable 18 px, not below 14.5)', r.size >= 1 && r.sizes.length === 1 && parseFloat(r.sizes[0]) >= 14.5 && parseFloat(r.sizes[0]) < 18, `level ${r.size}, sizes ${r.sizes}`);
+      check('chord row fitted: no label overlaps another or crosses the next bar line', r.overlaps === 0 && r.crossing === 0, `${r.overlaps} overlaps, ${r.crossing} crossings`);
+      await page.screenshot({ path: path.join(out, 'chords-size-fitted.png'), clip: { x: 0, y: 56, width: 1280, height: 130 } });
+
+      // Comfortable zoom: nothing changes (18 px, level 0, every chord).
+      await page.evaluate(() => window.__fabtice.actions.setZoom(90));
+      await sleep(300);
+      r = await rowInfo();
+      check('chord row at a comfortable zoom: level 0, 18 px, stride 1', r.size === 0 && r.stride === 1 && r.sizes.join() === '18px', `level ${r.size}, ${r.sizes}`);
+      await page.screenshot({ path: path.join(out, 'chords-size-comfortable.png'), clip: { x: 0, y: 56, width: 1280, height: 130 } });
+
+      // Where even the smallest size cannot fit: the stride comes back, at the smallest size.
+      await page.evaluate(() => window.__fabtice.actions.setZoom(10));
+      await sleep(300);
+      r = await rowInfo();
+      check('chord row where even the smallest size cannot fit: the stride comes back at 14.5 px', r.stride >= 2 && r.size === 2 && r.sizes.join() === '14.5px' && r.overlaps === 0, `stride ${r.stride}, level ${r.size}, ${r.sizes}`);
+      await page.screenshot({ path: path.join(out, 'chords-size-stride.png'), clip: { x: 0, y: 56, width: 1280, height: 130 } });
+
+      check('chord row size: no page errors', errors.length === 0, errors.join(' | '));
+      await context.close();
+    }
+
+    // ---- ... and it does not change while scrolling at a fixed zoom (a narrower window, so that the piece scrolls at these zooms)
+    {
+      const { page, context, errors } = await open({ width: 960, height: 640 }, { query: '?demo' });
+      const reading = () =>
+        page.evaluate(() => {
+          const f = document.querySelector('.frise');
+          const sizes = [...new Set([...document.querySelectorAll('.frise-accords .frise-accord:not(.frise-jauge):not(.deux)')].map((el) => getComputedStyle(el).fontSize))];
+          return { t0: Number(f.dataset.t0), key: `${f.dataset.chordSize}/${f.dataset.chordStride}/${sizes.join()}` };
+        });
+      let stepped = 0;
+      for (const pps of [19, 21, 23, 27, 40]) {
+        await page.evaluate((v) => window.__fabtice.actions.setZoom(v), pps);
+        await page.evaluate(() => window.__fabtice.actions.seek(0));
+        await page.evaluate(() => document.querySelector('.frise-regle').dispatchEvent(new WheelEvent('wheel', { deltaX: -9000, deltaY: 0, bubbles: true, cancelable: true })));
+        await sleep(300);
+        const seen = new Set();
+        const positions = new Set();
+        for (let i = 0; i < 14; i++) {
+          const r = await reading();
+          seen.add(r.key);
+          positions.add(r.t0.toFixed(2));
+          await page.evaluate(() => document.querySelector('.frise-regle').dispatchEvent(new WheelEvent('wheel', { deltaX: 40, deltaY: 0, bubbles: true, cancelable: true })));
+          await sleep(160);
+        }
+        if (![...seen][0].startsWith('0/1/')) stepped++;
+        check(`chord row at ${pps} px/s: one size and one stride the whole way while scrolling`, seen.size === 1 && positions.size >= 6, `${[...seen]} (${[...positions]})`);
+      }
+      check('chord row scrolling: at least one of these zooms is below the comfortable size or thinned (the test is meaningful)', stepped >= 2, `${stepped} zooms`);
+      check('chord row scrolling: no page errors', errors.length === 0, errors.join(' | '));
+      await context.close();
+    }
+
     // ---- phone, 390 × 844
     {
       const { page, context, errors } = await open({ width: 390, height: 844 }, { touch: true, dpr: 2, query: '?demo' });

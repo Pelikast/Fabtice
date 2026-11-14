@@ -10,11 +10,16 @@
 //     chord of the bar goes at its own beat, or just after the first one when
 //     they would touch; a chord that does not fit before the next bar's first
 //     chord is left out (bar-first chords have priority);
-//   - zoomed out the row thins out as the bar numbers do, in a regular way: one
-//     label every 2, 4, 8… bars (the smallest stride that gives the widest label
-//     room), each label being the chord in force at that bar line.
-// The stride never depends on what is scrolled into view but on the widest
-// label of the piece, so thinning does not flicker while playing.
+//   - when the bars get narrow the whole row is first written smaller (18, then
+//     16, then 14.5 px: the size of a bar with two chords, the least that stays
+//     comfortable), all labels at once, before any chord is dropped;
+//   - zoomed out further, where even the smallest size does not fit, the row
+//     thins out as the bar numbers do, in a regular way: one label every 2, 4,
+//     8… bars (the smallest stride that gives the widest label room), each
+//     label being the chord in force at that bar line.
+// Size and stride never depend on what is scrolled into view but on the zoom,
+// the narrowest bar and the widest label of the piece, so nothing flickers
+// while scrolling or playing.
 
 import { MAX_LINES } from '../grid/lines';
 import { barStartTime, timeToBar } from '../grid/tempoMap';
@@ -31,6 +36,15 @@ export const PAD_BAR_PX = 9;
 export const PAD_MID_PX = 6;
 /** Least space between two labels. */
 export const LABEL_GAP_PX = 8;
+
+/**
+ * Font sizes of the row, from the comfortable one down to the smallest that is
+ * still easy to read (the mockup's `.accord` and `.accord.deux`); the index is
+ * the row's « size level ». A label of a bar with two chords is always the
+ * smallest size.
+ */
+export const ROW_SIZES_PX = [18, 16, 14.5] as const;
+export const SMALLEST_SIZE = ROW_SIZES_PX.length - 1;
 
 /** One chord of the row. */
 export interface RowChord {
@@ -100,15 +114,17 @@ export interface ChordRowInput {
   t0: Seconds;
   pps: number;
   viewW: number;
-  /** Measured width of a label, in CSS pixels. */
-  widthOf: (item: RowChord) => number;
-  /** Widest label of the piece (decides the stride). */
-  maxWidth: number;
+  /** Measured width of a label written at a size level, in CSS pixels. */
+  widthOf: (item: RowChord, size: number) => number;
+  /** Widest label of the piece at each size level (decides the size and the stride). */
+  maxWidths: readonly number[];
   /** How far outside the view labels are still placed. */
   margin?: number;
 }
 
 export interface ChordRowPlacement {
+  /** Size level of the whole row (index in `ROW_SIZES_PX`; 0 = the comfortable size). */
+  size: number;
   /** 1 = every chord where it is; 2, 4, 8… = one label every n bars. */
   stride: number;
   placed: PlacedChord[];
@@ -132,16 +148,23 @@ export function inForceAt(items: readonly RowChord[], bar: number): RowChord | n
   return i >= 0 ? items[i]! : null;
 }
 
-/** Smallest spacing, in pixels, between two bar lines of the visible bars (and the neighbours). */
-function minBarGap(map: TempoMap, first: number, last: number, pps: number): number {
-  let gap = Infinity;
-  let prev = barStartTime(map, first);
-  for (let bar = first + 1; bar <= last + 1; bar++) {
+/** Shortest bar of the piece up to `lastBar`, in seconds (cached per tempo map: it does not depend on the view). */
+const shortestBars = new WeakMap<TempoMap, Map<number, number>>();
+export function shortestBarSeconds(map: TempoMap, lastBar: number): number {
+  let byLast = shortestBars.get(map);
+  if (!byLast) shortestBars.set(map, (byLast = new Map()));
+  const hit = byLast.get(lastBar);
+  if (hit !== undefined) return hit;
+  let shortest = Infinity;
+  let prev = barStartTime(map, 0);
+  const last = Math.min(Math.max(0, lastBar), MAX_LINES);
+  for (let bar = 1; bar <= last + 1; bar++) {
     const t = barStartTime(map, bar);
-    gap = Math.min(gap, (t - prev) * pps);
+    shortest = Math.min(shortest, t - prev);
     prev = t;
   }
-  return gap;
+  byLast.set(lastBar, shortest);
+  return shortest;
 }
 
 /** Stride of the row for a spacing between bar lines and a widest label. */
@@ -149,17 +172,32 @@ export function chordStride(barGapPx: number, maxWidth: number): number {
   return barStride(barGapPx, maxWidth + LABEL_GAP_PX);
 }
 
+/**
+ * Size level and stride for a spacing between bar lines and the widest label at
+ * each size: the first (largest) size at which every chord fits, else the
+ * smallest size with a stride.
+ */
+export function chooseRowSize(barGapPx: number, maxWidths: readonly number[]): { size: number; stride: number } {
+  for (let size = 0; size < maxWidths.length; size++) {
+    if (chordStride(barGapPx, maxWidths[size]!) === 1) return { size, stride: 1 };
+  }
+  const size = Math.max(0, maxWidths.length - 1);
+  return { size, stride: chordStride(barGapPx, maxWidths[size] ?? 0) };
+}
+
 export function placeChordRow(input: ChordRowInput): ChordRowPlacement {
-  const { items, map, t0, pps, viewW, widthOf } = input;
+  const { items, map, t0, pps, viewW } = input;
   const margin = input.margin ?? 120;
   const placed: PlacedChord[] = [];
-  if (items.length === 0 || !(pps > 0) || viewW <= 0) return { stride: 1, placed };
+  if (items.length === 0 || !(pps > 0) || viewW <= 0) return { size: 0, stride: 1, placed };
 
   const ta = Math.max(0, t0 - margin / pps);
   const tb = t0 + (viewW + margin) / pps;
   const firstBar = timeToBar(map, ta).bar;
   const lastBar = timeToBar(map, tb).bar;
-  const stride = chordStride(minBarGap(map, firstBar, Math.min(lastBar, firstBar + MAX_LINES), pps), input.maxWidth);
+  // The whole piece decides (its narrowest bar, its widest label), never what is in view.
+  const { size, stride } = chooseRowSize(shortestBarSeconds(map, items[items.length - 1]!.bar) * pps, input.maxWidths);
+  const widthOf = (item: RowChord) => input.widthOf(item, size);
   const xOfTime = (t: Seconds) => (t - t0) * pps;
   const visible = (x: number, w: number) => x + w >= -margin && x <= viewW + margin;
 
@@ -176,7 +214,7 @@ export function placeChordRow(input: ChordRowInput): ChordRowPlacement {
       const x = xOfTime(barStartTime(map, bar)) + PAD_BAR_PX;
       if (visible(x, w)) placed.push({ item, x, width: w, key: `${item.id}@${bar}` });
     }
-    return { stride, placed };
+    return { size, stride, placed };
   }
 
   // Every chord where it is. Start a little before the view so a label that straddles the left edge is there.
@@ -199,5 +237,5 @@ export function placeChordRow(input: ChordRowInput): ChordRowPlacement {
     lastEnd = x + w;
     if (visible(x, w)) placed.push({ item, x, width: w, key: item.id });
   }
-  return { stride, placed };
+  return { size, stride, placed };
 }

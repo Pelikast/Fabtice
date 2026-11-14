@@ -792,12 +792,19 @@ posé 9 px après la barre qui le commence (6 px pour un accord au milieu de la
 mesure, qui se range à son temps ou juste après le précédent, et s'efface
 s'il gênerait l'accord de la mesure suivante : celui du temps 1 est prioritaire) ;
 une mesure à deux accords les écrit à 14,5 px, comme la maquette. Un accord qui
-répète le précédent n'est pas réécrit. **Éclaircissement** : comme les numéros de
-mesure, une étiquette toutes les 2, 4, 8… mesures, la plus petite foulée qui
-laisse sa place à l'étiquette la plus large *du morceau* (donc la foulée ne
-change pas selon ce qui défile) ; chaque étiquette est alors l'accord en
-vigueur sur la barre gardée. Les traits de mesure du rang suivent la même
-foulée, pour ne jamais couper une étiquette. `data-chord-labels` et
+répète le précédent n'est pas réécrit. **Taille d'abord, éclaircissement ensuite** :
+quand les mesures se resserrent, *toute* la rangée s'écrit plus petit d'un coup
+(18, puis 16, puis 14,5 px, la taille d'une mesure à deux accords, plancher
+toujours lisible ; classes `taille-1` et `taille-2`, mêmes balisage et styles que
+la grille) avant d'abandonner le moindre accord. Seulement si la plus petite
+taille ne tient pas non plus, comme les numéros de mesure, une étiquette toutes les
+2, 4, 8… mesures (la plus petite foulée qui laisse sa place à l'étiquette la plus
+large), chaque étiquette étant alors l'accord en vigueur sur la barre gardée. La
+taille et la foulée (`chooseRowSize` dans `chordRow.ts`) ne dépendent que du zoom,
+de la mesure la plus étroite *du morceau* et de l'étiquette la plus large *du
+morceau* (jamais de ce qui défile : pas de scintillement) ; à un zoom confortable
+rien ne change (18 px). Les traits de mesure du rang suivent la même foulée, pour
+ne jamais couper une étiquette. `data-chord-size`, `data-chord-labels` et
 `data-chord-stride` sur `.frise` servent aux vérifications.
 
 **Courbe de tempo.** Un point par mesure (tempo moyen de la mesure, posé au
