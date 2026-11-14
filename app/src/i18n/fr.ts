@@ -146,7 +146,7 @@ export const fr = {
   'import.starting-download': 'Préparation du téléchargement…',
   'import.downloading': 'Téléchargement du son…',
   'import.received': '{size} reçus',
-  'import.quietNote': 'Cette étape peut durer une à deux minutes sur certains Mac. Fabtice n’est pas bloqué : merci de patienter.',
+  'import.quietNote': 'Sur certains Mac, cette étape peut durer une à deux minutes. Fabtice n’est pas bloqué.',
   'import.reading': 'Lecture du fichier…',
   'import.decoding': 'Préparation du son…',
   'import.preparing': 'Ouverture du morceau…',

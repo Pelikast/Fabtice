@@ -124,6 +124,8 @@ export interface ExtractReport {
   file?: { name: string; size: number; container: unknown };
   totalMs?: number;
   tempDeleted?: boolean;
+  /** Where the time of the download step went (start-up, first progress line, speed). */
+  download?: Record<string, unknown>;
 }
 
 export type ExtractResult =
@@ -142,10 +144,34 @@ export type ExtractResult =
       audio?: null;
     };
 
+/**
+ * What the Mac app reports while it extracts (see `desktop/src/extract.js`):
+ *   - `info`: the piece is being looked up;
+ *   - `prepare`: the download is about to start and nothing can be measured yet
+ *     (the tool itself may take a minute to start on an older Mac); `meta` has the title;
+ *   - `download`: sent only when yt-dlp printed a real progress line. `percent` is
+ *     null when the total size is unknown, then `receivedBytes` is the amount so far.
+ * An older Mac app sent `download` with a percentage of 0 before anything was measured
+ * and no `prepare`: the interface then simply shows what it is told.
+ */
 export type ExtractProgress =
   | { phase: 'info' }
-  /** `meta` comes with the first download event only. */
-  | { phase: 'download'; percent: number; meta?: ExtractMeta };
+  | { phase: 'prepare'; meta?: ExtractMeta }
+  | {
+      phase: 'download';
+      percent: number | null;
+      receivedBytes?: number | null;
+      totalBytes?: number | null;
+      speedBps?: number | null;
+      meta?: ExtractMeta;
+    };
+
+/** The report of the last import made from the interface, as text (diagnostic window). */
+export interface LastImportReport {
+  available: boolean;
+  text: string;
+  at?: string;
+}
 
 // ---------------------------------------------------------------- the bridge
 
@@ -162,6 +188,8 @@ export interface DesktopBridge {
   extract(link: string): Promise<ExtractResult>;
   /** Copies text to the clipboard. */
   copyText(text: string): Promise<true>;
+  /** Timings of the last import made from the interface (a Mac app that predates it lacks this method). */
+  lastImportReport?(): Promise<LastImportReport>;
   onYtdlpProgress(callback: (progress: YtdlpProgress) => void): Unsubscribe;
   onExtractProgress(callback: (progress: ExtractProgress) => void): Unsubscribe;
 }

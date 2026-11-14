@@ -46,6 +46,59 @@ describe('importFromLink', () => {
     expect(bridge.listeners()).toBe(0);
   });
 
+  it('honest steps: looking up, preparing the download (nothing to measure), then a real percentage, then decoding', async () => {
+    const bridge = fakeBridge({
+      extractEvents: [
+        { phase: 'info' },
+        { phase: 'prepare', meta: META },
+        { phase: 'download', percent: 0, receivedBytes: 0, totalBytes: 3000, speedBps: null },
+        { phase: 'download', percent: 50, receivedBytes: 1500, totalBytes: 3000, speedBps: 1000 },
+        { phase: 'download', percent: 100, receivedBytes: 3000, totalBytes: 3000, speedBps: 1000 },
+      ],
+    });
+    const progress: ImportProgress[] = [];
+    await importFromLink(LINK, bridge, { onProgress: (p) => progress.push(p) }, deps);
+    expect(progress.map((p) => [p.phase, p.fraction])).toEqual([
+      ['fetching-info', null],
+      ['fetching-info', null],
+      ['fetching-info', null],
+      ['starting-download', null],
+      ['downloading', 0],
+      ['downloading', 0.5],
+      ['downloading', 1],
+      ['decoding', null],
+    ]);
+    // The title is known as soon as the download is being prepared.
+    expect(progress.filter((p) => p.phase === 'starting-download' || p.phase === 'downloading').every((p) => p.title === 'Autumn Leaves')).toBe(true);
+  });
+
+  it('a download of unknown size shows the amount received, never a percentage', async () => {
+    const bridge = fakeBridge({
+      extractEvents: [
+        { phase: 'info' },
+        { phase: 'prepare', meta: META },
+        { phase: 'download', percent: null, receivedBytes: 1024, totalBytes: null, speedBps: null },
+        { phase: 'download', percent: null, receivedBytes: 2_500_000, totalBytes: null, speedBps: 1000 },
+      ],
+    });
+    const progress: ImportProgress[] = [];
+    await importFromLink(LINK, bridge, { onProgress: (p) => progress.push(p) }, deps);
+    const downloading = progress.filter((p) => p.phase === 'downloading');
+    expect(downloading.map((p) => [p.fraction, p.received])).toEqual([
+      [null, 1024],
+      [null, 2_500_000],
+    ]);
+  });
+
+  it('never invents a « 0 % »: a download event with nothing measurable stays in the preparation step', async () => {
+    const bridge = fakeBridge({ extractEvents: [{ phase: 'info' }, { phase: 'prepare', meta: META }, { phase: 'download', percent: null }] });
+    const progress: ImportProgress[] = [];
+    await importFromLink(LINK, bridge, { onProgress: (p) => progress.push(p) }, deps);
+    expect(progress.some((p) => p.phase === 'downloading')).toBe(false);
+    expect(progress.filter((p) => p.phase === 'starting-download')).toHaveLength(2);
+    expect(progress.every((p) => p.fraction === null || p.phase === 'decoding')).toBe(true);
+  });
+
   it('hands the decoder a copy and keeps the extracted bytes for storage', async () => {
     const bytes = new Uint8Array([9, 8, 7, 6]);
     const bridge = fakeBridge({ extractions: [okResult(bytes)] });

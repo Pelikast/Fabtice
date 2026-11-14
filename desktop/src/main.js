@@ -12,6 +12,7 @@ const { collectSystemInfo, jsRuntime } = require('./system-info');
 const fabticeProtocol = require('./protocol');
 const { buildMenu } = require('./menu');
 const messages = require('./messages');
+const { formatImportReport } = require('./report');
 
 // The interface is built by app/ (npm run build:desktop) into desktop/ui/.
 const UI_DIR = path.join(__dirname, '..', 'ui');
@@ -38,6 +39,25 @@ function redact(value) {
     return out;
   }
   return value;
+}
+
+// The report of the last import started from the interface, kept in memory and in the
+// user-data folder (so that it survives a restart before the owner sends it).
+let lastImport = null;
+const LAST_IMPORT_FILE = 'last-import-report.json';
+
+function rememberImport(entry) {
+  lastImport = entry;
+  fsp.writeFile(path.join(app.getPath('userData'), LAST_IMPORT_FILE), JSON.stringify(entry)).catch(() => {});
+}
+
+async function readLastImport() {
+  try {
+    const entry = JSON.parse(await fsp.readFile(path.join(app.getPath('userData'), LAST_IMPORT_FILE), 'utf8'));
+    return entry && typeof entry === 'object' && typeof entry.at === 'string' ? entry : null;
+  } catch {
+    return null;
+  }
 }
 
 function handle(channel, fn) {
@@ -150,7 +170,9 @@ function registerIpc() {
     }
   });
 
-  handle('fabtice:extract', async (_e, text) => {
+  handle('fabtice:extract', async (event, text) => {
+    // Only imports made from the interface are kept for « Copier le rapport du dernier import ».
+    const fromInterface = event.senderFrame.url.startsWith(`${fabticeProtocol.SCHEME}://${fabticeProtocol.HOST_APP}/`);
     if (extraction) return { ok: false, error: messages.BUSY };
     const videoId = parseVideoId(text);
     if (!videoId) {
@@ -170,12 +192,23 @@ function registerIpc() {
         onProgress: (p) => send('fabtice:extract-progress', p),
       });
       const { audio, ...rest } = result;
-      return { ...redact(rest), audio: audio ? new Uint8Array(audio.buffer, audio.byteOffset, audio.byteLength) : null };
+      const safe = redact(rest);
+      if (fromInterface) rememberImport({ at: new Date().toISOString(), ok: safe.ok, error: safe.error, refused: safe.refused, report: safe.report });
+      return { ...safe, audio: audio ? new Uint8Array(audio.buffer, audio.byteOffset, audio.byteLength) : null };
     } catch (e) {
+      if (fromInterface) rememberImport({ at: new Date().toISOString(), ok: false, error: redact(`Erreur interne : ${e.message}`), report: null });
       return { ok: false, error: `Erreur interne : ${e.message}` };
     } finally {
       extraction = null;
     }
+  });
+
+  // The diagnostic window's « Copier le rapport du dernier import »: timings and detail of the last
+  // import made from the interface (home folder already replaced by « ~ »), as text.
+  handle('fabtice:last-import-report', async () => {
+    const entry = lastImport || (await readLastImport());
+    if (!entry) return { available: false, text: 'Aucun import n’a encore été fait depuis l’interface.' };
+    return { available: true, at: entry.at, text: formatImportReport(entry) };
   });
 
   handle('fabtice:copy', async (_e, text) => {

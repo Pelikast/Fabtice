@@ -716,12 +716,31 @@ try {
     check('first time: download progress shown', (await text(page, '.import-etat .phase')).includes('50 %'));
     await page.screenshot({ path: path.join(out, 'import-lien-installation.png') });
     await page.evaluate(() => window.__gates.install.resolve());
-    await page.waitForFunction(() => document.querySelector('.import-etat .phase')?.textContent.includes('Lecture des informations'));
-    check('then the video details are read', true);
-    await page.evaluate((meta) => window.__emit.ex({ phase: 'download', percent: 42, meta }), META);
+    await page.waitForFunction(() => document.querySelector('.import-etat .phase')?.textContent.includes('Recherche du morceau'));
+    check('then the piece is looked up', (await text(page, '.import-etat .phase')) === 'Recherche du morceau…' && (await page.locator('.import-etat .jauge.indeterminee').count()) === 1);
+    // The Mac app prepares the download: nothing can be measured, so no figure at all.
+    await page.evaluate((meta) => window.__emit.ex({ phase: 'prepare', meta }), META);
+    await page.waitForFunction(() => document.querySelector('.import-etat .phase')?.textContent.includes('Préparation du téléchargement'));
+    const preparing = await text(page, '.import-etat');
+    check('preparing the download: honest step, title shown, indeterminate bar, no percentage', preparing.includes('Autumn Leaves (essai)') && !preparing.includes('%') && (await page.locator('.import-etat .jauge.indeterminee').count()) === 1 && !preparing.includes('une à deux minutes'), preparing.replace(/\n/g, ' / '));
+    const preparedAt = Date.now();
+    await page.screenshot({ path: path.join(out, 'import-lien-preparation.png') });
+    // After about ten seconds without news: one reassuring sentence (and still no percentage).
+    await page.waitForFunction(() => document.querySelector('.import-etat')?.textContent.includes('une à deux minutes'), null, { timeout: 20000 });
+    const waited = Date.now() - preparedAt;
+    const quiet = await text(page, '.import-etat');
+    check('after about ten seconds without news: « peut durer une à deux minutes sur certains Mac »', waited > 8000 && waited < 14000 && quiet.includes('Fabtice n’est pas bloqué') && !quiet.includes('%'), `${(waited / 1000).toFixed(1)} s: ${quiet.replace(/\n/g, ' / ')}`);
+    await page.screenshot({ path: path.join(out, 'import-lien-preparation-longue.png') });
+    // A total that cannot be known: the amount received, never a percentage.
+    await page.evaluate(() => window.__emit.ex({ phase: 'download', percent: null, receivedBytes: 12_400_000, totalBytes: null, speedBps: 1000 }));
+    await page.waitForFunction(() => document.querySelector('.import-etat .phase')?.textContent.includes('reçus'));
+    const received = await text(page, '.import-etat');
+    check('unknown size: « 12,4 Mo reçus », an indeterminate bar, no percentage, the long-wait sentence gone with the news', received.includes('Téléchargement du son') && received.includes('12,4 Mo reçus') && !received.includes('%') && !received.includes('une à deux minutes') && (await page.locator('.import-etat .jauge.indeterminee').count()) === 1, received.replace(/\n/g, ' / '));
+    // Then a real percentage.
+    await page.evaluate(() => window.__emit.ex({ phase: 'download', percent: 42, receivedBytes: 1_000_000, totalBytes: 2_400_000, speedBps: 1000 }));
     await page.waitForFunction(() => document.querySelector('.import-etat .phase')?.textContent.includes('42 %'));
     const downloading = await text(page, '.import-etat');
-    check('extraction: title, percentage, and honesty about cancelling', downloading.includes('Autumn Leaves (essai)') && downloading.includes('Téléchargement du son') && downloading.includes('ne peut pas être interrompue') && (await page.locator('.import-etat button').count()) === 0, downloading.replace(/\n/g, ' / '));
+    check('extraction: title, percentage, and honesty about cancelling', downloading.includes('Autumn Leaves (essai)') && downloading.includes('Téléchargement du son') && downloading.includes('ne peut pas être interrompue') && (await page.locator('.import-etat button').count()) === 0 && (await page.locator('.import-etat .jauge.indeterminee').count()) === 0, downloading.replace(/\n/g, ' / '));
     await page.screenshot({ path: path.join(out, 'import-lien-telechargement.png') });
     // A second import must not start while the first one runs.
     await dropFile(page, fixture('tone.wav'), 'audio/wav');

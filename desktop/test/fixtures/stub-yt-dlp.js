@@ -24,6 +24,10 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
 const args = process.argv.slice(2);
+// A slow start: the download call says nothing at all for this long, not even on stderr (the
+// self-extracting binary of an older Mac), then behaves normally.
+const startDelay = Number(process.env.FABTICE_STUB_START_DELAY_MS || 0);
+if (startDelay > 0 && args.includes('--load-info-json')) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, startDelay);
 const mode = process.env.FABTICE_STUB_MODE || 'dash';
 // Where the audio fixtures are (the stub may be installed elsewhere as a fake yt-dlp).
 const FIXTURE_DIR = process.env.FABTICE_STUB_FIXTURES || __dirname;
@@ -114,10 +118,8 @@ const MIB = 1024 * 1024;
 const size = (bytes) => (bytes >= MIB ? `${(bytes / MIB).toFixed(2)}MiB` : `${(bytes / 1024).toFixed(2)}KiB`).padStart(10);
 
 async function download(source, out) {
-  const startDelay = Number(process.env.FABTICE_STUB_START_DELAY_MS || 0);
   const gap = Number(process.env.FABTICE_STUB_PROGRESS_GAP_MS || 0);
   const kind = process.env.FABTICE_STUB_PROGRESS || 'known';
-  if (startDelay > 0) await sleep(startDelay);
   const total = fs.statSync(source).size;
   process.stderr.write('[debug] stub: download starts\n');
   process.stdout.write(`[info] stub: Downloading 1 format(s): 140\n[download] Destination: ${out}\n`);

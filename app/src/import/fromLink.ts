@@ -14,6 +14,7 @@ const MIME_BY_EXTENSION: Record<string, string> = {
   opus: 'audio/ogg',
   ogg: 'audio/ogg',
   mp3: 'audio/mpeg',
+  wav: 'audio/wav',
 };
 
 /** A file name for the kept copy: the title, without characters a disk dislikes. */
@@ -38,8 +39,10 @@ function failureFrom(result: Extract<ExtractResult, { ok: false }>): ImportError
  * Imports a YouTube link through the Mac app (`window.fabtice`), in this order:
  *   1. the tool's status; if yt-dlp is missing, it is installed first
  *      (`installing`, a download of a small free tool, done once);
- *   2. the extraction (`fetching-info`, then `downloading` with a percentage);
- *      an answer `needsYtdlp` installs the tool and retries once;
+ *   2. the extraction: `fetching-info` (looking the piece up), `starting-download`
+ *      (the tool is starting; nothing to measure yet), `downloading` with a real
+ *      percentage, or with the amount received when the total is unknown; an
+ *      answer `needsYtdlp` installs the tool and retries once;
  *   3. the returned bytes are decoded like a file (`decoding`).
  * The extraction itself cannot be aborted: the signal is honoured before it
  * starts and once it is over, not during it.
@@ -80,7 +83,15 @@ export async function importFromLink(
     const off = bridge.onExtractProgress((p) => {
       if (p.phase === 'download') {
         if (p.meta?.title) title = p.meta.title;
-        report({ phase: 'downloading', fraction: Math.min(1, Math.max(0, (p.percent || 0) / 100)) });
+        // A percentage only when there is one; else the amount received; else nothing to measure yet.
+        const fraction = typeof p.percent === 'number' && Number.isFinite(p.percent) ? Math.min(1, Math.max(0, p.percent / 100)) : null;
+        const received = typeof p.receivedBytes === 'number' && Number.isFinite(p.receivedBytes) ? p.receivedBytes : null;
+        if (fraction !== null) report({ phase: 'downloading', fraction });
+        else if (received !== null) report({ phase: 'downloading', fraction: null, received });
+        else report({ phase: 'starting-download', fraction: null });
+      } else if (p.phase === 'prepare') {
+        if (p.meta?.title) title = p.meta.title;
+        report({ phase: 'starting-download', fraction: null });
       } else {
         report({ phase: 'fetching-info', fraction: null });
       }

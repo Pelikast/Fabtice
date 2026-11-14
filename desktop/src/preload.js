@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld('fabtice', {
   ytdlpCheck: (force = false) => ipcRenderer.invoke('fabtice:ytdlp-check', Boolean(force)),
   ytdlpInstall: () => ipcRenderer.invoke('fabtice:ytdlp-install'),
   extract: (link) => ipcRenderer.invoke('fabtice:extract', String(link)),
+  lastImportReport: () => ipcRenderer.invoke('fabtice:last-import-report'),
   copyText: (text) => ipcRenderer.invoke('fabtice:copy', String(text)),
   onYtdlpProgress: (cb) => subscribe('fabtice:ytdlp-progress', cb),
   onExtractProgress: (cb) => subscribe('fabtice:extract-progress', cb),

@@ -299,12 +299,22 @@ function showMeta(meta) {
 fabtice.onExtractProgress((p) => {
   const bar = $('import-progress');
   if (p.phase === 'info') {
-    setStatus($('import-status'), 'Lecture des informations de la vidéo…');
+    setStatus($('import-status'), 'Recherche du morceau…');
+  } else if (p.phase === 'prepare') {
+    // Nothing to measure yet: an indeterminate bar (no value).
+    bar.hidden = false;
+    bar.removeAttribute('value');
+    const title = p.meta && p.meta.title ? ` « ${p.meta.title} »` : '';
+    setStatus($('import-status'), `Préparation du téléchargement${title}…`);
   } else if (p.phase === 'download') {
     bar.hidden = false;
-    bar.value = p.percent || 0;
-    const title = p.meta && p.meta.title ? ` « ${p.meta.title} »` : '';
-    if (p.meta) setStatus($('import-status'), `Téléchargement de l’audio${title}…`);
+    if (p.percent === null || p.percent === undefined) {
+      bar.removeAttribute('value');
+      setStatus($('import-status'), `Téléchargement de l’audio : ${p.receivedBytes === null || p.receivedBytes === undefined ? 'en cours' : fmtBytes(p.receivedBytes)} reçus…`);
+    } else {
+      bar.value = p.percent;
+      setStatus($('import-status'), `Téléchargement de l’audio : ${Math.round(p.percent)} %`);
+    }
   }
 });
 
@@ -477,8 +487,27 @@ async function copyDiagnostics() {
   }
 }
 
+// The report of the last import made from the main window (timings, speed), copied as text.
+async function copyImportReport() {
+  try {
+    const report = await fabtice.lastImportReport();
+    const pre = $('report-text');
+    pre.textContent = report.text;
+    pre.hidden = false;
+    if (!report.available) {
+      setStatus($('report-status'), report.text);
+      return;
+    }
+    await fabtice.copyText(report.text);
+    setStatus($('report-status'), `Rapport copié dans le presse-papiers (import du ${report.at}).`);
+  } catch (e) {
+    setStatus($('report-status'), `Copie impossible : ${e.message}`, true);
+  }
+}
+
 // ---------------------------------------------------------------- start
 
+$('copy-report').addEventListener('click', copyImportReport);
 $('ytdlp-install').addEventListener('click', installYtdlp);
 $('import-form').addEventListener('submit', runImport);
 $('copy-diag').addEventListener('click', copyDiagnostics);
