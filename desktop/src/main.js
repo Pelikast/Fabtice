@@ -4,7 +4,7 @@ const path = require('node:path');
 const os = require('node:os');
 const fsp = require('node:fs/promises');
 const fs = require('node:fs');
-const { app, BrowserWindow, ipcMain, net, clipboard, session, protocol, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, net, clipboard, session, protocol, dialog, shell } = require('electron');
 const { YtDlpManager } = require('./ytdlp-manager');
 const { extractAudio } = require('./extract');
 const { parseVideoId } = require('./video-id');
@@ -13,6 +13,7 @@ const fabticeProtocol = require('./protocol');
 const { buildMenu } = require('./menu');
 const messages = require('./messages');
 const { formatImportReport } = require('./report');
+const { validateIRealLink } = require('./ireal-link');
 
 // The interface is built by app/ (npm run build:desktop) into desktop/ui/.
 const UI_DIR = path.join(__dirname, '..', 'ui');
@@ -209,6 +210,19 @@ function registerIpc() {
     const entry = lastImport || (await readLastImport());
     if (!entry) return { available: false, text: 'Aucun import n’a encore été fait depuis l’interface.' };
     return { available: true, at: entry.at, text: formatImportReport(entry) };
+  });
+
+  // « Ouvrir dans iReal Pro »: an irealb:// link (and nothing else, see ireal-link.js) goes to the system, which
+  // starts iReal Pro if it is installed. `shell.openExternal` is read at call time so a test can stand in for it.
+  handle('fabtice:open-ireal', async (_e, link) => {
+    const checked = validateIRealLink(link);
+    if (!checked.ok) return { ok: false, reason: checked.reason };
+    try {
+      await shell.openExternal(checked.url);
+      return { ok: true };
+    } catch {
+      return { ok: false, reason: 'failed' };
+    }
   });
 
   handle('fabtice:copy', async (_e, text) => {

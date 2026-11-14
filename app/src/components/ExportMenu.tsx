@@ -2,11 +2,13 @@
 // and printing the chart (lot 2, shown « bientôt » until written), audio
 // export visible but inactive (lot 3).
 
-import { useCallback, useRef, type Ref } from 'react';
-import { chartForExport, exportToIRealPro, IREAL_EXPORT_READY, printChart, PRINT_READY } from '../export';
+import { useCallback, useEffect, useRef, useState, type Ref } from 'react';
+import { chartForExport, exportToIRealPro, printChart, PRINT_READY } from '../export';
+import '../export/export.css';
 import { t } from '../i18n';
 import { closePanel, togglePanel } from '../store/actions';
 import { selectHasChords } from '../store/chartSelectors';
+import { getDesktopBridge } from '../platform/desktopBridge';
 import { appStore, useApp } from '../store/store';
 import { useOutsideClose } from '../ui/useOutsideClose';
 
@@ -34,27 +36,74 @@ export function ExportMenu() {
   );
 }
 
-/** Hands the iReal Pro chart over: a page with the link, saved by the browser (the export agent may refine this). */
-function exportIReal(): void {
-  const chart = chartForExport(appStore.getState());
-  if (!chart) return;
-  const out = exportToIRealPro(chart);
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([out.html], { type: 'text/html' }));
-  a.download = out.fileName;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
+/**
+ * « Grille pour iReal Pro »: a link to a small page that holds the iReal Pro
+ * link (named after the piece), so it is a normal link in a browser and a
+ * normal download in the Mac app. The Mac app adds « Ouvrir dans iReal Pro »,
+ * which hands the link itself to the system.
+ */
+function IRealEntries({ enabled }: { enabled: boolean }) {
+  const [file, setFile] = useState<{ href: string; name: string; url: string } | null>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    if (!enabled) return;
+    const chart = chartForExport(appStore.getState());
+    if (!chart) return;
+    const out = exportToIRealPro(chart);
+    const href = URL.createObjectURL(new Blob([out.html], { type: 'text/html;charset=utf-8' }));
+    setFile({ href, name: out.fileName, url: out.url });
+    // Not at once: the menu closes on the click, and the download starts after it.
+    return () => void setTimeout(() => URL.revokeObjectURL(href), 30_000);
+  }, [enabled]);
+
+  const bridge = getDesktopBridge();
+  if (!file) {
+    return (
+      <button className="option" role="menuitem" data-export="ireal" disabled>
+        <span>{t('export.ireal')}</span>
+        <small>{enabled ? '…' : t('export.needsChords')}</small>
+      </button>
+    );
+  }
+  const open = bridge?.openInIRealPro;
+  return (
+    <>
+      <a className="option" role="menuitem" data-export="ireal" href={file.href} download={file.name} onClick={() => closePanel()}>
+        <span>{t('export.ireal')}</span>
+      </a>
+      {bridge && open && (
+        <button
+          className="option"
+          role="menuitem"
+          data-export="ireal-open"
+          onClick={() => {
+            void open.call(bridge, file.url).then(
+              (result) => (result.ok ? closePanel() : setFailed(true)),
+              () => setFailed(true),
+            );
+          }}
+        >
+          <span>{t('export.irealOpen')}</span>
+        </button>
+      )}
+      {failed && (
+        <p className="option-erreur" role="alert">
+          {t('export.irealOpenFailed')}
+        </p>
+      )}
+    </>
+  );
 }
 
 function ExportPanel({ ref }: { ref: Ref<HTMLDivElement> }) {
   const hasChords = useApp(selectHasChords);
   const items: { key: string; label: string; ready: boolean; enabled: boolean; note: string; run: () => void }[] = [
-    { key: 'ireal', label: t('export.ireal'), ready: IREAL_EXPORT_READY, enabled: hasChords, note: hasChords ? t('export.soon') : t('export.needsChords'), run: exportIReal },
     { key: 'print', label: t('export.print'), ready: PRINT_READY, enabled: hasChords, note: hasChords ? t('export.soon') : t('export.needsChords'), run: printChart },
     { key: 'audio', label: t('export.audio'), ready: false, enabled: false, note: t('export.audioLater'), run: () => {} },
   ];
   return (
     <div ref={ref} className="fenetre menu-export" role="menu" aria-label={t('top.export')}>
+      <IRealEntries enabled={hasChords} />
       {items.map((it) => {
         const active = it.ready && it.enabled;
         return (
