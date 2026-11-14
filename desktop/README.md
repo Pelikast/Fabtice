@@ -92,6 +92,12 @@ Ouvrez ensuite Fabtice normalement.
    collez le texte dans la conversation : il dit ce qui a marché ou non
    (versions, commande exacte, erreurs de yt-dlp, format du fichier,
    décodage, WebGPU).
+3. **Un import par lien a été long ?** Menu **Aide > Diagnostic…**, puis le
+   bouton **Copier le rapport du dernier import** : il copie, pour le dernier
+   import fait depuis la fenêtre principale (gardé aussi après un
+   redémarrage), le temps passé à chaque étape (démarrage de yt-dlp, recherche
+   du morceau, temps avant la première ligne de progression, vitesse du
+   téléchargement), puis le détail technique. Collez-le dans la conversation.
 
 L’app utilise yt-dlp tel quel, depuis la connexion de l’utilisateur, sans
 aucun moyen de contourner les protections de YouTube. Si YouTube refuse, le
@@ -147,6 +153,13 @@ Les commandes de fabrication s’arrêtent avec un message clair si
 `desktop/ui/` n’existe pas. Pour tester l’app empaquetée :
 `FABTICE_E2E_APP=<chemin de l’exécutable> npm run test:e2e`.
 
+Ce que le pont envoie à l’interface pendant un import (`src/extract.js`) :
+`{ phase: 'info' }`, puis `{ phase: 'prepare', meta }` quand le téléchargement
+va démarrer (rien ne se mesure encore : le binaire de yt-dlp démarre), puis
+`{ phase: 'download', percent, receivedBytes, totalBytes, speedBps }` **seulement**
+quand yt-dlp a écrit une vraie ligne de progression (`percent` est `null` quand
+la taille totale est inconnue). Les arguments donnés à yt-dlp ne changent pas.
+
 Variables d’environnement de test :
 
 - `FABTICE_YTDLP_PATH` : chemin d’un autre exécutable à utiliser à la place
@@ -167,13 +180,40 @@ Variables d’environnement de test :
   lancement échoue ;
 - `FABTICE_STUB_FIXTURES` : dossier des fichiers audio du faux yt-dlp quand
   il est installé ailleurs (le test de parcours le fait installer par le
-  serveur de versions local, comme un vrai yt-dlp).
+  serveur de versions local, comme un vrai yt-dlp) ;
+- `FABTICE_STUB_FILE` : le faux yt-dlp rend ce fichier (n'importe quelle
+  taille) au lieu de la petite fixture, pour essayer des morceaux de taille
+  réelle ;
+- `FABTICE_STUB_START_DELAY_MS` : le faux yt-dlp ne dit rien du tout pendant ce
+  temps au début du téléchargement (le binaire autonome d'un vieux Mac) ;
+- `FABTICE_STUB_PROGRESS` : `known` (par défaut), `unknown` (taille totale
+  inconnue : seulement la quantité reçue) ou `none` (aucune ligne de
+  progression) ; `FABTICE_STUB_PROGRESS_GAP_MS` : pause entre deux lignes. Les
+  lignes imitées sont celles que le vrai yt-dlp écrit (voir `src/progress.js`).
 
 Les tests de bout en bout couvrent le parcours complet par les boutons de
 l’interface (`test/e2e/journey.test.js`) : lien collé, installation de l’outil,
 extraction, forme d’onde, lecture avec le vrai moteur (aucune violation de la
 politique de sécurité), boucle et tonalité, relance avec le même dossier de
 données, lien refusé, import d’un fichier.
+
+Deux autres fichiers gardent des défauts déjà rencontrés :
+
+- `test/e2e/real-size.test.js` : **des morceaux de taille réelle** (quelques Mo,
+  fabriqués à la volée, sans fichier binaire) importés par un fichier puis par
+  un lien (le faux yt-dlp rend un gros fichier), puis quitter, relancer avec le
+  même dossier de données : le morceau doit revenir seul en quelques secondes,
+  avec ses réglages, et se jouer. Les fixtures de quelques ko ne suffisent pas :
+  le navigateur garde les grosses valeurs à part, et c'est là que la lecture
+  d'un morceau gardé échouait en silence (le test échoue sans le correctif) ;
+- `test/e2e/link-steps.test.js` : un import par lien passe par des étapes
+  honnêtes (recherche, préparation du téléchargement sans aucun chiffre, vrai
+  pourcentage ou quantité reçue, préparation du son) avec un démarrage lent et
+  une taille inconnue, et le bouton « Copier le rapport du dernier import » de
+  la fenêtre de diagnostic.
+
+Les tests unitaires couvrent aussi `src/progress.js` (les lignes de progression
+exactes du vrai yt-dlp) et `src/report.js` (le rapport copiable).
 
 Intégration continue : `.github/workflows/desktop-mac.yml` vérifie et construit
 l’interface (`npm ci`, `typecheck`, `test`, `build:desktop` dans `app/`), construit

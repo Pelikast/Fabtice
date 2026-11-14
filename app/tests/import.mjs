@@ -5,9 +5,14 @@
 // real engine is part of what is measured (the 5-minute piece, one smoke check).
 // What it covers: the five formats by file picker and by drag-and-drop (track,
 // duration, 48 kHz, waveform), reloading with the project and its settings,
-// autosave and flush on page hide, damaged and empty files, storage that fails
-// (blocked, full), link import against a scripted `window.fabtice` (first
-// install, progress, refusal, needsYtdlp, tool update), and the cost of a
+// pieces of REAL size (0.5, 6 and 32 MB, in a persistent browser profile: a
+// throw-away context keeps its database in memory, where large values are never
+// set apart and the fault that once kept a stored piece from coming back cannot
+// show), a kept piece that cannot be reopened (it stays kept, and « Rouvrir » /
+// « Oublier ce morceau » are offered), autosave and flush on page hide, damaged
+// and empty files, storage that fails (blocked, full), link import against a
+// scripted `window.fabtice` (first install, honest steps with no figure before
+// there is one, the ten-second reassurance, refusal, needsYtdlp, tool update), and the cost of a
 // 5-minute stereo piece (decode time, memory, reopening at launch).
 // Screenshots go to $FABTICE_IMPORT_OUT (default: a temporary folder).
 // Playwright and Chromium are expected preinstalled (/opt/node-tools); set

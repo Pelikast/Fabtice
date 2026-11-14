@@ -23,7 +23,7 @@ le stockage.
 | `npm run typecheck` | vérification des types |
 | `npm test` | tests unitaires (Vitest, dans Node) |
 | `npm run test:smoke` | après `build` : vérifications dans Chromium (Playwright préinstallé) et captures d'écran dans un dossier temporaire (`FABTICE_SMOKE_OUT` pour le choisir) |
-| `npm run test:import` | après `build` : import des cinq formats (sélecteur et glisser-déposer), rouverture du projet après rechargement, autosauvegarde, stockage en échec, import par lien contre un faux `window.fabtice`, coût d'un morceau de cinq minutes (captures dans `FABTICE_IMPORT_OUT`) |
+| `npm run test:import` | après `build` : import des cinq formats (sélecteur et glisser-déposer), rouverture du projet après rechargement (dont des morceaux de **taille réelle**, 0,5 à 32 Mo, dans un profil de navigateur persistant), morceau gardé mais impossible à rouvrir (offre « Rouvrir » / « Oublier »), autosauvegarde, stockage en échec, import par lien contre un faux `window.fabtice`, coût d'un morceau de cinq minutes (captures dans `FABTICE_IMPORT_OUT`) |
 | `npm run test:timeline` | après `build` : vérifications de la frise dans Chromium (formes d'onde, grille, boucle, défilement, zoom, suivi, téléphone, morceau de dix minutes) |
 | `npm run test:engine` | après `build` (et, en option, `build:desktop`) : mesures du vrai moteur audio dans Chromium (tonalité, tempo, boucle, métronome, limiteur, charge) |
 
@@ -207,7 +207,12 @@ moteur complet dans Chromium (enregistreur branché sur la sortie du worklet).
 Types exacts de `window.fabtice` tel que l'expose `desktop/src/preload.js`
 (`systemInfo`, `ytdlpStatus`, `ytdlpCheck`, `ytdlpInstall`, `extract`,
 `copyText`, `onYtdlpProgress`, `onExtractProgress`). `getDesktopBridge()`
-renvoie l'objet dans l'app Mac, `null` sur le web ; la fenêtre « Nouveau
+renvoie l'objet dans l'app Mac, `null` sur le web. Pendant `extract`, le pont envoie
+`{ phase: 'info' }` (recherche), `{ phase: 'prepare', meta }` (le téléchargement va
+démarrer, rien à mesurer) puis `{ phase: 'download', percent, receivedBytes, totalBytes,
+speedBps }` **seulement** quand yt-dlp a écrit une vraie ligne de progression (`percent`
+est `null` si la taille totale est inconnue). `lastImportReport()` (facultatif) rend le
+rapport du dernier import fait depuis l'interface, pour la fenêtre de diagnostic ; la fenêtre « Nouveau
 morceau » n'affiche le champ de lien que s'il est présent. Si l'API de l'app
 Mac change, changer ces types avec elle.
 
@@ -230,9 +235,21 @@ chaque ouverture, de façon déterministe. Les préférences de l'utilisateur
 | `ProjectStorage.ts` | le contrat (`replaceCurrent`, `saveCurrent`, `loadCurrent`, `loadAudio`, `clearCurrent`, `requestPersistence`…) et `StorageError` (`unavailable`, `quota`, `corrupt`, `io`) |
 | `indexedDb.ts` | l'implémentation : base `fabtice` v1, deux magasins, `project` (clé `current` : `{ schema, document }`) et `audio` (une entrée par `AudioRef.id` : `{ bytes, mimeType, fileName }`). `replaceCurrent` réécrit les deux dans **une seule transaction** : en cas d'échec, l'ancien projet reste entier. Les transactions sont validées tout de suite (`commit()`), sinon une page qui se ferme perdrait l'écriture |
 | `documentFormat.ts` | lecture sûre : version du document (`MIGRATIONS`, vide pour l'instant ; une version **plus récente** est ignorée, jamais écrasée à la lecture), contrôle de la forme (sinon `corrupt`) ; `STORAGE_SCHEMA` pour l'enveloppe |
-| `keeper.ts` | le gardien : `keepNewProject()` (à appeler quand un nouveau morceau est ouvert et jouable : demande le stockage persistant la première fois, écrit audio et document ensemble, remplace l'ancien projet) puis autosauvegarde de tout changement du document, **différée** (700 ms de calme, 5 s au plus pendant un geste continu), une écriture à la fois, jamais attendue par l'écran ; `flush()` à la fermeture (`pagehide`, onglet masqué). Rien n'est écrit pour un morceau dont l'audio n'est pas encore gardé, ni pour le morceau de démonstration |
-| `restore.ts` | lancement : « Ouverture de « titre »… » (la fenêtre n'apparaît que si cela dure plus de 250 ms), décodage, `restoreProject()` (mêmes identifiants de projet, de piste et d'audio). Au moindre échec (audio absent, document abîmé, décodage, moteur) : le projet gardé est **oublié**, la fenêtre s'ouvre avec une phrase calme. Un marqueur dans `localStorage` pendant la réouverture évite la boucle si la page est tuée par le système (manque de mémoire sur téléphone) : au lancement suivant, pas de nouvel essai |
+| `keeper.ts` | le gardien : `keepNewProject()` (à appeler quand un nouveau morceau est ouvert et jouable : demande le stockage persistant la première fois, écrit audio et document ensemble, remplace l'ancien projet) puis autosauvegarde de tout changement du document, **différée** (700 ms de calme, 5 s au plus pendant un geste continu), une écriture à la fois, jamais attendue par l'écran ; `flush()` à la fermeture (`pagehide`, onglet masqué). Rien n'est écrit pour un morceau dont l'audio n'est pas encore gardé, ni pour le morceau de démonstration. La file d'écritures **ne rejette jamais** (un travail qui échoue n'empoisonne pas les suivants) et une écriture qui ne répond pas au bout de 2 minutes est abandonnée avec l'avis habituel |
+| `restore.ts` | lancement : « Ouverture de « titre »… » (la fenêtre n'apparaît que si cela dure plus de 250 ms) avec **l'étape en cours** (lecture du morceau gardé, préparation du son, mise en place des pistes), puis `restoreProject()` (mêmes identifiants de projet, de piste et d'audio). **Chaque étape a sa limite de temps généreuse** (`RESTORE_LIMITS` : document 20 s, lecture 60 s, décodage 3 min par piste, moteur 60 s) : une réouverture n'attend jamais indéfiniment. **Au moindre échec ou dépassement, le morceau gardé est CONSERVÉ** : la fenêtre « Nouveau morceau » s'ouvre avec une phrase calme et propose « Rouvrir « titre » » et, plus discret, « Oublier ce morceau » (confirmé par une seconde question). Un marqueur dans `localStorage` pendant la réouverture couvre une page tuée par le système (manque de mémoire sur téléphone) : au lancement suivant il n'y a **pas de nouvel essai automatique**, la même proposition s'affiche, jusqu'à ce que l'utilisateur choisisse. « Rouvrir » (`reopenKept`) ignore ce marqueur ; « Oublier » (`forgetKept`) supprime le document, l'audio et le marqueur. Un nouvel import réussi remplace le morceau gardé et retire la proposition (`ui.reopenOffer`) |
+| `timeout.ts` | `withTimeout()` et `StepTimeout` : une limite de temps pour une étape qui pourrait ne jamais répondre |
 | `memoryStorage.ts` | même contrat en mémoire, avec pannes simulées (tests) |
+
+**Lire une grosse valeur.** Le navigateur garde à part les valeurs de plusieurs dizaines de ko
+(un morceau entier) et peut les livrer **après** la fin de la transaction qui les a demandées. Une
+lecture prend donc son résultat quand **sa propre requête** réussit (`onsuccess`), jamais à
+`oncomplete` (lire `request.result` à ce moment-là lève une exception dans un gestionnaire
+d'événement et la promesse ne se règle jamais : c'est ce qui empêchait un morceau gardé de
+revenir). Les tests des quatre étages : `indexedDb.test.ts` (fausse base qui livre après la
+transaction), les tests du bureau `desktop/test/e2e/real-size.test.js` (morceaux de plusieurs Mo,
+fichier et lien) et `tests/import.mjs` (0,5, 6 et 32 Mo avec un **profil persistant** : un contexte
+jetable garde sa base en mémoire, où les grosses valeurs ne sont jamais mises à part). Toute
+nouvelle lecture ou écriture du stockage doit être essayée avec des données de taille réelle.
 
 **Quand l'appareil refuse** (navigation privée, stockage bloqué ou plein),
 l'app continue de fonctionner : `ui.storageNotice` (`'unavailable'` ou `'full'`)
@@ -269,12 +286,20 @@ d'origine, audio décodé à 48 kHz, une ou deux voies) ou rejettent avec une
   stéréo 20 minutes = 460 Mo décodés, plus la copie du fichier.
 - **Lien** (app Mac seulement, par `getDesktopBridge()`), dans cet ordre : état de
   l'outil (`ytdlpStatus`) ; s'il manque, installation avec progression et une
-  phrase d'explication (`installing`) ; extraction (`fetching-info`, puis
-  `downloading` en pourcentage) ; si la réponse est `needsYtdlp`, installation et
+  phrase d'explication (`installing`) ; extraction (`fetching-info` : recherche du morceau ; `starting-download` :
+  préparation du téléchargement, sans aucun chiffre ; puis `downloading` avec un vrai pourcentage, ou
+  la quantité reçue quand la taille totale est inconnue) ; si la réponse est `needsYtdlp`, installation et
   **une** nouvelle tentative ; octets décodés comme un fichier. Les refus du pont
   (direct, plus de 20 minutes) montrent sa phrase française sous le message
   général ; les autres échecs n'affichent rien de technique. Rien ne change à la
   façon d'appeler yt-dlp : on n'appelle que le pont.
+- **Une fenêtre qui dit vrai** (`components/NewPieceDialog.tsx`) : jamais de « 0 % »
+  figé. Tant que rien ne se mesure (recherche du morceau, démarrage de l'outil, qui
+  peut prendre une minute sur un vieux Mac), la jauge est indéterminée et aucun chiffre
+  n'est affiché ; au premier vrai message de téléchargement, soit « NN % », soit
+  « 12,4 Mo reçus » si la taille totale est inconnue (`import/amount.ts`). Après environ
+  dix secondes sans aucune nouvelle (`QUIET_NOTE_DELAY_MS`), une phrase rassurante : « Sur
+  certains Mac, cette étape peut durer une à deux minutes. Fabtice n'est pas bloqué. »
 - **Annulation** : l'extraction et le téléchargement de l'outil ne peuvent pas
   être interrompus (le pont n'a pas de moyen de le faire). La fenêtre ne propose
   « Annuler » que pour la lecture et le décodage (`isCancellablePhase`), sinon elle
