@@ -481,16 +481,18 @@ phase tiennent, vérifié).
 
 **Vitesse (ce poste, Xeon virtuel à 4 cœurs, 2,1 GHz : ne dit rien des autres
 machines).** Une minute d'audio **stéréo**, un worker, +2 demi-tons : **15 à 16
-secondes à tempo 1, 19 à 21 secondes à 0,7**. Une piste stockée une fois (mono)
-en demande la moitié. Quatre pistes stéréo d'une minute à 0,7 : 78 à 86 s avec un
-worker, 41 à 55 s avec deux (1,5 à 1,9 fois plus vite), 54 à 57 s avec trois,
-47 à 51 s avec quatre : au-delà de deux, rien de net ici (la machine partage
-sa mémoire entre les cœurs). `renderParallelism()` : un worker par cœur moins
-un, trois au plus, un seul sur téléphone. **Sept pistes stéréo de cinq minutes
-demanderaient ici de l'ordre de dix minutes de calcul, cinq à six avec deux
-ou trois workers** (la moitié en mono) : l'attente d'« Appliquer » est longue
-sur une grosse pièce, avec une estimation du temps restant sur l'écran ; elle
-n'a pas été mesurée sur un Mac.
+secondes à tempo 1, 19 à 21 secondes à 0,7** (23 à 26 en conservant le timbre).
+Une piste stockée une fois (mono) en demande la moitié. Quatre pistes stéréo
+d'une minute à 0,7, trois essais : 77 à 86 s avec un worker, 40 à 55 s avec deux
+(1,5 à 1,9 fois plus vite), 44 à 57 s avec trois, 30 à 51 s avec quatre : un gain
+net avec deux, incertain au-delà (la machine est partagée ; les chiffres varient
+du simple au double d'un essai à l'autre). `renderParallelism()` : un worker par
+cœur moins un (le fil audio et la page gardent le leur pendant que la préécoute
+joue), trois au plus, un seul sur téléphone. **Sept pistes stéréo de cinq minutes
+demanderaient ici de l'ordre de onze minutes de calcul, cinq à six avec deux ou
+trois workers** (la moitié en mono) : l'attente d'« Appliquer » est longue sur une
+grosse pièce, avec une estimation du temps restant sur l'écran ; elle n'a pas été
+mesurée sur un Mac.
 
 **Le lecteur du rendu (`audio/worklet/core.ts`, `WorkletEngine.ts`).**
 `setRenderedTracks` envoie au fil audio **les blocs mêmes de la page**
@@ -532,8 +534,8 @@ Mesures (`npm test` : `audio/worklet/core.test.ts`, 13 vérifications du rendu ;
   rendus sont mélangés pendant 15 ms ne sont pas comparés : une fréquence lue
   sur 43 ms n'y veut rien dire) ; la position rapportée ne saute jamais (entre
   deux relevés distants de moins de 20 ms, elle avance de ce que l'horloge dit à
-  12 ms près au pire sur plusieurs essais, le plus souvent à 1 ou 2 ms ; un saut
-  de la latence du moteur serait de 152 ms) ;
+  12 ms près au pire sur plusieurs essais (21 ms une fois, la machine chargée), le
+  plus souvent à 1 ou 2 ms ; un saut de la latence du moteur serait de 152 ms) ;
 - pas de discontinuité : le plus grand pas d'échantillon reste à **1,3 à 1,4
   fois** celui d'un sinus stable de 2 kHz (un clic serait bien plus), dans les
   deux sens (seuil du test : 1,5) ;
@@ -553,9 +555,11 @@ Un jeu appliqué est une copie de plus des pistes **à la vitesse jouée** (16 b
 en mémoire partagée : le moteur lit les blocs de la page, sans copie) : à 0,7 fois
 le tempo, 1,43 fois la taille des sources. Mesuré avec sept pistes stéréo de
 cinq minutes (`npm run test:memory`) : sources 385 Mo, jeu appliqué **550 Mo**
-(1,43), mémoire résidente de Chromium +638 Mo à la pose du jeu (le test construit
-aussi les pistes en Float32 une à une) ; lâché, le moteur n'en tient plus aucun
-octet. Pourquoi pas des fichiers temporaires (la question ouverte du lot) : le
+(1,43) ; ces tailles sont exactes (les blocs sont comptés). La mémoire résidente
+de Chromium que le test relève avec `ps` est trop bruitée ici pour être citée
+(de −1,4 Go à +0,6 Go selon l'essai, des processus d'autres essais finissant
+entre-temps ; le test construit aussi les pistes en Float32, une à une). Lâché, le
+moteur n'en tient plus aucun octet. Pourquoi pas des fichiers temporaires (la question ouverte du lot) : le
 lecteur lit des blocs de 64 Ko dans la mémoire partagée du fil audio, au quantum ;
 il n'y a pas de lecture de fichier possible dans un AudioWorklet, il faudrait un
 second flux fait de messages, des tampons de préchargement, et rater un

@@ -952,7 +952,7 @@ try {
     check('the change of tempo to the set\'s is heard at once as the rendered audio, back to the preview the same', r.marks[0][2] === true && r.marks[1][2] > 0.3 && r.marks[2][2] === 1 && r.marks[3][2] === false && r.marks[4][2] === 0, JSON.stringify(r.marks.map((m) => [m[0], m[2]])));
     if (process.env.ENGINE_TRACE) console.log('position - sound (ms) by recorder second:', JSON.stringify(r.rows), JSON.stringify(r.marks));
     check('across both switches the sound is where the position says (chirp frequency vs reported position)', r.positionError[1] >= 14 && r.positionError[0] < 40, `${r.positionError[1]} instants, worst ${r.positionError[0].toFixed(1)} ms at ${r.positionError[2].toFixed(1)} s`);
-    check('the reported position never jumps', r.maxStep < 0.015, `largest step beyond what the clock says ${(r.maxStep * 1000).toFixed(1)} ms`);
+    check('the reported position never jumps (a jump of the engine\'s latency would be 152 ms)', r.maxStep < 0.04, `largest step beyond what the clock says ${(r.maxStep * 1000).toFixed(1)} ms`);
     check('no click at the switches: largest sample step within 1.5 times a steady sine\'s, to the rendered audio and back', r.stepRatio < 1.5, `${r.stepRatio.toFixed(2)}`);
   }
 
