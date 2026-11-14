@@ -34,17 +34,6 @@ interface Exports {
   fe_process(p: number, nIn: number, nOut: number): number;
 }
 
-/** Smallest module using a v128 instruction: validates only where WebAssembly SIMD is supported. */
-const SIMD_PROBE = new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 1, 5, 1, 96, 0, 1, 123, 3, 2, 1, 0, 10, 10, 1, 8, 0, 65, 0, 253, 15, 253, 98, 11]);
-
-export function hasWasmSimd(): boolean {
-  try {
-    return typeof WebAssembly !== 'undefined' && WebAssembly.validate(SIMD_PROBE);
-  } catch {
-    return false;
-  }
-}
-
 /** Input frames given to the wasm at a time (its C API holds 16 384 per call; the output FIFO 65 536 frames). */
 const STEP = 2048;
 /** Silence fed after the end of the input, per call, while waiting for the last output. */

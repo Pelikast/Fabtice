@@ -28,10 +28,20 @@ export interface DeviceFacts {
   cores?: number;
   /** A phone or a tablet (touch-first, small memory). */
   phone: boolean;
+  /** Forces the budget (tests and demonstrations). */
+  budgetBytes?: number;
+}
+
+let override: DeviceFacts | null = null;
+
+/** Replaces the facts of the device (tests, demonstrations); `null` goes back to reading them. */
+export function setDeviceFactsForTests(facts: DeviceFacts | null): void {
+  override = facts;
 }
 
 /** The facts of the device this page runs on. */
 export function readDeviceFacts(): DeviceFacts {
+  if (override) return override;
   const nav = (typeof navigator !== 'undefined' ? navigator : {}) as Partial<Navigator> & { deviceMemory?: number };
   const ua = nav.userAgent ?? '';
   const touchMac = /Macintosh/.test(ua) && (nav.maxTouchPoints ?? 0) > 1; // an iPad that says it is a Mac
@@ -54,6 +64,7 @@ const MB = 1024 * 1024;
  * was closed by the system during a separation, measured: CLAUDE.md).
  */
 export function renderBudgetBytes(facts: DeviceFacts = readDeviceFacts()): number {
+  if (facts.budgetBytes !== undefined) return facts.budgetBytes;
   if (facts.deviceMemoryGb !== undefined && facts.deviceMemoryGb > 0) {
     const share = facts.phone ? 1 / 15 : 1 / 10;
     return Math.round(Math.min(1536 * MB, Math.max(128 * MB, facts.deviceMemoryGb * 1024 * MB * share)));

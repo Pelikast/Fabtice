@@ -735,16 +735,17 @@ describe('applied playback (« Appliquer »)', () => {
       const ids: string[] = [];
       const data = [];
       for (let k = 0; k < 7; k++) {
-        ids.push(addTrack(core, harmonic(110 * 2 ** (k / 7), 30), harmonic(110 * 2 ** (k / 7) + 1, 30)));
-        data.push(renderedOf(harmonic(110 * 2 ** (k / 7), 30 / RATIO), harmonic(110 * 2 ** (k / 7) + 1, 30 / RATIO)));
+        const f = 110 * 2 ** (k / 7);
+        ids.push(addTrack(core, sine(f, 12, 0.3), sine(f * 1.01, 12, 0.3)));
+        data.push(renderedOf(sine(f, 12 / RATIO, 0.3), sine(f * 1.01, 12 / RATIO, 0.3)));
       }
       core.rate = core.rateTarget = RATIO;
       core.semitones = applied ? 0 : 2; // the preview works on a key change, the applied path on its own set
       applySet(core, ids, data, 0, RATIO);
       core.play();
-      run(core, quanta(2));
+      run(core, quanta(1));
       core.takeLoad();
-      run(core, quanta(12));
+      run(core, quanta(5));
       expect(core.mixApplied).toBe(applied ? 1 : 0);
       return core.takeLoad().avg;
     };

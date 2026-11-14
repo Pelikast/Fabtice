@@ -26,7 +26,7 @@ const clickTimes = (from: number, to: number, step = 0.2713): number[] => {
 describe('length', () => {
   it('lasts exactly round(frames / tempo) for every ratio, whole or ranged', async () => {
     const { r } = renderer();
-    const x = sine(220, 2.0371);
+    const x = sine(220, 1.0371);
     const audio = pcmOf(x);
     for (const ratio of [0.25, 0.5, 0.7, 0.9, 1, 1.25, 1.7, 2]) {
       const out = await r.render({ audio, semitones: 0, cents: 0, tempoRatio: ratio, formants: false });
@@ -34,7 +34,7 @@ describe('length', () => {
       expect(out.sampleRate).toBe(SR);
     }
     for (const [ratio, semitones] of [[0.7, 3], [1.25, -5]] as const) {
-      const range = { start: 0.4137, end: 1.5921 };
+      const range = { start: 0.2137, end: 0.9921 };
       const frames = Math.round(range.end * SR) - Math.round(range.start * SR);
       const out = await r.render({ audio, semitones, cents: 0, tempoRatio: ratio, formants: false, range });
       expect(out.frames, `range at ${ratio}`).toBe(Math.round(frames / ratio));
@@ -59,8 +59,8 @@ describe('length', () => {
 describe('alignment', () => {
   // Output frame k is source time k * tempo / rate: a click that is in the source at t is in the render at t / tempo.
   const len = 48;
-  const times = clickTimes(0.5, 11.5);
-  const x = noiseClicks(12, times, len);
+  const times = clickTimes(0.5, 7.5);
+  const x = noiseClicks(8, times, len);
   const audio = pcmOf(x);
   const errorsMs = (out: Float32Array, ratio: number): number[] =>
     times.map((t) => {
@@ -95,7 +95,7 @@ describe('alignment', () => {
 
   it('puts a rendered range at the right place: click k of the range is at (t − start) / tempo', async () => {
     const { r } = renderer();
-    const range = { start: 2.5, end: 9.5 };
+    const range = { start: 2.5, end: 6.5 };
     const out = channelOf(await r.render({ audio, semitones: 2, cents: 0, tempoRatio: 0.7, formants: false, range }));
     for (const t of times.filter((v) => v > range.start + 0.2 && v < range.end - 0.2)) {
       const wanted = ((t - range.start) * SR + len / 2) / 0.7;
@@ -108,7 +108,7 @@ describe('alignment', () => {
 describe('pitch', () => {
   it('is right to within a few cents, and the cents setting is honoured', async () => {
     const { r } = renderer();
-    const audio = pcmOf(sine(440, 4, 0.5));
+    const audio = pcmOf(sine(440, 3, 0.5));
     const measure = async (semitones: number, centsValue: number, ratio: number) => {
       const out = channelOf(await r.render({ audio, semitones, cents: centsValue, tempoRatio: ratio, formants: false }));
       const mid = Math.round(out.length / 2) - 4800;

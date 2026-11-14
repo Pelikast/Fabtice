@@ -915,11 +915,12 @@ try {
       }
       out.positionError = [worst, n, worstAt];
       out.rows = rows;
-      // the position series never jumps: a step of more than 30 ms of material more or less than the clock says
+      // the position series never jumps: between two samples taken less than 20 ms apart it moves by what the clock
+      // says at the tempo of the preview (0.9) or of the rendered audio (0.7), whichever is nearer
       let jump = 0;
       for (let i = 1; i < series.length; i++) {
         const dc = (series[i][0] - series[i - 1][0]) / 48000, dp = (series[i][1] - series[i - 1][1]) / 48000;
-        if (dc > 0 && dc < 0.1) jump = Math.max(jump, Math.abs(dp - dc * 0.9), 0);
+        if (dc > 0 && dc < 0.02) jump = Math.max(jump, Math.min(Math.abs(dp - dc * 0.9), Math.abs(dp - dc * 0.7)));
       }
       out.maxStep = jump;
       // (b) a sine in both: the largest sample step stays within 1.5 times a steady sine's, across both switches
@@ -946,7 +947,7 @@ try {
     check('the change of tempo to the set\'s is heard at once as the rendered audio, back to the preview the same', r.marks[0][2] === true && r.marks[1][2] > 0.3 && r.marks[2][2] === 1 && r.marks[3][2] === false && r.marks[4][2] === 0, JSON.stringify(r.marks.map((m) => [m[0], m[2]])));
     if (process.env.ENGINE_TRACE) console.log('position - sound (ms) by recorder second:', JSON.stringify(r.rows), JSON.stringify(r.marks));
     check('across both switches the sound is where the position says (chirp frequency vs reported position)', r.positionError[1] >= 14 && r.positionError[0] < 40, `${r.positionError[1]} instants, worst ${r.positionError[0].toFixed(1)} ms at ${r.positionError[2].toFixed(1)} s`);
-    check('the reported position never jumps', r.maxStep < 0.05, `largest step beyond what the clock says ${(r.maxStep * 1000).toFixed(1)} ms`);
+    check('the reported position never jumps', r.maxStep < 0.015, `largest step beyond what the clock says ${(r.maxStep * 1000).toFixed(1)} ms`);
     check('no click at the switches: largest sample step within 1.5 times a steady sine\'s, to the rendered audio and back', r.stepRatio < 1.5, `${r.stepRatio.toFixed(2)}`);
   }
 

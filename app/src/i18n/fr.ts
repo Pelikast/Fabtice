@@ -445,7 +445,9 @@ export const fr = {
   'apply.working': 'Calcul des pistes…',
   'apply.waitText': 'Fabtice recalcule les pistes avec le meilleur moteur. La lecture continue en préécoute.',
   'apply.cancel': 'Annuler',
-  'apply.error.unsupported': 'Le rendu de qualité n’est pas encore disponible ici ; la préécoute continue.',
+  'apply.remaining': 'Encore environ {time}.',
+  'apply.remainingShort': 'Moins d’une minute restante.',
+  'apply.error.unsupported': 'Ce navigateur ne peut pas faire le rendu de qualité ; la préécoute continue.',
   'apply.error.memory': 'Cet appareil ne peut pas contenir le rendu de qualité de ce morceau ; la préécoute continue.',
   'apply.error.failed': 'Le rendu n’a pas abouti ; la préécoute continue.',
 

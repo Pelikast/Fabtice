@@ -26,7 +26,7 @@ import { sameTarget, type RenderErrorCode, type RenderStatus, type RenderTarget 
 import { appStore, type AppState } from '../store/store';
 import { appliedFits } from './budget';
 import { getRenderer } from './index';
-import { setApplyProgress } from './progress';
+import { setApplyProgress, startApplyProgress } from './progress';
 import { RenderError } from './types';
 
 /** What a render of the current state would be made for. */
@@ -99,7 +99,7 @@ export async function applyRender(): Promise<void> {
   const mine = { abort, target };
   job = mine;
   const stillMine = () => job === mine && sameTarget(currentTarget(appStore.getState()), target);
-  setApplyProgress(0);
+  startApplyProgress();
   setRender({ status: 'rendering', target });
   try {
     const renderer = getRenderer();
