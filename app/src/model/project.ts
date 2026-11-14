@@ -2,6 +2,7 @@
 // no audio samples (they live in the audio registry and the engine) and no
 // playhead position (read from the engine every animation frame).
 
+import type { Instrument } from './harmony';
 import type { TempoMap } from './tempoMap';
 
 /** Seconds in source time: a position in the original recording, before any tempo change. */
@@ -109,6 +110,8 @@ export interface ViewSettings {
   snap: boolean;
   /** Scroll to keep the playhead in sight while playing. */
   follow: boolean;
+  /** « Grille d'accords » written for a concert-pitch, B♭ or E♭ instrument (display only). */
+  instrument: Instrument;
 }
 
 /** Notation of minor chords: « Cm7 » or « C–7 ». */

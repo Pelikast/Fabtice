@@ -1,8 +1,10 @@
 // Tempo map: how source time maps to bars and beats.
 //
-// It is built for a variable tempo (lot 2 fills it from the beat analysis), but
-// lot 1 only ever creates one constant segment from a tempo and a first
-// downbeat entered by hand. All the arithmetic lives in `grid/`.
+// It is built for a variable tempo: the analysis (lot 2) fills it with one
+// segment per analysed beat (`grid/beats.ts#tempoMapFromBeats`), so bar lines
+// fall exactly on the analysed beats; the manual entry of lot 1 makes one
+// constant segment from a tempo and a first downbeat. All the arithmetic lives
+// in `grid/`.
 //
 // Units
 //   - Time is source time in seconds (position in the original recording).
@@ -49,8 +51,16 @@ export interface MeterChange {
   meter: Meter;
 }
 
-/** Who set the grid: nobody yet, the user, or the analysis (lot 2). */
-export type TempoOrigin = 'default' | 'manual' | 'analysis';
+/**
+ * Who set the grid in force:
+ *   - `default`: nobody yet (120 BPM, 4/4, downbeat at 0; the transport speaks in %);
+ *   - `manual`: the user, with the lot 1 panel (constant tempo, a downbeat time);
+ *   - `analysis`: the analysed beats, untouched;
+ *   - `corrected`: the analysed beats, corrected by hand (first beat moved,
+ *     tempo doubled or halved, meter changed). A new analysis keeps it.
+ */
+export type TempoOrigin = 'default' | 'manual' | 'analysis' | 'corrected';
+export const TEMPO_ORIGINS: readonly TempoOrigin[] = ['default', 'manual', 'analysis', 'corrected'];
 
 /**
  * Invariants (enforced by the builders in `grid/tempoMap.ts`):

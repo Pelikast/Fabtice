@@ -114,6 +114,11 @@ export const fr = {
   'role.vents': 'Vents',
   'role.autres': 'Autres',
 
+  // Chord symbols
+  'chord.major7': 'majeur 7',
+  'chord.doubtful': 'Accord incertain : {chord}',
+  'chord.repeat': 'Même accord que la mesure précédente',
+
   // Chord chart view (empty in lot 1)
   'chart.emptyTitle': 'Pas encore d’accords',
   'chart.emptyText': 'Bientôt, Fabtice reconnaîtra les accords de ce morceau et les écrira ici, comme sur une grille de Real Book.',

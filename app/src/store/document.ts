@@ -1,5 +1,6 @@
 // Store <-> project document (what `ProjectStorage` keeps on the device).
 
+import { emptyCorrections } from '../model/corrections';
 import { PROJECT_DOCUMENT_VERSION, type ProjectDocument } from '../model/document';
 import type { AppState } from './store';
 
@@ -15,6 +16,8 @@ export function toProjectDocument(s: AppState, now = new Date()): ProjectDocumen
     loop: s.loop,
     playback: s.playback,
     view,
+    analysis: s.analysis,
+    corrections: s.corrections,
     savedAt: now.toISOString(),
   };
 }
@@ -34,5 +37,27 @@ export function fromProjectDocument(doc: ProjectDocument, current: AppState): Pa
     playback: doc.playback,
     // Fields a stored document lacks (added since it was written) keep their current value.
     view: { ...current.view, ...doc.view, mode: current.view.mode },
+    analysis: doc.analysis ?? null,
+    corrections: { ...emptyCorrections(), ...doc.corrections },
+    analysisRun: { status: 'idle' },
   };
+}
+
+/**
+ * True when what the document is made of changed between two states. The
+ * autosave (`storage/keeper.ts`) must use this list: `analysis` and
+ * `corrections` are part of the document since version 2. `view.mode` is not.
+ */
+export function documentChanged(a: AppState, b: AppState): boolean {
+  if (
+    a.project !== b.project || a.tracks !== b.tracks || a.tempoMap !== b.tempoMap || a.loop !== b.loop ||
+    a.playback !== b.playback || a.analysis !== b.analysis || a.corrections !== b.corrections
+  ) {
+    return true;
+  }
+  if (a.view === b.view) return false;
+  for (const key of Object.keys(a.view) as (keyof AppState['view'])[]) {
+    if (key !== 'mode' && a.view[key] !== b.view[key]) return true;
+  }
+  return false;
 }

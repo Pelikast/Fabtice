@@ -3,3 +3,6 @@ export * from './tempoMap';
 export * from './lines';
 export * from './format';
 export * from './tapTempo';
+export * from './beats';
+export * from './corrections';
+export * from './tempoCurve';

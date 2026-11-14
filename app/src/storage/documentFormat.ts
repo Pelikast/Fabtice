@@ -8,7 +8,13 @@
 //     version of the app wrote it) is ignored, never overwritten blindly by
 //     reading it — the next import simply replaces it.
 
+import { isChordExtension, isChordQuality } from '../harmony/chord';
+import { isPitchClass } from '../harmony/pitch';
+import { ANALYSIS_RESULT_VERSION } from '../model/analysis';
+import { emptyCorrections } from '../model/corrections';
 import { PROJECT_DOCUMENT_VERSION, type ProjectDocument } from '../model/document';
+import { INSTRUMENTS } from '../model/harmony';
+import { TEMPO_ORIGINS } from '../model/tempoMap';
 import { StorageError } from './ProjectStorage';
 
 /** Layout of the stored record; bump with a reader for the old one. */
@@ -16,7 +22,16 @@ export const STORAGE_SCHEMA = 1;
 
 /** `MIGRATIONS[n]` turns a version-n document (as stored) into a version n+1 one. */
 export type Migrations = Record<number, (doc: Record<string, unknown>) => Record<string, unknown>>;
-export const MIGRATIONS: Migrations = {};
+export const MIGRATIONS: Migrations = {
+  // Lot 1 -> lot 2: not analysed yet, nothing corrected, chart for a concert-pitch instrument.
+  // The lot 1 grid (default or manual) stays as it was.
+  1: (doc) => ({
+    ...doc,
+    view: isRec(doc.view) ? { instrument: 'ut', ...doc.view } : doc.view,
+    analysis: null,
+    corrections: emptyCorrections(),
+  }),
+};
 
 type Rec = Record<string, unknown>;
 const isRec = (v: unknown): v is Rec => typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -24,7 +39,7 @@ const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFin
 const isStr = (v: unknown): v is string => typeof v === 'string';
 
 const ROLES = ['morceau', 'voix', 'batterie', 'basse', 'guitare', 'piano', 'vents', 'autres'];
-const ORIGINS = ['default', 'manual', 'analysis'];
+const ORIGINS: readonly string[] = TEMPO_ORIGINS;
 
 function corrupt(what: string): never {
   throw new StorageError('corrupt', `stored project: ${what}`);
@@ -72,6 +87,50 @@ function checkLoopAndPlayback(doc: Rec): void {
   if (!isRec(doc.view)) corrupt('view');
 }
 
+// ---------------------------------------------------------------- version 2: harmony
+
+const isKey = (k: unknown): boolean => isRec(k) && isPitchClass(k.tonic) && (k.mode === 'major' || k.mode === 'minor');
+
+function isChordSymbol(c: unknown): boolean {
+  if (!isRec(c) || !isPitchClass(c.root) || !isChordQuality(c.quality)) return false;
+  if (!Array.isArray(c.extensions) || !c.extensions.every(isChordExtension)) return false;
+  return c.bass === null || isPitchClass(c.bass);
+}
+
+const isChordOrNone = (c: unknown): boolean => c === null || isChordSymbol(c);
+
+/**
+ * An analysis result can always be computed again: a damaged or outdated one
+ * is dropped (the piece is analysed again when opened), never a reason to
+ * lose the piece.
+ */
+function readAnalysis(a: unknown): unknown {
+  if (a === null || !isRec(a) || a.version !== ANALYSIS_RESULT_VERSION) return null;
+  const beats = a.beats;
+  if (!isRec(beats) || !Array.isArray(beats.times) || beats.times.length < 2 || !beats.times.every(isNum)) return null;
+  if (!isNum(beats.downbeat) || !isRec(beats.meter) || !isNum(beats.meter.numerator) || !isNum(beats.meter.denominator)) return null;
+  if (a.key !== null && !isKey(a.key)) return null;
+  if (a.tuning !== null && !(isRec(a.tuning) && isNum(a.tuning.cents))) return null;
+  if (!Array.isArray(a.chords)) return null;
+  for (const c of a.chords as unknown[]) {
+    if (!isRec(c) || !isNum(c.time) || !isChordOrNone(c.chord) || !isNum(c.confidence) || typeof c.doubtful !== 'boolean') return null;
+    if (!Array.isArray(c.alternatives) || !c.alternatives.every(isChordSymbol)) return null;
+  }
+  return a;
+}
+
+/** What the user did by hand must be read exactly, or the document is `corrupt`. */
+function checkCorrections(c: unknown): void {
+  if (!isRec(c)) corrupt('corrections');
+  const k = c as Rec;
+  if (k.key !== null && !isKey(k.key)) corrupt('corrected key');
+  if (k.tuningCents !== null && !isNum(k.tuningCents)) corrupt('corrected tuning');
+  if (typeof k.tuningOfferDismissed !== 'boolean') corrupt('tuning offer');
+  if (!Array.isArray(k.chords) || !k.chords.every((x: unknown) => isRec(x) && isNum(x.time) && isChordOrNone(x.chord))) corrupt('hand chords');
+  if (!Array.isArray(k.handSpans) || !k.handSpans.every((x: unknown) => isRec(x) && isNum(x.start) && isNum(x.end) && x.end > x.start)) corrupt('hand spans');
+  if (!Array.isArray(k.sections) || !k.sections.every((x: unknown) => isRec(x) && isNum(x.time) && isStr(x.label))) corrupt('sections');
+}
+
 /**
  * Turns what was read from the device into a current-version document.
  * Returns null for a version this app does not know (newer, or garbage
@@ -95,5 +154,9 @@ export function readDocument(raw: unknown, migrations: Migrations = MIGRATIONS, 
   checkTracks(doc.tracks);
   checkTempoMap(doc.tempoMap);
   checkLoopAndPlayback(doc);
+  checkCorrections(doc.corrections);
+  doc = { ...doc, analysis: readAnalysis(doc.analysis) };
+  const view = doc.view as Rec;
+  if (!INSTRUMENTS.includes(view.instrument as never)) doc = { ...doc, view: { ...view, instrument: 'ut' } };
   return doc as unknown as ProjectDocument;
 }
