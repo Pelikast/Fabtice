@@ -26,14 +26,15 @@ const check = (name, cond, detail = '') => {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const near = (a, b, tol) => Math.abs(a - b) <= tol;
 
-// TIMELINE_ONLY=desktop|stress|phone runs one section (handy when debugging).
+// TIMELINE_ONLY=desktop|chords|stress|phone runs one section (handy when debugging).
 const only = process.env.TIMELINE_ONLY || '';
 const want = (name) => !only || only === name;
+const chordsWanted = () => !only || only === 'chords';
 
 const { srv, url } = await startServer(0);
 const browser = await chromium.launch({ args: ['--no-sandbox', '--autoplay-policy=no-user-gesture-required'] });
 
-async function open(viewport, { touch = false, dpr = 1 } = {}) {
+async function open(viewport, { touch = false, dpr = 1, query = '?demo&analyse=aucune', waitPeaks = true } = {}) {
   const context = await browser.newContext({ viewport, hasTouch: touch, deviceScaleFactor: dpr });
   const page = await context.newPage();
   const errors = [];
@@ -41,11 +42,11 @@ async function open(viewport, { touch = false, dpr = 1 } = {}) {
   page.on('crash', () => console.log('PAGE CRASHED'));
   page.on('close', () => console.log('page closed'));
   page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
-  // The lot 1 demo: a constant 110 BPM grid (the checks compute bar lines from it), no analysis.
-  await page.goto(`${url}/?demo&analyse=aucune`);
+  // By default the lot 1 demo: a constant 110 BPM grid (the checks compute bar lines from it), no analysis.
+  await page.goto(`${url}/${query}`);
   await page.waitForFunction(() => window.__fabtice && window.__fabtice.store.getState().transport.engine === 'ready', null, { timeout: 15000 });
   await page.evaluate(() => document.fonts.ready);
-  await page.waitForFunction(() => document.querySelector('.frise')?.dataset.peaks === 'ready', null, { timeout: 15000 });
+  if (waitPeaks) await page.waitForFunction(() => document.querySelector('.frise')?.dataset.peaks === 'ready', null, { timeout: 15000 });
   await sleep(150);
   return { page, context, errors };
 }
@@ -454,6 +455,337 @@ try {
     await page.screenshot({ path: path.join(out, 'timeline-1280.png') });
     check('no page errors (screenshot run)', errors.length === 0, errors.join(' | '));
     await context.close();
+  }
+
+  // ------------------------------------------------------------ the ruler of an analysed piece: chords row and tempo curve
+  if (chordsWanted()) {
+    // What the page knows of the chord labels: text, left edge in the view, width, and the bar line / beat they should sit on.
+    const labels = (page) =>
+      page.evaluate(() => {
+        const f = document.querySelector('.frise');
+        const fr = f.getBoundingClientRect();
+        const t0 = Number(f.dataset.t0);
+        const pps = Number(f.dataset.pps);
+        const s = window.__fabtice.store.getState();
+        const segs = s.tempoMap.segments;
+        const beatTime = (beat) => {
+          let i = 0;
+          while (i + 1 < segs.length && segs[i + 1].beat <= beat) i++;
+          return segs[i].time + ((beat - segs[i].beat) * 60) / segs[i].bpm;
+        };
+        const n = s.tempoMap.meters[0].meter.numerator;
+        return [...document.querySelectorAll('.frise-accords .frise-accord:not(.frise-jauge)')].map((el) => {
+          const r = el.getBoundingClientRect();
+          const ch = el.querySelector('.ch');
+          const cr = ch.getBoundingClientRect();
+          const x = r.left - fr.left; // the element's left edge = the translate
+          // Nearest bar line and nearest beat to the label's anchor, in pixels.
+          let bestBar = Infinity;
+          let bestBeat = Infinity;
+          for (let b = -n; b < 4000; b += 1) {
+            const px = (beatTime(b) - t0) * pps;
+            if (px > x + 40) break;
+            if (b % n === 0) bestBar = Math.min(bestBar, Math.abs(px + 9 - x));
+            bestBeat = Math.min(bestBeat, Math.abs(px + 6 - x));
+          }
+          return { text: ch.innerText.replace(/\s+/g, ''), html: ch.outerHTML, x, w: cr.width, nearBar: bestBar, nearBeat: bestBeat, douteux: ch.classList.contains('douteux'), color: getComputedStyle(ch).color };
+        });
+      });
+    const rulerState = (page) =>
+      page.evaluate(() => {
+        const heads = document.querySelector('.regle-tetes').getBoundingClientRect();
+        const ruler = document.querySelector('.frise-regle').getBoundingClientRect();
+        const rows = [...document.querySelectorAll('.frise-rang')].map((el) => el.className.replace('frise-rang ', ''));
+        const headRows = [...document.querySelectorAll('.regle-tetes .rang-tete')].map((el) => [el.className.replace('rang-tete ', ''), el.getBoundingClientRect().top, el.getBoundingClientRect().height]);
+        const rangs = [...document.querySelectorAll('.frise-rang')].map((el) => [el.getBoundingClientRect().top, el.getBoundingClientRect().height]);
+        const f = document.querySelector('.frise');
+        return { headsBottom: heads.bottom, rulerBottom: ruler.bottom, rows, headRows, rangs, t0: Number(f.dataset.t0), pps: Number(f.dataset.pps), stride: Number(f.dataset.chordStride), count: Number(f.dataset.chordLabels), overflow: document.querySelector('.travail').scrollHeight - document.querySelector('.travail').clientHeight };
+      });
+    const labelRect = (page) =>
+      page.evaluate(() =>
+        [...document.querySelectorAll('.frise-accords .frise-accord:not(.frise-jauge)')].map((el) => {
+          const r = el.querySelector('.ch').getBoundingClientRect();
+          return [r.left, r.right, r.top, r.bottom];
+        }),
+      );
+
+    // ---- desktop, 1280 × 800, analysed piece
+    {
+      const { page, context, errors } = await open({ width: 1280, height: 800 }, { query: '?demo' });
+      let rs = await rulerState(page);
+      check('chords: the ruler has three rows, tempo, accords, mesures, in the header column too', rs.rows.join() === 'tempo,accords,mesures' && rs.headRows.map((r) => r[0].replace(/ .*/, '')).join() === 'tempo,accords,mesures', `${rs.rows} | ${rs.headRows.map((r) => r[0])}`);
+      check('chords: heights shared with the header column (34, 42, 24)', rs.headRows.every((r, i) => near(r[2], rs.rangs[i][1], 0.5) && near(r[1], rs.rangs[i][0], 1)) && rs.rangs.map((r) => r[1]).join() === '34,42,24', JSON.stringify(rs.rangs));
+      check('chords: ruler and header column end together', near(rs.headsBottom, rs.rulerBottom, 1));
+      check('chords: Auto still leaves no vertical overflow', rs.overflow <= 0, `${rs.overflow} px`);
+      check('tempo head reads « Tempo · ≈ N » on a variable tempo', /Tempo\s*·\s*≈\s*1\d\d/i.test(await page.locator('.rang-tete.tempo').innerText()), await page.locator('.rang-tete.tempo').innerText());
+
+      let ls = await labels(page);
+      check('chords: labels are drawn', ls.length >= 8, `${ls.length} labels, stride ${rs.stride}`);
+      check('chords: the markup is the chart\'s (triangle, accidentals in the music font)', ls.some((l) => l.html.includes('class="tri"')) && ls.some((l) => l.html.includes('class="alt"')) && ls[0].text.startsWith('A♭'), ls.slice(0, 3).map((l) => l.text).join(' '));
+      // Bar 12 of the demo holds the doubtful chord: zoom in so it is written.
+      await page.evaluate(() => window.__fabtice.actions.setZoom(120));
+      await page.evaluate(() => window.__fabtice.actions.seek(22));
+      await sleep(250);
+      ls = await labels(page);
+      const doubtful = ls.filter((l) => l.douteux);
+      check('chords: a doubtful chord is in ink-soft, not ember', doubtful.length >= 1 && doubtful.every((l) => l.color === 'rgb(106, 86, 70)'), doubtful.map((l) => `${l.text} ${l.color}`).join());
+
+      // Alignment with the bar lines at three zoom levels (and scrolled).
+      for (const pps of [90, 160, 300]) {
+        await page.evaluate((v) => window.__fabtice.actions.setZoom(v), pps);
+        await sleep(250);
+        rs = await rulerState(page);
+        ls = await labels(page);
+        const bad = ls.filter((l) => l.nearBar > 1 && l.nearBeat > 1.5);
+        check(`chords: every label sits on its bar line (+9 px) or its beat at ${pps} px/s`, ls.length >= 2 && bad.length === 0 && rs.stride === 1, `${ls.length} labels, ${bad.length} off: ${bad.map((b) => `${b.text}@${b.x.toFixed(1)} (${b.nearBar.toFixed(1)}/${b.nearBeat.toFixed(1)})`)}`);
+        // The faint bar line of the chord row: a pixel column in the canvas right before a bar-first label.
+        const first = ls.find((l) => l.nearBar <= 1 && l.x > 20);
+        if (first) {
+          const row = await pixelRow(page, '.frise-regle-toile', 34 + 6);
+          const x = Math.round(first.x - 9);
+          check(`chords: the bar line is drawn in the chord row under the label at ${pps} px/s`, alphaNear(row, x) > 100, `alpha ${alphaNear(row, x)}`);
+        }
+        // Scrolled by a bar and a half, still aligned.
+        await page.evaluate(() => document.querySelector('.frise-regle').dispatchEvent(new WheelEvent('wheel', { deltaX: 333, deltaY: 0, bubbles: true, cancelable: true })));
+        await sleep(250);
+        ls = await labels(page);
+        const bad2 = ls.filter((l) => l.nearBar > 1 && l.nearBeat > 1.5);
+        check(`chords: still aligned after scrolling at ${pps} px/s`, ls.length >= 2 && bad2.length === 0, `${ls.length} labels, ${bad2.length} off`);
+        await page.evaluate(() => window.__fabtice.actions.seek(0));
+      }
+
+      // Playing without scrolling: not a single element created, removed or moved in the ruler's chord row.
+      await page.evaluate(() => window.__fabtice.actions.setFollow(false));
+      await page.evaluate(() => window.__fabtice.actions.setZoom(60));
+      await sleep(250);
+      await page.evaluate(() => {
+        window.__mut = 0;
+        window.__counts = { ruler: 0 };
+        const row = document.querySelector('.frise-accords');
+        new MutationObserver((m) => (window.__mut += m.length)).observe(row, { childList: true, attributes: true, subtree: true, characterData: true });
+        const c = document.querySelector('.frise-regle-toile');
+        const ctx = c.getContext('2d');
+        for (const name of ['fillRect', 'stroke', 'fill', 'fillText']) {
+          const orig = ctx[name].bind(ctx);
+          ctx[name] = (...a) => {
+            window.__counts.ruler++;
+            return orig(...a);
+          };
+        }
+      });
+      await page.click('.jouer');
+      await sleep(1800);
+      const playing = await page.evaluate(() => ({ mut: window.__mut, ruler: window.__counts.ruler, pos: window.__fabtice.engine.getPosition() }));
+      await page.click('.jouer');
+      check('chords: while playing without scrolling the chord row is not touched (no element created, removed or changed)', playing.mut === 0 && playing.pos > 0.5, `${playing.mut} mutations, position ${playing.pos.toFixed(2)} s`);
+      check('chords: nor is the ruler canvas repainted', playing.ruler === 0, `${playing.ruler} drawing calls`);
+      await page.evaluate(() => window.__fabtice.actions.setFollow(true));
+
+      // Transposition, instrument and minor sign are reflected.
+      await page.evaluate(() => window.__fabtice.actions.setZoom(160));
+      await page.evaluate(() => window.__fabtice.actions.seek(0));
+      await sleep(250);
+      await page.evaluate(() => document.querySelector('.frise-regle').dispatchEvent(new WheelEvent('wheel', { deltaX: -1e6, deltaY: 0, bubbles: true, cancelable: true })));
+      await sleep(250);
+      const texts = async () => (await labels(page)).filter((l) => l.x > 0).sort((a, b) => a.x - b.x).map((l) => l.text);
+      const before = await texts();
+      check('chords: the original key reads A♭ (△) then Fm7 (concert pitch, A♭ major)', before[0] === 'A♭' && before[1] === 'Fm7', before.slice(0, 4).join(' '));
+      await page.evaluate(() => {
+        window.__fabtice.actions.stepSemitones(1);
+        window.__fabtice.actions.stepSemitones(1);
+      });
+      await sleep(250);
+      const up2 = await texts();
+      check('chords: transposed up two semitones, the row writes B♭ (△) then Gm7', up2[0] === 'B♭' && up2[1] === 'Gm7', up2.slice(0, 4).join(' '));
+      await page.evaluate(() => window.__fabtice.lot2.harmony.setInstrument('sib'));
+      await sleep(250);
+      const sib = await texts();
+      check('chords: for a B♭ instrument two more semitones (C△ then Am7)', sib[0] === 'C' && sib[1] === 'Am7', sib.slice(0, 4).join(' '));
+      await page.evaluate(() => {
+        window.__fabtice.lot2.harmony.setInstrument('ut');
+        window.__fabtice.actions.resetTransposition();
+        window.__fabtice.actions.setMinorNotation('–');
+      });
+      await sleep(250);
+      const dash = await texts();
+      check('chords: « – » for minor when the setting says so', dash[1] === 'F–7', dash.slice(0, 3).join(' '));
+      await page.evaluate(() => window.__fabtice.actions.setMinorNotation('m'));
+
+      // Thinning: zoomed out, the row keeps a regular rhythm and never overlaps.
+      for (const pps of [16, 10, 6]) {
+        await page.evaluate((v) => window.__fabtice.actions.setZoom(v), pps);
+        await sleep(250);
+        rs = await rulerState(page);
+        const rects = (await labelRect(page)).sort((a, b) => a[0] - b[0]);
+        let gaps = true;
+        for (let i = 1; i < rects.length; i++) if (rects[i][0] - rects[i - 1][1] < 7) gaps = false;
+        const total = await page.evaluate(() => window.__fabtice.store.getState().tempoMap.segments.length);
+        check(`chords: zoomed out to ${pps} px/s the row is thinned (stride ${rs.stride}) with no overlap`, gaps && rs.stride >= 2 && (rs.stride & (rs.stride - 1)) === 0 && rects.length >= 2 && rects.length < total / 4, `${rects.length} labels`);
+        await page.screenshot({ path: path.join(out, `chords-thinned-${pps}.png`), clip: { x: 0, y: 56, width: 1280, height: 130 } });
+      }
+      await page.evaluate(() => window.__fabtice.actions.setAuto(true));
+      await sleep(300);
+      await page.screenshot({ path: path.join(out, 'timeline-chords-1280.png') });
+
+      // Tempo curve: pixels in the tempo row (variable tempo): a curve with dots, over a dotted reference.
+      const ink = await page.evaluate(() => {
+        const c = document.querySelector('.frise-regle-toile');
+        const d = c.getContext('2d').getImageData(0, 0, c.width, 34 * (c.height / (c.clientHeight || c.height))).data;
+        const rows = new Set();
+        let dark = 0;
+        for (let y = 0; y < 34; y++) for (let x = 0; x < c.width; x++) {
+          const i = (y * c.width + x) * 4;
+          if (d[i + 3] > 200 && d[i] < 130) {
+            dark++;
+            rows.add(y);
+          }
+        }
+        return { dark, rows: rows.size };
+      });
+      check('tempo curve: drawn, and it moves up and down (variable tempo)', ink.dark > 600 && ink.rows >= 8, `${ink.dark} px on ${ink.rows} rows`);
+      check('chords: no page errors (desktop)', errors.length === 0, errors.join(' | '));
+      await context.close();
+    }
+
+    // ---- a constant tempo is a flat line
+    {
+      const { page, context, errors } = await open({ width: 1280, height: 800 });
+      const ink = await page.evaluate(() => {
+        const c = document.querySelector('.frise-regle-toile');
+        const d = c.getContext('2d').getImageData(0, 0, c.width, 34).data;
+        const rows = new Set();
+        let dark = 0;
+        for (let y = 0; y < 34; y++) for (let x = 0; x < c.width; x++) {
+          const i = (y * c.width + x) * 4;
+          if (d[i + 3] > 100 && d[i] < 130) {
+            dark++;
+            rows.add(y);
+          }
+        }
+        return { dark, rows: [...rows] };
+      });
+      check('tempo curve: a constant tempo is a flat line (1.5 px, same rows everywhere, no dots)', ink.dark > 800 && ink.rows.length <= 3, `${ink.dark} px on rows ${ink.rows}`);
+      check('chords: no chords, no chord row (two rows, in both columns)', (await page.locator('.frise-accords').count()) === 0 && (await page.locator('.regle-tetes .rang-tete').count()) === 2);
+      check('tempo head of a constant tempo has no « ≈ »', !(await page.locator('.rang-tete.tempo').innerText()).includes('≈'));
+      await context.close();
+      void errors;
+    }
+
+    // ---- the row appears when an analysis ends: nothing jumps
+    {
+      const { page, context, errors } = await open({ width: 1280, height: 800 }, { query: '?demo&analyse=lente', waitPeaks: true });
+      const before = await rulerState(page);
+      check('row appears later: no chord row before the analysis', before.rows.join() === 'tempo,mesures');
+      await page.evaluate(() => window.__fabtice.actions.setAuto(false));
+      await page.evaluate(() => window.__fabtice.actions.setZoom(55));
+      await sleep(200);
+      const st0 = await rulerState(page);
+      await page.waitForFunction(() => document.querySelector('.frise-accords'), null, { timeout: 30000 });
+      await sleep(400);
+      const after = await rulerState(page);
+      check('row appears later: the three rows are there, aligned with the header column', after.rows.join() === 'tempo,accords,mesures' && near(after.headsBottom, after.rulerBottom, 1) && after.headRows.every((r, i) => near(r[2], after.rangs[i][1], 0.5) && near(r[1], after.rangs[i][0], 1)));
+      check('row appears later: the view keeps its position and scale', near(after.pps, st0.pps, 1e-6) && near(after.t0, st0.t0, 1e-6), `${st0.t0} -> ${after.t0}, ${st0.pps} -> ${after.pps}`);
+      check('row appears later: labels are drawn at once', after.count >= 3, `${after.count}`);
+      check('no page errors (row appears)', errors.length === 0, errors.join(' | '));
+      await context.close();
+    }
+
+    // ---- bars and beats of the analysed map drive the grid, the snapping and the selection
+    {
+      const { page, context, errors } = await open({ width: 1280, height: 800 }, { query: '?demo' });
+      await page.evaluate(() => window.__fabtice.actions.setZoom(120));
+      await page.evaluate(() => window.__fabtice.actions.seek(0));
+      await sleep(300);
+      const g = await page.evaluate(() => {
+        const f = document.querySelector('.frise');
+        const fr = f.getBoundingClientRect();
+        const s = window.__fabtice.store.getState();
+        const segs = s.tempoMap.segments;
+        const beatTime = (beat) => {
+          let i = 0;
+          while (i + 1 < segs.length && segs[i + 1].beat <= beat) i++;
+          return segs[i].time + ((beat - segs[i].beat) * 60) / segs[i].bpm;
+        };
+        const bt = [];
+        for (let b = 0; b <= 40; b++) bt.push(beatTime(b));
+        const lane = document.querySelector('.frise-voie').getBoundingClientRect();
+        return { left: fr.left, width: fr.width, t0: Number(f.dataset.t0), pps: Number(f.dataset.pps), bt, laneY: lane.top + lane.height / 2, mesY: document.querySelector('.frise-regle').getBoundingClientRect().bottom - 12, variable: segs.length > 1 };
+      });
+      const px = (t) => g.left + (t - g.t0) * g.pps;
+      // Bar lines on the lanes' grid canvas at the analysed bar starts (every 4th beat), not at a constant-tempo guess.
+      const row = await pixelRow(page, '.frise-grille', 20);
+      let onBeats = 0;
+      let total = 0;
+      const seen = [];
+      for (let b = 4; b <= 28; b += 4) {
+        const x = Math.round(px(g.bt[b]) - g.left);
+        if (x < 3 || x > g.width - 5) continue;
+        total++;
+        seen.push(`${b}:${x}=${alphaNear(row, x)}`);
+        if (alphaNear(row, x) >= 40) onBeats++;
+      }
+      check('analysed beats: the bar lines of the grid stand on the analysed bar starts', g.variable && total >= 3 && onBeats === total, `${onBeats}/${total} ${seen}`);
+      const constantGuess = (b) => g.bt[0] + (g.bt[4] - g.bt[0]) * (b / 4);
+      const drift = Math.max(...[8, 12, 16, 20, 24].map((b) => Math.abs(px(g.bt[b]) - px(constantGuess(b)))));
+      check('analysed beats: the demo\'s tempo really moves (a fixed grid would be off by several pixels)', drift > 3, `${drift.toFixed(1)} px`);
+      // Snapping: a click near the beat 10 snaps to it with the magnet on and the quarter sub-grid.
+      await page.selectOption('.choix select', '1');
+      const target = g.bt[10];
+      await page.mouse.click(px(target) + 5, g.laneY);
+      await sleep(200);
+      const pos = await position(page);
+      check('analysed beats: a click snaps to the analysed beat', near(pos, target, 0.012), `${pos.toFixed(3)} vs ${target.toFixed(3)}`);
+      // Selecting bars in the chord row selects whole analysed bars.
+      await page.mouse.move(px(g.bt[9]) + 3, g.mesY - 30);
+      await page.mouse.down();
+      await page.mouse.move(px(g.bt[17]) + 3, g.mesY - 30, { steps: 8 });
+      await page.mouse.up();
+      await sleep(200);
+      const loop = (await state(page)).loop.region;
+      check('analysed bars: dragging across the chord row selects whole bars on the analysed grid', loop && near(loop.start, g.bt[8], 0.012) && near(loop.end, g.bt[20], 0.012), JSON.stringify(loop));
+      check('no page errors (grid)', errors.length === 0, errors.join(' | '));
+      await context.close();
+    }
+
+    // ---- a long piece fitted in the window: the chord row thins out regularly
+    {
+      const { page, context, errors } = await open({ width: 1280, height: 800 }, { query: '?demo&analyse=aucune', waitPeaks: false });
+      await page.evaluate(async () => {
+        const SR = 48000;
+        const n = SR * 600;
+        const left = new Float32Array(n);
+        for (let i = 0; i < n; i += 97) left[i] = 0.3;
+        await window.__fabtice.actions.openProject({ title: 'Dix minutes', source: { kind: 'demo' }, tracks: [{ role: 'batterie', audio: { channels: [left], sampleRate: SR } }] });
+        const quals = ['maj7', 'min7', '7', 'min7'];
+        for (let bar = 0; bar < 290; bar++) window.__fabtice.lot2.harmony.setBarChords(bar, [{ beatInBar: 0, chord: { root: (bar * 5) % 12, quality: quals[bar % 4], extensions: bar % 3 === 0 ? ['9'] : [], bass: null } }]);
+      });
+      await page.waitForFunction(() => document.querySelector('.frise-accords'), null, { timeout: 15000 });
+      await sleep(600);
+      const rs = await rulerState(page);
+      const rects = (await labelRect(page)).sort((a, b) => a[0] - b[0]);
+      let gaps = true;
+      for (let i = 1; i < rects.length; i++) if (rects[i][0] - rects[i - 1][1] < 7) gaps = false;
+      check('long piece fitted: 290 bars in the window, the row keeps every 16th, 32nd… bar, no overlap', rs.stride >= 16 && (rs.stride & (rs.stride - 1)) === 0 && gaps && rects.length >= 5 && rects.length <= 40, `stride ${rs.stride}, ${rects.length} labels`);
+      check('long piece fitted: aligned header column', near(rs.headsBottom, rs.rulerBottom, 1));
+      await page.screenshot({ path: path.join(out, 'chords-long-fitted.png'), clip: { x: 0, y: 56, width: 1280, height: 130 } });
+      check('no page errors (long piece)', errors.length === 0, errors.join(' | '));
+      await context.close();
+    }
+
+    // ---- phone, 390 × 844
+    {
+      const { page, context, errors } = await open({ width: 390, height: 844 }, { touch: true, dpr: 2, query: '?demo' });
+      const rs = await rulerState(page);
+      const ls = await labels(page);
+      check('phone: chord row present and aligned with the header column', rs.rows.join() === 'tempo,accords,mesures' && near(rs.headsBottom, rs.rulerBottom, 1) && rs.headRows.every((r, i) => near(r[2], rs.rangs[i][1], 0.5)));
+      check('phone: one chord per bar of 86 px, every label on its bar line', rs.stride === 1 && ls.length >= 3 && ls.filter((l) => l.nearBar > 1 && l.nearBeat > 1.5).length === 0, `stride ${rs.stride}, ${ls.length} labels`);
+      check('phone: no horizontal page scroll', (await page.evaluate(() => document.documentElement.scrollWidth)) <= 390);
+      const rects = await labelRect(page);
+      check('phone: labels stay inside the ruler (with the loop and the playhead in view)', rects.every((r) => r[2] >= 56 && r[3] <= 400));
+      await page.screenshot({ path: path.join(out, 'timeline-chords-390.png') });
+      check('no page errors (phone chords)', errors.length === 0, errors.join(' | '));
+      await context.close();
+    }
   }
 
   // ------------------------------------------------------------ stress: ten minutes, stereo, four tracks; frame times

@@ -16,6 +16,7 @@ contextBridge.exposeInMainWorld('fabtice', {
   extract: (link) => ipcRenderer.invoke('fabtice:extract', String(link)),
   lastImportReport: () => ipcRenderer.invoke('fabtice:last-import-report'),
   copyText: (text) => ipcRenderer.invoke('fabtice:copy', String(text)),
+  openInIRealPro: (link) => ipcRenderer.invoke('fabtice:open-ireal', String(link)),
   onYtdlpProgress: (cb) => subscribe('fabtice:ytdlp-progress', cb),
   onExtractProgress: (cb) => subscribe('fabtice:extract-progress', cb),
 });

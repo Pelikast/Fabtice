@@ -2,6 +2,7 @@ import { useCallback, useRef } from 'react';
 import { formatNumber, t } from '../i18n';
 import { isTempoKnown, originalBpm } from '../store/derived';
 import { closePanel, togglePanel } from '../store/actions';
+import { selectHasChords } from '../store/chartSelectors';
 import { useApp } from '../store/store';
 import { rulerRows } from '../timeline/layout';
 import { ChevronIcon } from '../ui/icons';
@@ -13,16 +14,18 @@ export function RulerHeads() {
   const known = useApp((s) => isTempoKnown(s.tempoMap));
   const bpm = useApp((s) => originalBpm(s));
   const open = useApp((s) => s.ui.panel === 'grid');
+  const hasChords = useApp(selectHasChords);
+  const variable = useApp((s) => s.tempoMap.segments.length > 1);
   const hasProject = useApp((s) => s.project !== null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const refs = useRef([buttonRef, panelRef]).current;
   useOutsideClose(open, refs, useCallback(() => closePanel(), []));
 
-  const label = known && bpm !== null ? t('ruler.tempoValue', { bpm: formatNumber(bpm, 1) }) : t('ruler.tempoUnset');
+  const label = known && bpm !== null ? t(variable ? 'ruler.tempoApprox' : 'ruler.tempoValue', { bpm: formatNumber(bpm, 1) }) : t('ruler.tempoUnset');
   return (
     <div className="regle-tetes">
-      {rulerRows({ hasChords: false }).map((row) => {
+      {rulerRows({ hasChords }).map((row) => {
         if (row.id === 'tempo') {
           return (
             <button

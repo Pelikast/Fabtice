@@ -185,7 +185,8 @@ try {
     // Export menu
     await page.click('button:has-text("Exporter")');
     const items = await page.$$eval('.menu-export [role="menuitem"]', (els) => els.map((e) => `${e.dataset.export}:${e.disabled}:${e.querySelector('small')?.textContent ?? ''}`));
-    check('Exporter: iReal Pro and print « bientôt », audio later', items.join('|') === 'ireal:true:bientôt|print:true:bientôt|audio:true:dans une prochaine version', items.join('|'));
+    // The iReal Pro entry is a link to the page it writes (tests/export.mjs checks it); an anchor has no `disabled`.
+    check('Exporter: iReal Pro is a link, print « bientôt », audio later', items.join('|') === 'ireal:undefined:|print:true:bientôt|audio:true:dans une prochaine version', items.join('|'));
     await page.keyboard.press('Escape');
 
     check('no page errors (desktop)', errors.length === 0, errors.join(' | '));

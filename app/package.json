@@ -19,7 +19,8 @@
     "test:engine": "node tests/engine.mjs",
     "test:timeline": "node tests/timeline.mjs",
     "test:import": "node tests/import.mjs",
-    "test:chart": "node tests/chart.mjs"
+    "test:chart": "node tests/chart.mjs",
+    "test:export": "node tests/export.mjs"
   },
   "dependencies": {
     "react": "^19.3.1",

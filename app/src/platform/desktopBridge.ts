@@ -188,6 +188,12 @@ export interface DesktopBridge {
   extract(link: string): Promise<ExtractResult>;
   /** Copies text to the clipboard. */
   copyText(text: string): Promise<true>;
+  /**
+   * Asks the system to open an `irealb://` chart link (iReal Pro). The Mac app accepts that scheme
+   * only, with a bounded length (`desktop/src/ireal-link.js`): `invalid` when it refuses the link,
+   * `failed` when the system could not open it (iReal Pro not installed). A Mac app that predates it lacks this method.
+   */
+  openInIRealPro?(link: string): Promise<{ ok: true } | { ok: false; reason: 'invalid' | 'failed' }>;
   /** Timings of the last import made from the interface (a Mac app that predates it lacks this method). */
   lastImportReport?(): Promise<LastImportReport>;
   onYtdlpProgress(callback: (progress: YtdlpProgress) => void): Unsubscribe;

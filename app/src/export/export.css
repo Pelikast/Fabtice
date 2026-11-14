@@ -1,0 +1,18 @@
+/* The iReal Pro entries of the « Exporter » menu (components/ExportMenu.tsx).
+   « Grille pour iReal Pro » is a normal link to the little page the export
+   writes (the file is saved by the browser or by the Mac app); « Ouvrir dans
+   iReal Pro » exists in the Mac app only. Same look as the other entries. */
+
+a.option {
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+.menu-export a.option { flex-direction: column; align-items: flex-start; gap: 1px; }
+.menu-export a.option:hover { background: var(--papier-fonce); }
+.menu-export .option-erreur {
+  margin: 2px 10px 6px;
+  font-size: 12px;
+  font-style: italic;
+  color: var(--encre-douce);
+}

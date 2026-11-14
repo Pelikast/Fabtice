@@ -25,6 +25,7 @@ le stockage.
 | `npm run test:smoke` | après `build` : vérifications dans Chromium (Playwright préinstallé) et captures d'écran dans un dossier temporaire (`FABTICE_SMOKE_OUT` pour le choisir) |
 | `npm run test:import` | après `build` : import des cinq formats (sélecteur et glisser-déposer), rouverture du projet après rechargement (dont des morceaux de **taille réelle**, 0,5 à 32 Mo, dans un profil de navigateur persistant), morceau gardé mais impossible à rouvrir (offre « Rouvrir » / « Oublier »), autosauvegarde, stockage en échec, import par lien contre un faux `window.fabtice`, coût d'un morceau de cinq minutes (captures dans `FABTICE_IMPORT_OUT`) |
 | `npm run test:timeline` | après `build` : vérifications de la frise dans Chromium (formes d'onde, grille, boucle, défilement, zoom, suivi, téléphone, morceau de dix minutes) |
+| `npm run test:export` | après `build` : le menu « Exporter », le fichier iReal Pro téléchargé par le navigateur, et son lien relu (par un lecteur écrit dans le test) et comparé aux accords de la grille, avec une transposition et un instrument réglés, un accord tapé à la main, une analyse qui se termine |
 | `npm run test:engine` | après `build` (et, en option, `build:desktop`) : mesures du vrai moteur audio dans Chromium (tonalité, tempo, boucle, métronome, limiteur, charge) |
 | `npm run test:chart` | après `build` : la grille d'accords comparée à la maquette (même balisage des accords, mêmes tailles, sections, boucle, mesure en cours, instruments, états vides et « analyse en cours », téléphone), panneaux de corrections et d'accordage ; captures de l'app et de la maquette côte à côte dans `FABTICE_CHART_OUT` |
 
@@ -77,8 +78,8 @@ src/
                       automatique et état (runner.ts), progression fine
   chart/              affichage Grille d'accords : mise en page pure (layout.ts),
                       corrections pures (edits.ts), feuille, mesure en cours
-  export/             représentation de la grille pour l'export, contrat iReal Pro,
-                      impression
+  export/             représentation de la grille pour l'export, codage iReal Pro
+                      (IREAL-FORMAT.md : le format et ses sources), impression
   store/              état de l'app (store.ts), actions (actions.ts), valeurs
                       dérivées (derived.ts), préférences, document de projet
   audio/              contrat du moteur (AudioEngine.ts), vrai moteur
@@ -102,7 +103,7 @@ src/
   demo/               le morceau synthétique de ?demo
   styles/             jetons, base, une feuille par zone, téléphone
   assets/fonts/       polices (woff2) et leurs licences OFL
-tests/                vérifications dans Chromium (smoke.mjs, timeline.mjs, import.mjs, chart.mjs),
+tests/                vérifications dans Chromium (smoke.mjs, timeline.mjs, import.mjs, chart.mjs, export.mjs),
                       fichiers audio de test (fixtures/) et petit serveur
 ```
 
@@ -286,52 +287,69 @@ chantiers suivent, chacun dans son dossier.
   suivre la mesure en cours en lecture (défilement, réglage « Suivre ») ; les
   entrées « Exporter » dans le menu du téléphone.
 
-#### Frise du temps — `src/timeline/` (seulement ceci)
+#### Frise du temps — `src/timeline/`
 
-- **Rang des accords** : l'afficher quand `selectHasChords(state)` est vrai
-  (`rulerRows({ hasChords })`, aujourd'hui `false` en dur dans `Timeline.tsx`,
-  `controller.ts` et `components/RulerHeads.tsx`, qui a déjà `ChordsHead`). Lire
-  `selectChartBars(state)` (mesures, accords avec `beatInBar`, `repeat`, sections)
-  ou `selectChords(state)` (chaque accord et son temps `beat` sur la grille ;
-  position x par `beatToTime(tempoMap, beat)`), et `selectDisplayContext(state)`
-  pour l'écrire (`displayChord(chord, ctx).parts` : fondamentale, qualité ou
-  triangle, extensions, basse ; ou `displayChordText`). Styles de la maquette :
-  `.accord`, `.accord.deux` (18 px et 14,5 px). Les accords douteux à l'encre
-  douce, comme dans la grille. Redessiner quand `analysis`, `corrections`,
-  `tempoMap`, `playback.semitones`, `view.instrument` ou
-  `settings.minorNotation` changent.
-- **Courbe de tempo** : une carte analysée a un segment **par temps** ; dessinée
-  segment par segment (comme aujourd'hui), elle tremble et porte un point à
-  chaque temps. Dessiner `grid/tempoCurve.ts#tempoCurve(map, t0, t1)` (un point
-  par mesure, tempo moyen de la mesure) avec `curveRange()` pour l'échelle, et la
-  ligne pointillée au tempo nominal (`nominalBpm`, mémorisé par carte).
+- **Fait** : le rang « Accords » de la règle et la courbe de tempo mesure par
+  mesure (détail dans « Frise du temps » plus bas). Le rang existe quand
+  `selectHasChords(state)` est vrai ; `rulerRows({ hasChords })` donne les
+  hauteurs à la colonne des en-têtes (`components/RulerHeads.tsx`) comme à la
+  frise, si bien que rien ne bouge quand une analyse se termine et que le rang
+  apparaît.
 - **Temps analysés** : `barLines`, `subGridLines`, `snapTime`, `loopFromBars`,
-  `barsOfRange`, `metronomeClicks` donnent déjà les bonnes lignes sur une carte
-  variable (tests sur les vrais temps de `demo-swing.json`,
-  `grid/beats.test.ts`). L'effacement de la sous-grille se décide sur le tempo
-  le plus rapide de la carte (`maxBpm`).
+  `barsOfRange`, `metronomeClicks` donnent les bonnes lignes sur une carte
+  variable ; `test:timeline` le vérifie sur `?demo` (lignes de mesure sur les
+  temps analysés, clic calé sur un temps analysé, sélection de mesures dans le
+  rang des accords). Seule correction faite dans la frise : l'échelle du
+  téléphone (86 px par mesure) part du tempo nominal de la carte, non du tempo
+  de son premier temps.
 
 #### Export iReal Pro — `src/export/`
 
-- **Ce qui existe** : `chartForExport(state)` rend une représentation pure de la
-  grille (`ExportChart` : titre, tonalité écrite, métrique, tempo, `repeats:
-  'none'`, mesures avec section, double barre, changement de métrique, accords
-  au temps près, répétition, dernière mesure), en Ut **dans la tonalité jouée**
-  (transposition du transport appliquée ; l'instrument non : iReal Pro
-  transpose lui-même). Le contrat `exportToIRealPro(chart): IRealExport` (lien
-  `irealb://`, page HTML qui le porte, nom de fichier) lève
-  `ExportNotReadyError`. Le menu « Exporter » montre « bientôt » tant que
-  `IREAL_EXPORT_READY` est faux ; ensuite il enregistre la page HTML
-  (`components/ExportMenu.tsx`).
-- **Reste à faire** : le codage iReal (vocabulaire d'accords, cellules,
-  sections, métrique, style par défaut, chaîne du lien), ses tests, la remise à
-  l'utilisateur (page à ouvrir, lien à copier, app Mac), puis
-  `IREAL_EXPORT_READY = true`.
+- **Fait** : `chartForExport(state)` rend une représentation pure de la grille
+  (`ExportChart` : titre, tonalité écrite, métrique, tempo, mesures avec section,
+  double barre, changement de métrique, accords au temps près, répétition,
+  dernière mesure), en Ut **dans la tonalité jouée** (transposition du transport
+  appliquée ; l'instrument non : iReal Pro transpose lui-même).
+  `exportToIRealPro(chart)` (pur) en fait le lien `irealb://` (et l'ancien lien
+  `irealbook://`), la page HTML qui le porte (une phrase en français) et le nom
+  du fichier (celui du morceau). `IREAL_EXPORT_READY` est vrai.
+- **Le format** est décrit, avec ses sources (dépôts, licences), dans
+  `src/export/IREAL-FORMAT.md` (en anglais) : champs du lien, mélange des 50
+  caractères, cellules (une par temps), sections, mesures qui continuent
+  (`x`, barres obliques `p`), N.C., vocabulaire d'accords et ce qu'iReal Pro ne
+  sait pas écrire (l'approximation choisie, dite). À lire avant de toucher au
+  codage.
+- **Fichiers** : `ireal.ts` (champs, chaîne de la grille, mélange, lien, page),
+  `irealChords.ts` (la table des qualités d'iReal Pro et la correspondance avec
+  le vocabulaire de l'app : elle sert au codage et, dans les tests, au
+  décodage), `export.css` (les entrées du menu), `chartExport.ts`.
+- **Tests** : `ireal.test.ts` écrit des grilles et les relit avec un lecteur
+  indépendant (`src/test/irealDecoder.ts` : son propre mélange, son propre
+  découpage, une grammaire des qualités plutôt que la table) : le morceau de
+  démonstration, 2/4 à 7/4, deux et quatre accords par mesure, levée, N.C.,
+  répétitions, changement de métrique, 300 mesures, des grilles de toutes les
+  tailles autour des 50 caractères du mélange, chaque qualité avec chaque
+  extension, des titres étranges. `ireal.reference.test.ts` relit les mêmes liens
+  avec des lecteurs publiés, **sans les ajouter à l'app** : il ne fait rien
+  tant qu'on ne lui indique pas où ils sont (voir son en-tête :
+  `IREAL_REFERENCE_DIR`, `IREAL_REFERENCE_PYTHON`) ; `npm test` le saute.
+- **Remise à l'utilisateur** : « Grille pour iReal Pro » est un **lien normal** vers
+  la page enregistrée sous le nom du morceau (le navigateur l'enregistre ; dans
+  l'app Mac c'est un vrai téléchargement). Dans l'app Mac, « Ouvrir dans iReal Pro »
+  s'y ajoute : `window.fabtice.openInIRealPro(lien)`, typée dans
+  `platform/desktopBridge.ts` (facultative : une app Mac plus ancienne ne l'a
+  pas). Elle n'accepte que `irealb://` et 200 000 caractères au plus
+  (`desktop/src/ireal-link.js`).
+- **Reste à faire** : rien pour l'export lui-même. Seul le propriétaire peut
+  dire comment son iReal Pro importe le fichier (voir « ce qu'il reste à
+  vérifier » dans `IREAL-FORMAT.md`) ; les répétitions et les fins numérotées
+  ne sont pas écrites (la grille n'en a pas).
 
 #### Le menu « Exporter » et les panneaux
 
 « Exporter » est un petit menu (`components/ExportMenu.tsx`) : « Grille pour
-iReal Pro » et « Imprimer la grille » (« bientôt »), l'audio visible mais inactif
+iReal Pro » (un lien vers le fichier ; « Ouvrir dans iReal Pro » en plus dans l'app
+Mac) et « Imprimer la grille » (« bientôt »), l'audio visible mais inactif
 (lot 3). Le panneau « Tempo et mesures » (`components/GridPanel.tsx`) garde la
 saisie du lot 1 et gagne : tempo ÷ 2 et × 2, premier temps un temps plus tôt ou
 plus tard (de part et d'autre de « Premier temps ici »), l'origine de la grille,
@@ -420,7 +438,8 @@ moteur complet dans Chromium (enregistreur branché sur la sortie du worklet).
 
 Types exacts de `window.fabtice` tel que l'expose `desktop/src/preload.js`
 (`systemInfo`, `ytdlpStatus`, `ytdlpCheck`, `ytdlpInstall`, `extract`,
-`copyText`, `onYtdlpProgress`, `onExtractProgress`). `getDesktopBridge()`
+`copyText`, `onYtdlpProgress`, `onExtractProgress`, et `openInIRealPro`, facultative : elle
+ouvre un lien `irealb://` avec le système, rien d'autre). `getDesktopBridge()`
 renvoie l'objet dans l'app Mac, `null` sur le web. Pendant `extract`, le pont envoie
 `{ phase: 'info' }` (recherche), `{ phase: 'prepare', meta }` (le téléchargement va
 démarrer, rien à mesurer) puis `{ phase: 'download', percent, receivedBytes, totalBytes,
@@ -531,8 +550,7 @@ d'origine, audio décodé à 48 kHz, une ou deux voies) ou rejettent avec une
 Tout ce qui se dessine le long du temps, dans l'affichage Pistes : règle
 (courbe de tempo, numéros de mesure, bande de boucle), formes d'onde, grille
 et sous-grille, voile de boucle, tête de lecture, défilement, zoom, Auto,
-suivi de la tête de lecture et interactions. L'accord (rang « Accords » de la
-règle) n’est pas encore dessiné (`rulerRows({ hasChords: false })`) : voir « Lot 2 », plus haut, pour ce que la frise doit lire.
+suivi de la tête de lecture et interactions. Le rang « Accords » s'affiche dès que le morceau a des accords (analysés ou écrits à la main).
 
 **Mise en page.** La frise remplit la colonne de droite de `.plan`, dans le
 défileur vertical `.travail`, qui ne défile **jamais** horizontalement : le
@@ -550,6 +568,8 @@ donne le contrat (hauteurs des rangs par `rulerRows()`, voies de
 | `geometry.ts` | calculs purs et testés : zoom, Auto, suivi, éclaircissement des mesures, sélection de mesures |
 | `peaks.ts`, `peakCache.ts` | pyramide de crêtes multi-résolution, calculée par tranches de 3 ms, mise en cache |
 | `layout.ts` | hauteurs des rangs, partagées avec la colonne des en-têtes |
+| `chordRow.ts` | rang des accords, fonctions pures et testées : quels accords s'écrivent (un accord répété n'est pas réécrit), où (au temps, 9 px après la barre) et lequel garder quand on dézoome |
+| `chordMarkup.ts`, `chordLayer.ts` | le balisage d'un accord (identique à `<ChordSymbol>`, vérifié par `chordMarkup.test.ts`) et le DOM du rang : une étiquette par accord visible, déplacée par `transform`, gardée par clé |
 
 **Couches de dessin.** Règle : fonds des rangs (DOM), bande de boucle (DOM,
 laiton plein), un canvas (courbe de tempo, traits et numéros de mesure), tête
@@ -561,6 +581,34 @@ de boucle (DOM) et la tête de lecture (DOM). Les canvas ont la taille de la vue
 montrent change : défilement, zoom, grille, pistes, boucle, taille. La tête de
 lecture se déplace par `transform` dans la boucle d'animation commune, sans
 aucun redessin ni rendu React.
+
+**Rang des accords.** Les accords viennent de `selectChartBars` (ceux de la
+grille d'accords : mêmes accords, mêmes corrections) et s'écrivent par
+`selectDisplayContext` (transposition, instrument, « m » ou « – »), avec le
+balisage et les styles de `<ChordSymbol>` (`styles/chords.css`) : triangle,
+extensions en exposant, altérations serrées ; un accord douteux est à l'encre
+douce, pointillé dessous. Ce sont des éléments DOM positionnés (`translate3d`)
+pour la seule partie visible, dans `.frise-accords` : pendant la lecture sans
+défilement, aucun élément n'est créé, retiré ni touché (vérifié). Un accord est
+posé 9 px après la barre qui le commence (6 px pour un accord au milieu de la
+mesure, qui se range à son temps ou juste après le précédent, et s'efface
+s'il gênerait l'accord de la mesure suivante : celui du temps 1 est prioritaire) ;
+une mesure à deux accords les écrit à 14,5 px, comme la maquette. Un accord qui
+répète le précédent n'est pas réécrit. **Éclaircissement** : comme les numéros de
+mesure, une étiquette toutes les 2, 4, 8… mesures, la plus petite foulée qui
+laisse sa place à l'étiquette la plus large *du morceau* (donc la foulée ne
+change pas selon ce qui défile) ; chaque étiquette est alors l'accord en
+vigueur sur la barre gardée. Les traits de mesure du rang suivent la même
+foulée, pour ne jamais couper une étiquette. `data-chord-labels` et
+`data-chord-stride` sur `.frise` servent aux vérifications.
+
+**Courbe de tempo.** Un point par mesure (tempo moyen de la mesure, posé au
+milieu de la mesure) tiré de `grid/tempoCurve.ts`, relié par une courbe lisse
+d'encre fine, au-dessus d'un pointillé au tempo nominal ; un petit point sur les
+mesures qui ont 24 px de place. L'échelle est celle du morceau entier, calculée
+une fois par carte (elle ne bouge pas en défilant). Un tempo constant est une
+droite au milieu du rang, sans points. L'en-tête lit « Tempo · ≈ N » quand le
+tempo varie.
 
 **Formes d'onde.** `getAudio()` est lu une seule fois par piste pour bâtir la
 pyramide (une case de 64 échantillons, puis des niveaux ×4 ; crête et énergie
@@ -613,7 +661,7 @@ de même (mesures 1, 5, 9… à une sur quatre). La sous-grille disparaît sous 
 `data-pps`, `data-peaks` (`ready` quand toutes les crêtes sont calculées) et
 `data-flush` (nombre de redessins, coût total et pire coût en ms).
 `npm run test:timeline` (après `build`) lance les vérifications dans Chromium
-(`TIMELINE_ONLY=desktop|stress|phone` pour une seule partie ;
+(`TIMELINE_ONLY=desktop|chords|stress|phone` pour une seule partie ;
 `FABTICE_TIMELINE_OUT` pour le dossier des captures).
 
 ## Saisie et correction de la grille

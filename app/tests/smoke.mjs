@@ -54,19 +54,21 @@ try {
 
     // Shell
     check('top bar: brand and title', (await text(page, '.marque')) === 'Fabtice' && (await text(page, '.projet-titre')) === 'Blues du dimanche');
-    // Lot 2: « Exporter » is a small menu; the chart exports say « bientôt » until written, audio stays inactive (lot 3).
+    // Lot 2: « Exporter » is a small menu: iReal Pro is a link, printing says « bientôt » until written, audio stays inactive (lot 3).
     await page.click('button:has-text("Exporter")');
     const exportItems = await page.locator('.menu-export [role="menuitem"]').evaluateAll((els) => els.map((el) => ({ key: el.dataset.export, disabled: el.disabled, text: el.innerText })));
+    // « Grille pour iReal Pro » is a link to the page it writes; printing says « bientôt » and audio stays inactive (lot 3).
     check(
-      'top bar: Exporter opens a menu (iReal Pro, print, audio inactive)',
-      exportItems.length === 3 && exportItems.map((x) => x.key).join(',') === 'ireal,print,audio' && exportItems.every((x) => x.disabled) && exportItems[0].text.includes('bientôt'),
+      'top bar: Exporter opens a menu (iReal Pro link, print soon, audio inactive)',
+      exportItems.length === 3 && exportItems.map((x) => x.key).join(',') === 'ireal,print,audio' && !exportItems[0].disabled && exportItems[1].disabled && exportItems[2].disabled && !exportItems[0].text.includes('bientôt'),
       JSON.stringify(exportItems),
     );
     await page.keyboard.press('Escape');
     check('Escape closes the export menu', (await page.locator('.menu-export').count()) === 0);
     check('four track headers', (await page.locator('.piste-tete').count()) === 4);
     check('four timeline lanes', (await page.locator('.frise-voie').count()) === 4);
-    check('ruler heads: tempo and bars, no chords row', (await page.locator('.rang-tete').count()) === 2 && (await text(page, '.rang-tete.tempo')).toUpperCase().includes('TEMPO · 110'));
+    // The demo is analysed: variable tempo (≈) and a chords row between tempo and bars.
+    check('ruler heads: tempo, chords and bars', (await page.locator('.rang-tete').count()) === 3 && (await text(page, '.rang-tete.tempo')).toUpperCase().includes('TEMPO · ≈ 110'));
     check('dialog closed with a project', !(await page.locator('.voile').evaluate((el) => el.classList.contains('ouverte'))));
     check('transport position', (await text(page, '.temps')) === '0:09,3' && (await text(page, '.ou')).includes('mesure 5 · temps 1 · boucle 5–8'), await text(page, '.ou'));
     await page.screenshot({ path: path.join(out, 'app-1280.png') });

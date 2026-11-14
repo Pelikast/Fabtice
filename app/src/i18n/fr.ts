@@ -30,6 +30,7 @@ export const fr = {
 
   // Ruler heads
   'ruler.tempoValue': 'Tempo · {bpm}',
+  'ruler.tempoApprox': 'Tempo · ≈ {bpm}',
   'ruler.tempoUnset': 'Tempo · à régler',
   'ruler.tempoEdit': 'Régler le tempo et les mesures',
   'ruler.chords': 'Accords',
@@ -189,6 +190,10 @@ export const fr = {
 
   // Export menu
   'export.ireal': 'Grille pour iReal Pro',
+  'export.irealOpen': 'Ouvrir dans iReal Pro',
+  'export.irealOpenFailed': 'iReal Pro n’a pas pu être ouvert. Enregistrez plutôt le fichier, puis ouvrez-le avec iReal Pro.',
+  'export.irealPageSentence': 'Pour importer cette grille, ouvrez ce fichier avec iReal Pro, ou touchez le lien ci-dessous sur un appareil où iReal Pro est installé.',
+  'export.irealPageLink': 'Ouvrir « {title} » dans iReal Pro',
   'export.print': 'Imprimer la grille',
   'export.audio': 'Audio : pistes, boucle ou mélange',
   'export.soon': 'bientôt',

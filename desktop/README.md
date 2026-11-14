@@ -153,6 +153,23 @@ Les commandes de fabrication s’arrêtent avec un message clair si
 `desktop/ui/` n’existe pas. Pour tester l’app empaquetée :
 `FABTICE_E2E_APP=<chemin de l’exécutable> npm run test:e2e`.
 
+Le pont (`window.fabtice`, `src/preload.js`) : `systemInfo`, `ytdlpStatus`,
+`ytdlpCheck`, `ytdlpInstall`, `extract`, `lastImportReport`, `copyText`,
+`onYtdlpProgress`, `onExtractProgress` et `openInIRealPro(lien)`. Cette
+dernière est celle de « Ouvrir dans iReal Pro » (menu « Exporter » de
+l’interface) : le processus principal vérifie le lien (`src/ireal-link.js` :
+schéma exactement `irealb://`, 200 000 caractères au plus, rien que ce
+qu’écrit `encodeURIComponent` plus `=` et `/`, aucun espace ni caractère de
+contrôle) puis le confie au système par `shell.openExternal`. Elle rend
+`{ ok: true }`, ou `{ ok: false, reason: 'invalid' }` (lien refusé : le système
+n’est pas sollicité) ou `{ ok: false, reason: 'failed' }` (le système n’a pas pu
+l’ouvrir, par exemple iReal Pro n’est pas installé). Rien d’autre ne peut
+atteindre `shell.openExternal`. Les protections restent : ni navigation ni
+nouvelle fenêtre ; le fichier « Grille pour iReal Pro » est un vrai
+téléchargement (l’app demande où l’enregistrer ; `test/e2e/ireal-export.test.js`
+le range dans un dossier jetable et remplace `shell.openExternal` par un
+enregistreur, rien n’est lancé pour de bon).
+
 Ce que le pont envoie à l’interface pendant un import (`src/extract.js`) :
 `{ phase: 'info' }`, puis `{ phase: 'prepare', meta }` quand le téléchargement
 va démarrer (rien ne se mesure encore : le binaire de yt-dlp démarre), puis
