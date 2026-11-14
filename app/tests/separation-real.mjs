@@ -50,11 +50,26 @@ const note = (s) => console.log(`NOTE  ${s}`);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const mb = (n) => `${(n / 1048576).toFixed(0)} MB`;
 
-/** Resident memory of every Chromium process of this run, in bytes (as tests/memory.mjs). */
+// Each browser of this run carries a mark on its command line: its memory is that of its own process tree
+// (other Chromium processes on the machine, from other work, are not counted).
+const MARK = `--fabtice-separation-real=${process.pid}`;
+
+/** Resident memory of the browser launched with MARK and all its child processes, in bytes. */
 const rss = () => {
   try {
-    const lines = execSync('ps -eo rss=,comm=', { encoding: 'utf8' }).split('\n').filter((l) => /\s(chrome|chromium|headless_shell|chrome-headless-shell)\S*$/.test(l));
-    return lines.reduce((sum, l) => sum + Number(l.trim().split(/\s+/)[0]) * 1024, 0);
+    const rows = execSync('ps -eo pid=,ppid=,rss=,args=', { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
+      .split('\n')
+      .map((l) => l.trim().match(/^(\d+)\s+(\d+)\s+(\d+)\s+(.*)$/))
+      .filter(Boolean)
+      .map((m) => ({ pid: Number(m[1]), ppid: Number(m[2]), rss: Number(m[3]) * 1024, args: m[4] }));
+    const roots = rows.filter((r) => r.args.includes(MARK)).map((r) => r.pid);
+    if (!roots.length) return null;
+    const tree = new Set(roots);
+    for (let grew = true; grew; ) {
+      grew = false;
+      for (const r of rows) if (!tree.has(r.pid) && tree.has(r.ppid)) (tree.add(r.pid), (grew = true));
+    }
+    return rows.filter((r) => tree.has(r.pid)).reduce((n, r) => n + r.rss, 0);
   } catch {
     return null;
   }
@@ -63,7 +78,7 @@ const rss = () => {
 const { srv, url } = await startServer(0);
 const HUB = /^https:\/\/(huggingface\.co|[^/]*\.hf\.co)\//;
 const QUERY = '?debug&moteur=factice&analyse=aucune&separation=reel';
-const launch = () => chromium.launch({ args: ['--no-sandbox', '--autoplay-policy=no-user-gesture-required', '--enable-precise-memory-info'] });
+const launch = () => chromium.launch({ args: ['--no-sandbox', '--autoplay-policy=no-user-gesture-required', '--enable-precise-memory-info', MARK] });
 
 /** A page on the interface, in `context` (its own storage), with the real separator. */
 async function open(context, query = QUERY) {
@@ -79,10 +94,10 @@ async function open(context, query = QUERY) {
   return { page, errors };
 }
 
-/** WAV bytes of `seconds` of the demo piece, from `from` s (decoded and cut in the page; repeated to reach `seconds`). */
-async function excerpt(page, from, seconds) {
+/** WAV bytes of `seconds` of the demo piece (mono), from `from` s (decoded and cut in the page; repeated to reach `seconds`; `stereo`: made stereo). */
+async function excerpt(page, from, seconds, stereo = false) {
   const b64 = await page.evaluate(
-    async ({ from, seconds }) => {
+    async ({ from, seconds, stereo }) => {
       const bytes = await (await fetch('./spikes/analyse/demo/demo-swing.mp3')).arrayBuffer();
       const ctx = new OfflineAudioContext(2, 48000, 48000);
       const buf = await ctx.decodeAudioData(bytes);
@@ -108,14 +123,18 @@ async function excerpt(page, from, seconds) {
       data.setUint32(40, n * 4, true);
       for (let i = 0; i < n; i++) {
         const k = start + (i % avail);
-        for (let c = 0; c < 2; c++) data.setInt16(44 + i * 4 + c * 2, Math.max(-32768, Math.min(32767, Math.round(ch[c][k] * 32767))), true);
+        for (let c = 0; c < 2; c++) {
+          // A stereo piece from a mono one: the right channel a little late (7 ms).
+          const kk = stereo && c === 1 ? start + ((i + avail - 336) % avail) : k;
+          data.setInt16(44 + i * 4 + c * 2, Math.max(-32768, Math.min(32767, Math.round(ch[c][kk] * 32767))), true);
+        }
       }
       const u8 = new Uint8Array(data.buffer);
       let s = '';
       for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode(...u8.subarray(i, i + 0x8000));
       return btoa(s);
     },
-    { from, seconds },
+    { from, seconds, stereo },
   );
   return Buffer.from(b64, 'base64');
 }
@@ -253,7 +272,7 @@ try {
     const c = await compare(page);
     check('first: four parts as tracks, in the hues of the instruments', c.stems.slice().sort().join(',') === 'bass,drums,other,vocals', c.names.join(','));
     check('first: every part has exactly the length and rate of the piece', c.frames.every((f) => f === c.wholeFrames) && c.rates.every((r) => r === 48000), `${c.frames.join(',')} vs ${c.wholeFrames}`);
-    note(`SCNet on 25 s (processor, this machine): ${took.toFixed(1)} s from « Séparer » to the tracks, download included; compute ${c.result.computeSeconds.toFixed(1)} s; sum of the parts vs the piece: ${c.errorDb.toFixed(1)} dB; peak resident memory +${mb(peak - rss0)} (all Chromium processes)`);
+    note(`SCNet on 25 s (processor, this machine): ${took.toFixed(1)} s from « Séparer » to the tracks, download included; compute ${c.result.computeSeconds.toFixed(1)} s; sum of the parts vs the piece: ${c.errorDb.toFixed(1)} dB; peak resident memory +${mb(peak - rss0)} (this browser and its processes)`);
     check('first: the parts sum back close to the piece (under −15 dB)', c.errorDb < -15, `${c.errorDb.toFixed(1)} dB`);
     check('first: the summary says processor, no fallback', c.result.backend === 'cpu' && c.result.fellBack === false && c.result.modelId === 'scnet');
     for (let i = 0; i < 20 && separationWorkers(page) > 0; i++) await sleep(100);
@@ -337,7 +356,12 @@ try {
     await page.click('.panneau-separation button:has-text("Annuler")');
     await page.waitForFunction(() => window.__fabtice.store.getState().separationRun.status === 'idle', null, { timeout: 5000 });
     const ms = Date.now() - t;
-    for (let i = 0; i < 30 && separationWorkers(page) > 0; i++) await sleep(100);
+    let gone = 0;
+    while (separationWorkers(page) > 0 && gone < 30000) {
+      await sleep(100);
+      gone += 100;
+    }
+    note(`cancel: the separation worker gone ${(Date.now() - t) / 1000} s after the click`);
     const s = await page.evaluate(() => {
       const st = window.__fabtice.store.getState();
       return { tracks: st.tracks.length, result: st.separation.result, run: st.separationRun };
@@ -354,10 +378,11 @@ try {
   // ------------------------------------------------------------------ the processor taking over mid-run
   if (run('fallback')) {
     browser = await launch();
-    const context = await browser.newContext();
-    // Reference without a failure, then the same piece with the « graphics » path failing at segment 2.
+    // Reference without a failure, then the same piece with the « graphics » path failing at segment 2
+    // (each in a context of its own: a fresh device, no piece kept from the other run).
     const results = {};
     for (const query of [QUERY, `${QUERY}&repli-essai=2`]) {
+      const context = await browser.newContext();
       const { page, errors } = await open(context, query);
       const wav = await excerpt(page, 4, 25);
       await page.evaluate(() => window.__fabtice.lot3.separation.setDevice({ phone: false, gpu: 'apple', browser: 'chromium', memoryGB: 8, cores: 4, desktopApp: false }));
@@ -382,7 +407,7 @@ try {
         return Array.from(out.filter((_, i) => i % 7 === 0));
       });
       results[query.includes('repli') ? 'fallback' : 'plain'] = { c, runs, sample, errors };
-      await page.close();
+      await context.close();
     }
     const fb = results.fallback;
     const plain = results.plain;
@@ -397,7 +422,6 @@ try {
     const rep = fb.runs.length;
     note(`fallback: ${rep} coarse states; error of the sum ${fb.c.errorDb.toFixed(1)} dB (plain ${plain.c.errorDb.toFixed(1)} dB)`);
     check('fallback: no page errors', fb.errors.length === 0 && plain.errors.length === 0, [...fb.errors, ...plain.errors].join(' | '));
-    await context.close();
     await browser.close();
     browser = null;
   }
@@ -429,12 +453,14 @@ try {
   // ------------------------------------------------------------------ peak memory per tool, 4-minute piece (long)
   if (run('memory', process.env.FABTICE_SEPARATION_MEMORY === '1')) {
     const tools = (process.env.FABTICE_SEPARATION_MEMORY_TOOLS || 'scnet,htdemucs-6s,bs-roformer-sw').split(',');
-    const maxSegments = Number(process.env.FABTICE_SEPARATION_MEMORY_SEGMENTS || 0);
+    // Long tools on the processor: stop after this many seconds of computing (the peak comes with the first
+    // segments, one segment at a time; what a whole run adds is its output tracks, said below).
+    const limit = Number(process.env.FABTICE_SEPARATION_MEMORY_SECONDS || 0);
     for (const id of tools) {
       browser = await launch();
       const context = await browser.newContext();
       const { page } = await open(context);
-      const wav = await excerpt(page, 0, 240);
+      const wav = await excerpt(page, 0, 240, true);
       await importPiece(page, wav, 'quatre-minutes.wav');
       await page.waitForFunction(() => document.querySelector('.frise')?.dataset.peaks === 'ready', null, { timeout: 120000 }).catch(() => {});
       await sleep(1500);
@@ -446,17 +472,23 @@ try {
       }, 200);
       const t0 = Date.now();
       await startFromPanel(page, id);
-      if (maxSegments > 0) {
-        // Long tools: stop after a few segments (the peak is reached at the first ones: one segment at a time).
-        await page.waitForFunction((n) => {
-          const steps = document.querySelector('.panneau-separation [role="progressbar"]');
-          return window.__fabtice.store.getState().separationRun.step === 'separate' && steps && window.__segCount >= n;
-        }, maxSegments, { timeout: 60 * 60000, polling: 500 }).catch(() => {});
-      }
-      await separated(page, 3 * 60 * 60000);
+      let stopped = false;
+      if (limit > 0) {
+        await page.waitForFunction(() => window.__fabtice.store.getState().separationRun.step === 'separate', null, { timeout: 30 * 60000 });
+        const t1 = Date.now();
+        await separated(page, limit * 1000).catch(() => {
+          stopped = true;
+        });
+        if (stopped) {
+          await page.evaluate(() => window.__fabtice.lot3.separation.cancelSeparation());
+          note(`memory ${id}: stopped after ${((Date.now() - t1) / 1000).toFixed(0)} s of computing`);
+        }
+      } else await separated(page, 3 * 60 * 60000);
       clearInterval(sampler);
       const s = await page.evaluate(() => window.__fabtice.store.getState().separation.result);
-      note(`memory ${id}, 4-minute stereo piece: resident (all Chromium processes) ${mb(base)} before, peak ${mb(peak)} (+${mb(peak - base)}) during the separation; ${s ? `compute ${s.computeSeconds.toFixed(0)} s` : 'not finished'} (${((Date.now() - t0) / 1000).toFixed(0)} s with the download)`);
+      const model = await page.evaluate((m) => window.__fabtice.lot3.separation.models().list.models.find((x) => x.id === m), id);
+      const tracks = model.stems.length * 240 * 48000 * 2 * (await page.evaluate(() => (window.__fabtice.lot3.registry.getAudio(window.__fabtice.store.getState().tracks[0].audio.id).mono ? 1 : 2)));
+      note(`memory ${id}, 4-minute piece: resident (this browser and its processes) ${mb(base)} before, peak ${mb(peak)} (+${mb(peak - base)})${stopped ? ' over the first minutes' : ''}; ${s ? `compute ${s.computeSeconds.toFixed(0)} s` : 'not finished'} (${((Date.now() - t0) / 1000).toFixed(0)} s with the download); the output tracks weigh ${mb(tracks)} in 16 bits once complete`);
       await context.close();
       await browser.close();
       browser = null;
