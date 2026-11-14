@@ -22,6 +22,7 @@
     "test:chart": "node tests/chart.mjs",
     "test:export": "node tests/export.mjs",
     "test:export-audio": "node tests/export-audio.mjs",
+    "test:export-memory": "node tests/export-memory.mjs",
     "test:analysis": "node tests/analysis.mjs",
     "test:separation": "node tests/separation.mjs",
     "test:memory": "node tests/memory.mjs"
