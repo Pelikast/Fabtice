@@ -19,7 +19,8 @@
     "test:engine": "node tests/engine.mjs",
     "test:timeline": "node tests/timeline.mjs",
     "test:import": "node tests/import.mjs",
-    "test:chart": "node tests/chart.mjs"
+    "test:chart": "node tests/chart.mjs",
+    "test:analysis": "node tests/analysis.mjs"
   },
   "dependencies": {
     "onnxruntime-web": "1.31.1",
