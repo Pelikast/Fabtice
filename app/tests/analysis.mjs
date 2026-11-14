@@ -14,8 +14,11 @@
 //     (the piece stays usable, the analysis starts again), a damaged download
 //     (refused, fetched again; refused for good after three tries), a hub that
 //     accepts ranged requests from this origin (resuming);
+//   - the real audio engine plays while the analysis works, without one
+//     quantum over budget;
 //   - the cost: analysis time for this file and for a 4-minute piece, peak
 //     memory of the browser's processes, longest task of the main thread.
+// Scenarios: first, cancel, network, integrity, resume, playing, long.
 //
 // The models are fetched for real: the network must reach Hugging Face. Set
 // FABTICE_ANALYSIS_ONLY=<name> to run one scenario (names are in `scenarios`).

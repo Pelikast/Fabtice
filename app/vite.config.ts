@@ -83,6 +83,9 @@ export default defineConfig(({ mode }) => ({
   },
   // The analysis worker is an ES module worker (it imports ONNX Runtime and the app's own modules).
   worker: { format: 'es' },
+  // Found only inside the worker, ONNX Runtime would be pre-bundled by the dev server on first use,
+  // which reloads the page once: say so up front.
+  optimizeDeps: { include: ['onnxruntime-web/wasm'] },
   build: {
     outDir: mode === 'desktop' ? DESKTOP_OUT : WEB_OUT,
     emptyOutDir: mode === 'desktop',

@@ -334,8 +334,8 @@ chantiers suivent, chacun dans son dossier.
   `https://*.cdn.hf.co` (voir `desktop/src/protocol.js`).
 - **Mesures** (cette machine, 4 cœurs, sans carte graphique, Chromium ; elles ne
   valent pas pour les appareils du propriétaire) : morceau d'essai de 37,6 s, outils
-  déjà là, **6 à 11 s** (le chargement des réseaux en prend 2) ; morceau de 4
-  minutes, **19 à 23 s** ; mémoire du navigateur **+1 Go** pendant le réseau de
+  déjà là, **6 à 13 s** selon la charge de la machine (le chargement des réseaux en prend 2) ; morceau de 4
+  minutes, **19 à 26 s** ; mémoire du navigateur **+1 Go** pendant le réseau de
   temps (indépendant de la durée : il travaille par tranches de 30 s ; rendue 5 s
   après la fin), c'est ce que ONNX Runtime réserve pour ce réseau ; plus longue
   tâche du fil principal **< 100 ms** ; lire le morceau pendant l'analyse ne gêne pas
