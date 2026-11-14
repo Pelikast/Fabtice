@@ -134,7 +134,7 @@ test('the real separation runs in the app under the shipped policy, shows the in
     console.log('the report is in the diagnostic window');
 
     // Chromium notes a 404 of the list in the console (the list is not on the main branch yet): the page says nothing.
-    const listMissing = list.includes('HTTP 404');
+    const listMissing = /\b404\b/.test(listed.problem ?? '');
     const harmless = (p) => NO_ADAPTER.test(p) || (listMissing && /Failed to load resource: the server responded with a status of 404/.test(p));
     const ignored = problems.filter(harmless);
     if (ignored.length) console.log(`ignored: ${ignored.join(' | ')}`);

@@ -368,10 +368,13 @@ Choix faits pendant le lot, à lui faire valider :
 
 Limites connues :
 
-- **Le chemin par la carte graphique n'a tourné nulle part** (ni carte
-  graphique ni Mac ici, et sans doute pas sur les Mac de GitHub). Tous les
-  cas d'échec repassent sur le processeur avec le même outil ; à essayer sur
-  le M1 du propriétaire, qui doit renvoyer « Copier le rapport ».
+- **Le chemin par la carte graphique n'a tourné qu'une fois**, dans l'app
+  sur le Mac à puce Apple de GitHub, avec SCNet (20 s par segment sur cette
+  machine virtuelle ; le Mac Intel de GitHub n'a pas de carte utilisable et
+  passe par le processeur, 16 s par segment). Ni HTDemucs ni BS-RoFormer n'y
+  ont tourné. Tous les cas d'échec repassent sur le processeur avec le même
+  outil ; à essayer sur le M1 du propriétaire, qui doit renvoyer « Copier le
+  rapport ».
 - Sur le processeur, ici : SCNet 2 fois la durée du morceau, HTDemucs 2,7
   fois, BS-RoFormer 17,7 fois ; mémoire de pointe +1,5 Go, +2,9 Go, +4,7 Go.
   Les vitesses de `models.json` pour HTDemucs et SCNet sont des estimations.
