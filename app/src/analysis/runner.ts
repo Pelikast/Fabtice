@@ -13,6 +13,7 @@
 // The status (`AppState.analysisRun`) is what the interface shows; the
 // result goes to `AppState.analysis`.
 
+import { pcmToMono } from '../audio/pcm';
 import { getAudio } from '../audio/registry';
 import { beatGridOf } from '../grid/beats';
 import { applyAnalysis, setAnalysisRun } from '../store/analysisActions';
@@ -23,9 +24,9 @@ import { AnalysisError, type AnalysisProgress, type AnalysisRequest } from './ty
 
 let running: { projectId: string; abort: AbortController } | null = null;
 
-/** The audio the analysis listens to: the original piece (before any separation). */
+/** The audio the analysis listens to: the original piece (before any separation), shown or set aside. */
 function sourceTrack(s: AppState) {
-  return s.tracks.find((tr) => tr.audio.origin === 'original') ?? s.tracks[0] ?? null;
+  return [...s.tracks, ...s.separation.aside].find((tr) => tr.audio.origin === 'original') ?? s.tracks[0] ?? null;
 }
 
 /** Stops the analysis in progress, if any (its result, if it still comes, is dropped). */
@@ -77,7 +78,9 @@ export async function runAnalysis(): Promise<void> {
 
   const userGrid = s.tempoMap.origin === 'manual' || s.tempoMap.origin === 'corrected';
   const request: AnalysisRequest = {
-    channels: audio.channels,
+    // The analysis listens in mono anyway ((l + r) / 2, its own mix): one transient Float32 copy,
+    // made from the registry's 16-bit samples and let go once the analyser has it.
+    channels: [pcmToMono(audio)],
     sampleRate: audio.sampleRate,
     audioId: track.audio.id,
     grid: userGrid ? beatGridOf(s.tempoMap, project.duration) : null,

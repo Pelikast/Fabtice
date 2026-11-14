@@ -58,7 +58,7 @@ describe('store and engine wiring', () => {
     const s = appStore.getState();
     expect(s.project?.duration).toBe(20);
     expect(s.tracks.map((tr) => tr.name)).toEqual(['Basse', 'Piano']);
-    expect(getAudio(s.tracks[0]!.audio.id)?.channels[0]?.length).toBe(ENGINE_SAMPLE_RATE * 20);
+    expect(getAudio(s.tracks[0]!.audio.id)?.frames).toBe(ENGINE_SAMPLE_RATE * 20);
     expect(s.loop).toEqual({ region: { start: 2, end: 20 }, enabled: true });
     expect(s.ui.newPieceOpen).toBe(false);
     expect(s.transport.engine).toBe('ready');

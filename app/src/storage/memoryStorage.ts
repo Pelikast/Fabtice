@@ -4,6 +4,7 @@
 // paths. The app itself never falls back to it (that would pretend to keep
 // what is lost at the next launch).
 
+import { newChunkChannel, pcmFromChunks, type PcmAudio } from '../audio/pcm';
 import type { ProjectDocument } from '../model/document';
 import { readDocument } from './documentFormat';
 import { StorageError, type ProjectStorage, type StorageErrorCode, type StorageEstimate, type StoredAudio } from './ProjectStorage';
@@ -12,6 +13,8 @@ export class MemoryStorage implements ProjectStorage {
   /** The stored document as JSON text, like a real store would hold it. */
   json: string | null = null;
   readonly audio = new Map<string, StoredAudio>();
+  /** Separated tracks, copied (a real store keeps its own copy). */
+  readonly tracks = new Map<string, PcmAudio>();
   /** When set, every call fails with this code. */
   failWith: StorageErrorCode | null = null;
   persistenceGranted = true;
@@ -53,6 +56,7 @@ export class MemoryStorage implements ProjectStorage {
     this.writes++;
     this.json = JSON.stringify(doc);
     this.audio.clear();
+    this.tracks.clear();
     for (const [id, a] of audio) this.audio.set(id, a);
   }
 
@@ -70,5 +74,48 @@ export class MemoryStorage implements ProjectStorage {
     this.check();
     this.json = null;
     this.audio.clear();
+    this.tracks.clear();
   }
+
+  async saveTrackAudio(audioId: string, pcm: PcmAudio): Promise<void> {
+    this.check();
+    this.tracks.set(audioId, copyPcm(pcm));
+  }
+
+  async loadTrackAudio(audioId: string): Promise<PcmAudio | null> {
+    this.check();
+    const t = this.tracks.get(audioId);
+    return t ? copyPcm(t) : null;
+  }
+
+  async deleteTrackAudio(audioIds: readonly string[]): Promise<void> {
+    this.check();
+    for (const id of audioIds) this.tracks.delete(id);
+  }
+
+  async pruneTrackAudio(keep: ReadonlySet<string>): Promise<void> {
+    this.check();
+    for (const id of [...this.tracks.keys()]) if (!keep.has(id)) this.tracks.delete(id);
+  }
+
+  async trackAudioUsage(): Promise<{ bytes: number; ids: string[] }> {
+    this.check();
+    let bytes = 0;
+    for (const t of this.tracks.values()) bytes += t.bytes;
+    return { bytes, ids: [...this.tracks.keys()] };
+  }
+}
+
+function copyPcm(p: PcmAudio): PcmAudio {
+  const chunks = p.chunks.map((c) => {
+    const l = newChunkChannel();
+    l.set(c.l);
+    let r: Int16Array | null = null;
+    if (c.r) {
+      r = newChunkChannel();
+      r.set(c.r);
+    }
+    return { l, r };
+  });
+  return pcmFromChunks(chunks, p.frames, p.sampleRate, p.channelCount);
 }

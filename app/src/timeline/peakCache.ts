@@ -6,7 +6,7 @@
 // is never delayed by more than one slice. `onProgress` fires (throttled) as
 // bins become available, so waveforms fill in from the left.
 
-import { getAudio, onAudioChange, type DecodedAudio } from '../audio/registry';
+import { getAudio, onAudioChange, type PcmAudio } from '../audio/registry';
 import { PeakBuilder, type PeakPyramid } from './peaks';
 
 /** Longest a single slice may run, in milliseconds. */
@@ -14,7 +14,7 @@ export const SLICE_MS = 3;
 const PROGRESS_INTERVAL_MS = 120;
 
 interface Entry {
-  audio: DecodedAudio;
+  audio: PcmAudio;
   builder: PeakBuilder;
 }
 

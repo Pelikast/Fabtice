@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BASE_BLOCK, PeakBuilder, buildPeaks, columnPeaks, levelFor } from './peaks';
+import { pcmFromChannels } from '../audio/pcm';
 
 const SR = 48000;
 
@@ -14,7 +15,7 @@ describe('peak pyramid', () => {
     const data = new Float32Array(BASE_BLOCK * 4);
     data[BASE_BLOCK + 3] = -0.5; // bin 1
     data.fill(0.25, BASE_BLOCK * 2, BASE_BLOCK * 3); // bin 2
-    const py = buildPeaks({ channels: [data], sampleRate: SR });
+    const py = buildPeaks(pcmFromChannels([data], SR));
     const l0 = py.levels[0]!;
     expect(l0.peak.length).toBe(4);
     expect(l0.peak[0]).toBe(0);
@@ -29,13 +30,13 @@ describe('peak pyramid', () => {
   it('takes the loudest channel for the peak and the mean energy of all channels', () => {
     const left = new Float32Array(BASE_BLOCK).fill(0.8);
     const right = new Float32Array(BASE_BLOCK).fill(0.2);
-    const py = buildPeaks({ channels: [left, right], sampleRate: SR });
+    const py = buildPeaks(pcmFromChannels([left, right], SR));
     expect(py.levels[0]!.peak[0]).toBeCloseTo(0.8);
     expect(py.levels[0]!.ms[0]).toBeCloseTo((0.64 + 0.04) / 2);
   });
 
   it('merges levels exactly: upper peaks are maxima, energies are means', () => {
-    const py = buildPeaks({ channels: [sine(20, 0.7)], sampleRate: SR });
+    const py = buildPeaks(pcmFromChannels([sine(20, 0.7)], SR));
     expect(py.levels.length).toBeGreaterThan(3);
     for (let k = 1; k < py.levels.length; k++) {
       const lo = py.levels[k - 1]!;
@@ -51,7 +52,7 @@ describe('peak pyramid', () => {
   });
 
   it('is computed in slices that report progress and give the same result', () => {
-    const audio = { channels: [sine(10, 0.5)], sampleRate: SR };
+    const audio = pcmFromChannels([sine(10, 0.5)], SR);
     const builder = new PeakBuilder(audio);
     let slices = 0;
     let last = 0;
@@ -71,7 +72,7 @@ describe('peak pyramid', () => {
   });
 
   it('handles empty audio', () => {
-    const py = buildPeaks({ channels: [new Float32Array(0)], sampleRate: SR });
+    const py = buildPeaks(pcmFromChannels([new Float32Array(0)], SR));
     expect(py.ready).toBe(true);
     expect(py.levels[0]!.peak.length).toBe(0);
   });
@@ -81,7 +82,7 @@ describe('peak pyramid', () => {
     const ch = [new Float32Array(n), new Float32Array(n)];
     for (let i = 0; i < n; i += 97) ch[0]![i] = ch[1]![i] = Math.sin(i) * 0.3;
     const t = performance.now();
-    const py = buildPeaks({ channels: ch, sampleRate: SR });
+    const py = buildPeaks(pcmFromChannels(ch, SR));
     const ms = performance.now() - t;
     expect(py.ready).toBe(true);
     expect(py.levels[0]!.peak.length).toBe(Math.ceil(n / BASE_BLOCK));
@@ -90,7 +91,7 @@ describe('peak pyramid', () => {
 });
 
 describe('levelFor and columnPeaks', () => {
-  const py = buildPeaks({ channels: [sine(30, 0.5)], sampleRate: SR });
+  const py = buildPeaks(pcmFromChannels([sine(30, 0.5)], SR));
 
   it('picks the coarsest level whose bins fit in a pixel', () => {
     expect(levelFor(py, 10).block).toBe(BASE_BLOCK);
@@ -115,7 +116,7 @@ describe('levelFor and columnPeaks', () => {
   });
 
   it('only reads the bins computed so far while building', () => {
-    const builder = new PeakBuilder({ channels: [sine(10, 0.5)], sampleRate: SR });
+    const builder = new PeakBuilder(pcmFromChannels([sine(10, 0.5)], SR));
     builder.step(1, (() => { let c = 0; return () => c++; })());
     const done = builder.pyramid.computedBins;
     expect(done).toBeGreaterThan(0);

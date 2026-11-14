@@ -25,7 +25,7 @@ describe('reading a stored document', () => {
   });
 
   it('ignores a version written by a newer app (null, not an error)', () => {
-    expect(readDocument(json({ ...sampleDocument(), version: 3 }))).toBeNull();
+    expect(readDocument(json({ ...sampleDocument(), version: 4 }))).toBeNull();
     expect(readDocument(json({ ...sampleDocument(), version: 99, anything: 'else' }))).toBeNull();
   });
 
@@ -78,7 +78,8 @@ describe('version 2 (lot 2): analysis and corrections', () => {
 
   it('a lot 1 document opens as « not analysed yet », its grid kept as entered', () => {
     const doc = readDocument(lot1Document())!;
-    expect(doc.version).toBe(2);
+    // Migrated all the way (1 -> 2 -> 3).
+    expect(doc.version).toBe(3);
     expect(doc.analysis).toBeNull();
     expect(doc.corrections).toEqual(emptyCorrections());
     expect(doc.view.instrument).toBe('ut');

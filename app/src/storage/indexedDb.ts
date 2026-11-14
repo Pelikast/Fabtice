@@ -1,23 +1,74 @@
 // `ProjectStorage` on IndexedDB.
 //
-// Database `fabtice`, version 1, two object stores:
+// Database `fabtice`, version 2, four object stores:
 //   `project`  one record under the key `current`:
 //              { schema, document }  — the `ProjectDocument` (small JSON);
 //   `audio`    one record per audio id: { bytes, mimeType, fileName } — the
-//              original file as imported, stored as an ArrayBuffer.
-// One project at a time: `replaceCurrent` rewrites both stores in a single
+//              original file as imported, stored as an ArrayBuffer;
+//   `pcm`      (version 2, lot 3) the samples of the separated tracks, in
+//              blocks: key [audioId, block], value { l, r, chunks } — 16
+//              chunks of 32 768 frames per block (1 MB per channel), each
+//              channel an ArrayBuffer of 16-bit samples (`r` null for mono);
+//   `pcmInfo`  (version 2) one record per stored track: { frames,
+//              sampleRate, channelCount, mono, blocks, bytes }, written LAST,
+//              so a track whose write was cut short has no info and is
+//              never read (`pruneTrackAudio` sweeps its blocks).
+// One project at a time: `replaceCurrent` rewrites the stores in a single
 // transaction, so a failure (full disk, closed tab) leaves the previous
 // project whole.
+//
+// Why IndexedDB for the separated tracks, not the origin private file system:
+// it is the store the app already relies on in every context it runs in
+// (http(s) pages, the Mac app's `fabtice://app` origin, workers), with the
+// same quota and the same persistent-storage grant, and one place to clear
+// when a new piece replaces the old one; the private file system's writable
+// streams arrived late in Safari. Values of a few MB are kept by the browser
+// outside the database proper, like the original audio already is (see
+// `transact`). The end-to-end check of the Mac app
+// (`desktop/test/e2e/separated-storage.test.js`) writes tens of MB through
+// both, quits, relaunches and reads them back.
 
+import { CHUNK, newChunkChannel, pcmFromChunks, type Chunk, type PcmAudio } from '../audio/pcm';
 import type { ProjectDocument } from '../model/document';
 import { readDocument, STORAGE_SCHEMA } from './documentFormat';
 import { StorageError, type ProjectStorage, type StorageEstimate, type StoredAudio } from './ProjectStorage';
 
 export const DB_NAME = 'fabtice';
-export const DB_VERSION = 1;
+export const DB_VERSION = 2;
 const PROJECT = 'project';
 const AUDIO = 'audio';
+const PCM = 'pcm';
+const PCM_INFO = 'pcmInfo';
 const CURRENT = 'current';
+/** Chunks per stored block (16 x 32 768 frames = 1 MB per channel). */
+export const CHUNKS_PER_BLOCK = 16;
+/** Blocks written per transaction (a few tens of MB at most in flight). */
+const BLOCKS_PER_WRITE = 8;
+
+interface PcmBlock {
+  l: ArrayBuffer;
+  r: ArrayBuffer | null;
+  chunks: number;
+}
+
+export interface PcmInfo {
+  frames: number;
+  sampleRate: number;
+  channelCount: 1 | 2;
+  mono: boolean;
+  blocks: number;
+  bytes: number;
+}
+
+const blockRange = (audioId: string) => IDBKeyRange.bound([audioId, 0], [audioId, Number.MAX_SAFE_INTEGER]);
+const isBuffer = (v: unknown): v is ArrayBuffer => Object.prototype.toString.call(v) === '[object ArrayBuffer]';
+
+/** Copies `count` chunks of one channel (shared memory) into one plain buffer: shared memory cannot be stored. */
+function packChannel(chunks: readonly Chunk[], from: number, count: number, right: boolean): ArrayBuffer {
+  const out = new Int16Array(count * CHUNK);
+  for (let i = 0; i < count; i++) out.set(right ? chunks[from + i]!.r! : chunks[from + i]!.l, i * CHUNK);
+  return out.buffer;
+}
 
 interface ProjectRecord {
   schema: number;
@@ -60,6 +111,9 @@ export class IndexedDbStorage implements ProjectStorage {
         const db = request.result;
         if (!db.objectStoreNames.contains(PROJECT)) db.createObjectStore(PROJECT);
         if (!db.objectStoreNames.contains(AUDIO)) db.createObjectStore(AUDIO);
+        // Version 2 (lot 3): the separated tracks.
+        if (!db.objectStoreNames.contains(PCM)) db.createObjectStore(PCM);
+        if (!db.objectStoreNames.contains(PCM_INFO)) db.createObjectStore(PCM_INFO);
       };
       request.onsuccess = () => {
         const db = request.result;
@@ -190,9 +244,12 @@ export class IndexedDbStorage implements ProjectStorage {
 
   async replaceCurrent(doc: ProjectDocument, audio: ReadonlyMap<string, StoredAudio>): Promise<void> {
     const record: ProjectRecord = { schema: STORAGE_SCHEMA, document: doc };
-    await this.transact('readwrite', [PROJECT, AUDIO], (tx) => {
+    await this.transact('readwrite', [PROJECT, AUDIO, PCM, PCM_INFO], (tx) => {
       const audioStore = tx.objectStore(AUDIO);
       audioStore.clear();
+      // A new piece: the previous piece's separated tracks go with it.
+      tx.objectStore(PCM).clear();
+      tx.objectStore(PCM_INFO).clear();
       for (const [id, a] of audio) audioStore.put(a, id);
       return tx.objectStore(PROJECT).put(record, CURRENT);
     });
@@ -210,9 +267,98 @@ export class IndexedDbStorage implements ProjectStorage {
   }
 
   async clearCurrent(): Promise<void> {
-    await this.transact('readwrite', [PROJECT, AUDIO], (tx) => {
+    await this.transact('readwrite', [PROJECT, AUDIO, PCM, PCM_INFO], (tx) => {
       tx.objectStore(AUDIO).clear();
+      tx.objectStore(PCM).clear();
+      tx.objectStore(PCM_INFO).clear();
       return tx.objectStore(PROJECT).clear();
     });
+  }
+
+  // ---------------------------------------------------------------- separated tracks
+
+  async saveTrackAudio(audioId: string, pcm: PcmAudio): Promise<void> {
+    // Unreadable from the first byte written until the last: the info goes first, and comes back last.
+    await this.transact('readwrite', [PCM, PCM_INFO], (tx) => {
+      tx.objectStore(PCM).delete(blockRange(audioId));
+      return tx.objectStore(PCM_INFO).delete(audioId);
+    });
+    const blocks = Math.ceil(pcm.chunks.length / CHUNKS_PER_BLOCK);
+    for (let b0 = 0; b0 < blocks; b0 += BLOCKS_PER_WRITE) {
+      await this.transact('readwrite', [PCM], (tx) => {
+        const store = tx.objectStore(PCM);
+        let last: IDBRequest | null = null;
+        for (let b = b0; b < Math.min(blocks, b0 + BLOCKS_PER_WRITE); b++) {
+          const from = b * CHUNKS_PER_BLOCK;
+          const count = Math.min(CHUNKS_PER_BLOCK, pcm.chunks.length - from);
+          const block: PcmBlock = { l: packChannel(pcm.chunks, from, count, false), r: pcm.mono ? null : packChannel(pcm.chunks, from, count, true), chunks: count };
+          last = store.put(block, [audioId, b]);
+        }
+        return last;
+      });
+    }
+    const info: PcmInfo = { frames: pcm.frames, sampleRate: pcm.sampleRate, channelCount: pcm.channelCount, mono: pcm.mono, blocks, bytes: pcm.bytes };
+    await this.transact('readwrite', [PCM_INFO], (tx) => tx.objectStore(PCM_INFO).put(info, audioId));
+  }
+
+  async loadTrackAudio(audioId: string): Promise<PcmAudio | null> {
+    const info = await this.transact<PcmInfo | undefined>('readonly', [PCM_INFO], (tx) => tx.objectStore(PCM_INFO).get(audioId));
+    if (info === undefined || info === null) return null;
+    if (typeof info !== 'object' || typeof info.frames !== 'number' || typeof info.blocks !== 'number' || typeof info.sampleRate !== 'number') {
+      throw new StorageError('corrupt', 'stored track: unreadable info');
+    }
+    const expected = Math.ceil(info.frames / CHUNK);
+    const chunks: Chunk[] = [];
+    for (let b = 0; b < info.blocks; b++) {
+      // One request per transaction, its result taken when the request succeeds (large values come late).
+      const block = await this.transact<PcmBlock | undefined>('readonly', [PCM], (tx) => tx.objectStore(PCM).get([audioId, b]));
+      if (!block || !isBuffer(block.l) || (block.r !== null && !isBuffer(block.r)) || block.l.byteLength !== block.chunks * CHUNK * 2) {
+        throw new StorageError('corrupt', `stored track ${audioId}: block ${b} missing or damaged`);
+      }
+      for (let c = 0; c < block.chunks; c++) {
+        const l = newChunkChannel();
+        l.set(new Int16Array(block.l, c * CHUNK * 2, CHUNK));
+        let r: Int16Array | null = null;
+        if (block.r) {
+          r = newChunkChannel();
+          r.set(new Int16Array(block.r, c * CHUNK * 2, CHUNK));
+        }
+        chunks.push({ l, r });
+      }
+    }
+    if (chunks.length !== expected) throw new StorageError('corrupt', `stored track ${audioId}: ${chunks.length} chunks, ${expected} expected`);
+    try {
+      return pcmFromChunks(chunks, info.frames, info.sampleRate, info.channelCount === 1 ? 1 : 2);
+    } catch (e) {
+      throw new StorageError('corrupt', `stored track ${audioId}: ${(e as Error).message}`);
+    }
+  }
+
+  async deleteTrackAudio(audioIds: readonly string[]): Promise<void> {
+    if (audioIds.length === 0) return;
+    await this.transact('readwrite', [PCM, PCM_INFO], (tx) => {
+      let last: IDBRequest | null = null;
+      for (const id of audioIds) {
+        tx.objectStore(PCM).delete(blockRange(id));
+        last = tx.objectStore(PCM_INFO).delete(id);
+      }
+      return last;
+    });
+  }
+
+  async pruneTrackAudio(keep: ReadonlySet<string>): Promise<void> {
+    const keys = await this.transact<IDBValidKey[]>('readonly', [PCM], (tx) => tx.objectStore(PCM).getAllKeys());
+    const ids = new Set<string>();
+    for (const k of keys ?? []) if (Array.isArray(k) && typeof k[0] === 'string' && !keep.has(k[0])) ids.add(k[0]);
+    const infos = await this.transact<IDBValidKey[]>('readonly', [PCM_INFO], (tx) => tx.objectStore(PCM_INFO).getAllKeys());
+    for (const k of infos ?? []) if (typeof k === 'string' && !keep.has(k)) ids.add(k);
+    await this.deleteTrackAudio([...ids]);
+  }
+
+  async trackAudioUsage(): Promise<{ bytes: number; ids: string[] }> {
+    const infos = await this.transact<PcmInfo[]>('readonly', [PCM_INFO], (tx) => tx.objectStore(PCM_INFO).getAll());
+    const keys = await this.transact<IDBValidKey[]>('readonly', [PCM_INFO], (tx) => tx.objectStore(PCM_INFO).getAllKeys());
+    const bytes = (infos ?? []).reduce((n, i) => n + (typeof i?.bytes === 'number' ? i.bytes : 0), 0);
+    return { bytes, ids: (keys ?? []).filter((k): k is string => typeof k === 'string') };
   }
 }

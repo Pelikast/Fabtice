@@ -27,7 +27,7 @@ export type ImportPhase =
   | 'restoring';
 
 /** What the launch is doing while a kept piece is opened again (`phase: 'restoring'`). */
-export type RestoreStep = 'reading' | 'decoding' | 'preparing';
+export type RestoreStep = 'reading' | 'decoding' | 'instruments' | 'preparing';
 
 export interface ImportProgress {
   phase: ImportPhase;

@@ -17,7 +17,7 @@ export interface TrackMessage {
   id: string;
   frames: number;
   mono: boolean;
-  chunks: Chunk[];
+  chunks: readonly Chunk[];
   volume: number;
   mute: boolean;
   solo: boolean;

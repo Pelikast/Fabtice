@@ -16,7 +16,9 @@
 
 import {
   ENGINE_SAMPLE_RATE,
+  engineTrackShape,
   type AudioEngine,
+  type RenderedSet,
   type ClickTrack,
   type EngineError,
   type EngineEvents,
@@ -25,6 +27,7 @@ import {
   type TrackMix,
 } from './AudioEngine';
 import type { Seconds, TimeRange } from '../model/project';
+import { isShared, pcmToChannels } from './pcm';
 import { storeTrack, type StoredTrack } from './storage';
 import {
   FLAG_PLAYING,
@@ -113,7 +116,10 @@ export class WorkletEngine implements AudioEngine {
     return this.ctx;
   }
 
-  /** Bytes of audio held in shared memory for the loaded tracks. */
+  /**
+   * Bytes of audio the loaded tracks use in shared memory. Since lot 3 these
+   * are the registry's own chunks (`EngineTrack.pcm`), not a second copy.
+   */
   memoryBytes(): number {
     let b = 0;
     for (const t of this.tracks.values()) b += t.stored.bytes;
@@ -322,6 +328,24 @@ export class WorkletEngine implements AudioEngine {
     this.postClicks();
   }
 
+  // ---------------------------------------------------------------- « Appliquer » (lot 3)
+
+  /**
+   * NOT YET IMPLEMENTED: the render agent owns this path (see the contract in
+   * `AudioEngine.ts#setRenderedTracks` and `app/README.md`, « Rendu
+   * Appliquer »). Until then it rejects without touching the engine's state,
+   * and the interface stays on the live preview.
+   */
+  setRenderedTracks(set: RenderedSet | null): Promise<void> {
+    if (set === null) return Promise.resolve();
+    return Promise.reject(new EngineFailure('unsupported', 'playing rendered audio is not implemented in this engine yet'));
+  }
+
+  /** NOT YET IMPLEMENTED (see `setRenderedTracks`): never in use. */
+  isRenderedInUse(): boolean {
+    return false;
+  }
+
   on<K extends keyof EngineEvents>(event: K, listener: EngineEvents[K]): () => void {
     const set = this.listeners[event] as Set<EngineEvents[K]>;
     set.add(listener);
@@ -352,9 +376,10 @@ export class WorkletEngine implements AudioEngine {
 
   private check(t: EngineTrack): void {
     if (t.sampleRate !== this.sampleRate) throw new EngineFailure('load', `track ${t.id}: sample rate ${t.sampleRate}, expected ${this.sampleRate}`);
-    if (t.channels.length < 1 || t.channels.length > 2) throw new EngineFailure('load', `track ${t.id}: ${t.channels.length} channels`);
-    const n = t.channels[0]!.length;
-    if (n === 0 || t.channels.some((c) => c.length !== n)) throw new EngineFailure('load', `track ${t.id}: empty or uneven channels`);
+    if (!!t.pcm === !!t.channels) throw new EngineFailure('load', `track ${t.id}: give either pcm or channels`);
+    const { frames, channels } = engineTrackShape(t);
+    if (channels < 1 || channels > 2) throw new EngineFailure('load', `track ${t.id}: ${channels} channels`);
+    if (frames === 0 || (t.channels && t.channels.some((c) => c.length !== frames))) throw new EngineFailure('load', `track ${t.id}: empty or uneven channels`);
   }
 
   private errorCode(e: unknown): EngineError['code'] {
@@ -364,7 +389,9 @@ export class WorkletEngine implements AudioEngine {
   /** Stores a track in shared memory and sends it to the worklet. */
   private async put(t: EngineTrack, mix: TrackMix): Promise<void> {
     await Promise.resolve(); // let the loading state paint between big tracks
-    const stored = storeTrack(t.channels);
+    // The registry's chunks are used as they are (shared with the audio thread, no copy).
+    // Plain channels, or chunks that are not in shared memory, are converted once.
+    const stored: StoredTrack = t.pcm && isShared(t.pcm) ? t.pcm : storeTrack(t.channels ?? pcmToChannels(t.pcm!));
     this.tracks.set(t.id, { stored, mix: { ...mix } });
     this.post({ type: 'track', id: t.id, frames: stored.frames, mono: stored.mono, chunks: stored.chunks, volume: mix.volume, mute: mix.mute, solo: mix.solo });
   }
@@ -565,3 +592,4 @@ class EngineFailure extends Error {
 }
 
 const DEFAULT_MIX: TrackMix = { mute: false, solo: false, volume: 1 };
+

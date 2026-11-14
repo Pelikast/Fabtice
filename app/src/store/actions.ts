@@ -3,12 +3,14 @@
 // settings go to the store and reach the engine through `audio/connect.ts`.
 
 import { getEngine } from '../audio';
-import { clearAudio, engineTrack, registerAudio, type DecodedAudio } from '../audio/registry';
+import { clearAudio, engineTrack, registerAudio, type DecodedAudio, type PcmAudio } from '../audio/registry';
 import { clipRange } from '../grid/lines';
 import { defaultTempoMap, withManualGrid, type ManualGridChange } from '../grid/tempoMap';
 import type { ImportedPiece } from '../import/types';
 import type { AnalysisResult } from '../model/analysis';
+import { defaultExportPreferences } from '../model/audioExport';
 import { emptyCorrections, type Corrections } from '../model/corrections';
+import { emptySeparation } from '../model/separation';
 import type { ProjectDocument } from '../model/document';
 import type {
   MinorNotation,
@@ -37,7 +39,8 @@ const set = (patch: Partial<AppState> | ((s: AppState) => Partial<AppState>)) =>
 export interface NewTrackInput {
   name?: string;
   role: TrackRole;
-  audio: DecodedAudio;
+  /** Float32 (converted, then let go) or already in the in-memory form. */
+  audio: DecodedAudio | PcmAudio;
   origin?: 'original' | 'separated';
   volume?: number;
   mute?: boolean;
@@ -67,7 +70,7 @@ export async function openProject(input: NewProjectInput): Promise<void> {
   clearAudio();
   const tracks: Track[] = input.tracks.map((tr) => {
     const audioId = newId();
-    registerAudio(audioId, tr.audio);
+    const pcm = registerAudio(audioId, tr.audio);
     return {
       id: newId(),
       name: tr.name ?? t(`role.${tr.role}`),
@@ -78,9 +81,9 @@ export async function openProject(input: NewProjectInput): Promise<void> {
       audio: {
         id: audioId,
         origin: tr.origin ?? 'original',
-        channels: tr.audio.channels.length,
-        sampleRate: tr.audio.sampleRate,
-        frames: tr.audio.channels[0]?.length ?? 0,
+        channels: pcm.channelCount,
+        sampleRate: pcm.sampleRate,
+        frames: pcm.frames,
       },
     };
   });
@@ -102,10 +105,15 @@ export async function openProject(input: NewProjectInput): Promise<void> {
     analysis: input.analysis ?? null,
     corrections: input.corrections ?? emptyCorrections(),
     analysisRun: { status: 'idle' },
+    // Not separated yet; no render applied; the export dialog as it opens the first time.
+    separation: emptySeparation(),
+    separationRun: { status: 'idle' },
+    render: { status: 'none' },
+    exportPrefs: defaultExportPreferences(),
     loop: { region, enabled: region !== null },
     playback: { ...DEFAULT_PLAYBACK },
     view: { ...s.view, mode: 'pistes' },
-    ui: { ...s.ui, newPieceOpen: false, panel: 'none', import: { kind: 'idle' }, notice: null, reopenOffer: null },
+    ui: { ...s.ui, newPieceOpen: false, panel: 'none', import: { kind: 'idle' }, notice: null, reopenOffer: null, separationNotice: null },
   }));
   const mixes = Object.fromEntries(tracks.map((tr) => [tr.id, { mute: tr.mute, solo: tr.solo, volume: tr.volume }]));
   await engine.loadTracks(tracks.map((tr) => engineTrack(tr.id, tr.audio.id)), mixes);
@@ -119,30 +127,33 @@ export async function openProject(input: NewProjectInput): Promise<void> {
  */
 export async function restoreProject(
   doc: ProjectDocument,
-  audio: ReadonlyMap<string, DecodedAudio>,
+  audio: ReadonlyMap<string, DecodedAudio | PcmAudio>,
   /** False once the caller has given up on this attempt: the late end of it then changes nothing visible. */
   isCurrent: () => boolean = () => true,
 ): Promise<void> {
-  const decoded = doc.tracks.map((tr) => audio.get(tr.audio.id));
-  if (decoded.some((a) => !a)) throw new Error('a track has no decoded audio');
+  // The tracks shown, and those set aside by a separation (the whole piece, or the instruments): all registered.
+  const all = [...doc.tracks, ...doc.separation.aside];
+  if (all.some((tr) => !audio.get(tr.audio.id))) throw new Error('a track has no decoded audio');
   const engine = getEngine();
   engine.pause();
   clearAudio();
-  const tracks: Track[] = doc.tracks.map((tr, i) => {
-    const a = decoded[i]!;
-    registerAudio(tr.audio.id, a);
+  const restoreTrack = (tr: Track): Track => {
+    const a = registerAudio(tr.audio.id, audio.get(tr.audio.id)!);
     return {
       ...tr,
       volume: Math.min(1, Math.max(0, tr.volume)),
-      audio: { ...tr.audio, channels: a.channels.length, sampleRate: a.sampleRate, frames: a.channels[0]?.length ?? 0 },
+      audio: { ...tr.audio, channels: a.channelCount, sampleRate: a.sampleRate, frames: a.frames },
     };
-  });
+  };
+  const tracks: Track[] = doc.tracks.map(restoreTrack);
+  const aside: Track[] = doc.separation.aside.map(restoreTrack);
   const duration = tracks.reduce((d, tr) => Math.max(d, tr.audio.frames / tr.audio.sampleRate), 0);
   const region = doc.loop.region ? clipRange(doc.loop.region, duration) : null;
   set((s) => ({
     ...fromProjectDocument(doc, s),
     project: { ...doc.project, duration, sampleRate: engine.sampleRate },
     tracks,
+    separation: { ...doc.separation, aside },
     loop: { region, enabled: region !== null && doc.loop.enabled },
     playback: {
       ...DEFAULT_PLAYBACK,
@@ -165,7 +176,16 @@ export function closeProject(): void {
   engine.pause();
   engine.clear();
   clearAudio();
-  set({ project: null, tracks: [], tempoMap: defaultTempoMap(), loop: { region: null, enabled: false }, playback: { ...DEFAULT_PLAYBACK } });
+  set({
+    project: null,
+    tracks: [],
+    tempoMap: defaultTempoMap(),
+    loop: { region: null, enabled: false },
+    playback: { ...DEFAULT_PLAYBACK },
+    separation: emptySeparation(),
+    separationRun: { status: 'idle' },
+    render: { status: 'none' },
+  });
 }
 
 /** Opens what an import produced: one track, the whole piece. */

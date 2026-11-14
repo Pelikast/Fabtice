@@ -1,8 +1,10 @@
 // A plausible stored project document, for storage tests.
 
 import { defaultTempoMap } from '../grid/tempoMap';
+import { defaultExportPreferences } from '../model/audioExport';
 import { emptyCorrections } from '../model/corrections';
 import { PROJECT_DOCUMENT_VERSION, type ProjectDocument } from '../model/document';
+import { emptySeparation } from '../model/separation';
 import { defaultView } from '../store/store';
 
 export function sampleDocument(overrides: Partial<ProjectDocument> = {}): ProjectDocument {
@@ -34,6 +36,8 @@ export function sampleDocument(overrides: Partial<ProjectDocument> = {}): Projec
     view,
     analysis: null,
     corrections: emptyCorrections(),
+    separation: emptySeparation(),
+    exportPrefs: defaultExportPreferences(),
     savedAt: '2026-11-13T10:05:00.000Z',
     ...overrides,
   };

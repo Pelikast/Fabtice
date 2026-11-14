@@ -10,6 +10,7 @@
 
 import { MockAnalyzer, replaceAnalyzer } from '../analysis';
 import { getEngine } from '../audio';
+import { audioSeconds } from '../audio/registry';
 import { appStore } from '../store/store';
 import * as actions from '../store/actions';
 import * as analysisActions from '../store/analysisActions';
@@ -38,7 +39,7 @@ export function startDemo(params: URLSearchParams): Promise<void> {
   const ready = (async () => {
     if (mode === 'aucune') {
       const input = demoProject('fixed');
-      const duration = input.tracks[0]!.audio.channels[0]!.length / input.tracks[0]!.audio.sampleRate;
+      const duration = audioSeconds(input.tracks[0]!.audio);
       // Not analysed by itself; « Analyser le morceau » finds the demo's chords on the grid entered by hand.
       replaceAnalyzer(new MockAnalyzer({ durationMs: 900, downloadMs: 0, fixture: () => demoAnalysis(input.tempoMap!, duration) }));
       await actions.openProject(input);
@@ -46,7 +47,7 @@ export function startDemo(params: URLSearchParams): Promise<void> {
     } else {
       const input = demoProject('variable');
       const map = input.tempoMap!;
-      const duration = input.tracks[0]!.audio.channels[0]!.length / input.tracks[0]!.audio.sampleRate;
+      const duration = audioSeconds(input.tracks[0]!.audio);
       const analysedAlready = mode === null || mode === 'factice';
       // The mock analyser answers with the demo's own analysis, at the pace asked.
       replaceAnalyzer(

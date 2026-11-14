@@ -11,9 +11,11 @@
 import { isChordExtension, isChordQuality } from '../harmony/chord';
 import { isPitchClass } from '../harmony/pitch';
 import { ANALYSIS_RESULT_VERSION } from '../model/analysis';
+import { AUDIO_FORMATS, defaultExportPreferences, EXPORT_RANGES, EXPORT_WHATS } from '../model/audioExport';
 import { emptyCorrections } from '../model/corrections';
 import { PROJECT_DOCUMENT_VERSION, type ProjectDocument } from '../model/document';
 import { INSTRUMENTS } from '../model/harmony';
+import { emptySeparation, isStemId } from '../model/separation';
 import { TEMPO_ORIGINS } from '../model/tempoMap';
 import { StorageError } from './ProjectStorage';
 
@@ -30,6 +32,12 @@ export const MIGRATIONS: Migrations = {
     view: isRec(doc.view) ? { instrument: 'ut', ...doc.view } : doc.view,
     analysis: null,
     corrections: emptyCorrections(),
+  }),
+  // Lot 2 -> lot 3: never separated, the export dialog as it opens the first time.
+  2: (doc) => ({
+    ...doc,
+    separation: emptySeparation(),
+    exportPrefs: defaultExportPreferences(),
   }),
 };
 
@@ -53,14 +61,20 @@ function checkProject(p: unknown): void {
   if (!isRec(source) || !['file', 'link', 'demo'].includes(source.kind as string)) corrupt('project source');
 }
 
+function checkTrack(tr: unknown): void {
+  if (!isRec(tr) || !isStr(tr.id) || !isStr(tr.name) || !ROLES.includes(tr.role as string)) corrupt('track');
+  if (typeof tr.mute !== 'boolean' || typeof tr.solo !== 'boolean' || !isNum(tr.volume)) corrupt('track mix');
+  const a = tr.audio;
+  if (!isRec(a) || !isStr(a.id) || !isNum(a.channels) || !isNum(a.sampleRate) || !isNum(a.frames)) corrupt('track audio');
+  if (a.origin !== undefined && a.origin !== 'original' && a.origin !== 'separated') corrupt('track audio origin');
+  // Version 3: a separated track says which part it holds; the whole piece does not.
+  if (tr.stem !== undefined && !isStemId(tr.stem)) corrupt('track stem');
+  if (a.origin === 'separated' && tr.stem === undefined) corrupt('separated track without its part');
+}
+
 function checkTracks(tracks: unknown): void {
   if (!Array.isArray(tracks) || tracks.length === 0) corrupt('tracks');
-  for (const tr of tracks as unknown[]) {
-    if (!isRec(tr) || !isStr(tr.id) || !isStr(tr.name) || !ROLES.includes(tr.role as string)) corrupt('track');
-    if (typeof tr.mute !== 'boolean' || typeof tr.solo !== 'boolean' || !isNum(tr.volume)) corrupt('track mix');
-    const a = tr.audio;
-    if (!isRec(a) || !isStr(a.id) || !isNum(a.channels) || !isNum(a.sampleRate) || !isNum(a.frames)) corrupt('track audio');
-  }
+  for (const tr of tracks as unknown[]) checkTrack(tr);
 }
 
 function checkTempoMap(map: unknown): void {
@@ -131,6 +145,46 @@ function checkCorrections(c: unknown): void {
   if (!Array.isArray(k.sections) || !k.sections.every((x: unknown) => isRec(x) && isNum(x.time) && isStr(x.label))) corrupt('sections');
 }
 
+// ---------------------------------------------------------------- version 3: separation, export
+
+/**
+ * The separation and the set of tracks it shows are read exactly (they say
+ * which tracks exist), or the document is `corrupt`. Invariants: without a
+ * result, the whole piece is shown and nothing is aside; with one, exactly
+ * one of the two sets (shown, aside) is the whole piece.
+ */
+function checkSeparation(doc: Rec): void {
+  const sep = doc.separation;
+  if (!isRec(sep) || (sep.showing !== 'whole' && sep.showing !== 'instruments') || !Array.isArray(sep.aside)) corrupt('separation');
+  for (const tr of sep.aside as unknown[]) checkTrack(tr);
+  const tracks = doc.tracks as Rec[];
+  const aside = sep.aside as Rec[];
+  const isWhole = (list: Rec[]) => list.every((tr) => (tr.audio as Rec).origin !== 'separated');
+  const r = sep.result;
+  if (r === null) {
+    if (sep.showing !== 'whole' || aside.length > 0) corrupt('separation without a result');
+    return;
+  }
+  if (!isRec(r) || !isStr(r.id) || !isStr(r.modelId) || !isStr(r.modelName) || !isStr(r.modelSha256)) corrupt('separation result');
+  if ((r.backend !== 'gpu' && r.backend !== 'cpu') || typeof r.fellBack !== 'boolean') corrupt('separation backend');
+  if (!Array.isArray(r.stems) || !r.stems.every(isStemId) || !Array.isArray(r.kept) || !r.kept.every(isStemId)) corrupt('separation stems');
+  if (!isStr(r.startedAt) || !isStr(r.finishedAt) || !isNum(r.computeSeconds) || !isNum(r.pieceSeconds)) corrupt('separation dates');
+  if (aside.length === 0) corrupt('separation: nothing aside');
+  const [shown, other] = sep.showing === 'instruments' ? [tracks, aside] : [aside, tracks];
+  if (!isWhole(other) || !shown.every((tr) => (tr.audio as Rec).origin === 'separated')) corrupt('separation: sets mixed up');
+}
+
+/** Export preferences only shape a dialog: anything unreadable becomes the default (never a lost piece). */
+function readExportPrefs(p: unknown): unknown {
+  const d = defaultExportPreferences();
+  if (!isRec(p)) return d;
+  return {
+    what: EXPORT_WHATS.includes(p.what as never) ? p.what : d.what,
+    range: EXPORT_RANGES.includes(p.range as never) ? p.range : d.range,
+    format: AUDIO_FORMATS.includes(p.format as never) ? p.format : d.format,
+  };
+}
+
 /**
  * Turns what was read from the device into a current-version document.
  * Returns null for a version this app does not know (newer, or garbage
@@ -155,7 +209,8 @@ export function readDocument(raw: unknown, migrations: Migrations = MIGRATIONS, 
   checkTempoMap(doc.tempoMap);
   checkLoopAndPlayback(doc);
   checkCorrections(doc.corrections);
-  doc = { ...doc, analysis: readAnalysis(doc.analysis) };
+  checkSeparation(doc);
+  doc = { ...doc, analysis: readAnalysis(doc.analysis), exportPrefs: readExportPrefs(doc.exportPrefs) };
   const view = doc.view as Rec;
   if (!INSTRUMENTS.includes(view.instrument as never)) doc = { ...doc, view: { ...view, instrument: 'ut' } };
   return doc as unknown as ProjectDocument;

@@ -1,7 +1,7 @@
 import { IDBFactory, IDBObjectStore } from 'fake-indexeddb';
 import { describe, expect, it } from 'vitest';
 import { sampleDocument } from '../test/sampleDocument';
-import { DB_NAME, IndexedDbStorage } from './indexedDb';
+import { DB_NAME, DB_VERSION, IndexedDbStorage } from './indexedDb';
 import { StorageError, type StoredAudio } from './ProjectStorage';
 
 const audio = (bytes: number[], fileName = 'a.mp3'): StoredAudio => ({ bytes: new Uint8Array(bytes).buffer, mimeType: 'audio/mpeg', fileName });
@@ -14,7 +14,7 @@ function fresh() {
 /** Puts raw records where the storage keeps them, to simulate other versions and damage. */
 function poke(factory: IDBFactory, store: 'project' | 'audio', key: string, value: unknown): Promise<void> {
   return new Promise((resolve, reject) => {
-    const open = factory.open(DB_NAME, 1);
+    const open = factory.open(DB_NAME, DB_VERSION);
     open.onsuccess = () => {
       const db = open.result;
       const tx = db.transaction(store, 'readwrite');

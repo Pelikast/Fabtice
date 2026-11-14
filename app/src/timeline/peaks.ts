@@ -10,7 +10,7 @@
 // Pure data and functions, no DOM: the cache that schedules the slices is in
 // `peakCache.ts`.
 
-import type { DecodedAudio } from '../audio/registry';
+import { CHUNK_BITS, type PcmAudio } from '../audio/pcm';
 
 /** Frames per bin of level 0 (1.3 ms at 48 kHz: finer than the 400 px/s maximum zoom needs). */
 export const BASE_BLOCK = 64;
@@ -49,12 +49,13 @@ export function binCount(frames: number, block: number): number {
  */
 export class PeakBuilder {
   readonly pyramid: PeakPyramid;
-  private readonly channels: Float32Array[];
+  private readonly audio: PcmAudio;
   private cursor = 0;
 
-  constructor(audio: DecodedAudio) {
-    this.channels = audio.channels;
-    const frames = audio.channels[0]?.length ?? 0;
+  /** Reads the registry's 16-bit chunks directly (no copy of the audio). */
+  constructor(audio: PcmAudio) {
+    this.audio = audio;
+    const frames = audio.frames;
     const bins = binCount(frames, BASE_BLOCK);
     this.pyramid = {
       sampleRate: audio.sampleRate,
@@ -73,7 +74,10 @@ export class PeakBuilder {
     const level = py.levels[0]!;
     const bins = level.peak.length;
     const start = now();
-    const nch = this.channels.length;
+    const chunks = this.audio.chunks;
+    // Equal channels stored once: the second one would give the same peak and energy.
+    const nch = this.audio.mono ? 1 : 2;
+    const mask = (1 << CHUNK_BITS) - 1;
     let maxPeak = py.maxPeak;
     while (this.cursor < bins) {
       // A chunk of bins between two clock reads.
@@ -81,19 +85,25 @@ export class PeakBuilder {
       for (let b = this.cursor; b < end; b++) {
         const from = b * BASE_BLOCK;
         const to = Math.min(py.frames, from + BASE_BLOCK);
+        // BASE_BLOCK divides the chunk size: a bin never straddles two chunks.
+        const chunk = chunks[from >> CHUNK_BITS]!;
+        const o = from & mask;
+        const n = to - from;
         let peak = 0;
         let sum = 0;
         for (let c = 0; c < nch; c++) {
-          const data = this.channels[c]!;
-          for (let i = from; i < to; i++) {
+          const data = c === 0 ? chunk.l : chunk.r!;
+          for (let i = o; i < o + n; i++) {
             const v = data[i]!;
             const a = v < 0 ? -v : v;
             if (a > peak) peak = a;
             sum += v * v;
           }
         }
+        // 16-bit units to the -1…1 scale.
+        peak *= 1 / 32768;
         level.peak[b] = peak;
-        level.ms[b] = sum / (nch * (to - from));
+        level.ms[b] = sum / (nch * n * 1073741824);
         if (peak > maxPeak) maxPeak = peak;
       }
       this.cursor = end;
@@ -132,7 +142,7 @@ export class PeakBuilder {
 }
 
 /** Computes a whole pyramid at once (tests, small inputs). */
-export function buildPeaks(audio: DecodedAudio): PeakPyramid {
+export function buildPeaks(audio: PcmAudio): PeakPyramid {
   const builder = new PeakBuilder(audio);
   while (!builder.step(1e9)) {
     /* one step is enough with this budget */

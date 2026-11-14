@@ -3,7 +3,9 @@
 //   nothing stored        -> the new-piece dialog;
 //   a project stored      -> « Ouverture de « titre »… » (the dialog only
 //                            appears if it takes more than a moment), the
-//                            original audio is read, decoded again, and the
+//                            original audio is read, decoded again, the
+//                            separated instruments (lot 3) are read back as
+//                            they were kept (no computation), and the
 //                            project is restored under the same ids. Each step
 //                            (the document, the audio, the decoding, the
 //                            engine) has its own generous time limit and the
@@ -14,6 +16,11 @@
 //                            problem must never cost the user their work), and
 //                            the dialog offers « Rouvrir « titre » » and, more
 //                            discreetly, « Oublier ce morceau »;
+//   separated instruments that cannot be read back (deleted by the browser,
+//                            damaged, too slow) -> the piece opens WHOLE, the
+//                            separation summary is dropped, and one calm
+//                            sentence says the instruments can be separated
+//                            again: the piece itself is never lost for them;
 //   a launch that was killed during a restore (the marker kept in
 //                            localStorage: out of memory on a phone, a crash)
 //                            -> no automatic new attempt, so a piece that
@@ -22,12 +29,15 @@
 //
 // A new successful import replaces the stored project (`keeper.ts`).
 
-import type { DecodedAudio } from '../audio/registry';
+import { toPcm, type DecodedAudio, type PcmAudio } from '../audio/registry';
 import type { ProjectDocument } from '../model/document';
 import { decodeAudioBytes } from '../import/decode';
 import { ImportError, type RestoreStep } from '../import/types';
 import { t } from '../i18n';
+import { emptySeparation } from '../model/separation';
+import type { Track } from '../model/project';
 import { closeProject, openNewPiece, restoreProject, setDialogNotice, setImportStatus, setReopenOffer } from '../store/actions';
+import { setSeparationNotice } from '../store/separationActions';
 import { appStore } from '../store/store';
 import type { ProjectKeeper } from './keeper';
 import { StorageError, type ProjectStorage, type StoredAudio } from './ProjectStorage';
@@ -48,13 +58,15 @@ export interface RestoreLimits {
   read: number;
   /** Decoding it again, per track. */
   decode: number;
+  /** Reading one separated instrument back (16-bit samples, no decoding). */
+  instrument: number;
   /** Handing the tracks to the audio engine. */
   prepare: number;
   /** Forgetting the stored piece. */
   forget: number;
 }
 
-export const RESTORE_LIMITS: RestoreLimits = { document: 20_000, read: 60_000, decode: 180_000, prepare: 60_000, forget: 20_000 };
+export const RESTORE_LIMITS: RestoreLimits = { document: 20_000, read: 60_000, decode: 180_000, instrument: 60_000, prepare: 60_000, forget: 20_000 };
 
 export interface RestoreMarker {
   get(): string | null;
@@ -154,13 +166,31 @@ async function attempt(deps: ReturnType<typeof resolve>, doc: ProjectDocument): 
   show('reading', null);
   const timer = setTimeout(openNewPiece, RESTORE_DIALOG_DELAY_MS);
   try {
-    const audio = new Map<string, DecodedAudio>();
-    for (const track of doc.tracks) {
+    const audio = new Map<string, PcmAudio>();
+    const all: Track[] = [...doc.tracks, ...doc.separation.aside];
+    // The original: read, decoded again, converted at once to the in-memory form (one Float32 copy at a time).
+    for (const track of all.filter((tr) => tr.audio.origin !== 'separated')) {
       show('reading', null);
       const stored = await withTimeout(storage.loadAudio(track.audio.id), limits.read, 'read');
       if (!stored) throw new ImportError('read-failed', `no stored audio ${track.audio.id}`);
       show('decoding', null);
-      audio.set(track.audio.id, await withTimeout(decode(stored, (fraction) => show('decoding', fraction)), limits.decode, 'decode'));
+      audio.set(track.audio.id, toPcm(await withTimeout(decode(stored, (fraction) => show('decoding', fraction)), limits.decode, 'decode')));
+    }
+    // The separated instruments, as they were kept. Any of them missing: the piece opens whole.
+    let opened = doc;
+    let instrumentsLost = false;
+    const separated = all.filter((tr) => tr.audio.origin === 'separated');
+    try {
+      for (const track of separated) {
+        show('instruments', null);
+        const pcm = await withTimeout(storage.loadTrackAudio(track.audio.id), limits.instrument, 'read');
+        if (!pcm) throw new Error(`no stored instrument ${track.audio.id}`);
+        audio.set(track.audio.id, pcm);
+      }
+    } catch {
+      instrumentsLost = true;
+      for (const tr of separated) audio.delete(tr.audio.id);
+      opened = wholePieceOf(doc);
     }
     // Another piece was opened meanwhile (a file dropped on the window): that one stays.
     if (appStore.getState().project !== null) {
@@ -169,9 +199,13 @@ async function attempt(deps: ReturnType<typeof resolve>, doc: ProjectDocument): 
       return 'none';
     }
     show('preparing', null);
-    await withTimeout(restoreProject(doc, audio, () => current), limits.prepare, 'prepare');
+    await withTimeout(restoreProject(opened, audio, () => current), limits.prepare, 'prepare');
     keeper.adopt(doc.project.id);
     marker.clear();
+    if (instrumentsLost) setSeparationNotice(t('separation.lostAtRestore'));
+    // Left-overs (a separation cut short, instruments no longer referenced): swept quietly, never awaited.
+    const keep = new Set([...opened.tracks, ...opened.separation.aside].filter((tr) => tr.audio.origin === 'separated').map((tr) => tr.audio.id));
+    void storage.pruneTrackAudio(keep).catch(() => {});
     return 'restored';
   } catch (e) {
     current = false;
@@ -183,6 +217,16 @@ async function attempt(deps: ReturnType<typeof resolve>, doc: ProjectDocument): 
   } finally {
     clearTimeout(timer);
   }
+}
+
+/**
+ * The document with the whole piece shown and no separation: what opens when
+ * the kept instruments cannot be read back. The whole-piece track keeps its mix.
+ */
+export function wholePieceOf(doc: ProjectDocument): ProjectDocument {
+  if (doc.separation.result === null) return doc;
+  const whole = doc.separation.showing === 'whole' ? doc.tracks : doc.separation.aside;
+  return { ...doc, tracks: whole, separation: emptySeparation() };
 }
 
 /** Reads the kept document within its limit; `unreadable` says why when it cannot be read. */

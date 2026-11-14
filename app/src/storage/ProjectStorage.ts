@@ -8,12 +8,15 @@
 //     caller, see `keeper.ts`);
 //   - the ORIGINAL audio bytes as imported (the m4a, mp3, flac… file), once
 //     per audio, so the piece can be decoded again at next launch. Decoded PCM
-//     is never stored (too large); separated tracks (lot 3) may be stored
-//     under their own audio ids.
+//     of the original is never stored (it decodes again, deterministically);
+//   - the SEPARATED tracks (lot 3) as 16-bit samples (`saveTrackAudio`), in
+//     blocks, under their own audio ids: they cannot be computed again in
+//     seconds, so they come back at the next launch as they are (no decoding).
 //
 // Errors: every method rejects with a `StorageError` on failure; callers keep
 // working in memory and tell the user that the piece will not be kept.
 
+import type { PcmAudio } from '../audio/pcm';
 import type { ProjectDocument } from '../model/document';
 
 export interface StoredAudio {
@@ -80,4 +83,27 @@ export interface ProjectStorage {
 
   /** Forgets the current project and every stored audio (« Nouveau projet » after confirmation). */
   clearCurrent(): Promise<void>;
+
+  // ------------------------------------------------------------ separated tracks (lot 3)
+
+  /**
+   * Keeps a separated track's samples (16-bit, as held in memory) under its
+   * audio id, replacing what was there. Written in blocks of a few MB; the
+   * track becomes readable only once its last block is written (a write cut
+   * short leaves nothing readable, never half a track). `replaceCurrent` and
+   * `clearCurrent` delete every stored track.
+   */
+  saveTrackAudio(audioId: string, pcm: PcmAudio): Promise<void>;
+
+  /** A stored track, in the in-memory form (shared memory when the page has it), or null if absent or incomplete. */
+  loadTrackAudio(audioId: string): Promise<PcmAudio | null>;
+
+  /** Deletes stored tracks (« Libérer la place », a new separation); unknown ids are ignored. */
+  deleteTrackAudio(audioIds: readonly string[]): Promise<void>;
+
+  /** Deletes every stored track whose id is not in `keep` (left-overs of a write cut short). */
+  pruneTrackAudio(keep: ReadonlySet<string>): Promise<void>;
+
+  /** What the stored tracks take: their sample bytes, by id. */
+  trackAudioUsage(): Promise<{ bytes: number; ids: string[] }>;
 }

@@ -7,7 +7,9 @@
 import type { Seconds, TimeRange } from '../model/project';
 import {
   ENGINE_SAMPLE_RATE,
+  engineTrackShape,
   type AudioEngine,
+  type RenderedSet,
   type ClickTrack,
   type EngineError,
   type EngineEvents,
@@ -40,6 +42,8 @@ export interface MockEngineSnapshot {
   tempoRatio: number;
   metronome: boolean;
   clicks: number;
+  /** The « Appliquer » audio received (null when none) and whether it is the one heard. */
+  rendered: { tracks: string[]; semitones: number; cents: number; tempoRatio: number; inUse: boolean } | null;
 }
 
 type Listeners = { [K in keyof EngineEvents]: Set<EngineEvents[K]> };
@@ -61,6 +65,7 @@ export class MockEngine implements AudioEngine {
   private metronome = false;
   private clicks: ClickTrack = { times: new Float64Array(0), accents: new Uint8Array(0) };
   private endTimer: unknown = null;
+  private rendered: RenderedSet | null = null;
   private disposed = false;
   private listeners: Listeners = { state: new Set(), ended: new Set(), error: new Set() };
 
@@ -81,8 +86,9 @@ export class MockEngine implements AudioEngine {
       throw e;
     }
     this.tracks.clear();
+    this.rendered = null;
     for (const t of tracks) {
-      this.tracks.set(t.id, { frames: t.channels[0]!.length, channels: t.channels.length, mix: { ...(mixes[t.id] ?? DEFAULT_MIX) } });
+      this.tracks.set(t.id, { ...engineTrackShape(t), mix: { ...(mixes[t.id] ?? DEFAULT_MIX) } });
     }
     this.updateDuration();
     this.anchorPos = 0;
@@ -91,13 +97,14 @@ export class MockEngine implements AudioEngine {
 
   async addTrack(track: EngineTrack, mix: TrackMix): Promise<void> {
     this.check(track);
-    this.tracks.set(track.id, { frames: track.channels[0]!.length, channels: track.channels.length, mix: { ...mix } });
+    this.tracks.set(track.id, { ...engineTrackShape(track), mix: { ...mix } });
     this.updateDuration();
     if (this.state === 'empty') this.setState('ready');
   }
 
   removeTrack(id: string): void {
     if (!this.tracks.delete(id)) return;
+    if (this.rendered) this.rendered = { ...this.rendered, tracks: this.rendered.tracks.filter((t) => t.id !== id) };
     this.updateDuration();
     if (this.tracks.size === 0) this.clear();
     else this.seek(Math.min(this.getPosition(), this.duration));
@@ -105,6 +112,7 @@ export class MockEngine implements AudioEngine {
 
   clear(): void {
     this.stop();
+    this.rendered = null;
     this.tracks.clear();
     this.duration = 0;
     this.anchorPos = 0;
@@ -177,6 +185,26 @@ export class MockEngine implements AudioEngine {
     this.clicks = clicks;
   }
 
+  async setRenderedTracks(set: RenderedSet | null): Promise<void> {
+    if (this.disposed) throw new Error('engine disposed');
+    if (set) {
+      for (const t of set.tracks) {
+        if (!this.tracks.has(t.id)) throw new Error(`rendered audio for an unknown track ${t.id}`);
+        if (t.pcm.sampleRate !== this.sampleRate) throw new Error(`rendered track ${t.id}: sample rate ${t.pcm.sampleRate}`);
+      }
+    }
+    await Promise.resolve();
+    this.rendered = set ? { ...set, tracks: [...set.tracks] } : null;
+  }
+
+  isRenderedInUse(): boolean {
+    const r = this.rendered;
+    if (!r || r.semitones !== this.semitones || r.cents !== this.cents || r.tempoRatio !== this.ratio) return false;
+    const ids = new Set(r.tracks.map((t) => t.id));
+    for (const id of this.tracks.keys()) if (!ids.has(id)) return false;
+    return this.tracks.size > 0;
+  }
+
   on<K extends keyof EngineEvents>(event: K, listener: EngineEvents[K]): () => void {
     const set = this.listeners[event] as Set<EngineEvents[K]>;
     set.add(listener);
@@ -202,6 +230,15 @@ export class MockEngine implements AudioEngine {
       tempoRatio: this.ratio,
       metronome: this.metronome,
       clicks: this.clicks.times.length,
+      rendered: this.rendered
+        ? {
+            tracks: this.rendered.tracks.map((t) => t.id),
+            semitones: this.rendered.semitones,
+            cents: this.rendered.cents,
+            tempoRatio: this.rendered.tempoRatio,
+            inUse: this.isRenderedInUse(),
+          }
+        : null,
     };
   }
 
@@ -210,9 +247,10 @@ export class MockEngine implements AudioEngine {
   private check(t: EngineTrack): void {
     if (this.disposed) throw new Error('engine disposed');
     if (t.sampleRate !== this.sampleRate) throw new Error(`track ${t.id}: sample rate ${t.sampleRate}, expected ${this.sampleRate}`);
-    if (t.channels.length < 1 || t.channels.length > 2) throw new Error(`track ${t.id}: ${t.channels.length} channels`);
-    const n = t.channels[0]!.length;
-    if (n === 0 || t.channels.some((c) => c.length !== n)) throw new Error(`track ${t.id}: empty or uneven channels`);
+    if (!!t.pcm === !!t.channels) throw new Error(`track ${t.id}: give either pcm or channels`);
+    const { frames, channels } = engineTrackShape(t);
+    if (channels < 1 || channels > 2) throw new Error(`track ${t.id}: ${channels} channels`);
+    if (frames === 0 || (t.channels && t.channels.some((c) => c.length !== frames))) throw new Error(`track ${t.id}: empty or uneven channels`);
   }
 
   private updateDuration(): void {

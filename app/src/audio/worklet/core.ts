@@ -40,7 +40,7 @@ export class TrackData {
   constructor(
     readonly frames: number,
     readonly mono: boolean,
-    chunks?: Chunk[],
+    chunks?: readonly Chunk[],
   ) {
     this.chunks = chunks ? [...chunks] : new Array<Chunk | null>(Math.ceil(frames / CHUNK)).fill(null);
   }

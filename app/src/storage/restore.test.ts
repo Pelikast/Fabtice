@@ -94,8 +94,8 @@ describe('reopening the kept piece at launch', () => {
     expect(decode).toHaveBeenCalledTimes(2);
     expect(after.project).toMatchObject({ id: before.project!.id, title: 'Blues du dimanche', source: { kind: 'file', fileName: 'Blues_du_dimanche.mp3' }, duration: 12 });
     expect(after.tracks.map((tr) => [tr.id, tr.audio.id, tr.name, tr.role, tr.mute, tr.volume])).toEqual(before.tracks.map((tr) => [tr.id, tr.audio.id, tr.name, tr.role, tr.mute, tr.volume]));
-    expect(getAudio(after.tracks[0]!.audio.id)?.channels).toHaveLength(2);
-    expect(getAudio(after.tracks[1]!.audio.id)?.channels).toHaveLength(1);
+    expect(getAudio(after.tracks[0]!.audio.id)?.channelCount).toBe(2);
+    expect(getAudio(after.tracks[1]!.audio.id)?.channelCount).toBe(1);
     expect(after.tempoMap).toEqual(map96);
     expect(after.loop).toEqual({ region: { start: 2, end: 6 }, enabled: true });
     expect(after.playback).toEqual({ semitones: 2, cents: -12, tempoRatio: 0.75, metronome: true });
@@ -145,7 +145,7 @@ describe('reopening the kept piece at launch', () => {
   });
 
   it('ignores a piece stored by a newer version', async () => {
-    storage.json = JSON.stringify({ ...sampleDocument(), version: 3 });
+    storage.json = JSON.stringify({ ...sampleDocument(), version: 4 });
     expect(await restoreAtLaunch({ storage, keeper, marker: memoryMarker() })).toBe('none');
     expect(appStore.getState().ui.newPieceOpen).toBe(true);
     expect(storage.json).not.toBeNull();

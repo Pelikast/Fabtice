@@ -81,7 +81,8 @@ export class MemoryModelStore implements ModelStore {
   }
 }
 
-const DB_NAME = 'fabtice-analysis-tools';
+/** The analysis tools' database. The separation tools have their own (`separation/index.ts#SEPARATION_TOOLS_DB`), same layout. */
+export const ANALYSIS_TOOLS_DB = 'fabtice-analysis-tools';
 const DB_VERSION = 1;
 
 function wrap<T>(request: IDBRequest<T>): Promise<T> {
@@ -108,11 +109,14 @@ interface PartRecord {
 export class IdbModelStore implements ModelStore {
   private opening: Promise<IDBDatabase> | null = null;
 
-  constructor(private readonly factory: IDBFactory = indexedDB) {}
+  constructor(
+    private readonly factory: IDBFactory = indexedDB,
+    private readonly dbName: string = ANALYSIS_TOOLS_DB,
+  ) {}
 
   private db(): Promise<IDBDatabase> {
     this.opening ??= new Promise<IDBDatabase>((resolve, reject) => {
-      const open = this.factory.open(DB_NAME, DB_VERSION);
+      const open = this.factory.open(this.dbName, DB_VERSION);
       open.onupgradeneeded = () => {
         const db = open.result;
         if (!db.objectStoreNames.contains('files')) db.createObjectStore('files', { keyPath: 'id' });
@@ -200,23 +204,33 @@ export class IdbModelStore implements ModelStore {
  * The store to use here: IndexedDB when it works (checked by really opening
  * it), memory otherwise. The memory fallback is shared by the whole page.
  */
-let shared: ModelStore | null = null;
-const fallback = new MemoryModelStore();
+const shared = new Map<string, ModelStore>();
+const fallbacks = new Map<string, MemoryModelStore>();
 
-export async function openModelStore(): Promise<ModelStore> {
-  if (shared) return shared;
+/**
+ * The store of one family of tools (`dbName`: the analysis tools by default;
+ * the separation tools pass `SEPARATION_TOOLS_DB`): one database each, so
+ * that each family's room can be shown and freed on its own.
+ */
+export async function openModelStore(dbName: string = ANALYSIS_TOOLS_DB): Promise<ModelStore> {
+  const known = shared.get(dbName);
+  if (known) return known;
+  let store: ModelStore;
   try {
     if (typeof indexedDB === 'undefined') throw new Error('no IndexedDB');
-    const idb = new IdbModelStore();
+    const idb = new IdbModelStore(indexedDB, dbName);
     await idb.hasFile('probe', 0, ''); // opens the database
-    shared = idb;
+    store = idb;
   } catch {
-    shared = fallback;
+    store = fallbacks.get(dbName) ?? new MemoryModelStore();
+    fallbacks.set(dbName, store as MemoryModelStore);
   }
-  return shared;
+  shared.set(dbName, store);
+  return store;
 }
 
 /** For tests: forget the store chosen so far. */
-export function resetModelStore(next: ModelStore | null = null): void {
-  shared = next;
+export function resetModelStore(next: ModelStore | null = null, dbName: string = ANALYSIS_TOOLS_DB): void {
+  if (next) shared.set(dbName, next);
+  else shared.delete(dbName);
 }

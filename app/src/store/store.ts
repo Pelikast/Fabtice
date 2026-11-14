@@ -6,7 +6,11 @@
 //   - the playhead position: read `getEngine().getPosition()` inside
 //     requestAnimationFrame (`ui/frameLoop.ts`), never through React state;
 //   - decoded audio: `audio/registry.ts`;
-//   - the timeline's horizontal scroll offset: owned by `timeline/`.
+//   - the timeline's horizontal scroll offset: owned by `timeline/`;
+//   - the fine progress of the analysis, the separation and the render
+//     (several times per second): `analysis/progress.ts`,
+//     `separation/progress.ts`, `render/progress.ts`;
+//   - the rendered (« Appliquer ») audio: `render/controller.ts`.
 
 import { useStore } from 'zustand';
 import { createStore, type StoreApi } from 'zustand/vanilla';
@@ -15,14 +19,19 @@ import type { EngineError, EngineState } from '../audio/AudioEngine';
 import { defaultTempoMap } from '../grid/tempoMap';
 import type { ImportProgress } from '../import/types';
 import type { AnalysisResult } from '../model/analysis';
+import { defaultExportPreferences, type ExportPreferences } from '../model/audioExport';
+import type { RenderStatus } from '../model/render';
+import { emptySeparation, type SeparationBackend, type SeparationState, type StemId } from '../model/separation';
+import type { SeparationErrorCode, SeparationStep } from '../separation/types';
 import { emptyCorrections, type Corrections } from '../model/corrections';
-import type {
-  AppSettings,
-  LoopState,
-  PlaybackSettings,
-  Project,
-  Track,
-  ViewSettings,
+import {
+  DEFAULT_ADVANCED,
+  type AppSettings,
+  type LoopState,
+  type PlaybackSettings,
+  type Project,
+  type Track,
+  type ViewSettings,
 } from '../model/project';
 import type { TempoMap } from '../model/tempoMap';
 import { isPhoneLayout } from '../util/media';
@@ -40,7 +49,7 @@ export interface ReopenOffer {
 }
 
 /** Small floating panels; only one is open at a time. */
-export type PanelId = 'none' | 'settings' | 'grid' | 'tuning' | 'export' | 'analysis';
+export type PanelId = 'none' | 'settings' | 'grid' | 'tuning' | 'export' | 'analysis' | 'separation';
 
 /**
  * The analysis of the open piece, as the interface shows it (never saved).
@@ -56,6 +65,26 @@ export type AnalysisRun =
       step: AnalysisStep;
     }
   | { status: 'error'; projectId: string; code: AnalysisErrorCode };
+
+/**
+ * The separation of the open piece, as the interface shows it (never saved).
+ * « Done » is not a state of its own: `AppState.separation.result` holds it.
+ */
+export type SeparationRun =
+  | { status: 'idle' }
+  | {
+      status: 'running';
+      projectId: string;
+      /** The tool in use (`SeparationModelSpec.id`). */
+      modelId: string;
+      /** Changes a few times per run; fraction and remaining time are in `separation/progress.ts`. */
+      step: SeparationStep;
+      /** Where it computes (null before it knows). */
+      backend: SeparationBackend | null;
+      /** The graphics path failed: the processor continues with the same tool (a calm notice says it takes longer). */
+      fellBack: boolean;
+    }
+  | { status: 'error'; projectId: string; code: SeparationErrorCode };
 
 /** Why the piece will not be kept on this device (shown as a calm notice). */
 export type StorageNotice = 'unavailable' | 'full';
@@ -77,6 +106,16 @@ export interface UiState {
   toolUpdate: boolean;
   /** Set when saving to the device fails; the piece stays usable in memory. */
   storageNotice: StorageNotice | null;
+  /**
+   * « Instruments à séparer » in the new-piece dialog: the instruments ticked
+   * (none by default). Not empty: the separation starts by itself once the
+   * imported piece can play.
+   */
+  importStems: StemId[];
+  /** A calm sentence about the separation (e.g. the kept instruments could not be read back); null when none. */
+  separationNotice: string | null;
+  /** « Exporter le son » (a dialog). */
+  exportAudioOpen: boolean;
 }
 
 export interface TransportState {
@@ -96,6 +135,14 @@ export interface AppState {
   corrections: Corrections;
   /** Progress or failure of the analysis (interface only, not saved). */
   analysisRun: AnalysisRun;
+  /** Separation of the instruments: last result, set shown, set aside (saved with the piece). */
+  separation: SeparationState;
+  /** Progress or failure of a separation (interface only, not saved). */
+  separationRun: SeparationRun;
+  /** The « Appliquer » render (interface only, never saved: the applied files are temporary). */
+  render: RenderStatus;
+  /** Last choices of « Exporter le son » (saved with the piece). */
+  exportPrefs: ExportPreferences;
   loop: LoopState;
   playback: PlaybackSettings;
   view: ViewSettings;
@@ -129,12 +176,27 @@ export function initialState(): AppState {
     analysis: null,
     corrections: emptyCorrections(),
     analysisRun: { status: 'idle' },
+    separation: emptySeparation(),
+    separationRun: { status: 'idle' },
+    render: { status: 'none' },
+    exportPrefs: defaultExportPreferences(),
     loop: { region: null, enabled: false },
     playback: { ...DEFAULT_PLAYBACK },
     view: defaultView(),
-    settings: { minorNotation: 'm' },
+    settings: { minorNotation: 'm', advanced: { ...DEFAULT_ADVANCED } },
     transport: { engine: 'empty', error: null },
-    ui: { newPieceOpen: true, panel: 'none', import: { kind: 'idle' }, notice: null, reopenOffer: null, toolUpdate: false, storageNotice: null },
+    ui: {
+      newPieceOpen: true,
+      panel: 'none',
+      import: { kind: 'idle' },
+      notice: null,
+      reopenOffer: null,
+      toolUpdate: false,
+      storageNotice: null,
+      importStems: [],
+      separationNotice: null,
+      exportAudioOpen: false,
+    },
   };
 }
 

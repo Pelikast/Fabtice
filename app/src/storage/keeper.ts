@@ -129,6 +129,11 @@ export class ProjectKeeper {
     if (this.attached) this.onChange(this.store.getState(), state);
   }
 
+  /** Resolves once the writes queued so far are done (or failed): `attachedProject` is then final for them. */
+  settled(): Promise<void> {
+    return this.chain;
+  }
+
   /** The stored project is the one now open (after a restore): autosave it from here. */
   adopt(projectId: string): void {
     this.cancelTimer();

@@ -3,6 +3,7 @@
 // playhead position (read from the engine every animation frame).
 
 import type { Instrument } from './harmony';
+import type { StemId } from './separation';
 import type { TempoMap } from './tempoMap';
 
 /** Seconds in source time: a position in the original recording, before any tempo change. */
@@ -47,9 +48,13 @@ export type TrackRole = 'morceau' | 'voix' | 'batterie' | 'basse' | 'guitare' | 
 
 /** Reference to the decoded audio of a track (the samples are kept out of the store). */
 export interface AudioRef {
-  /** Key in the audio registry (`audio/registry.ts`) and, later, in project storage. */
+  /** Key in the audio registry (`audio/registry.ts`) and in project storage. */
   id: string;
-  /** What produced it: the imported original, or a separation model (lot 3). */
+  /**
+   * What produced it, which also says how it is kept on the device:
+   *   `original`  the imported file, kept as its original bytes and decoded again at launch;
+   *   `separated` a separation's output, kept as 16-bit samples (`ProjectStorage.saveTrackAudio`).
+   */
   origin: 'original' | 'separated';
   channels: number;
   sampleRate: number;
@@ -66,6 +71,11 @@ export interface Track {
   /** Linear gain, 0…1. */
   volume: number;
   audio: AudioRef;
+  /**
+   * Separated tracks only (lot 3): which part of the piece it holds. The tool
+   * and the date are in `SeparationState.result`. Absent on the whole piece.
+   */
+  stem?: StemId;
 }
 
 /** Loop of the transport. The region survives when the loop is switched off. */
@@ -117,8 +127,23 @@ export interface ViewSettings {
 /** Notation of minor chords: « Cm7 » or « C–7 ». */
 export type MinorNotation = 'm' | '–';
 
+/**
+ * Réglages avancés (lot 3), kept out of the way in the settings. Per device
+ * (localStorage, `store/preferences.ts`), not per piece: the right separation
+ * tool depends on the machine, and keeping the timbre is a habit.
+ */
+export interface AdvancedSettings {
+  /** `auto` (chosen from the device, `separation/device.ts`) or the id of a tool of the list. */
+  separationModel: 'auto' | string;
+  /** « Conserver le timbre » (formants) in the applied render and the export; never in the live preview. */
+  formants: boolean;
+}
+
 export interface AppSettings {
   minorNotation: MinorNotation;
+  advanced: AdvancedSettings;
 }
+
+export const DEFAULT_ADVANCED: AdvancedSettings = { separationModel: 'auto', formants: false };
 
 export type { TempoMap };

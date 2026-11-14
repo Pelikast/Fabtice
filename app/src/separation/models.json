@@ -1,0 +1,69 @@
+{
+  "version": 1,
+  "updated": "2026-11-14",
+  "models": [
+    {
+      "id": "bs-roformer-sw",
+      "name": "BS-RoFormer SW",
+      "label": "Le plus fin",
+      "summary": "Six instruments, la meilleure qualité ; demande un ordinateur récent (Mac à puce Apple).",
+      "kind": "main",
+      "stems": ["bass", "drums", "other", "vocals", "guitar", "piano"],
+      "quality": 3,
+      "file": {
+        "url": "https://huggingface.co/elicwhite/bs-roformer-sw-6stem-onnx/resolve/a744f80957374e1735ad70fa122670b7961da8cc/bs_roformer_sw_6stem_fp16.onnx",
+        "host": "Hugging Face",
+        "bytes": 352778874,
+        "sha256": "d3d2bac77a7023282cb5f35a5807179e34076b60589867b572275f1a8ec36444"
+      },
+      "sourcePage": "https://huggingface.co/elicwhite/bs-roformer-sw-6stem-onnx",
+      "licence": "aucune licence publiée pour ces poids, provenance non documentée",
+      "licenceUnclear": true,
+      "speed": { "gpu": 3.6, "cpu": 4.0, "measured": true, "device": "MacBook M1 Pro : 3,6 fois la durée sur la carte graphique (Chrome), 4,0 fois sur le processeur (Safari)" },
+      "memoryBytes": 1600000000,
+      "config": { "family": "msst", "io": "roformer", "sampleRate": 44100, "segment": 176400, "overlap": 2, "normalize": false, "stft": { "nfft": 2048, "hop": 512, "window": "hann", "normalized": false, "zeroDC": true } }
+    },
+    {
+      "id": "htdemucs-6s",
+      "name": "HTDemucs 6 sources",
+      "label": "Équilibré",
+      "summary": "Six instruments ; pour un ordinateur sans carte graphique puissante.",
+      "kind": "main",
+      "stems": ["drums", "bass", "other", "vocals", "guitar", "piano"],
+      "quality": 2,
+      "file": {
+        "url": "https://huggingface.co/Ryan5453/unblend/resolve/30b749fd691312b1e4b3f8fe79df0b51cde836cd/htdemucs_6s_fp16.onnx",
+        "host": "Hugging Face",
+        "bytes": 55845005,
+        "sha256": "8cde625ece6fddb022a1a021cc1f2bef65a16711c20710e0e96e317f38fe994c"
+      },
+      "sourcePage": "https://huggingface.co/Ryan5453/unblend",
+      "licence": "code MIT ; licence des poids non accordée (probablement non commerciale, CC BY-NC, selon l’auteur)",
+      "licenceUnclear": true,
+      "speed": { "gpu": 1.5, "cpu": 2.5, "measured": false, "device": "estimation, pas encore mesuré sur les appareils du propriétaire" },
+      "memoryBytes": 900000000,
+      "config": { "family": "demucs", "io": "unblend-demucs", "sampleRate": 44100, "segment": 343980, "overlap": 0.25, "stft": { "nfft": 4096, "hop": 1024, "window": "hann", "normalized": true } }
+    },
+    {
+      "id": "scnet",
+      "name": "SCNet",
+      "label": "Léger",
+      "summary": "Quatre parties (voix, batterie, basse, le reste) ; pensé pour le téléphone.",
+      "kind": "main",
+      "stems": ["drums", "bass", "other", "vocals"],
+      "quality": 1,
+      "file": {
+        "url": "https://huggingface.co/audiojs/scnet/resolve/e71bcdb42bce1d62b7fae25ba90fcbcf90f73f46/scnet.int8.onnx",
+        "host": "Hugging Face",
+        "bytes": 12900277,
+        "sha256": "98228931494151762a1c4ab1ec7899a894b1f81fd4a509921a9d2f9bacc50845"
+      },
+      "sourcePage": "https://huggingface.co/audiojs/scnet",
+      "licence": "code et poids MIT (confirmé par l’auteur) ; entraîné sur MUSDB18-HQ",
+      "licenceUnclear": false,
+      "speed": { "gpu": 1.0, "cpu": 1.5, "measured": false, "device": "estimation ; sur iPhone 14 Pro Max la page a été fermée par le système pendant un morceau de 4 min 21" },
+      "memoryBytes": 500000000,
+      "config": { "family": "msst", "io": "scnet", "sampleRate": 44100, "segment": 485100, "overlap": 2, "normalize": true, "stft": { "nfft": 4096, "hop": 1024, "window": "ones", "normalized": true } }
+    }
+  ]
+}

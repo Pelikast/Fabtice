@@ -1,6 +1,8 @@
 // Store <-> project document (what `ProjectStorage` keeps on the device).
 
+import { defaultExportPreferences } from '../model/audioExport';
 import { emptyCorrections } from '../model/corrections';
+import { emptySeparation } from '../model/separation';
 import { PROJECT_DOCUMENT_VERSION, type ProjectDocument } from '../model/document';
 import type { AppState } from './store';
 
@@ -18,6 +20,8 @@ export function toProjectDocument(s: AppState, now = new Date()): ProjectDocumen
     view,
     analysis: s.analysis,
     corrections: s.corrections,
+    separation: s.separation,
+    exportPrefs: s.exportPrefs,
     savedAt: now.toISOString(),
   };
 }
@@ -40,18 +44,25 @@ export function fromProjectDocument(doc: ProjectDocument, current: AppState): Pa
     analysis: doc.analysis ?? null,
     corrections: { ...emptyCorrections(), ...doc.corrections },
     analysisRun: { status: 'idle' },
+    separation: doc.separation ?? emptySeparation(),
+    exportPrefs: { ...defaultExportPreferences(), ...doc.exportPrefs },
+    separationRun: { status: 'idle' },
+    render: { status: 'none' },
   };
 }
 
 /**
  * True when what the document is made of changed between two states. The
  * autosave (`storage/keeper.ts`) must use this list: `analysis` and
- * `corrections` are part of the document since version 2. `view.mode` is not.
+ * `corrections` are part of the document since version 2, `separation` and
+ * `exportPrefs` since version 3. `view.mode` is not, nor the run states
+ * (`analysisRun`, `separationRun`, `render`), which are never saved.
  */
 export function documentChanged(a: AppState, b: AppState): boolean {
   if (
     a.project !== b.project || a.tracks !== b.tracks || a.tempoMap !== b.tempoMap || a.loop !== b.loop ||
-    a.playback !== b.playback || a.analysis !== b.analysis || a.corrections !== b.corrections
+    a.playback !== b.playback || a.analysis !== b.analysis || a.corrections !== b.corrections ||
+    a.separation !== b.separation || a.exportPrefs !== b.exportPrefs
   ) {
     return true;
   }
