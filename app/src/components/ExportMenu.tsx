@@ -42,19 +42,36 @@ export function ExportMenu() {
  * normal download in the Mac app. The Mac app adds « Ouvrir dans iReal Pro »,
  * which hands the link itself to the system.
  */
+interface IRealFile {
+  href: string;
+  name: string;
+  url: string;
+}
+
+/** The page handed to the user for the chart as it is now, or null when there is nothing to export. */
+function buildIRealFile(): IRealFile | null {
+  const chart = chartForExport(appStore.getState());
+  if (!chart) return null;
+  const out = exportToIRealPro(chart);
+  const href = URL.createObjectURL(new Blob([out.html], { type: 'text/html;charset=utf-8' }));
+  return { href, name: out.fileName, url: out.url };
+}
+
 function IRealEntries({ enabled }: { enabled: boolean }) {
-  const [file, setFile] = useState<{ href: string; name: string; url: string } | null>(null);
+  // Built with the first render: the menu opens on the link itself, never on a
+  // placeholder that turns into a link a moment later.
+  const [file, setFile] = useState<IRealFile | null>(() => (enabled ? buildIRealFile() : null));
   const [failed, setFailed] = useState(false);
+  // Chords that arrive while the menu is open (an analysis ending) turn the entry on.
   useEffect(() => {
-    if (!enabled) return;
-    const chart = chartForExport(appStore.getState());
-    if (!chart) return;
-    const out = exportToIRealPro(chart);
-    const href = URL.createObjectURL(new Blob([out.html], { type: 'text/html;charset=utf-8' }));
-    setFile({ href, name: out.fileName, url: out.url });
+    if (enabled && !file) setFile(buildIRealFile());
+  }, [enabled, file]);
+  const href = file?.href;
+  useEffect(() => {
+    if (!href) return;
     // Not at once: the menu closes on the click, and the download starts after it.
     return () => void setTimeout(() => URL.revokeObjectURL(href), 30_000);
-  }, [enabled]);
+  }, [href]);
 
   const bridge = getDesktopBridge();
   if (!file) {
