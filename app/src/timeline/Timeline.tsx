@@ -6,8 +6,8 @@
 //     horizontally: the horizontal scroll is virtual (`controller.ts` draws
 //     the visible time range on canvases as big as the viewport), which also
 //     keeps the ruler sticky.
-//   - Ruler rows: `rulerRows()` from ./layout, the same list the header column
-//     uses; the ruler has a 1 px bottom rule and stays sticky at top 0.
+//   - Ruler rows: `rulerRows({ hasChords })` from ./layout, the same list the
+//     header column uses (the chords row exists once the piece has chords); the ruler has a 1 px bottom rule and stays sticky at top 0.
 //   - Lanes: one per track, in store order, `view.trackHeight` px high
 //     (CSS var --piste) including a 1 px bottom rule (--trait-fin).
 //
@@ -16,6 +16,7 @@
 
 import { useEffect, useLayoutEffect, useRef, type CSSProperties, type RefObject } from 'react';
 import { t } from '../i18n';
+import { selectHasChords } from '../store/chartSelectors';
 import { useApp } from '../store/store';
 import { TimelineController } from './controller';
 import { rulerRows } from './layout';
@@ -32,22 +33,30 @@ export function Timeline({ scroller }: TimelineProps) {
     const anySolo = s.tracks.some((tr) => tr.solo);
     return s.tracks.map((tr) => `${tr.id}:${tr.role}:${(anySolo ? !tr.solo : tr.mute) ? 1 : 0}`).join(',');
   });
+  const hasChords = useApp(selectHasChords);
   const root = useRef<HTMLDivElement>(null);
   const controller = useRef<TimelineController | null>(null);
-  const rows = rulerRows({ hasChords: false });
+  const hasChordsNow = useRef(hasChords);
+  hasChordsNow.current = hasChords;
+  const rows = rulerRows({ hasChords });
   const lanes = lanesKey ? lanesKey.split(',').map((entry) => entry.split(':') as [string, string, string]) : [];
 
   useLayoutEffect(() => {
     // A parent's ref is not attached yet when a child's layout effect runs: fall back on the DOM.
     const scrolling = scroller.current ?? root.current?.closest<HTMLElement>('.travail') ?? null;
     if (!root.current || !scrolling) return;
-    const c = new TimelineController(root.current, scrolling);
+    const c = new TimelineController(root.current, scrolling, hasChordsNow.current);
     controller.current = c;
     return () => {
       c.dispose();
       controller.current = null;
     };
   }, [scroller]);
+
+  // The chords row appeared or went away (an analysis finished, a first chord typed): the rows are in the DOM now.
+  useLayoutEffect(() => {
+    controller.current?.rowsChanged(hasChords);
+  }, [hasChords]);
 
   // Lanes added, removed or re-ordered.
   const ids = lanes.map((l) => l[0]).join(',');
@@ -60,6 +69,7 @@ export function Timeline({ scroller }: TimelineProps) {
       <div className="frise-regle">
         {rows.map((r) => (
           <div key={r.id} className={`frise-rang ${r.id}`} style={{ height: r.height }}>
+            {r.id === 'accords' && <div className="frise-accords" aria-hidden="true" />}
             {r.id === 'mesures' && <div className="frise-bande" hidden />}
           </div>
         ))}

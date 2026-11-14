@@ -33,6 +33,33 @@
   pointer-events: none;
 }
 
+/* Chord row: labels are moved with a transform by timeline/chordLayer.ts. The
+   type is the mockup's `.accord` (18 px, 14.5 px when the bar holds two chords);
+   the symbols themselves are styled by styles/chords.css, as in the chart. */
+.frise-accords {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.frise-accord {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  font-family: var(--titre);
+  font-size: 18px;
+  font-weight: 540;
+  font-variation-settings: "opsz" 28, "SOFT" 50;
+  white-space: nowrap;
+  color: var(--encre);
+}
+.frise-accord.deux { font-size: 14.5px; }
+/* The gauge that measures labels: same classes, never seen. */
+.frise-accord.frise-jauge { visibility: hidden; width: max-content; }
+
 /* Loop band in the ruler: solid brass, the numbers on it stay ink. */
 .frise-bande {
   position: absolute;

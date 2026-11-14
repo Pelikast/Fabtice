@@ -30,6 +30,7 @@ export const fr = {
 
   // Ruler heads
   'ruler.tempoValue': 'Tempo · {bpm}',
+  'ruler.tempoApprox': 'Tempo · ≈ {bpm}',
   'ruler.tempoUnset': 'Tempo · à régler',
   'ruler.tempoEdit': 'Régler le tempo et les mesures',
   'ruler.chords': 'Accords',

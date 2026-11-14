@@ -4,8 +4,9 @@
 // the playhead never cause a render.
 //
 // Layers, from the bottom (see `timeline.css`):
-//   ruler    : DOM row backgrounds, the loop band (DOM), one canvas with the
-//              tempo line, bar ticks and numbers, the playhead (DOM)
+//   ruler    : DOM row backgrounds, the loop band (DOM), the chord labels (DOM,
+//              `chordLayer.ts`, only when the piece has chords), one canvas with
+//              the tempo curve, bar lines and numbers, the playhead (DOM)
 //   lanes    : one grid canvas under all lanes (bar lines, sub-grid), one
 //              waveform canvas per lane (dimmed with CSS opacity), the loop
 //              veil (DOM), the playhead (DOM)
@@ -18,11 +19,12 @@ import { onAudioChange } from '../audio/registry';
 import { snapTime } from '../grid/lines';
 import type { Seconds, TimeRange } from '../model/project';
 import { applyAutoFit, enterLoop, seek, setLoopRegion, setZoom } from '../store/actions';
+import { selectChartBars, selectDisplayContext, selectHasChords } from '../store/chartSelectors';
 import { appStore, type AppState } from '../store/store';
 import { onFrame } from '../ui/frameLoop';
 import { isPhoneLayout } from '../util/media';
 import { PHONE_BAR_WIDTH, clampScale } from '../view/zoom';
-import { clamp, meterAtBar } from '../grid/tempoMap';
+import { clamp, meterAtBar, nominalBpm } from '../grid/tempoMap';
 import {
   DRAG_THRESHOLD_PX,
   EDGE_GRAB_PX,
@@ -40,6 +42,9 @@ import {
   xToTime,
   type LoopEdge,
 } from './geometry';
+import { chordMarkup } from './chordMarkup';
+import { ChordLayer } from './chordLayer';
+import { placeChordRow, rowChords, type RowChord } from './chordRow';
 import { drawGrid, drawRuler, drawWave, readColors, type Colors } from './drawing';
 import { RULER_ROW_HEIGHT, TRACKS_FOOT, rulerHeight, rulerRows } from './layout';
 import { getPeaks, onPeaksChange } from './peakCache';
@@ -49,7 +54,8 @@ const WAVES = 2;
 const RULER = 4;
 const LOOP = 8;
 const BAR = 16;
-const ALL = GRID | WAVES | RULER | LOOP | BAR;
+const CHORDS = 32;
+const ALL = GRID | WAVES | RULER | LOOP | BAR | CHORDS;
 
 const MAX_DPR = 3;
 const AUTOSCROLL_ZONE_PX = 32;
@@ -95,6 +101,17 @@ export class TimelineController {
   private readonly reducedMotion: boolean;
   private lanes: Lane[] = [];
 
+  // The chords row (only when the piece has chords; the rows come from React, see `rowsChanged`).
+  private hasChords: boolean;
+  private chordLayer: ChordLayer | null = null;
+  private chordItems: RowChord[] = [];
+  private chordHtml = new WeakMap<RowChord, string>();
+  private chordMaxWidth = 0;
+  private chordDataStale = true;
+  private chordStride = 1;
+  private lastBars: unknown = null;
+  private lastContext: unknown = null;
+
   private s: AppState = appStore.getState();
   private alive = true;
   private dirty = ALL;
@@ -131,8 +148,9 @@ export class TimelineController {
   private phoneScale: number | null = null;
   private userZoomed = false;
 
-  constructor(root: HTMLElement, scroller: HTMLElement) {
+  constructor(root: HTMLElement, scroller: HTMLElement, hasChords = false) {
     this.root = root;
+    this.hasChords = hasChords;
     this.scroller = scroller;
     const q = <T extends HTMLElement>(sel: string): T => {
       const el = root.querySelector<T>(sel);
@@ -154,6 +172,7 @@ export class TimelineController {
     this.colors = readColors(document.documentElement);
     this.reducedMotion = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+    this.attachChordLayer();
     this.lanesChanged();
     this.bindStore();
     this.bindPointer();
@@ -169,8 +188,12 @@ export class TimelineController {
     this.cleanups.push(() => resize.disconnect());
     const fonts = document.fonts;
     if (fonts) {
-      void fonts.ready.then(() => this.invalidate(RULER));
-      const onFonts = () => this.invalidate(RULER);
+      const onFonts = () => {
+        this.chordLayer?.forgetWidths();
+        this.chordDataStale = true;
+        this.invalidate(RULER | CHORDS);
+      };
+      void fonts.ready.then(onFonts);
       fonts.addEventListener('loadingdone', onFonts);
       this.cleanups.push(() => fonts.removeEventListener('loadingdone', onFonts));
     }
@@ -189,6 +212,27 @@ export class TimelineController {
     this.alive = false;
     this.cleanups.forEach((fn) => fn());
     this.cleanups.length = 0;
+  }
+
+  /**
+   * The ruler's rows changed (the chords row appeared or went away): React has
+   * just rendered them, so both columns have the new heights. The view (`t0`,
+   * `pps`) stays where it is; Auto fits the lanes to what is left.
+   */
+  rowsChanged(hasChords: boolean): void {
+    if (hasChords === this.hasChords && (this.chordLayer?.host.isConnected ?? false) === hasChords) return;
+    this.hasChords = hasChords;
+    this.attachChordLayer();
+    this.chordDataStale = true;
+    this.dirty |= ALL;
+    if (this.viewW > 0) this.resize();
+  }
+
+  private attachChordLayer(): void {
+    const host = this.hasChords ? this.ruler.querySelector<HTMLElement>('.frise-accords') : null;
+    if (host === (this.chordLayer?.host ?? null)) return;
+    this.chordLayer?.clear();
+    this.chordLayer = host ? new ChordLayer(host) : null;
   }
 
   /** The lane elements changed (tracks added, removed, reordered): collect them again. */
@@ -271,8 +315,9 @@ export class TimelineController {
       });
     }
     if (d & WAVES) this.drawWaves();
+    if (d & (RULER | CHORDS)) this.chordStride = this.drawChords();
     if (d & RULER) {
-      const rows = rulerRows({ hasChords: false });
+      const rows = rulerRows({ hasChords: this.hasChords });
       const h = rows.reduce((sum, r) => sum + r.height, 0);
       this.sizeCanvas(this.rulerCanvas, this.rulerCtx, w, h);
       drawRuler(this.rulerCtx, {
@@ -287,6 +332,8 @@ export class TimelineController {
         loopEnabled: s.loop.enabled,
         colors: this.colors,
         tempoTop: 0,
+        accordsTop: this.hasChords ? RULER_ROW_HEIGHT.tempo : null,
+        chordStride: this.chordStride,
         mesuresTop: h - RULER_ROW_HEIGHT.mesures,
       });
     }
@@ -301,6 +348,46 @@ export class TimelineController {
     this.flushTotal += cost;
     this.flushMax = Math.max(this.flushMax, cost);
     this.root.dataset.flush = `${this.flushes},${this.flushTotal.toFixed(2)},${this.flushMax.toFixed(2)}`;
+  }
+
+  /** What the chord row writes, the markup of each chord and the widest label (once per change of chords, display or font). */
+  private prepareChords(): void {
+    const s = this.s;
+    const layer = this.chordLayer;
+    this.chordDataStale = false;
+    this.chordHtml = new WeakMap();
+    this.chordItems = [];
+    this.chordMaxWidth = 0;
+    if (!layer || !this.hasChords) return;
+    const ctx = selectDisplayContext(s);
+    this.chordItems = rowChords(selectChartBars(s), s.tempoMap);
+    let widest = 0;
+    for (const item of this.chordItems) {
+      const html = chordMarkup(item.chord, ctx, item.doubtful);
+      this.chordHtml.set(item, html);
+      widest = Math.max(widest, layer.measure(html, item.small));
+    }
+    this.chordMaxWidth = widest;
+  }
+
+  /** Places the labels in view; returns the row's stride (1 = every chord, n = one label every n bars). */
+  private drawChords(): number {
+    const layer = this.chordLayer;
+    if (!layer || !this.hasChords) return 1;
+    if (this.chordDataStale) this.prepareChords();
+    const { placed, stride } = placeChordRow({
+      items: this.chordItems,
+      map: this.s.tempoMap,
+      t0: this.t0,
+      pps: this.pps,
+      viewW: this.viewW,
+      maxWidth: this.chordMaxWidth,
+      widthOf: (item) => layer.measure(this.chordHtml.get(item) ?? '', item.small),
+    });
+    layer.render(placed.map((pl) => ({ key: pl.key, html: this.chordHtml.get(pl.item) ?? '', small: pl.item.small, x: pl.x })));
+    this.root.dataset.chordLabels = String(layer.count);
+    this.root.dataset.chordStride = String(stride);
+    return stride;
   }
 
   private drawWaves(): void {
@@ -476,9 +563,11 @@ export class TimelineController {
         this.fit();
       }
       if (s.tempoMap !== prev.tempoMap) {
-        this.invalidate(GRID | RULER | LOOP);
+        this.invalidate(GRID | RULER | LOOP | CHORDS);
+        this.chordDataStale = true;
         this.applyPhoneScale();
       }
+      this.watchChords(s);
       if (s.loop !== prev.loop) this.invalidate(RULER | LOOP);
       if (s.view.subdivision !== prev.view.subdivision || s.view.triplets !== prev.view.triplets) this.invalidate(GRID);
       if (s.view.pxPerSecond !== prev.view.pxPerSecond) this.scaleFromStore(s.view.pxPerSecond);
@@ -489,10 +578,23 @@ export class TimelineController {
     this.cleanups.push(off);
   }
 
+  /** Chords, their grid, the transposition, the instrument or the minor notation changed: write the row again. */
+  private watchChords(s: AppState): void {
+    if (!this.hasChords && !selectHasChords(s)) return;
+    const bars = selectChartBars(s);
+    const ctx = selectDisplayContext(s);
+    if (bars === this.lastBars && ctx === this.lastContext) return;
+    this.lastBars = bars;
+    this.lastContext = ctx;
+    this.chordDataStale = true;
+    this.invalidate(CHORDS);
+  }
+
   private onProjectOpened(): void {
     this.t0 = 0;
     this.userZoomed = false;
     this.phoneScale = null;
+    this.chordDataStale = true;
     this.followSuspended = false;
     this.lastPos = Number.NaN;
     this.momentum = 0;
@@ -508,7 +610,8 @@ export class TimelineController {
     const s = this.s;
     if (!isPhoneLayout() || s.view.auto || this.userZoomed || !s.project) return;
     const meter = meterAtBar(s.tempoMap, 0);
-    const bpm = s.tempoMap.segments[0]!.bpm;
+    // The tempo a musician names, not the first beat's (an analysed map has one tempo per beat).
+    const bpm = nominalBpm(s.tempoMap, s.project.duration);
     const barSeconds = (60 / bpm) * meter.numerator;
     const pps = pxPerSecondForBarWidth(PHONE_BAR_WIDTH, barSeconds);
     if (Math.abs(pps - this.pps) < 1e-6) return;
@@ -545,7 +648,7 @@ export class TimelineController {
       viewW: this.viewW,
       viewH: this.viewH,
       trackCount: s.tracks.length,
-      rulerHeight: rulerHeight(rulerRows({ hasChords: false })),
+      rulerHeight: rulerHeight(rulerRows({ hasChords: this.hasChords })),
       foot: TRACKS_FOOT,
     });
     if (!fitted) return;

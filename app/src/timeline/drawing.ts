@@ -9,7 +9,8 @@ import {
   subGridLines,
   type SubGridOptions,
 } from '../grid/lines';
-import { barStartTime, bpmAt, nominalBpm, timeToBar } from '../grid/tempoMap';
+import { barStartTime, nominalBpm, timeToBar } from '../grid/tempoMap';
+import { tempoCurve, type TempoPoint } from '../grid/tempoCurve';
 import type { Seconds, TimeRange } from '../model/project';
 import type { TempoMap } from '../model/tempoMap';
 import {
@@ -207,68 +208,161 @@ export interface RulerParams extends ViewFrame {
   /** The loop is on: bars inside it are printed in full ink. */
   loopEnabled: boolean;
   colors: Colors;
-  /** Y of the tempo row (0) and of the bars row. */
+  /** Y of the tempo row (0), of the chords row (null when there are no chords) and of the bars row. */
   tempoTop: number;
+  accordsTop: number | null;
+  /** Stride of the chord row (`chordRow.ts`): its bar lines follow it, so no line cuts through a label. */
+  chordStride?: number;
   mesuresTop: number;
 }
 
 export function drawRuler(ctx: CanvasRenderingContext2D, p: RulerParams): void {
   ctx.clearRect(0, 0, p.w, p.h);
   drawTempoRow(ctx, p);
+  if (p.accordsTop !== null) drawChordsRow(ctx, p, p.accordsTop);
   drawBarsRow(ctx, p);
 }
 
+// ---------------------------------------------------------------- tempo curve
+
+/** Under this spread (BPM) a tempo curve is a constant tempo: a flat line, no dots. */
+const FLAT_SPREAD_BPM = 0.5;
+/** Points closer than this (px) are thinned out of the line; dots need more room. */
+const MIN_POINT_GAP_PX = 3;
+const MIN_DOT_GAP_PX = 24;
+
+interface WholeCurve {
+  points: TempoPoint[];
+  firstBar: number;
+  lo: number;
+  hi: number;
+  flat: boolean;
+  nominal: number;
+}
+
+const curves = new WeakMap<TempoMap, Map<Seconds, WholeCurve>>();
+
 /**
- * The tempo line, as in the mockup: a dashed reference at the tempo of the
- * piece and the solid curve with a dot where the tempo changes. A constant
- * tempo is a flat line, in the middle of the row.
+ * The tempo curve of the whole piece, one point per bar, with the scale it is
+ * drawn on. Computed once per map: the scale must not change while scrolling.
+ */
+export function wholeCurve(map: TempoMap, duration: Seconds): WholeCurve {
+  let byDuration = curves.get(map);
+  if (!byDuration) curves.set(map, (byDuration = new Map()));
+  const hit = byDuration.get(duration);
+  if (hit) return hit;
+  const points = tempoCurve(map, 0, duration);
+  const nominal = nominalBpm(map, duration);
+  let min = nominal;
+  let max = nominal;
+  let spread = 0;
+  for (const pt of points) {
+    min = Math.min(min, pt.bpm);
+    max = Math.max(max, pt.bpm);
+  }
+  for (const pt of points) spread = Math.max(spread, Math.abs(pt.bpm - points[0]!.bpm));
+  const { lo, hi } = tempoRange([min, max]);
+  const curve: WholeCurve = { points, firstBar: points[0]?.bar ?? 0, lo, hi, flat: spread < FLAT_SPREAD_BPM, nominal };
+  byDuration.set(duration, curve);
+  return curve;
+}
+
+/**
+ * The tempo row, as in the mockup: a dotted reference at the tempo of the
+ * piece, and over it the thin ink curve, one point per bar (the bar's average
+ * tempo, at the middle of the bar), joined smoothly, with a small dot on the
+ * bars that have room for one. A constant tempo is a flat line, no dots.
  */
 function drawTempoRow(ctx: CanvasRenderingContext2D, p: RulerParams): void {
   const { w, t0, pps, map, duration } = p;
   const top = p.tempoTop;
   const h = RULER_ROW_HEIGHT.tempo;
-  const bpms = map.segments.map((s) => s.bpm);
-  const { lo, hi } = tempoRange(bpms);
-  const y = (bpm: number) => top + h - 6 - ((bpm - lo) / (hi - lo)) * (h - 12);
+  const curve = wholeCurve(map, duration);
+  if (curve.points.length === 0) return;
+  const y = (bpm: number) => top + h - 6 - ((bpm - curve.lo) / (curve.hi - curve.lo)) * (h - 12);
   const xMin = Math.max(0, (0 - t0) * pps);
   const xMax = Math.min(w, (duration - t0) * pps);
   if (xMax <= xMin) return;
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(xMin, top, xMax - xMin, h);
+  ctx.clip();
 
   ctx.strokeStyle = p.colors.trait;
   ctx.lineWidth = 1;
   ctx.setLineDash([2, 4]);
   ctx.beginPath();
-  ctx.moveTo(xMin, Math.round(y(nominalBpm(map, duration))) + 0.5);
-  ctx.lineTo(xMax, Math.round(y(nominalBpm(map, duration))) + 0.5);
+  const yRef = Math.round(y(curve.nominal)) + 0.5;
+  ctx.moveTo(xMin, yRef);
+  ctx.lineTo(xMax, yRef);
   ctx.stroke();
   ctx.setLineDash([]);
 
-  // Segments overlapping the view.
+  // The points around the view (one more on each side, so the curve enters and leaves smoothly).
+  const { points, firstBar } = curve;
+  const ta = Math.max(0, t0);
+  const tb = Math.min(duration, t0 + w / pps);
+  const i0 = Math.max(0, timeToBar(map, ta).bar - firstBar - 1);
+  const i1 = Math.min(points.length - 1, timeToBar(map, tb).bar - firstBar + 1);
+  let gap = Infinity;
+  for (let i = i0; i <= i1; i++) gap = Math.min(gap, (points[i]!.end - points[i]!.start) * pps);
+  const lineStride = barStride(gap, MIN_POINT_GAP_PX);
+  const dotStride = barStride(gap, MIN_DOT_GAP_PX);
+  const kept: { x: number; y: number; bar: number }[] = [];
+  for (let i = i0; i <= i1; i++) {
+    const pt = points[i]!;
+    if (!barKept(pt.bar, lineStride)) continue;
+    kept.push({ x: ((pt.start + pt.end) / 2 - t0) * pps, y: y(pt.bpm), bar: pt.bar });
+  }
+  if (kept.length === 0) {
+    ctx.restore();
+    return;
+  }
+
   ctx.strokeStyle = p.colors.encreDouce;
   ctx.fillStyle = p.colors.encreDouce;
   ctx.lineWidth = 1.5;
   ctx.lineJoin = 'round';
   ctx.beginPath();
-  const startBpm = bpmAt(map, Math.max(0, t0));
-  ctx.moveTo(xMin, y(startBpm));
-  let prevBpm = startBpm;
-  const dots: [number, number][] = [];
-  for (const seg of map.segments) {
-    const x = (seg.time - t0) * pps;
-    if (seg.time <= Math.max(0, t0) || seg.time >= duration) continue;
-    if (x > w + 12) break;
-    const r = Math.min(8, Math.max(2, (x - xMin) / 2));
-    ctx.lineTo(x - r, y(prevBpm));
-    ctx.bezierCurveTo(x, y(prevBpm), x, y(seg.bpm), x + r, y(seg.bpm));
-    dots.push([x, y(seg.bpm)]);
-    prevBpm = seg.bpm;
+  const first = kept[0]!;
+  ctx.moveTo(Math.min(first.x, xMin), first.y);
+  ctx.lineTo(first.x, first.y);
+  for (let i = 1; i < kept.length; i++) {
+    const a = kept[i - 1]!;
+    const b = kept[i]!;
+    const cx = (a.x + b.x) / 2;
+    ctx.bezierCurveTo(cx, a.y, cx, b.y, b.x, b.y);
   }
-  ctx.lineTo(xMax, y(prevBpm));
+  const last = kept[kept.length - 1]!;
+  ctx.lineTo(Math.max(last.x, xMax), last.y);
   ctx.stroke();
-  for (const [x, yy] of dots) {
-    ctx.beginPath();
-    ctx.arc(x, yy, 2, 0, Math.PI * 2);
-    ctx.fill();
+
+  if (!curve.flat) {
+    for (const d of kept) {
+      if (!barKept(d.bar, dotStride) || d.x < xMin + 2 || d.x > xMax - 2) continue;
+      ctx.beginPath();
+      ctx.arc(d.x, d.y, 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
+// ---------------------------------------------------------------- chords row
+
+/** The faint bar lines behind the chord labels (the mockup's `.accord` left border). */
+function drawChordsRow(ctx: CanvasRenderingContext2D, p: RulerParams, top: number): void {
+  const { w, dpr, t0, pps, map, duration } = p;
+  const ta = Math.max(0, t0);
+  const tb = Math.min(duration, t0 + w / pps);
+  if (!(tb > ta)) return;
+  const bars = barsInView(map, ta, tb);
+  const stride = Math.max(p.chordStride ?? 1, barStride(minBarGapPx(bars, pps), MIN_BAR_LINE_GAP_PX));
+  ctx.fillStyle = p.colors.traitFin;
+  for (const { bar, time } of bars) {
+    if (time < ta || time > tb || !barKept(bar, stride)) continue;
+    vline(ctx, (time - t0) * pps, top, top + RULER_ROW_HEIGHT.accords, dpr);
   }
 }
 
