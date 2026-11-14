@@ -7,6 +7,8 @@ import { clearAudio, engineTrack, registerAudio, type DecodedAudio } from '../au
 import { clipRange } from '../grid/lines';
 import { defaultTempoMap, withManualGrid, type ManualGridChange } from '../grid/tempoMap';
 import type { ImportedPiece } from '../import/types';
+import type { AnalysisResult } from '../model/analysis';
+import { emptyCorrections, type Corrections } from '../model/corrections';
 import type { ProjectDocument } from '../model/document';
 import type {
   MinorNotation,
@@ -48,6 +50,10 @@ export interface NewProjectInput {
   /** A grid already known (demo, restored project); else the default one. */
   tempoMap?: TempoMap;
   loop?: TimeRange | null;
+  /** An analysis already done (the demo piece); else none: the piece is not analysed yet. */
+  analysis?: AnalysisResult | null;
+  /** Corrections already made (the demo piece); else none. */
+  corrections?: Corrections;
 }
 
 /**
@@ -92,6 +98,10 @@ export async function openProject(input: NewProjectInput): Promise<void> {
     project,
     tracks,
     tempoMap: input.tempoMap ?? defaultTempoMap(),
+    // A new piece starts « not analysed yet », with nothing corrected.
+    analysis: input.analysis ?? null,
+    corrections: input.corrections ?? emptyCorrections(),
+    analysisRun: { status: 'idle' },
     loop: { region, enabled: region !== null },
     playback: { ...DEFAULT_PLAYBACK },
     view: { ...s.view, mode: 'pistes' },
