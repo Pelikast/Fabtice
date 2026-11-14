@@ -12,7 +12,7 @@
 // or the reverse) stay registered: coming back to them is instant.
 
 import type { EngineTrack } from './AudioEngine';
-import { pcmFromChannels, type PcmAudio } from './pcm';
+import { pcmFromChannels, pcmFromChannelsInSlices, type PcmAudio } from './pcm';
 
 /** Decoded audio as the import produces it (Float32, transient): converted to `PcmAudio` when registered. */
 export interface DecodedAudio {
@@ -31,6 +31,11 @@ const isPcm = (a: PcmAudio | DecodedAudio): a is PcmAudio => 'chunks' in a;
 /** Converts Float32 audio to the in-memory form (identity for audio already converted). */
 export function toPcm(a: PcmAudio | DecodedAudio): PcmAudio {
   return isPcm(a) ? a : pcmFromChannels(a.channels, a.sampleRate);
+}
+
+/** `toPcm` a slice at a time (opening a piece: the screen never freezes). */
+export async function toPcmInSlices(a: PcmAudio | DecodedAudio): Promise<PcmAudio> {
+  return isPcm(a) ? a : pcmFromChannelsInSlices(a.channels, a.sampleRate);
 }
 
 /**

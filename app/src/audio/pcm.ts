@@ -37,6 +37,23 @@ export interface PcmAudio {
 
 const K16 = 1 / 32768;
 
+/**
+ * Lets the browser run other tasks (paint, input, audio messages) before going
+ * on: a message to ourselves, not a timer (timers may be throttled, or faked
+ * in tests).
+ */
+export function yieldToMain(): Promise<void> {
+  if (typeof MessageChannel === 'undefined') return new Promise((resolve) => setTimeout(resolve, 0));
+  return new Promise((resolve) => {
+    const ch = new MessageChannel();
+    ch.port1.onmessage = () => {
+      ch.port1.close();
+      resolve();
+    };
+    ch.port2.postMessage(null);
+  });
+}
+
 /** Shared memory when the page is cross-origin isolated (the real engine needs it), plain memory otherwise. */
 function allocate(bytes: number): ArrayBuffer | SharedArrayBuffer {
   return typeof SharedArrayBuffer !== 'undefined' ? new SharedArrayBuffer(bytes) : new ArrayBuffer(bytes);
@@ -93,6 +110,54 @@ export function pcmFromChannels(channels: readonly Float32Array[], sampleRate: n
     }
     chunks[c] = { l: cl, r: cr };
     bytes += cl.byteLength + (cr ? cr.byteLength : 0);
+  }
+  return { sampleRate, frames, channelCount: channels.length as 1 | 2, mono, chunks, bytes };
+}
+
+/**
+ * `pcmFromChannels`, a slice at a time: hands the main thread back every few
+ * chunks, so opening a long piece never freezes the screen for a quarter of a
+ * second (measured: 270 ms for a 4-minute mono piece in one go).
+ */
+export async function pcmFromChannelsInSlices(channels: readonly Float32Array[], sampleRate: number, chunksPerSlice = 16): Promise<PcmAudio> {
+  if (channels.length < 1 || channels.length > 2) throw new Error(`${channels.length} channels: 1 or 2 expected`);
+  const l = channels[0]!;
+  const r = channels[1];
+  const frames = l.length;
+  if (r && r.length !== frames) throw new Error('channels of different lengths');
+  const tick = yieldToMain;
+  // Equal channels? Checked a slice at a time too.
+  let mono = !r || r === l;
+  if (!mono) {
+    mono = true;
+    const tol = 1.5 / 32768;
+    for (let s = 0; s < frames && mono; s += CHUNK * chunksPerSlice) {
+      const end = Math.min(frames, s + CHUNK * chunksPerSlice);
+      for (let i = s; i < end; i++) {
+        if (Math.abs(l[i]! - r![i]!) > tol) {
+          mono = false;
+          break;
+        }
+      }
+      await tick();
+    }
+  }
+  const count = Math.ceil(frames / CHUNK);
+  const chunks: Chunk[] = new Array(count);
+  let bytes = 0;
+  for (let c = 0; c < count; c++) {
+    const s = c << CHUNK_BITS;
+    const n = Math.min(CHUNK, frames - s);
+    const cl = newChunkChannel();
+    quantizeInto(cl, l, s, n);
+    let cr: Int16Array | null = null;
+    if (!mono) {
+      cr = newChunkChannel();
+      quantizeInto(cr, r!, s, n);
+    }
+    chunks[c] = { l: cl, r: cr };
+    bytes += cl.byteLength + (cr ? cr.byteLength : 0);
+    if (c % chunksPerSlice === chunksPerSlice - 1) await tick();
   }
   return { sampleRate, frames, channelCount: channels.length as 1 | 2, mono, chunks, bytes };
 }
@@ -191,7 +256,7 @@ export async function pcmToMonoInSlices(pcm: PcmAudio, chunksPerSlice = 8): Prom
       readPcm(pcm, 1, s, rv);
       for (let i = 0; i < n; i++) view[i] = (view[i]! + rv[i]!) / 2;
     }
-    if (c % chunksPerSlice === chunksPerSlice - 1) await new Promise((resolve) => setTimeout(resolve, 0));
+    if (c % chunksPerSlice === chunksPerSlice - 1) await yieldToMain();
   }
   return out;
 }

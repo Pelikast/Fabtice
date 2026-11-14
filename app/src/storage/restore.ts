@@ -175,6 +175,7 @@ async function attempt(deps: ReturnType<typeof resolve>, doc: ProjectDocument): 
       const stored = await withTimeout(storage.loadAudio(track.audio.id), limits.read, 'read');
       if (!stored) throw new ImportError('read-failed', `no stored audio ${track.audio.id}`);
       show('decoding', null);
+      // Converted in one go: « Ouverture… » is on screen, and each step keeps its own time limit.
       audio.set(track.audio.id, toPcm(await withTimeout(decode(stored, (fraction) => show('decoding', fraction)), limits.decode, 'decode')));
     }
     // The separated instruments, as they were kept. Any of them missing: the piece opens whole.

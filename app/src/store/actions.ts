@@ -3,7 +3,7 @@
 // settings go to the store and reach the engine through `audio/connect.ts`.
 
 import { getEngine } from '../audio';
-import { clearAudio, engineTrack, registerAudio, type DecodedAudio, type PcmAudio } from '../audio/registry';
+import { clearAudio, engineTrack, registerAudio, toPcmInSlices, type DecodedAudio, type PcmAudio } from '../audio/registry';
 import { clipRange } from '../grid/lines';
 import { defaultTempoMap, withManualGrid, type ManualGridChange } from '../grid/tempoMap';
 import type { ImportedPiece } from '../import/types';
@@ -66,11 +66,14 @@ export interface NewProjectInput {
  */
 export async function openProject(input: NewProjectInput): Promise<void> {
   const engine = getEngine();
+  // Converted to the in-memory form first, in slices (the Float32 input is then let go).
+  const converted: PcmAudio[] = [];
+  for (const tr of input.tracks) converted.push(await toPcmInSlices(tr.audio));
   engine.pause();
   clearAudio();
-  const tracks: Track[] = input.tracks.map((tr) => {
+  const tracks: Track[] = input.tracks.map((tr, i) => {
     const audioId = newId();
-    const pcm = registerAudio(audioId, tr.audio);
+    const pcm = registerAudio(audioId, converted[i]!);
     return {
       id: newId(),
       name: tr.name ?? t(`role.${tr.role}`),
