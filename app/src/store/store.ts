@@ -10,7 +10,7 @@
 
 import { useStore } from 'zustand';
 import { createStore, type StoreApi } from 'zustand/vanilla';
-import type { AnalysisErrorCode, DownloadProgress, AnalysisStep } from '../analysis/types';
+import type { AnalysisErrorCode, AnalysisStep } from '../analysis/types';
 import type { EngineError, EngineState } from '../audio/AudioEngine';
 import { defaultTempoMap } from '../grid/tempoMap';
 import type { ImportProgress } from '../import/types';
@@ -48,11 +48,8 @@ export type AnalysisRun =
       status: 'running';
       /** The project being analysed (a result for another one is dropped). */
       projectId: string;
+      /** Changes a few times per analysis; the fine progress is in `analysis/progress.ts`. */
       step: AnalysisStep;
-      /** 0…1 for the whole analysis. */
-      fraction: number;
-      /** Set while models are downloaded (first time only). */
-      download: DownloadProgress | null;
     }
   | { status: 'error'; projectId: string; code: AnalysisErrorCode };
 

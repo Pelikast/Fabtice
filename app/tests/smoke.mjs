@@ -54,7 +54,16 @@ try {
 
     // Shell
     check('top bar: brand and title', (await text(page, '.marque')) === 'Fabtice' && (await text(page, '.projet-titre')) === 'Blues du dimanche');
-    check('top bar: export visible but disabled', await page.locator('button:has-text("Exporter")').isDisabled());
+    // Lot 2: « Exporter » is a small menu; the chart exports say « bientôt » until written, audio stays inactive (lot 3).
+    await page.click('button:has-text("Exporter")');
+    const exportItems = await page.locator('.menu-export [role="menuitem"]').evaluateAll((els) => els.map((el) => ({ key: el.dataset.export, disabled: el.disabled, text: el.innerText })));
+    check(
+      'top bar: Exporter opens a menu (iReal Pro, print, audio inactive)',
+      exportItems.length === 3 && exportItems.map((x) => x.key).join(',') === 'ireal,print,audio' && exportItems.every((x) => x.disabled) && exportItems[0].text.includes('bientôt'),
+      JSON.stringify(exportItems),
+    );
+    await page.keyboard.press('Escape');
+    check('Escape closes the export menu', (await page.locator('.menu-export').count()) === 0);
     check('four track headers', (await page.locator('.piste-tete').count()) === 4);
     check('four timeline lanes', (await page.locator('.frise-voie').count()) === 4);
     check('ruler heads: tempo and bars, no chords row', (await page.locator('.rang-tete').count()) === 2 && (await text(page, '.rang-tete.tempo')).toUpperCase().includes('TEMPO · 110'));
@@ -164,11 +173,12 @@ try {
 
     // View switch
     await page.click('.mode[data-vue="grille"]');
-    check('chord chart view (empty state)', await page.locator('.vue-grille .vide-message h2').isVisible());
+    // The demo piece is analysed (lot 2): the chart shows its chords (detailed checks in tests/chart.mjs).
+    check('chord chart view shows the analysed chords', (await page.locator('.vue-grille .case .ch').count()) > 16);
     await sleep(200);
     check('tools and sub-grid hidden in the chart view', (await page.locator('.outils').count()) === 0 && (await page.locator('.sous-grille').count()) === 0);
     await page.screenshot({ path: path.join(out, 'app-1280-grille.png') });
-    await page.click('.vide-message button');
+    await page.click('.mode[data-vue="pistes"]');
     check('back to the tracks view', (await state(page)).view.mode === 'pistes');
 
     // Settings

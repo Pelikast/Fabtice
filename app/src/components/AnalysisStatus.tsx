@@ -5,6 +5,7 @@
 
 import { useCallback, useEffect, useRef, useState, type Ref } from 'react';
 import { getAnalyzer, type AnalysisModelInfo } from '../analysis';
+import { useAnalysisProgress } from '../analysis/progress';
 import { cancelAnalysis, runAnalysis } from '../analysis/runner';
 import { formatNumber, t } from '../i18n';
 import { closePanel, openPanel, togglePanel } from '../store/actions';
@@ -16,11 +17,11 @@ const percent = (f: number) => Math.round(Math.min(1, Math.max(0, f)) * 100);
 const megabytes = (bytes: number) => formatNumber(bytes / 1e6, 0);
 
 /** Short text of the status for the top bar, or null when there is nothing to say. */
-function statusText(run: AnalysisRun): string | null {
+function statusText(run: AnalysisRun, fraction: number): string | null {
   if (run.status === 'running') {
     return run.step === 'download'
-      ? t('analysis.statusDownload', { n: percent(run.fraction) })
-      : t('analysis.statusRunning', { n: percent(run.fraction) });
+      ? t('analysis.statusDownload', { n: percent(fraction) })
+      : t('analysis.statusRunning', { n: percent(fraction) });
   }
   if (run.status === 'error') return t('analysis.statusError');
   return null;
@@ -28,6 +29,8 @@ function statusText(run: AnalysisRun): string | null {
 
 export function AnalysisStatus() {
   const run = useApp((s) => s.analysisRun);
+  // Whole percents only: the top bar redraws once per percent at most.
+  const fraction = useAnalysisProgress((p) => percent(p.fraction) / 100);
   const open = useApp((s) => s.ui.panel === 'analysis');
   const buttonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -44,7 +47,7 @@ export function AnalysisStatus() {
     }
   }, [downloading]);
 
-  const text = statusText(run);
+  const text = statusText(run, fraction);
   if (!text && !open) return null;
   return (
     <span className="analyse-etat">
@@ -68,18 +71,20 @@ export function AnalysisStatus() {
 /** Progress, sources and licences: in the panel and in the chart's « analysis running » state. */
 export function AnalysisProgressNote() {
   const run = useApp((s) => s.analysisRun);
+  const fraction = useAnalysisProgress((p) => p.fraction);
+  const download = useAnalysisProgress((p) => p.download);
   const models = useModels();
   if (run.status !== 'running') return null;
   const toDownload = models.filter((m) => !m.cached);
   const showSources = run.step === 'download' || toDownload.length > 0;
   return (
     <div className="analyse-note">
-      <div className="analyse-progres" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent(run.fraction)}>
-        <span style={{ transform: `scaleX(${Math.min(1, Math.max(0, run.fraction))})` }} />
+      <div className="analyse-progres" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent(fraction)}>
+        <span style={{ transform: `scaleX(${Math.min(1, Math.max(0, fraction))})` }} />
       </div>
       <p className="analyse-etape">
         {t(`analysis.step.${run.step}`)}
-        {run.download && ` · ${t('analysis.downloaded', { loaded: megabytes(run.download.loaded), total: megabytes(run.download.total) })}`}
+        {run.step === 'download' && download && ` · ${t('analysis.downloaded', { loaded: megabytes(download.loaded), total: megabytes(download.total) })}`}
       </p>
       {showSources && models.length > 0 && <ModelSources models={models} />}
     </div>

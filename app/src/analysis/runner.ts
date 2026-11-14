@@ -18,6 +18,7 @@ import { beatGridOf } from '../grid/beats';
 import { applyAnalysis, setAnalysisRun } from '../store/analysisActions';
 import { appStore, type AppState } from '../store/store';
 import { autoAnalysisDisabled, getAnalyzer } from './index';
+import { analysisProgressStore, setAnalysisProgress } from './progress';
 import { AnalysisError, type AnalysisProgress, type AnalysisRequest } from './types';
 
 let running: { projectId: string; abort: AbortController } | null = null;
@@ -57,14 +58,21 @@ export async function runAnalysis(): Promise<void> {
   running = mine;
   const stillMine = () => running === mine && store.getState().project?.id === project.id;
 
-  setAnalysisRun({ status: 'running', projectId: project.id, step: 'prepare', fraction: 0, download: null });
-  let last: AnalysisProgress | null = null;
+  setAnalysisProgress({ fraction: 0, download: null });
+  setAnalysisRun({ status: 'running', projectId: project.id, step: 'prepare' });
+  let step: AnalysisProgress['step'] = 'prepare';
   const onProgress = (p: AnalysisProgress) => {
     if (!stillMine()) return;
-    // Only meaningful changes reach the store (the interface redraws on them).
-    if (last && last.step === p.step && Math.abs(p.fraction - last.fraction) < 0.005 && (p.download?.loaded ?? 0) - (last.download?.loaded ?? 0) < 256 * 1024) return;
-    last = p;
-    setAnalysisRun({ status: 'running', projectId: project.id, step: p.step, fraction: Math.min(1, Math.max(0, p.fraction)), download: p.download ?? null });
+    // The app store hears of step changes only; the fine progress has its own store.
+    if (p.step !== step) {
+      step = p.step;
+      setAnalysisRun({ status: 'running', projectId: project.id, step });
+    }
+    const prev = analysisProgressStore.getState();
+    const fraction = Math.min(1, Math.max(Math.max(0, p.fraction), prev.fraction));
+    if (fraction - prev.fraction >= 0.002 || (p.download?.loaded ?? 0) !== (prev.download?.loaded ?? 0)) {
+      setAnalysisProgress({ fraction, download: p.download ?? null });
+    }
   };
 
   const userGrid = s.tempoMap.origin === 'manual' || s.tempoMap.origin === 'corrected';
