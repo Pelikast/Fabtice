@@ -330,8 +330,11 @@ magasin que l'app utilise déjà partout où elle tourne (pages http(s), origine
 les flux d'écriture du système de fichiers privé sont arrivés tard dans Safari.
 Vérifié dans l'app Mac par `desktop/test/e2e/separated-storage.test.js` (deux
 pistes stéréo de 2 min 30, 58 Mo, écrites, app quittée et relancée, relues à
-l'échantillon près en mémoire partagée, puis effacées ; le même test écrit un
-fichier de même taille dans le système de fichiers privé et dit s'il revient),
+l'échantillon près en mémoire partagée, puis effacées ; mesuré ici : 57,7 Mo
+écrits en 2,0 s, relus en 0,1 s après la relance. Le même test écrit un fichier de
+même taille dans le système de fichiers privé : il marche aussi sur cette
+origine et revient après la relance ; le choix d'IndexedDB tient aux raisons
+ci-dessus, pas à une panne de l'autre),
 et dans Chromium avec un profil persistant par `test:separation` (morceau de
 2 min 30, six pistes, rechargement, puis « Libérer la place »).
 
