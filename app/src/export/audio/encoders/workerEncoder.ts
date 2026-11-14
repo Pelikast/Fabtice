@@ -100,13 +100,13 @@ function encodeInWorker(
       } else if (m.type === 'out') {
         parts.push(m.bytes);
       } else if (m.type === 'done') {
-        // FLAC: the real first bytes (totals and checksum) replace the provisional ones.
-        if (m.head && parts[0]) {
-          const first = parts[0];
-          const fixed = new Uint8Array(Math.max(first.length, m.head.length));
-          fixed.set(first);
-          fixed.set(m.head);
-          parts[0] = fixed;
+        // The bytes only known at the end (FLAC totals and checksum, mp3 Info frame) replace the provisional ones.
+        const piece = m.patch ? parts[m.patch.part] : undefined;
+        if (m.patch && piece) {
+          const fixed = new Uint8Array(Math.max(piece.length, m.patch.bytes.length));
+          fixed.set(piece);
+          fixed.set(m.patch.bytes);
+          parts[m.patch.part] = fixed;
         }
         onProgress?.(1);
         end(() => resolve(new Blob(parts, { type: spec.mimeType })));

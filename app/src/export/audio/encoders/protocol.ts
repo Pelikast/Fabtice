@@ -45,7 +45,11 @@ export type FromWorker =
   | { type: 'ack'; index: number }
   /** Encoded bytes, in order. */
   | { type: 'out'; bytes: Uint8Array<ArrayBuffer> }
-  /** The end; `head` (FLAC): the first bytes of the file as they must finally be (totals and checksum known only now). */
-  | { type: 'done'; head: Uint8Array<ArrayBuffer> | null }
+  /**
+   * The end. `patch`: bytes known only now (FLAC: totals and checksum in the
+   * header; mp3: the Info frame) that replace the first bytes of the `part`-th
+   * piece sent as `out`.
+   */
+  | { type: 'done'; patch: { part: number; bytes: Uint8Array<ArrayBuffer> } | null }
   /** `load`: the encoder could not be started (wasm missing, refused); `encode`: it failed on the audio. */
   | { type: 'error'; where: 'load' | 'encode'; message: string };

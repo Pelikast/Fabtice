@@ -6,6 +6,7 @@
 // which gives the WebAssembly memory back.
 
 import { id3Title } from './id3';
+import { frameBytes, mp3InfoFrame } from './mp3Info';
 import { FLAC_LEVEL, MP3_BITRATE } from './settings';
 import type { FromWorker, StartMessage, ToWorker } from './protocol';
 
@@ -14,14 +15,16 @@ const post = (m: FromWorker, transfer?: Transferable[]) => (self as unknown as W
 interface Sink {
   /** Encodes one block (Float32 channels, as many as the file has). */
   block(channels: Float32Array[]): void;
-  /** Ends the file; returns the bytes to write over its start, if any. */
-  finish(): Uint8Array<ArrayBuffer> | null;
+  /** Ends the file; returns the bytes to write over a piece already sent, if any. */
+  finish(): { part: number; bytes: Uint8Array<ArrayBuffer> } | null;
   free(): void;
 }
 
 /** Copies out of WebAssembly memory (the encoder reuses its output buffer) and sends. */
+let piecesSent = 0;
 function send(bytes: Uint8Array): void {
   if (bytes.length === 0) return;
+  piecesSent++;
   const copy = new Uint8Array(bytes.length);
   copy.set(bytes);
   post({ type: 'out', bytes: copy }, [copy.buffer]);
@@ -34,11 +37,21 @@ async function openMp3(msg: StartMessage): Promise<Sink> {
   const encoder = await createEncoder('audio/mpeg', wasm);
   encoder.configure({ channels: msg.channels, sampleRate: msg.sampleRate, bitrate: MP3_BITRATE, outputSampleRate: msg.sampleRate as 48000 });
   send(id3Title(msg.title));
+  // The Info frame comes before the audio and says how many frames there are: a blank frame goes first, filled in at the end.
+  const size = frameBytes(MP3_BITRATE, msg.sampleRate);
+  const infoPart = piecesSent;
+  send(new Uint8Array(size));
+  let audioBytes = 0;
+  const audio = (bytes: Uint8Array) => {
+    audioBytes += bytes.length;
+    send(bytes);
+  };
   return {
-    block: (channels) => send(encoder.encode(channels)),
+    block: (channels) => audio(encoder.encode(channels)),
     finish: () => {
-      send(encoder.finalize());
-      return null;
+      audio(encoder.finalize());
+      const info = mp3InfoFrame({ kbps: MP3_BITRATE, sampleRate: msg.sampleRate, channels: msg.channels, audioFrames: audioBytes / size, samples: msg.frames });
+      return { part: infoPart, bytes: info };
     },
     free: () => undefined,
   };
@@ -60,7 +73,7 @@ async function openFlac(msg: StartMessage): Promise<Sink> {
     finish: () => {
       send(encoder.flush());
       const head = encoder.head?.() ?? null;
-      return head ? new Uint8Array(head) : null;
+      return head ? { part: 0, bytes: new Uint8Array(head) } : null;
     },
     free: () => encoder.free(),
   };
@@ -101,10 +114,10 @@ self.onmessage = async (event: MessageEvent<ToWorker>) => {
       post({ type: 'ack', index: msg.index });
     } else if (msg.type === 'finish') {
       if (!sink) throw new Error('finish before start');
-      const head = sink.finish();
+      const patch = sink.finish();
       sink.free();
       sink = null;
-      post({ type: 'done', head });
+      post({ type: 'done', patch });
     }
   } catch (e) {
     post({ type: 'error', where: msg.type === 'start' ? 'load' : 'encode', message: e instanceof Error ? e.message : String(e) });
