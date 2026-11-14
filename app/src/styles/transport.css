@@ -182,3 +182,9 @@ button.valeur:hover:not(:disabled), button.valeur[aria-expanded="true"] { backgr
 .panneau-accord input[type="range"] { width: 100%; height: 28px; margin: 6px 0 8px; }
 .remise { display: flex; justify-content: flex-start; padding-top: 8px; border-top: 1px solid var(--trait-fin); }
 .remise .lien { min-height: 32px; font-size: 13.5px; }
+
+/* The recording's tuning, measured by the analysis, and the offer to compensate it. */
+.accordage { margin: 0 0 8px; padding-top: 10px; border-top: 1px solid var(--trait-fin); }
+.accordage .panneau-note { margin: 0 0 8px; }
+.accordage-offre { display: flex; flex-direction: column; align-items: stretch; gap: 6px; }
+.accordage-offre .lien { align-self: flex-start; min-height: 30px; font-size: 13.5px; }

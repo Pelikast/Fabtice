@@ -25,3 +25,15 @@
   margin-left: 0.06em;
   color: var(--encre-douce);
 }
+
+/* Lot 2 additions, in the same spirit. */
+/* Slash bass, at the size of the quality. */
+.ch-basse { font-size: 0.74em; font-weight: 470; margin-left: 0.06em; }
+/* « N.C. »: no chord. */
+.ch.sans-accord .q { color: var(--encre-douce); margin-left: 0; }
+/* A doubtful chord stays quiet: softer ink and a dotted rule under it (never the ember). */
+.ch.douteux {
+  color: var(--encre-douce);
+  padding-bottom: 0.04em;
+  border-bottom: 1.5px dotted var(--encre-pale);
+}

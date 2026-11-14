@@ -36,7 +36,8 @@ export interface KeyInForce {
 export function keyInForce(s: Pick<AppState, 'analysis' | 'corrections'>): KeyInForce {
   if (s.corrections.key) return { key: s.corrections.key, origin: 'manual', confidence: null };
   const k = s.analysis?.key;
-  if (k) return { key: { tonic: k.tonic, mode: k.mode }, origin: 'analysis', confidence: k.confidence };
+  // The stored object itself (an `AnalysedKey` is a `Key`): stable for React selectors.
+  if (k) return { key: k, origin: 'analysis', confidence: k.confidence };
   return { key: null, origin: 'none', confidence: null };
 }
 

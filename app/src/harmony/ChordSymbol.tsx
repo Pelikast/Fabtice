@@ -17,7 +17,7 @@ import { displayChord, displayChordText, type DisplayContext } from './display';
 import { FLAT, SHARP, type NoteName } from './pitch';
 
 /** Wraps every ♭ and ♯ of `text` in `.alt`, as the mockup's `accidentals()`. */
-function withAccidentals(text: string): ReactNode {
+export function withAccidentals(text: string): ReactNode {
   const parts = text.split(/([♭♯])/);
   if (parts.length === 1) return text;
   return parts.map((p, i) =>
