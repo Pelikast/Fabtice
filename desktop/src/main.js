@@ -52,6 +52,27 @@ function rememberImport(entry) {
   fsp.writeFile(path.join(app.getPath('userData'), LAST_IMPORT_FILE), JSON.stringify(entry)).catch(() => {});
 }
 
+// The measurement report of the last real separation, as text, handed over by the interface
+// (`app/src/separation/report.ts`: no personal data in it) and kept like the import report, so
+// that it reaches the diagnostic report even after a restart.
+let lastSeparation = null;
+const LAST_SEPARATION_FILE = 'last-separation-report.json';
+const SEPARATION_REPORT_MAX = 20000;
+
+function rememberSeparation(text) {
+  lastSeparation = { at: new Date().toISOString(), text };
+  fsp.writeFile(path.join(app.getPath('userData'), LAST_SEPARATION_FILE), JSON.stringify(lastSeparation)).catch(() => {});
+}
+
+async function readLastSeparation() {
+  try {
+    const entry = JSON.parse(await fsp.readFile(path.join(app.getPath('userData'), LAST_SEPARATION_FILE), 'utf8'));
+    return entry && typeof entry.at === 'string' && typeof entry.text === 'string' ? entry : null;
+  } catch {
+    return null;
+  }
+}
+
 async function readLastImport() {
   try {
     const entry = JSON.parse(await fsp.readFile(path.join(app.getPath('userData'), LAST_IMPORT_FILE), 'utf8'));
@@ -210,6 +231,20 @@ function registerIpc() {
     const entry = lastImport || (await readLastImport());
     if (!entry) return { available: false, text: 'Aucun import n’a encore été fait depuis l’interface.' };
     return { available: true, at: entry.at, text: formatImportReport(entry) };
+  });
+
+  // The interface hands over the report of each real separation; the diagnostic window shows it.
+  handle('fabtice:separation-report', async (event, text) => {
+    if (!event.senderFrame.url.startsWith(`${fabticeProtocol.SCHEME}://${fabticeProtocol.HOST_APP}/`)) throw new Error('unexpected sender');
+    if (typeof text !== 'string' || text.length === 0 || text.length > SEPARATION_REPORT_MAX) throw new Error('invalid report');
+    rememberSeparation(redact(text));
+    return true;
+  });
+
+  handle('fabtice:last-separation-report', async () => {
+    const entry = lastSeparation || (await readLastSeparation());
+    if (!entry) return { available: false, text: 'Aucune séparation n’a encore été faite dans cette app.' };
+    return { available: true, at: entry.at, text: entry.text };
   });
 
   // « Ouvrir dans iReal Pro »: an irealb:// link (and nothing else, see ireal-link.js) goes to the system, which

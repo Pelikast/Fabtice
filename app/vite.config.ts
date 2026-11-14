@@ -20,6 +20,9 @@ const ORT_LICENCE = 'LICENSE-onnxruntime-web.txt';
 // WebAssembly files (served by the app itself, see the worker) instead of
 // embedding them or fetching them from a CDN.
 const ORT_WASM_ENTRY = path.resolve(here, 'node_modules/onnxruntime-web/dist/ort.wasm.min.mjs');
+// The same, with WebGPU, for the separation on the graphics chip (its own WebAssembly binary, also served
+// by the app); loaded by the separation worker only when a separation runs there.
+const ORT_WEBGPU_ENTRY = path.resolve(here, 'node_modules/onnxruntime-web/dist/ort.webgpu.min.mjs');
 // Fonts worth preloading: needed by the first paint of the shell.
 const PRELOADED_FONTS = /^(fraunces-latin-full-normal|instrument-sans-latin-wght-normal|noto-music-music-400-normal)-.*\.woff2$/;
 
@@ -79,13 +82,16 @@ export default defineConfig(({ mode }) => ({
   publicDir: false,
   plugins: [react(), fabticeOutput(mode)],
   resolve: {
-    alias: [{ find: /^onnxruntime-web\/wasm$/, replacement: ORT_WASM_ENTRY }],
+    alias: [
+      { find: /^onnxruntime-web\/wasm$/, replacement: ORT_WASM_ENTRY },
+      { find: /^onnxruntime-web\/webgpu$/, replacement: ORT_WEBGPU_ENTRY },
+    ],
   },
-  // The analysis worker is an ES module worker (it imports ONNX Runtime and the app's own modules).
+  // The analysis and separation workers are ES module workers (they import ONNX Runtime and the app's own modules).
   worker: { format: 'es' },
   // Found only inside the worker, ONNX Runtime would be pre-bundled by the dev server on first use,
   // which reloads the page once: say so up front.
-  optimizeDeps: { include: ['onnxruntime-web/wasm'] },
+  optimizeDeps: { include: ['onnxruntime-web/wasm', 'onnxruntime-web/webgpu'] },
   build: {
     outDir: mode === 'desktop' ? DESKTOP_OUT : WEB_OUT,
     emptyOutDir: mode === 'desktop',

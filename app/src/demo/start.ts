@@ -24,7 +24,9 @@ import { audioSeconds, getAudio, registryBytes, type DecodedAudio } from '../aud
 import { exportWithApp, planAudioExport } from '../export/audio';
 import * as renderController from '../render/controller';
 import { setDevice } from '../separation/device';
+import { getSeparator } from '../separation';
 import { getModelList } from '../separation/models';
+import { separationReportFor } from '../separation/report';
 import * as separationRunner from '../separation/runner';
 import { getProjectStorage } from '../storage';
 import * as exportActions from '../store/exportActions';
@@ -56,7 +58,7 @@ export const lot2Actions = { analysis: analysisActions, grid: gridActions, harmo
 
 /** Lot 3 handles for the browser checks (`?demo`, `?debug`). */
 export const lot3Handle = {
-  separation: { ...separationRunner, ...separationActions, models: getModelList },
+  separation: { ...separationRunner, ...separationActions, models: getModelList, separator: getSeparator, setDevice, report: separationReportFor },
   render: renderController,
   exportAudio: { ...exportActions, planAudioExport, exportWithApp },
   registry: { getAudio, registryBytes },

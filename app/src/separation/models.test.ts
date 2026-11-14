@@ -59,6 +59,12 @@ describe('the list of separation tools', () => {
     expect(bad.list.models).toHaveLength(3);
     const down = await loadModelList({ fetchFn: (async () => new Response('', { status: 404 })) as typeof fetch });
     expect(down).toMatchObject({ source: 'bundled', problem: 'HTTP 404' });
+    // Not JSON at all (a page of text where the list should be), or a list of another shape: the bundled one.
+    const garbled = await loadModelList({ fetchFn: (async () => new Response('<html>not here</html>')) as typeof fetch });
+    expect(garbled.source).toBe('bundled');
+    expect(garbled.list.models).toHaveLength(3);
+    const shape = await loadModelList({ fetchFn: (async () => new Response(JSON.stringify({ version: 1, updated: 'x', models: {} }))) as typeof fetch });
+    expect(shape.source).toBe('bundled');
     const offline = await loadModelList({ fetchFn: (async () => Promise.reject(new TypeError('network'))) as typeof fetch });
     expect(offline.source).toBe('bundled');
     const slow = await loadModelList({ timeoutMs: 20, fetchFn: ((_u: string, init: RequestInit) => new Promise((_r, reject) => init.signal!.addEventListener('abort', () => reject(new Error('aborted'))))) as unknown as typeof fetch });

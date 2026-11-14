@@ -124,6 +124,21 @@
 .separation-actions .lien, .separation-place .lien { min-height: 36px; font-size: 13px; }
 .lien.discret { color: var(--encre-douce); text-decoration-color: var(--trait); }
 .separation-place .reprise-actions .bouton-cadre { width: auto; margin-top: 0; padding: 0 14px; }
+/* « Copier le rapport »: a quiet line under the room used; the text itself only if the copy failed. */
+.separation-rapport { margin-top: 6px; }
+.separation-rapport .lien { min-height: 36px; font-size: 13px; }
+.separation-rapport-texte {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  padding: 8px 10px;
+  font: 11.5px/1.45 var(--texte);
+  color: var(--encre);
+  background: var(--papier-clair);
+  border: 1px solid var(--trait);
+  border-radius: var(--rayon);
+  resize: vertical;
+}
 
 /* « Appliquer », in the transport: a box like the metronome's; once applied, a quiet line. */
 .appliquer, .applique {

@@ -61,16 +61,6 @@ async function quietly(work: () => Promise<unknown>): Promise<void> {
   }
 }
 
-function concat(parts: readonly ArrayBuffer[], total: number): ArrayBuffer {
-  const out = new Uint8Array(total);
-  let o = 0;
-  for (const p of parts) {
-    out.set(new Uint8Array(p), o);
-    o += p.byteLength;
-  }
-  return out.buffer;
-}
-
 function isAbort(e: unknown, signal?: AbortSignal): boolean {
   return !!signal?.aborted || (e instanceof AnalysisError && e.code === 'cancelled') || (e instanceof DOMException && e.name === 'AbortError');
 }
@@ -89,17 +79,32 @@ async function attempt(spec: ModelSpec, env: DownloadEnv, onBytes: (received: nu
   const { store, signal } = env;
   const fetchFn = env.fetchFn ?? fetch;
   const hash = env.sha256 ?? sha256Hex;
-  let parts: ArrayBuffer[] = [];
+  // The file is assembled in ONE buffer of its final size: the pieces kept for a resume are copied in and
+  // let go, the pieces received are written into it as they come (a large tool, 353 MB, is never held twice).
+  const whole = new Uint8Array(spec.bytes);
+  let have = 0;
+  let partIndex = 0;
   try {
-    parts = await store.readParts(spec.id);
+    const kept = await store.readParts(spec.id);
+    for (let i = 0; i < kept.length; i++) {
+      const p = kept[i]!;
+      if (have + p.byteLength > spec.bytes) {
+        have = -1;
+        break;
+      }
+      whole.set(new Uint8Array(p), have);
+      have += p.byteLength;
+      partIndex++;
+      (kept as (ArrayBuffer | null)[])[i] = null;
+    }
   } catch {
-    parts = [];
-  }
-  let have = parts.reduce((n, p) => n + p.byteLength, 0);
-  if (have > spec.bytes) {
-    await quietly(() => store.clearParts(spec.id));
-    parts = [];
     have = 0;
+    partIndex = 0;
+  }
+  if (have < 0) {
+    await quietly(() => store.clearParts(spec.id));
+    have = 0;
+    partIndex = 0;
   }
   let received = have;
   onBytes(received);
@@ -112,8 +117,8 @@ async function attempt(spec: ModelSpec, env: DownloadEnv, onBytes: (received: nu
       // The whole file, whatever was asked.
       if (have > 0) {
         await quietly(() => store.clearParts(spec.id));
-        parts = [];
         have = 0;
+        partIndex = 0;
         received = 0;
         onBytes(0);
       }
@@ -123,15 +128,12 @@ async function attempt(spec: ModelSpec, env: DownloadEnv, onBytes: (received: nu
     }
     if (!res.body) throw new Error('no body');
     const reader = res.body.getReader();
-    let pending: Uint8Array[] = [];
-    let pendingBytes = 0;
-    let partIndex = parts.length;
+    let pendingFrom = received;
     const flush = async () => {
-      if (!pendingBytes) return;
-      const buf = concat(pending.map((c) => c.buffer.slice(c.byteOffset, c.byteOffset + c.byteLength) as ArrayBuffer), pendingBytes);
-      parts.push(buf);
-      pending = [];
-      pendingBytes = 0;
+      const bytes = received - pendingFrom;
+      if (!bytes) return;
+      const buf = whole.slice(pendingFrom, received).buffer as ArrayBuffer;
+      pendingFrom = received;
       const index = partIndex++;
       await quietly(() => store.putPart(spec.id, index, buf));
     };
@@ -139,12 +141,11 @@ async function attempt(spec: ModelSpec, env: DownloadEnv, onBytes: (received: nu
       for (;;) {
         const { done, value } = await reader.read();
         if (done) break;
-        pending.push(value);
-        pendingBytes += value.byteLength;
+        if (received + value.byteLength > spec.bytes) throw new IntegrityError('more bytes than expected');
+        whole.set(value, received);
         received += value.byteLength;
-        if (received > spec.bytes) throw new IntegrityError('more bytes than expected');
         onBytes(received);
-        if (pendingBytes >= PART_BYTES) await flush();
+        if (received - pendingFrom >= PART_BYTES) await flush();
       }
     } catch (e) {
       // What was received is kept, so the next attempt resumes after it.
@@ -156,9 +157,8 @@ async function attempt(spec: ModelSpec, env: DownloadEnv, onBytes: (received: nu
   }
 
   if (received !== spec.bytes) throw new Error(`incomplete: ${received} of ${spec.bytes} bytes`);
-  const whole = concat(parts, spec.bytes);
-  if ((await hash(whole)) !== spec.sha256) throw new IntegrityError(`unexpected SHA-256 for ${spec.id}`);
-  return whole;
+  if ((await hash(whole.buffer)) !== spec.sha256) throw new IntegrityError(`unexpected SHA-256 for ${spec.id}`);
+  return whole.buffer;
 }
 
 /**

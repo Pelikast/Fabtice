@@ -13,6 +13,7 @@
 
 import type { PcmAudio } from '../audio/pcm';
 import type { SeparationBackend, StemId } from '../model/separation';
+import type { SeparationReport } from './report';
 
 // ---------------------------------------------------------------- the list of tools
 
@@ -161,6 +162,8 @@ export interface SeparationOutput {
   fellBack: boolean;
   /** Wall-clock seconds of the computation (download excluded). */
   computeSeconds: number;
+  /** The measurement report of a real separation (`separation/report.ts`); the stand-in gives none. */
+  report?: SeparationReport;
 }
 
 export type SeparationErrorCode =

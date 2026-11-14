@@ -70,7 +70,8 @@ test('every answer carries the isolation headers and the CSP', async () => {
 test('the policy lets the interface reach the model hosts, and nothing else', () => {
   const directives = Object.fromEntries(proto.CSP.split(';').map((d) => d.trim().split(/\s+/)).map(([name, ...values]) => [name, values]));
   // The download of the analysis tools: Hugging Face and its content network, in https only.
-  assert.deepEqual(directives['connect-src'], ["'self'", 'blob:', 'https://huggingface.co', 'https://*.cdn.hf.co']);
+  assert.deepEqual(directives['connect-src'], ["'self'", 'blob:', 'https://huggingface.co', 'https://*.cdn.hf.co', 'https://raw.githubusercontent.com']);
+  assert.deepEqual(proto.LIST_HOSTS, ['https://raw.githubusercontent.com']);
   assert.deepEqual(proto.MODEL_HOSTS, ['https://huggingface.co', 'https://*.cdn.hf.co']);
   // Nothing wider in what can load or run: scripts, workers and the rest are as before.
   assert.deepEqual(directives['default-src'], ["'none'"]);

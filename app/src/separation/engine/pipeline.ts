@@ -71,6 +71,8 @@ export interface PipelineOptions {
    * The arrays are the caller's (they may be transferred).
    */
   emit(offset: number, parts: Float32Array[][]): void | Promise<void>;
+  /** Before the first segment of this run: its index (> 0 when resuming) and how many the piece has. */
+  onStart?(first: number, count: number): void;
   onSegment?(done: SegmentDone): void;
   /** Throws to stop (cancellation); called between steps. */
   check?(): void;
@@ -327,6 +329,7 @@ export async function separatePiece(o: PipelineOptions): Promise<PipelineResult>
     return { j, l, r, p, out };
   };
   const times: number[] = [];
+  o.onStart?.(j0, n);
   let last = now();
   let pending: Started | null = start(j0);
   for (let j = j0; j < n; j++) {

@@ -50,11 +50,24 @@ function suite(name: string, make: () => ModelStore) {
       expect(await s.getFile('a')).toBeNull();
       expect(await s.readParts('b')).toEqual([]);
     });
+
+    it('lists the complete files and their size', async () => {
+      const s = make();
+      await s.putFile({ id: 'a', bytes: 3, sha256: 'x', data: buf(1, 2, 3) });
+      await s.putFile({ id: 'b', bytes: 1, sha256: 'y', data: buf(4) });
+      await s.putPart('c', 0, buf(1));
+      expect((await s.listFiles()).sort((p, q) => p.id.localeCompare(q.id))).toEqual([
+        { id: 'a', bytes: 3 },
+        { id: 'b', bytes: 1 },
+      ]);
+    });
   });
 }
 
 suite('the memory store', () => new MemoryModelStore());
 suite('the IndexedDB store', () => new IdbModelStore(new IDBFactory()));
+// The separation tools (up to 353 MB) are kept as Blobs: checked and listed without reading them back.
+suite('the IndexedDB store, files kept as Blobs', () => new IdbModelStore(new IDBFactory(), 'blobs', { blobs: true }));
 
 describe('the IndexedDB store, across page loads', () => {
   it('finds again on the same database what an earlier instance kept', async () => {

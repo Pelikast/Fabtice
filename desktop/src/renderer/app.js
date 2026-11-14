@@ -14,6 +14,7 @@ const state = {
   webgpu: null,
   attempts: [], // network attempts of the yt-dlp manager
   installError: null,
+  separation: null, // { available, at, text }: the report of the last real separation (from the interface)
 };
 
 function fmtTime(seconds) {
@@ -454,6 +455,10 @@ function diagnosticsText() {
   }
 
   L.push('');
+  L.push('--- Dernière séparation ---');
+  L.push(state.separation ? state.separation.text : 'En cours…');
+
+  L.push('');
   L.push('--- WebGPU ---');
   const g = state.webgpu;
   if (!g) {
@@ -505,6 +510,16 @@ async function copyImportReport() {
   }
 }
 
+// The report of the last real separation, handed over by the interface: part of the diagnostic.
+async function refreshSeparation() {
+  try {
+    state.separation = typeof fabtice.lastSeparationReport === 'function' ? await fabtice.lastSeparationReport() : { available: false, text: 'Non disponible.' };
+  } catch (e) {
+    state.separation = { available: false, text: `Illisible : ${e.message}` };
+  }
+  renderDiagnostics();
+}
+
 // ---------------------------------------------------------------- start
 
 $('copy-report').addEventListener('click', copyImportReport);
@@ -523,6 +538,6 @@ $('position').addEventListener('change', () => {
   requestAnimationFrame(tick);
   state.system = await fabtice.systemInfo();
   renderDiagnostics();
-  await Promise.all([refreshYtdlp().then(() => refreshUpdate()), probeWebGpu().then(renderDiagnostics)]);
+  await Promise.all([refreshYtdlp().then(() => refreshUpdate()), probeWebGpu().then(renderDiagnostics), refreshSeparation()]);
   document.body.dataset.ready = 'true';
 })();

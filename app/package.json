@@ -23,6 +23,7 @@
     "test:export": "node tests/export.mjs",
     "test:analysis": "node tests/analysis.mjs",
     "test:separation": "node tests/separation.mjs",
+    "test:separation-real": "node tests/separation-real.mjs",
     "test:memory": "node tests/memory.mjs"
   },
   "dependencies": {
