@@ -3,7 +3,7 @@ import { demoAnalysis, demoCorrections } from '../demo/demoAnalysis';
 import { demoTempoMap } from '../demo/demoProject';
 import { emptyCorrections } from '../model/corrections';
 import { initialState, type AppState } from '../store/store';
-import { chartForExport, ExportNotReadyError, exportToIRealPro, IREAL_EXPORT_READY } from './index';
+import { chartForExport, exportToIRealPro, IREAL_EXPORT_READY } from './index';
 
 function demoState(patch: Partial<AppState> = {}): AppState {
   const map = demoTempoMap('variable');
@@ -50,8 +50,8 @@ describe('the chart ready for export', () => {
     expect(chartForExport(initialState())).toBeNull();
   });
 
-  it('the iReal Pro encoding is not written yet, and says so', () => {
-    expect(IREAL_EXPORT_READY).toBe(false);
-    expect(() => exportToIRealPro(chartForExport(demoState())!)).toThrow(ExportNotReadyError);
+  it('the iReal Pro encoding is written (see ireal.test.ts)', () => {
+    expect(IREAL_EXPORT_READY).toBe(true);
+    expect(exportToIRealPro(chartForExport(demoState())!).url).toMatch(/^irealb:\/\//);
   });
 });
