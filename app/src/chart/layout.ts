@@ -182,3 +182,16 @@ export function barProgress(map: TempoMap, time: Seconds): { bar: number; progre
 export function timeOfBeatInBar(map: TempoMap, bar: number, beatInBar: number): Seconds {
   return beatToTime(map, barToBeat(map, bar) + beatInBar);
 }
+
+/**
+ * The chord going on at the start of bar `bar` (the last one written before
+ * it); undefined when none, null when the last one is « N.C. ».
+ */
+export function chordGoingOn(bars: readonly ChartBar[], bar: number): ChordSymbol | null | undefined {
+  let going: ChordSymbol | null | undefined;
+  for (const b of bars) {
+    if (b.bar >= bar) break;
+    if (b.chords.length) going = b.chords[b.chords.length - 1]!.chord;
+  }
+  return going;
+}

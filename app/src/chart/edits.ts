@@ -83,6 +83,18 @@ export function withBarChords(c: Corrections, map: TempoMap, bar: number, entrie
   return { ...c, chords, handSpans: addSpan(c.handSpans, span) };
 }
 
+/** True when the user rewrote bar `bar` by hand (it can be given back to the analysis). */
+export function hasBarEdit(c: Corrections, map: TempoMap, bar: number): boolean {
+  const span = barSpan(map, bar);
+  return c.handSpans.some((s) => s.end > span.start + EPS && s.start < span.end - EPS);
+}
+
+/** What is left of a bar's chords when it holds a single chord: the chosen one, on the bar line. */
+export function mergedEntries(entries: readonly BarEntry[], keep: number): BarEntry[] {
+  const kept = entries[Math.min(Math.max(keep, 0), entries.length - 1)];
+  return kept ? [{ beatInBar: 0, chord: kept.chord }] : [];
+}
+
 /** The entries of a bar as shown now (to edit from what the user sees). */
 export function entriesOf(chords: readonly BarChord[]): BarEntry[] {
   return chords.map((c) => ({ beatInBar: c.beatInBar, chord: c.chord }));

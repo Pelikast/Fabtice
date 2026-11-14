@@ -4,9 +4,11 @@
 // concert pitch, original key (the chart editor un-transposes what the user
 // typed with `untransposeForStorage`).
 
-import { entriesOf, splitBeat, withBarChords, withoutBarEdit, withSection, type BarEntry } from '../chart/edits';
+import { entriesOf, mergedEntries, splitBeat, withBarChords, withoutBarEdit, withSection, type BarEntry } from '../chart/edits';
+import { chordGoingOn } from '../chart/layout';
 import { transposeChord } from '../harmony/chord';
-import { sameKey } from '../harmony/key';
+import { sameKey, transposeKey } from '../harmony/key';
+import { parseChord } from '../harmony/parse';
 import type { ChordSymbol, Instrument, Key } from '../model/harmony';
 import { emptyCorrections, type Corrections } from '../model/corrections';
 import { clampCents } from './derived';
@@ -26,6 +28,11 @@ function edit(fn: (c: Corrections, s: AppState) => Corrections): void {
 /** A chord typed as displayed (transposed, for the chosen instrument) brought back to concert pitch in the original key. */
 export function untransposeForStorage(chord: ChordSymbol, s: AppState = get()): ChordSymbol {
   return transposeChord(chord, -selectDisplayContext(s).shift);
+}
+
+/** A key chosen as displayed (transposed, instrument applied) brought back to the original key. */
+export function untransposeKeyForStorage(key: Key, s: AppState = get()): Key {
+  return transposeKey(key, -selectDisplayContext(s).shift);
 }
 
 // ---------------------------------------------------------------- chords
@@ -48,6 +55,22 @@ export function replaceChord(bar: number, index: number, chord: ChordSymbol | nu
     return;
   }
   setBarChords(bar, entries.map((e, i) => (i === index ? { ...e, chord } : e)));
+}
+
+/** Like `replaceChord`, for a chord as the user sees it (transposed, instrument applied): stored back at concert pitch. */
+export function replaceDisplayedChord(bar: number, index: number, chord: ChordSymbol | null): void {
+  replaceChord(bar, index, chord === null ? null : untransposeForStorage(chord));
+}
+
+/**
+ * Replaces a chord by what the user typed (« Bbm7 », « F7b9 », « C-7 », « N.C. »),
+ * read as displayed. False, and nothing changed, when the text is not a chord.
+ */
+export function writeChordText(bar: number, index: number, text: string): boolean {
+  const parsed = parseChord(text);
+  if (!parsed.ok) return false;
+  replaceDisplayedChord(bar, index, parsed.chord);
+  return true;
 }
 
 /**
@@ -75,6 +98,11 @@ export function removeChord(bar: number, index: number): void {
   setBarChords(bar, current(bar).filter((_, i) => i !== index));
 }
 
+/** The bar holds a single chord from now on: the `keep`-th one, on the bar line. */
+export function mergeBar(bar: number, keep = 0): void {
+  setBarChords(bar, mergedEntries(current(bar), keep));
+}
+
 /** The user checked bar `bar` and agrees: its chords become hand chords (no longer doubtful). */
 export function confirmBar(bar: number): void {
   setBarChords(bar, current(bar));
@@ -100,6 +128,11 @@ export function setKey(key: Key | null): void {
     const chosen = key && analysed && sameKey(key, analysed) ? null : key;
     return { ...c, key: chosen };
   });
+}
+
+/** Like `setKey`, for a key chosen as displayed (transposed, instrument applied). */
+export function setDisplayedKey(key: Key | null): void {
+  setKey(key === null ? null : untransposeKeyForStorage(key));
 }
 
 /** Corrects the measured distance from A = 440 Hz (cents); null goes back to the analysed value. */
@@ -140,10 +173,5 @@ export function resetHarmonyCorrections(): void {
 
 /** The chord going on at the start of bar `bar` (the last one before it), or undefined if none. */
 function chordGoingOnAt(s: AppState, bar: number): ChordSymbol | null | undefined {
-  let going: ChordSymbol | null | undefined;
-  for (const b of selectChartBars(s)) {
-    if (b.bar >= bar) break;
-    if (b.chords.length) going = b.chords[b.chords.length - 1]!.chord;
-  }
-  return going;
+  return chordGoingOn(selectChartBars(s), bar);
 }
