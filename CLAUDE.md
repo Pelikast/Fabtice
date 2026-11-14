@@ -49,18 +49,20 @@ aucune technique de contournement des protections de YouTube.
      le pas se choisit dans une liste (noires, croches, doubles-croches,
      triples-croches) et se combine avec un bouton « Triolets » (croches +
      triolets = triolets de croches, doubles + triolets = sextolets…).
-   - **Magnétisme** : la tête de lecture se cale sur la sous-grille active, ou
-     se place librement quand il est désactivé.
+   - **Magnétisme** : la tête de lecture et les bords d'une boucle se calent
+     sur la sous-grille active, ou se placent librement quand il est désactivé.
+     Une boucle n'est donc pas limitée à des mesures entières.
    - **Zoom** horizontal et vertical par deux curseurs, et bouton « Auto » qui
      ajuste les pistes à la fenêtre sans débordement.
    - **Réglage** : suivre ou non la tête de lecture pendant la lecture.
    - **Deux qualités de rendu.** En direct, tout changement de tonalité ou de
      tempo s'entend aussitôt avec le moteur léger (Signalsmith Stretch) : c'est
-     la prévisualisation. Un bouton « Appliquer » recalcule ensuite les pistes
-     avec le meilleur moteur (Rubber Band R3 « finer », trop lourd pour le
-     direct) dans des fichiers temporaires, derrière un court écran d'attente ;
-     le lecteur ne fait alors plus que lire ces fichiers. Tout nouveau
-     changement repasse en prévisualisation jusqu'au prochain « Appliquer ».
+     la prévisualisation. Un bouton « Appliquer meilleure qualité » recalcule
+     ensuite les pistes avec le meilleur moteur (Rubber Band R3 « finer », trop
+     lourd pour le direct), derrière un écran d'attente ; le lecteur ne fait
+     alors plus que lire ce rendu, gardé en mémoire et jamais sauvegardé (à la
+     réouverture il est à refaire). Tout nouveau changement repasse en
+     prévisualisation jusqu'à la prochaine application.
      La conservation du timbre (formants) n'est proposée que dans ce rendu
      appliqué : elle ne donne pas un bon résultat avec le moteur léger.
    - Le contexte audio est fixé à 48 kHz, quel que soit le réglage de la
@@ -74,6 +76,12 @@ aucune technique de contournement des protections de YouTube.
    chartes de jazz : triangle pour l'accord majeur 7, altérations serrées
    contre la fondamentale, extensions en exposant ; mineur noté « m » ou « – »
    au choix dans les réglages.
+   - **Deux accords dans une mesure** : chaque accord est écrit à la place de
+     son temps, comme dans le Real Book. Le second est donc au milieu de la
+     mesure (troisième temps), sauf s'il est détecté sur le deuxième ou le
+     quatrième temps.
+   - **Impression** depuis l'affichage Grille d'accords, avec les choix
+     habituels (portrait ou paysage, pleine page) et l'export en PDF.
    - **Deux affichages** se partagent la zone centrale, la barre du haut et
      le transport restant identiques : *Pistes* (formes d'onde) et *Grille
      d'accords* (façon iReal Pro). Boucle, tempo et tonalité se règlent de la
@@ -124,7 +132,30 @@ des estimations.
   Rubber Band R3 en direct sur sept pistes dépasse largement le budget.
 - **Import par lien, app Mac sur le M1** : quatre liens extraits sans erreur ;
   Chromium décode le fichier reçu sans conversion.
-- Le Mac Intel sous Monterey n'a encore rien testé.
+
+## Essais du propriétaire sur l'app Mac (lots 1 à 3)
+
+Relevés réels, sur ses deux Mac, avec la version publiée le 14 novembre 2026.
+
+- **Séparation, Mac Intel (quatre cœurs, 8 Go, carte graphique intégrée)** :
+  le choix automatique prend HTDemucs 6 sources et tourne sur la carte
+  graphique : 226 s pour un morceau de 269 s, soit 0,84 fois sa durée (4,8 s
+  par tranche, 46 tranches ; modèle téléchargé en 14 s). Qualité jugée
+  suffisante pour cet appareil.
+- **Séparation, MacBook M1 Pro** : BS-RoFormer SW sur la carte graphique :
+  715 s pour un morceau de 190 s, soit 3,8 fois sa durée (7,3 s par tranche de
+  2 s). Qualité jugée très bonne. Le propriétaire confirme que cette attente
+  ne le gêne pas : la qualité prime.
+- **Tempo et mesures** : parfaits sur un enregistrement récent de jazz
+  traditionnel. Sur un enregistrement de 1945, bons sur la première moitié,
+  puis une fausse variation de tempo pendant un solo de vents, et la grille
+  décalée d'un temps ensuite. Règle demandée par le propriétaire : ne pas
+  croire une variation brutale et brève ; l'accepter si le nouveau tempo dure.
+- **Accords** : la tonalité est bonne, mais environ un accord sur deux est
+  faux sur ses morceaux, certains manquent, extensions et renversements peu
+  fiables. C'est le point à améliorer en priorité dans l'analyse.
+- **Lecteur, boucle, tonalité, tempo, import par lien** : fonctionnent sur les
+  deux Mac.
 
 ## Conventions
 
