@@ -32,6 +32,7 @@
   .mode[aria-selected="true"]::after { left: 22%; right: 22%; bottom: 0; }
   .reglages-app { top: 48px; right: 10px; }
   .lien-option { display: flex; }
+  .export-tel { display: block; }
 
   .rang-tete { padding: 0 8px; font-size: 9.5px; letter-spacing: 0.06em; }
   .rang-tete .chevron { display: none; }
@@ -55,11 +56,33 @@
   .feuille-tete h1 { font-size: 24px; }
   .grille-vide span { height: 76px; }
   .feuille-infos { width: 100%; justify-content: space-between; gap: 8px; }
-  .feuille-tete p { white-space: normal; }
+  .feuille-infos p { white-space: normal; }
   .case { height: 76px; padding: 12px 2px 0 8px; font-size: 21px; gap: 8px; }
   .case.deux { font-size: 15px; gap: 5px; }
   .case.trois { font-size: 12.5px; gap: 4px; }
   .case .section { left: 5px; top: 4px; }
+  /* The chord editor is a sheet from the bottom of the screen. */
+  .editeur {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: auto;
+    max-width: none;
+    max-height: 78dvh;
+    overflow-y: auto;
+    padding: 6px 14px calc(16px + env(safe-area-inset-bottom));
+    border-radius: var(--rayon-fenetre) var(--rayon-fenetre) 0 0;
+    border-bottom: 0;
+  }
+  .editeur-notes, .editeur-extensions { gap: 5px; }
+  /* Touch targets of 40 px (DESIGN.md). */
+  .editeur .puce, .editeur-actions .bouton-cadre, .editeur-accords button, .editeur-plus, .editeur-basse select { min-height: 40px; }
+  .editeur-section-champs .lien-encre { min-height: 40px; }
+  .cle-editeur { left: 0; width: min(320px, calc(100vw - 24px)); }
+  .accord-case { min-height: 40px; margin: 0 -3px; padding: 0 3px; }
+  .accord-case[style] { margin-left: calc(var(--debut) * 88% - 3px); }
+  .accord-case.libre { min-width: 36px; height: 48px; }
   .case .numero { top: 4px; right: 5px; }
   .analyse-bouton { padding: 4px 6px; font-size: 12px; }
   .panneau-analyse { position: fixed; top: 50px; left: 10px; right: 10px; width: auto; }

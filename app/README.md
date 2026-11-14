@@ -27,7 +27,7 @@ le stockage.
 | `npm run test:timeline` | après `build` : vérifications de la frise dans Chromium (formes d'onde, grille, boucle, défilement, zoom, suivi, téléphone, morceau de dix minutes) |
 | `npm run test:export` | après `build` : le menu « Exporter », le fichier iReal Pro téléchargé par le navigateur, et son lien relu (par un lecteur écrit dans le test) et comparé aux accords de la grille, avec une transposition et un instrument réglés, un accord tapé à la main, une analyse qui se termine |
 | `npm run test:engine` | après `build` (et, en option, `build:desktop`) : mesures du vrai moteur audio dans Chromium (tonalité, tempo, boucle, métronome, limiteur, charge) |
-| `npm run test:chart` | après `build` : la grille d'accords comparée à la maquette (même balisage des accords, mêmes tailles, sections, boucle, mesure en cours, instruments, états vides et « analyse en cours », téléphone), panneaux de corrections et d'accordage ; captures de l'app et de la maquette côte à côte dans `FABTICE_CHART_OUT` |
+| `npm run test:chart` | après `build` : la grille d'accords comparée à la maquette (même balisage des accords, mêmes tailles, sections, boucle, mesure en cours, instruments, états vide et « analyse en cours », téléphone), puis les gestes (clic, glisser, suivi), l'éditeur d'accord, la tonalité, les sections, le clavier, l'autosauvegarde (rechargement d'un morceau gardé), le toucher réel sur téléphone (390 × 844) et l'impression (feuille de style d'impression, PDF A4 et Letter lus avec `pdftotext`, sauts de page) ; panneaux de corrections et d'accordage ; captures de l'app, de la maquette et des pages imprimées dans `FABTICE_CHART_OUT` (`pdftotext`, `pdfinfo` et `pdftoppm` de poppler sont nécessaires pour la partie impression) |
 
 Les fichiers audio de test de `test:import` sont dans `tests/fixtures/` (quelques
 dizaines de ko, tons synthétiques ; `make_fixtures.py` dit comment ils sont faits ;
@@ -77,9 +77,12 @@ src/
   analysis/           contrat de l'analyseur, analyseur factice, lancement
                       automatique et état (runner.ts), progression fine
   chart/              affichage Grille d'accords : mise en page pure (layout.ts),
-                      corrections pures (edits.ts), feuille, mesure en cours
+                      corrections pures (edits.ts), gestes (gesture.ts, hit.ts,
+                      useChartGestures.ts), éditeur (editor.ts, ChordEditor.tsx,
+                      KeyEditor.tsx), clavier (stops.ts), suivi (useFollowLine.ts),
+                      impression (print.ts), feuille et mesure en cours
   export/             représentation de la grille pour l'export, codage iReal Pro
-                      (IREAL-FORMAT.md : le format et ses sources), impression
+                      (IREAL-FORMAT.md : le format et ses sources)
   store/              état de l'app (store.ts), actions (actions.ts), valeurs
                       dérivées (derived.ts), préférences, document de projet
   audio/              contrat du moteur (AudioEngine.ts), vrai moteur
@@ -210,12 +213,10 @@ d'analyse abîmé ou d'une version inconnue est **abandonné** (il se recalcule)
 un morceau n'est jamais perdu pour lui ; les corrections, elles, doivent se
 relire exactement, sinon le document est `corrupt`.
 
-**À brancher à la fusion** : l'autosauvegarde (`storage/keeper.ts`, fonction
-`changed`) ne connaît pas encore `analysis` ni `corrections`. Elle doit utiliser
-`store/document.ts#documentChanged`, qui donne la liste complète ; sinon une
-correction d'accord, de tonalité ou de section n'est gardée qu'au prochain autre
-changement (le résultat d'une analyse, lui, part avec le changement de grille
-qui l'accompagne).
+**Autosauvegarde** : `storage/keeper.ts` utilise `store/document.ts#documentChanged`,
+qui donne la liste complète (analyse et corrections comprises) : une correction
+d'accord, de tonalité ou de section est gardée comme le reste. `test:chart`
+le vérifie (correction, rechargement, correction retrouvée).
 
 ## Contrats pour la suite
 
@@ -261,31 +262,125 @@ chantiers suivent, chacun dans son dossier.
 
 #### Grille d'accords — `src/chart/`
 
-- **Ce qui existe** : la mise en page pure et testée (`chart/layout.ts` :
-  accords en vigueur, mesures, répétition « 𝄎 », sections et doubles barres,
-  lignes de quatre mesures, ligne de levée, boucle, mesure en cours) ; les
-  corrections pures (`chart/edits.ts`) ; la feuille en lecture seule
-  (`chart/ChartSheet.tsx`, fidèle à la maquette : `.feuille`, `.grille`, `.case`,
-  `.section`, `.numero`, `.deux`, `.double`, `.dans-boucle`, `.jouee`) avec
-  l'en-tête (titre, tonalité affichée, métrique, tempo) et le choix Ut / Si♭ /
-  Mi♭ ; le filet braise de la mesure en cours, mené par la boucle d'animation
-  (`chart/usePlayheadBar.ts`, jamais par React) ; les états vide, « analyse en
-  cours », échec, aucun accord ; le téléphone.
-- **Coutures** : chaque mesure porte `data-mesure` (indice) et chaque accord
-  `data-accord` (rang dans la mesure) et `data-origine` (`analysis` ou `manual`) ;
-  `ChartGrid` accepte `onBarPointerDown` et `onChordClick` (non branchés) ; un
-  accord qui ne commence pas sur la barre reçoit `--debut` (fraction de la mesure).
-- **Reste à faire** : les gestes (clic sur une mesure = `seek` au début de la
-  mesure, glisser sur des mesures = `setLoopRegion(loopFromBars(…))` puis
-  `enterLoop()`, comme dans la frise ; les cases deviennent alors des boutons) ;
-  l'éditeur d'accord au clic (champ lu par `parseChord`, propositions tirées de
-  `alternatives`, `replaceChord` / `splitBar` / `removeChord` / `confirmBar` /
-  `resetBar`, accord tapé tel qu'affiché puis `untransposeForStorage`) ; la pose
-  des lettres de section (`setSection`) ; la correction de la tonalité (menu des
-  24 tonalités : `allKeys`, `keyNameFr`, `setKey`) ; l'impression
-  (`export/index.ts#printChart`, styles d'impression, puis `PRINT_READY = true`) ;
-  suivre la mesure en cours en lecture (défilement, réglage « Suivre ») ; les
-  entrées « Exporter » dans le menu du téléphone.
+Tout est en place : la feuille fidèle à la maquette, et ce qu'un musicien fait
+dessus. Les parties pures sont testées dans Node (Vitest), le reste dans
+Chromium (`npm run test:chart`).
+
+**Fichiers.**
+
+| Fichier | Rôle |
+|---|---|
+| `layout.ts`, `edits.ts` | mise en page et corrections pures (accords en vigueur, mesures, répétition « 𝄎 », sections et doubles barres, lignes de quatre mesures ; réécriture d'une mesure entière, retour à l'analyse, `hasBarEdit`, `mergedEntries`) |
+| `ChartSheet.tsx` | la feuille : en-tête (titre, tonalité, métrique, tempo, choix Ut / Si♭ / Mi♭) et états vide, « analyse en cours », échec, aucun accord |
+| `ChartGrid.tsx` | les mesures et tout ce qui se fait dessus : gestes, clavier, suivi, éditeur |
+| `gesture.ts` | les gestes de la souris et du doigt comme une petite machine à états pure (clic, glisser, appui long) |
+| `hit.ts` | quelle mesure est sous un point, même dans l'espace entre deux lignes ou au-delà de la dernière ; sélection d'une mesure à l'autre, dans les deux sens |
+| `useChartGestures.ts` | branche les événements du pointeur sur `gesture.ts` et en applique les effets (`seek`, `setLoopRegion(loopFromBars(…))`, `enterLoop()`) ; défilement automatique en bord de feuille pendant un glisser |
+| `stops.ts` | les arrêts du clavier (chaque accord, et la zone d'accord d'une mesure sans accord) et les déplacements aux flèches |
+| `editor.ts`, `ChordEditor.tsx` | l'état de l'éditeur, ce qu'un clic change à un accord (`patchChord`), la fenêtre elle-même |
+| `KeyEditor.tsx` | la correction de la tonalité depuis « Tonalité de … » |
+| `useFollowLine.ts` | « Suivre la tête de lecture » sur la feuille |
+| `print.ts`, `../styles/print.css` | « Imprimer la grille » |
+
+**Gestes** (comme dans la frise des pistes) :
+
+| Geste | Effet |
+|---|---|
+| clic sur une mesure (hors accord) | `seek()` au début de la mesure |
+| clic sur un accord, ou sur la zone d'accord d'une mesure vide ou en répétition | ouvre l'éditeur d'accord ; la tête de lecture ne bouge pas |
+| clic sur la lettre d'une section | ouvre l'éditeur sur le champ de la section |
+| glisser à la souris sur des mesures (dans les deux sens, d'une ligne à l'autre ; on peut commencer sur un accord) | sélection en direct : `setLoopRegion(loopFromBars(…))` ; au relâchement `enterLoop()` ; la feuille défile seule quand on approche son bord haut ou bas |
+| doigt : un tapotement | comme le clic (mesure : tête de lecture ; accord : éditeur) |
+| doigt : glisser | fait défiler la feuille (le navigateur) ; rien n'est sélectionné |
+| doigt : **appui long (0,42 s) puis glisser** | sélectionne : l'appui long prend la mesure sous le doigt (le voile de laiton dit que c'est pris), glisser prolonge, lever termine (`enterLoop()`) |
+| clavier : flèches, Début, Fin | passent d'accord en accord (haut et bas : même colonne, ligne voisine) ; un seul arrêt avec Tab pour toute la feuille |
+| clavier : Entrée | ouvre l'éditeur, curseur dans le champ de saisie |
+| clavier : une lettre A–G ou N | ouvre l'éditeur avec la lettre dans le champ ; on tape le symbole (`Bbm7`, `F7b9`, `C-7`, `Ebmaj7`, `N.C.`), Entrée l'applique, ferme l'éditeur et passe à l'accord suivant |
+| clavier : Échap | ferme l'éditeur ; le focus revient sur l'accord |
+
+*Pourquoi l'appui long pour sélectionner au doigt.* Au doigt, glisser doit faire
+défiler la feuille (c'est ce qu'on attend d'une page). Sélectionner par un
+simple glisser ferait boucler des mesures à chaque défilement. L'appui long
+est le geste que le système lui-même utilise pour « prendre » quelque chose ;
+un tapotement est trop court (moins de 0,42 s) et un défilement bouge avant
+(plus de 10 px) : aucun des deux ne peut le déclencher par erreur. Sur un
+écran tactile, une ligne d'aide sous le titre le dit (`.aide-doigt`, affichée
+seulement si `(pointer: coarse)`).
+
+**L'éditeur d'accord** (`ChordEditor.tsx`) : une petite fenêtre accrochée sous la
+mesure (au-dessus s'il n'y a pas de place ; la feuille défile pour garder la
+mesure et la fenêtre en vue), et sur téléphone (moins de 760 px) un panneau qui
+monte du bas de l'écran, la mesure restant visible au-dessus. Chaque choix
+s'applique aussitôt (pas de bouton « Valider »), par les actions de
+`store/harmonyActions.ts`. Champs, de haut en bas :
+
+- *Mesure N*, les onglets 1, 2… quand la mesure a plusieurs accords, l'accord
+  tel qu'écrit, la croix ;
+- si l'accord est douteux : « Fabtice hésite sur cet accord. », **« C'est le bon
+  accord »** (`confirmBar`) et, s'il y en a, « Ou peut-être : » avec les autres
+  lectures de l'analyse (`alternatives`) ;
+- « Taper un accord : B♭m7, F7♭9… » : champ lu par `parseChord` (en tonalité et
+  instrument **affichés**), `writeChordText` ; un symbole illisible reçoit une
+  phrase calme et rien ne change ;
+- **Note** : les douze notes, orthographiées pour la tonalité affichée ;
+- **Nature de l'accord** : les seize qualités du modèle, écrites comme sur la
+  grille (triangle pour le majeur 7, « m » ou « – » selon le réglage), sur la
+  note choisie ;
+- « Extension et basse » (replié) : les onze extensions (plusieurs possibles,
+  dans l'ordre d'une grille) et la note de basse ;
+- « Pas d'accord (N.C.) », « Deux accords dans la mesure » (`splitBar`) ou « Un
+  seul accord pour la mesure » (`mergeBar`, garde l'accord choisi), « Retirer
+  cet accord » (`removeChord`), « Revenir à l'analyse » (`resetBar`, seulement
+  pour une mesure écrite à la main) ;
+- **Lettre de section** : A, B, C, D, un nom libre (12 signes au plus : « Intro »,
+  « Solo »…), « Retirer la lettre » (`setSection`).
+
+Ce qui est tapé ou choisi est en tonalité et instrument **affichés** et gardé
+en Ut dans la tonalité d'origine (`untransposeForStorage`,
+`replaceDisplayedChord`, `setDisplayedKey`). Une mesure où l'accord continue
+(signe de répétition) s'ouvre sur l'accord qui continue ; le premier choix en
+fait un accord écrit. La mesure en cours de correction est cernée d'un filet
+d'encre (jamais la braise).
+
+**La tonalité** : le clic sur « Tonalité de … » ouvre une petite fenêtre
+(majeur / mineur, douze notes, `setDisplayedKey`) et, quand elle a été corrigée,
+« Revenir à la tonalité de l'analyse (…) » ; choisir à nouveau la tonalité
+trouvée n'est pas une correction.
+
+**Suivi** : `view.follow` est le réglage « Suivre la tête de lecture ». En
+lecture la feuille défile en douceur (380 ms, sans animation si
+`prefers-reduced-motion`) pour garder la ligne jouée et la suivante en vue
+(`followTarget`). Elle ne lutte jamais : molette, doigt, touches ou barre de
+défilement suspendent le suivi (et une grâce de 1,2 s), qui reprend quand la
+ligne jouée est de nouveau visible, à la lecture suivante ou après un
+déplacement fait sur la grille.
+
+**Impression** (`print.ts`, `styles/print.css`) : « Imprimer la grille » (menu
+« Exporter », et menu « ⋯ » du téléphone) passe à l'affichage Grille si besoin,
+attend la mise en page et les polices, appelle `window.print()` puis rend
+l'affichage à `afterprint`. La feuille d'impression ne laisse que `.feuille` :
+papier blanc, titre, tonalité telle qu'affichée (avec « pour instrument en
+Si♭ » hors Ut), métrique, tempo, lettres de section, accords dans la même
+typographie, quatre mesures par ligne, saut de page seulement entre deux
+lignes (`break-inside: avoid`) ; ni voile de boucle, ni filet de la mesure en
+cours, ni style « douteux », ni barre du haut, transport, éditeur. Le format du
+papier (A4 ou US Letter) est celui du navigateur : les marges sont dans
+`@page`, rien ne dépend de la taille. `test:chart` imprime en PDF (A4 et
+Letter), lit le texte, compte les pages et vérifie que chaque page tient des
+lignes entières. Le PDF liste deux fois ♭ et ♯ (ils sont tracés avec un contour,
+`.alt` dans `chords.css`) : c'est un effet de la couche de texte, pas du dessin.
+
+**Coutures encore utiles** : chaque mesure porte `data-mesure` (indice), chaque
+accord `data-accord` et `data-stop` (`mesure:rang`, -1 pour la zone d'accord
+d'une mesure sans accord) ; la boucle d'animation ne passe jamais par React
+(`usePlayheadBar`, `useFollowLine`).
+
+**Ce qui manque** : pas d'annulation d'une série de corrections (seulement
+« Revenir à l'analyse » mesure par mesure et `resetChordCorrections`) ; pas de
+copie d'une mesure ni de plusieurs mesures à la fois ; pas de poignées pour
+ajuster les bords de la boucle sur la grille (la frise des pistes les a) ; pas
+d'en-tête ni de numéro de page à l'impression ; une mesure de trois accords ou
+plus se corrige accord par accord (onglets) mais ne se découpe pas davantage.
 
 #### Frise du temps — `src/timeline/`
 
@@ -349,8 +444,10 @@ chantiers suivent, chacun dans son dossier.
 
 « Exporter » est un petit menu (`components/ExportMenu.tsx`) : « Grille pour
 iReal Pro » (un lien vers le fichier ; « Ouvrir dans iReal Pro » en plus dans l'app
-Mac) et « Imprimer la grille » (« bientôt »), l'audio visible mais inactif
-(lot 3). Le panneau « Tempo et mesures » (`components/GridPanel.tsx`) garde la
+Mac), « Imprimer la grille » (disponible, voir plus haut), l'audio visible mais
+inactif (lot 3). Sur téléphone la barre du haut n'a pas la place du menu : ses
+entrées sont reprises dans le menu « ⋯ » (`SettingsPopover`, `ExportItems`). Le
+panneau « Tempo et mesures » (`components/GridPanel.tsx`) garde la
 saisie du lot 1 et gagne : tempo ÷ 2 et × 2, premier temps un temps plus tôt ou
 plus tard (de part et d'autre de « Premier temps ici »), l'origine de la grille,
 « Revenir à l'analyse », « Analyser de nouveau ». Le panneau de l'accord fin

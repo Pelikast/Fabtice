@@ -1,22 +1,16 @@
 // « Grille d'accords »: the sheet, faithful to the mockup (`.vue-grille`,
 // `.feuille`, `.grille`, `.case`) and to DESIGN.md: four bars per line, ink
 // bar lines, boxed section letters, a double bar at section changes, the loop
-// as a brass veil, the current bar filled by an ember hairline (frame loop,
-// `usePlayheadBar`). Read-only for now.
+// as a brass veil, the current bar filled by an ember hairline.
 //
-// Seams for what comes next (see app/README.md, « Grille d'accords ») :
-//   - every bar cell carries `data-mesure` (bar index) and every chord
-//     `data-accord` (its index in the bar): gestures (click to seek, drag to
-//     loop, click a chord to edit) can be added on `.grille` by delegation;
-//   - `ChartGrid` takes `onBarPointerDown` / `onChordClick` props, unused here;
-//   - layout and edits are pure functions in `chart/layout.ts` and `chart/edits.ts`.
+// This file: the sheet, its title line (with the key correction and the
+// instrument choice) and the empty states. The bars and everything done on
+// them are in ChartGrid.tsx; the editors in ChordEditor.tsx and KeyEditor.tsx.
 
-import { useRef, type CSSProperties, type PointerEvent } from 'react';
-import { formatBarNumber } from '../grid/format';
+import { useRef } from 'react';
 import { nominalBpm } from '../grid/tempoMap';
-import { ChordSymbol, withAccidentals } from '../harmony/ChordSymbol';
+import { withAccidentals } from '../harmony/ChordSymbol';
 import { keyLabel } from '../harmony/key';
-import type { DisplayContext } from '../harmony/display';
 import { formatNumber, t } from '../i18n';
 import { INSTRUMENTS, type Instrument } from '../model/harmony';
 import { setViewMode } from '../store/actions';
@@ -26,8 +20,8 @@ import { isTempoKnown } from '../store/derived';
 import { useApp } from '../store/store';
 import { runAnalysis } from '../analysis/runner';
 import { AnalysisProgressNote } from '../components/AnalysisStatus';
-import { chartLines, loopBars, type ChartBar, type ChartLine } from './layout';
-import { usePlayheadBar } from './usePlayheadBar';
+import { ChartGrid } from './ChartGrid';
+import { KeyEditor } from './KeyEditor';
 
 const EMPTY_BARS = 8;
 
@@ -36,8 +30,9 @@ export function ChartSheet() {
   const status = useApp(selectAnalysisStatus);
   const bars = useApp(selectChartBars);
   const hasChords = bars.some((b) => b.chords.length > 0);
+  const scroller = useRef<HTMLDivElement>(null);
   return (
-    <div className="vue vue-grille">
+    <div className="vue vue-grille" ref={scroller}>
       <div className="feuille">
         {project && <ChartHeader />}
         {!project ? (
@@ -45,7 +40,7 @@ export function ChartSheet() {
             <p>{t('chart.noPiece')}</p>
           </div>
         ) : hasChords ? (
-          <ChartGrid bars={bars} />
+          <ChartGrid bars={bars} scroller={scroller} />
         ) : (
           <EmptyChart status={status} />
         )}
@@ -63,14 +58,22 @@ function ChartHeader() {
   const bpm = useApp((s) => (isTempoKnown(s.tempoMap) ? nominalBpm(s.tempoMap, s.project?.duration) : null));
   const instrument = useApp((s) => s.view.instrument);
   return (
+    <>
     <div className="feuille-tete">
       <h1>{title}</h1>
       <div className="feuille-infos">
         <p data-testid="grille-ton">
-          {ctx.key && (
+          {ctx.key ? (
             <>
-              {t('chart.keyOf')} {withAccidentals(keyLabel(ctx.key, minor))}
+              <KeyEditor>
+                {t('chart.keyOf')} {withAccidentals(keyLabel(ctx.key, minor))}
+              </KeyEditor>
               {instrument !== 'ut' && ` ${t('chart.forInstrument', { instrument: t(`chart.instrument.${instrument}`) })}`}
+              {' · '}
+            </>
+          ) : (
+            <>
+              <KeyEditor>{t('chart.keyChoose')}</KeyEditor>
               {' · '}
             </>
           )}
@@ -80,6 +83,8 @@ function ChartHeader() {
         <InstrumentChoice value={instrument} />
       </div>
     </div>
+    <p className="aide-doigt">{t('chart.touchHint')}</p>
+    </>
   );
 }
 
@@ -92,99 +97,6 @@ function InstrumentChoice({ value }: { value: Instrument }) {
         </button>
       ))}
     </span>
-  );
-}
-
-export interface ChartGridProps {
-  bars: ChartBar[];
-  /** Seam for the gestures (click to seek, drag to loop); not wired yet. */
-  onBarPointerDown?: (bar: number, e: PointerEvent<HTMLDivElement>) => void;
-  /** Seam for the chord editor; not wired yet. */
-  onChordClick?: (bar: number, index: number) => void;
-}
-
-/** The bars, four per line, with the loop veil and the current-bar hairline. */
-export function ChartGrid({ bars, onBarPointerDown, onChordClick }: ChartGridProps) {
-  const root = useRef<HTMLDivElement>(null);
-  const ctx = useApp(selectDisplayContext);
-  // As one string: a new object each time would re-render forever.
-  const loopKey = useApp((s) => {
-    const l = loopBars(s.tempoMap, s.loop.region, s.loop.enabled);
-    return l ? `${l.first}:${l.last}` : '';
-  });
-  const loop = loopKey ? { first: Number(loopKey.split(':')[0]), last: Number(loopKey.split(':')[1]) } : null;
-  usePlayheadBar(root);
-  const lines: ChartLine[] = chartLines(bars);
-  const last = bars[bars.length - 1]?.bar;
-  return (
-    <div className="grille" ref={root} data-testid="grille">
-      {lines.map((line) => (
-        <div key={line.bars[0]!.bar} className={`ligne${line.pickup ? ' levee' : ''}`}>
-          {line.bars.map((b) => (
-            <BarCell
-              key={b.bar}
-              bar={b}
-              ctx={ctx}
-              inLoop={loop !== null && b.bar >= loop.first && b.bar <= loop.last}
-              final={b.bar === last}
-              onPointerDown={onBarPointerDown}
-              onChordClick={onChordClick}
-            />
-          ))}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function BarCell({
-  bar,
-  ctx,
-  inLoop,
-  final,
-  onPointerDown,
-  onChordClick,
-}: {
-  bar: ChartBar;
-  ctx: DisplayContext;
-  inLoop: boolean;
-  final: boolean;
-  onPointerDown?: ChartGridProps['onBarPointerDown'];
-  onChordClick?: ChartGridProps['onChordClick'];
-}) {
-  const n = bar.chords.length;
-  const cls = ['case', n === 2 ? 'deux' : n > 2 ? 'trois' : '', bar.doubleBar ? 'double' : '', inLoop ? 'dans-boucle' : '', final ? 'finale' : '']
-    .filter(Boolean)
-    .join(' ');
-  const label = formatBarNumber(bar.bar);
-  return (
-    <div
-      className={cls}
-      data-mesure={bar.bar}
-      aria-label={t('chart.bar', { n: label })}
-      onPointerDown={onPointerDown ? (e) => onPointerDown(bar.bar, e) : undefined}
-    >
-      {bar.section && <span className="section">{bar.section}</span>}
-      <span className="numero">{label}</span>
-      {bar.chords.map((c, i) => (
-        <span
-          key={i}
-          className={`accord-case${c.origin === 'manual' ? ' main' : ''}`}
-          data-accord={i}
-          data-origine={c.origin}
-          // A chord that does not start on the bar line sits where its beat is.
-          style={i === 0 && c.beatInBar > 0 ? ({ '--debut': c.beatInBar / bar.beats } as CSSProperties) : undefined}
-          onClick={onChordClick ? () => onChordClick(bar.bar, i) : undefined}
-        >
-          <ChordSymbol chord={c.chord} ctx={ctx} doubtful={c.doubtful} />
-        </span>
-      ))}
-      {bar.repeat && (
-        <span className="repete" role="img" aria-label={t('chord.repeat')}>
-          𝄎
-        </span>
-      )}
-    </div>
   );
 }
 

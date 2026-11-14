@@ -54,13 +54,13 @@ try {
 
     // Shell
     check('top bar: brand and title', (await text(page, '.marque')) === 'Fabtice' && (await text(page, '.projet-titre')) === 'Blues du dimanche');
-    // Lot 2: « Exporter » is a small menu: iReal Pro is a link, printing says « bientôt » until written, audio stays inactive (lot 3).
+    // Lot 2: « Exporter » is a small menu: iReal Pro is a link, printing the chart is available, audio stays inactive (lot 3).
     await page.click('button:has-text("Exporter")');
     const exportItems = await page.locator('.menu-export [role="menuitem"]').evaluateAll((els) => els.map((el) => ({ key: el.dataset.export, disabled: el.disabled, text: el.innerText })));
     // « Grille pour iReal Pro » is a link to the page it writes; printing says « bientôt » and audio stays inactive (lot 3).
     check(
-      'top bar: Exporter opens a menu (iReal Pro link, print soon, audio inactive)',
-      exportItems.length === 3 && exportItems.map((x) => x.key).join(',') === 'ireal,print,audio' && !exportItems[0].disabled && exportItems[1].disabled && exportItems[2].disabled && !exportItems[0].text.includes('bientôt'),
+      'top bar: Exporter opens a menu (iReal Pro link, print available, audio inactive)',
+      exportItems.length === 3 && exportItems.map((x) => x.key).join(',') === 'ireal,print,audio' && !exportItems[0].disabled && !exportItems[1].disabled && exportItems[2].disabled && !exportItems[0].text.includes('bientôt'),
       JSON.stringify(exportItems),
     );
     await page.keyboard.press('Escape');

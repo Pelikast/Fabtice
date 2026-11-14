@@ -1,0 +1,59 @@
+/* « Imprimer la grille » (chart/print.ts): on paper only the chart remains, ink
+   on white — title line, section letters, bars, chords in the same typography,
+   four bars per line, a page break only between lines. No veil, no ember
+   hairline, nothing that says « doubtful » or « being edited », no app. */
+
+@media print {
+  @page { margin: 15mm 13mm 17mm; }
+
+  html, body, #root {
+    height: auto;
+    overflow: visible;
+    background: #fff;
+    color: var(--encre);
+  }
+  /* No paper grain. */
+  body::before { display: none; }
+
+  /* The app's chrome, the dialogs and the notices. */
+  #root > :not(.app),
+  .app > :not(.milieu),
+  .instrument, .aide-doigt, .editeur, .cle-editeur, .cle-bouton .chevron { display: none !important; }
+  .app { display: block; height: auto; }
+
+  .milieu, .vue, .vue-grille {
+    position: static;
+    overflow: visible;
+    height: auto;
+    inset: auto;
+  }
+  .feuille { width: 100%; margin: 0; padding: 0; }
+  .feuille-tete { margin-bottom: 8mm; break-after: avoid; align-items: baseline; flex-wrap: wrap; gap: 4px 16px; }
+  .feuille-tete h1 { font-size: 26pt; }
+  .feuille-infos p { color: var(--encre); font-size: 11pt; white-space: normal; }
+  .cle-bouton { margin: 0; padding: 0; color: inherit; background: none; }
+
+  .grille { padding: 0; }
+  /* A line of bars never splits between two pages. */
+  .ligne { break-inside: avoid; }
+  .case {
+    height: 24mm;
+    background: none !important;
+    cursor: auto;
+    border-bottom-color: #bdb2a3;
+    transition: none;
+  }
+  .case .numero { color: var(--encre-douce); }
+  .case.dans-boucle { background: none !important; }
+  .case.jouee::after { display: none; }
+  .accord-case, .accord-case:hover, .accord-case.edite {
+    min-height: 0;
+    background: none;
+    box-shadow: none;
+    cursor: auto;
+  }
+  /* Doubtful chords are written like any other on paper. */
+  .ch.douteux { color: inherit; padding-bottom: 0; border-bottom: 0; }
+  .section { cursor: auto; }
+  .section::after { display: none; }
+}
