@@ -130,7 +130,7 @@ test('the real separation runs in the app under the shipped policy, shows the in
     const diagnostic = await openDiagnostic(app);
     const text = await diagnostic.locator('#diag-text').innerText();
     assert.match(text, /--- Dernière séparation ---\nRapport de séparation Fabtice/);
-    assert.match(text, /Outil : SCNet \(scnet\)/);
+    assert.match(text, /Outil\s:\sSCNet \(scnet\)/);
     console.log('the report is in the diagnostic window');
 
     // Chromium notes a 404 of the list in the console (the list is not on the main branch yet): the page says nothing.
