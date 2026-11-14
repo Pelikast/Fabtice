@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { formatAmount } from '../import/amount';
 import { cancelImport, isCancellablePhase, startFileImport, startLinkImport, startToolUpdate } from '../import/controller';
 import { FILE_ACCEPT } from '../import/formats';
 import { t } from '../i18n';
 import { getDesktopBridge } from '../platform/desktopBridge';
+import { forgetKeptPiece, reopenKeptPiece } from '../storage';
 import { closeNewPiece, setImportStatus } from '../store/actions';
-import { useApp, type ImportStatus } from '../store/store';
+import { useApp, type ImportStatus, type ReopenOffer } from '../store/store';
 import { CloseIcon } from '../ui/icons';
 
 /**
@@ -52,8 +54,51 @@ export function NewPieceDialog() {
   );
 }
 
+/**
+ * A piece is kept on the device but was not opened: « Rouvrir » tries again,
+ * « Oublier ce morceau » (discreet, and asked twice) deletes it.
+ */
+function ReopenOfferCard({ offer, withLine }: { offer: ReopenOffer; withLine: boolean }) {
+  const [confirming, setConfirming] = useState(false);
+  const title = offer.title;
+  return (
+    <div className="reprise">
+      {withLine && <p>{title ? t('restore.keptLine', { title }) : t('restore.keptLineUnknown')}</p>}
+      {confirming ? (
+        <div className="reprise-confirme" role="group" aria-label={t('restore.forgetAsk')}>
+          <p>{t('restore.forgetAsk')}</p>
+          <div className="reprise-actions">
+            <button
+              className="bouton-cadre"
+              onClick={() => {
+                setConfirming(false);
+                void forgetKeptPiece();
+              }}
+            >
+              {t('restore.forgetYes')}
+            </button>
+            <button className="plein" autoFocus onClick={() => setConfirming(false)}>
+              {t('restore.forgetNo')}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="reprise-actions">
+          <button className="plein" onClick={() => void reopenKeptPiece()}>
+            {title ? t('restore.reopen', { title }) : t('restore.reopenUnknown')}
+          </button>
+          <button className="lien discret" onClick={() => setConfirming(true)}>
+            {t('restore.forget')}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Choices({ open, desktop }: { open: boolean; desktop: boolean }) {
   const notice = useApp((s) => s.ui.notice);
+  const reopenOffer = useApp((s) => s.ui.reopenOffer);
   const toolUpdate = useApp((s) => s.ui.toolUpdate);
   const [link, setLink] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
@@ -78,10 +123,15 @@ function Choices({ open, desktop }: { open: boolean; desktop: boolean }) {
     />
   );
 
-  const noticeLine = notice && (
-    <p className="accueil-avis" role="status">
-      {notice}
-    </p>
+  const noticeLine = (
+    <>
+      {notice && (
+        <p className="accueil-avis" role="status">
+          {notice}
+        </p>
+      )}
+      {reopenOffer && <ReopenOfferCard offer={reopenOffer} withLine={!notice} />}
+    </>
   );
 
   if (desktop) {
@@ -148,23 +198,43 @@ function Choices({ open, desktop }: { open: boolean; desktop: boolean }) {
 }
 
 /** Steps where the Mac app works and nothing can stop it. */
-const WAITS_FOR_MAC_APP = new Set(['installing', 'updating', 'fetching-info', 'downloading']);
+const WAITS_FOR_MAC_APP = new Set(['installing', 'updating', 'fetching-info', 'starting-download', 'downloading']);
+/** Steps that can stay silent for a long time on a slow Mac: after this long without news, one reassuring sentence. */
+const MAY_BE_SLOW = new Set(['fetching-info', 'starting-download', 'downloading']);
+export const QUIET_NOTE_DELAY_MS = 10_000;
+
+/** True once `delayMs` have passed without `key` changing (any news resets it), while `enabled`. */
+function useQuiet(key: string, enabled: boolean, delayMs: number): boolean {
+  const [quiet, setQuiet] = useState(false);
+  useEffect(() => {
+    setQuiet(false);
+    if (!enabled) return;
+    const timer = setTimeout(() => setQuiet(true), delayMs);
+    return () => clearTimeout(timer);
+  }, [key, enabled, delayMs]);
+  return quiet;
+}
 
 function ImportProgressView({ status }: { status: Extract<ImportStatus, { kind: 'busy' }> }) {
-  const { phase, fraction, title } = status.progress;
+  const { phase, fraction, title, step, received } = status.progress;
   const restoring = phase === 'restoring';
   const cancellable = isCancellablePhase(phase);
+  const quiet = useQuiet(`${phase}|${step ?? ''}|${fraction ?? ''}|${received ?? ''}`, MAY_BE_SLOW.has(phase), QUIET_NOTE_DELAY_MS);
+  // A percentage only when there is something real to measure; else the amount received, else nothing.
+  const figure = fraction !== null ? t('import.percent', { n: Math.round(fraction * 100) }) : received !== undefined ? t('import.received', { size: formatAmount(received) }) : '';
   return (
     <div className="import-etat" role="status" aria-live="polite">
       {title && !restoring && <div className="import-titre">{title}</div>}
       <div className="phase">
         <span>{restoring ? t('import.restoring', { title: title ?? '' }) : t(`import.${phase}`)}</span>
-        <span>{fraction !== null ? t('import.percent', { n: Math.round(fraction * 100) }) : ''}</span>
+        <span>{figure}</span>
       </div>
       <div className={`jauge${fraction === null ? ' indeterminee' : ''}`} style={{ '--avance': fraction ?? 0 } as CSSProperties}>
         <span />
       </div>
+      {restoring && step && <p className="import-note">{t(`restore.step.${step}`)}</p>}
       {phase === 'installing' && <p className="import-note">{t('import.installingNote')}</p>}
+      {quiet && <p className="import-note">{t('import.quietNote')}</p>}
       {cancellable ? (
         <div className="import-actions">
           <button className="bouton-cadre" onClick={cancelImport}>

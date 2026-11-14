@@ -17,6 +17,7 @@ import type { ProjectDocument } from '../model/document';
 import { toProjectDocument } from '../store/document';
 import type { AppState, AppStore, StorageNotice } from '../store/store';
 import { StorageError, type ProjectStorage, type StoredAudio } from './ProjectStorage';
+import { withTimeout } from './timeout';
 
 export interface KeeperOptions {
   /** Quiet time after the last change before saving. */
@@ -25,10 +26,14 @@ export interface KeeperOptions {
   maxWaitMs?: number;
   /** Told when saving starts failing (`'full'`, `'unavailable'`) and when it works again (null). */
   onNotice?: (notice: StorageNotice | null) => void;
+  /** A write that has not finished after this long is given up on, so that later saves are not stuck behind it. */
+  writeTimeoutMs?: number;
 }
 
 export const AUTOSAVE_DELAY_MS = 700;
 export const AUTOSAVE_MAX_WAIT_MS = 5000;
+/** Generous: a long piece is tens of MB to write; a write that never answers must still not block every later save. */
+export const WRITE_TIMEOUT_MS = 120_000;
 
 /** The parts of the state a stored document is made of. `view.mode` is not one. */
 function changed(a: AppState, b: AppState): boolean {
@@ -43,6 +48,7 @@ function changed(a: AppState, b: AppState): boolean {
 export class ProjectKeeper {
   private readonly delayMs: number;
   private readonly maxWaitMs: number;
+  private readonly writeTimeoutMs: number;
   /** The project whose document may be autosaved: set once its audio is stored. */
   private attached: string | null = null;
   /** The state the device holds, to tell whether anything changed since. */
@@ -61,6 +67,7 @@ export class ProjectKeeper {
   ) {
     this.delayMs = options.delayMs ?? AUTOSAVE_DELAY_MS;
     this.maxWaitMs = options.maxWaitMs ?? AUTOSAVE_MAX_WAIT_MS;
+    this.writeTimeoutMs = options.writeTimeoutMs ?? WRITE_TIMEOUT_MS;
   }
 
   /** Id of the project being autosaved, or null while none is (yet). */
@@ -101,28 +108,33 @@ export class ProjectKeeper {
    * the user has moved on from.
    */
   async keepNewProject(originals: ReadonlyMap<string, StoredAudio>): Promise<void> {
-    const state = this.store.getState();
-    const doc = toProjectDocument(state);
     this.cancelTimer();
     this.attached = null;
+    let state: AppState;
+    let doc: ProjectDocument | null;
+    try {
+      state = this.store.getState();
+      doc = toProjectDocument(state);
+    } catch {
+      return;
+    }
     if (!doc || doc.project.source.kind === 'demo') return;
     if (!this.persistenceAsked) {
       this.persistenceAsked = true;
       void this.storage.requestPersistence().catch(() => false);
     }
-    const write = this.chain.then(async () => {
+    const written = doc;
+    await this.enqueue(async () => {
       try {
-        await this.storage.replaceCurrent(doc, originals);
-        this.attached = doc.project.id;
+        await withTimeout(this.storage.replaceCurrent(written, originals), this.writeTimeoutMs, 'write');
+        this.attached = written.project.id;
         this.saved = state;
         this.notify(null);
       } catch (e) {
         this.notify(noticeFor(e));
-        await this.storage.clearCurrent().catch(() => {});
+        await withTimeout(this.storage.clearCurrent(), this.writeTimeoutMs, 'write').catch(() => {});
       }
     });
-    this.chain = write;
-    await write;
     // Changes made while the audio was being written.
     if (this.attached) this.onChange(this.store.getState(), state);
   }
@@ -173,21 +185,30 @@ export class ProjectKeeper {
   }
 
   private enqueueSave(): Promise<void> {
-    const write = this.chain.then(async () => {
-      const state = this.store.getState();
-      const doc: ProjectDocument | null = toProjectDocument(state);
-      if (!doc || doc.project.id !== this.attached) return;
-      if (this.saved && !changed(state, this.saved)) return;
+    return this.enqueue(async () => {
       try {
-        await this.storage.saveCurrent(doc);
+        const state = this.store.getState();
+        const doc: ProjectDocument | null = toProjectDocument(state);
+        if (!doc || doc.project.id !== this.attached) return;
+        if (this.saved && !changed(state, this.saved)) return;
+        await withTimeout(this.storage.saveCurrent(doc), this.writeTimeoutMs, 'write');
         this.saved = state;
         this.notify(null);
       } catch (e) {
         this.notify(noticeFor(e));
       }
     });
-    this.chain = write;
-    return write;
+  }
+
+  /**
+   * Runs `job` after the writes already queued. The queue never rejects (a
+   * failing job must not poison every later save, nor surface as an unhandled
+   * rejection when nobody awaits it).
+   */
+  private enqueue(job: () => Promise<void>): Promise<void> {
+    const run = this.chain.then(job).catch(() => {});
+    this.chain = run;
+    return run;
   }
 
   private notify(notice: StorageNotice | null): void {

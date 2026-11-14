@@ -32,6 +32,10 @@ export type ImportStatus =
   /** `message` is the French text to show; `detail` an optional second line (Mac app text). */
   | { kind: 'error'; message: string; detail: string | null };
 
+export interface ReopenOffer {
+  title: string | null;
+}
+
 /** Small floating panels; only one is open at a time. */
 export type PanelId = 'none' | 'settings' | 'grid' | 'tuning';
 
@@ -45,6 +49,12 @@ export interface UiState {
   import: ImportStatus;
   /** A calm sentence shown in the dialog above the choices (e.g. the last piece could not be reopened). */
   notice: string | null;
+  /**
+   * A piece is kept on the device but could not be opened (failure, time-out, or
+   * a launch that was cut short): the dialog offers to open it again, or to
+   * forget it. `title` is null when the stored record could not even be read.
+   */
+  reopenOffer: ReopenOffer | null;
   /** Mac app: a newer version of the import tool exists (proposed, never imposed, in the dialog). */
   toolUpdate: boolean;
   /** Set when saving to the device fails; the piece stays usable in memory. */
@@ -95,7 +105,7 @@ export function initialState(): AppState {
     view: defaultView(),
     settings: { minorNotation: 'm' },
     transport: { engine: 'empty', error: null },
-    ui: { newPieceOpen: true, panel: 'none', import: { kind: 'idle' }, notice: null, toolUpdate: false, storageNotice: null },
+    ui: { newPieceOpen: true, panel: 'none', import: { kind: 'idle' }, notice: null, reopenOffer: null, toolUpdate: false, storageNotice: null },
   };
 }
 

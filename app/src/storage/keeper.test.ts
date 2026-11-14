@@ -3,7 +3,7 @@ import type { ProjectDocument } from '../model/document';
 import { fromProjectDocument } from '../store/document';
 import { createAppStore, initialState, type AppStore, type StorageNotice } from '../store/store';
 import { sampleDocument } from '../test/sampleDocument';
-import { AUTOSAVE_DELAY_MS, AUTOSAVE_MAX_WAIT_MS, ProjectKeeper } from './keeper';
+import { AUTOSAVE_DELAY_MS, AUTOSAVE_MAX_WAIT_MS, ProjectKeeper, WRITE_TIMEOUT_MS } from './keeper';
 import { MemoryStorage } from './memoryStorage';
 import type { StoredAudio } from './ProjectStorage';
 
@@ -240,6 +240,50 @@ describe('when the device refuses', () => {
     setLoop(7);
     await vi.advanceTimersByTimeAsync(AUTOSAVE_DELAY_MS + 10);
     expect(notices).toEqual(['full', null]);
+    expect(stored().loop.region!.end).toBe(7);
+  });
+});
+
+describe('a write that never answers, or fails oddly, never blocks the saves after it', () => {
+  beforeEach(async () => {
+    open();
+    await keeper.keepNewProject(originals);
+    storage.writes = 0;
+  });
+
+  it('gives up on a write after its time limit (a notice), then saves again', async () => {
+    const save = storage.saveCurrent.bind(storage);
+    storage.saveCurrent = () => new Promise<void>(() => {});
+    setLoop(5);
+    await vi.advanceTimersByTimeAsync(AUTOSAVE_DELAY_MS + 10);
+    expect(notices).toEqual([]);
+    await vi.advanceTimersByTimeAsync(WRITE_TIMEOUT_MS + 10);
+    expect(notices).toEqual(['unavailable']);
+    storage.saveCurrent = save;
+    setLoop(6);
+    await vi.advanceTimersByTimeAsync(AUTOSAVE_DELAY_MS + 10);
+    expect(stored().loop.region!.end).toBe(6);
+    expect(notices).toEqual(['unavailable', null]);
+  });
+
+  it('keepNewProject on a device that never answers resolves after the limit, with a notice', async () => {
+    storage.replaceCurrent = () => new Promise<void>(() => {});
+    open(sampleDocument({ project: { ...sampleDocument().project, id: 'project-2' } }));
+    const kept = keeper.keepNewProject(new Map([['audio-2', original]]));
+    await vi.advanceTimersByTimeAsync(WRITE_TIMEOUT_MS + 10);
+    await kept;
+    expect(notices.at(-1)).toBe('unavailable');
+    expect(keeper.attachedProject).toBeNull();
+  });
+
+  it('a rejected save does not poison the queue: flush() and later saves keep working', async () => {
+    const save = storage.saveCurrent.bind(storage);
+    storage.saveCurrent = () => Promise.reject(new Error('odd'));
+    setLoop(5);
+    await expect(keeper.flush()).resolves.toBeUndefined();
+    storage.saveCurrent = save;
+    setLoop(7);
+    await expect(keeper.flush()).resolves.toBeUndefined();
     expect(stored().loop.region!.end).toBe(7);
   });
 });

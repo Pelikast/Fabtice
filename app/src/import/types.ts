@@ -11,9 +11,11 @@ export type ImportPhase =
   | 'installing'
   /** Mac app: yt-dlp is being replaced by a newer version, on the user's request. */
   | 'updating'
-  /** Mac app: yt-dlp reads the video's details. */
+  /** Mac app: the piece is looked up (yt-dlp reads the video's details). */
   | 'fetching-info'
-  /** Mac app: the audio is downloaded. */
+  /** Mac app: the download is being prepared; nothing can be measured yet (the tool starting up). */
+  | 'starting-download'
+  /** Mac app: the audio is downloaded, with a percentage or the amount received. */
   | 'downloading'
   /** The file is read into memory. */
   | 'reading'
@@ -24,12 +26,19 @@ export type ImportPhase =
   /** Launch: the piece kept on the device is being opened again (not an import). */
   | 'restoring';
 
+/** What the launch is doing while a kept piece is opened again (`phase: 'restoring'`). */
+export type RestoreStep = 'reading' | 'decoding' | 'preparing';
+
 export interface ImportProgress {
   phase: ImportPhase;
   /** 0…1 when measurable, null for an indeterminate phase. */
   fraction: number | null;
   /** Name of what is being imported (file name or video title) once known. */
   title?: string;
+  /** `restoring` only: the step under way (reading, decoding, preparing the engine). */
+  step?: RestoreStep;
+  /** `downloading` with no known total: bytes received so far. */
+  received?: number;
 }
 
 export interface ImportOptions {

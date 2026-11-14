@@ -25,7 +25,7 @@ import { newId } from '../util/id';
 import { clampScale, clampTrackHeight } from '../view/zoom';
 import { clampCents, clampSemitones, originalBpm, steppedTempoRatio, TEMPO_RATIO } from './derived';
 import { fromProjectDocument } from './document';
-import { appStore, DEFAULT_PLAYBACK, type AppState, type ImportStatus, type PanelId, type StorageNotice } from './store';
+import { appStore, DEFAULT_PLAYBACK, type AppState, type ImportStatus, type PanelId, type ReopenOffer, type StorageNotice } from './store';
 
 const get = () => appStore.getState();
 const set = (patch: Partial<AppState> | ((s: AppState) => Partial<AppState>)) => appStore.setState(patch);
@@ -95,7 +95,7 @@ export async function openProject(input: NewProjectInput): Promise<void> {
     loop: { region, enabled: region !== null },
     playback: { ...DEFAULT_PLAYBACK },
     view: { ...s.view, mode: 'pistes' },
-    ui: { ...s.ui, newPieceOpen: false, panel: 'none', import: { kind: 'idle' }, notice: null },
+    ui: { ...s.ui, newPieceOpen: false, panel: 'none', import: { kind: 'idle' }, notice: null, reopenOffer: null },
   }));
   const mixes = Object.fromEntries(tracks.map((tr) => [tr.id, { mute: tr.mute, solo: tr.solo, volume: tr.volume }]));
   await engine.loadTracks(tracks.map((tr) => engineTrack(tr.id, tr.audio.id)), mixes);
@@ -107,7 +107,12 @@ export async function openProject(input: NewProjectInput): Promise<void> {
  * duration and audio references come from what was actually decoded. Resolves
  * once playable; rejects if the audio is missing or the engine refuses it.
  */
-export async function restoreProject(doc: ProjectDocument, audio: ReadonlyMap<string, DecodedAudio>): Promise<void> {
+export async function restoreProject(
+  doc: ProjectDocument,
+  audio: ReadonlyMap<string, DecodedAudio>,
+  /** False once the caller has given up on this attempt: the late end of it then changes nothing visible. */
+  isCurrent: () => boolean = () => true,
+): Promise<void> {
   const decoded = doc.tracks.map((tr) => audio.get(tr.audio.id));
   if (decoded.some((a) => !a)) throw new Error('a track has no decoded audio');
   const engine = getEngine();
@@ -139,8 +144,18 @@ export async function restoreProject(doc: ProjectDocument, audio: ReadonlyMap<st
   }));
   const mixes = Object.fromEntries(tracks.map((tr) => [tr.id, { mute: tr.mute, solo: tr.solo, volume: tr.volume }]));
   await engine.loadTracks(tracks.map((tr) => engineTrack(tr.id, tr.audio.id)), mixes);
+  if (!isCurrent()) return;
   // The « Ouverture… » state of the dialog stays until the piece can play.
-  set((s) => ({ ui: { ...s.ui, newPieceOpen: false, panel: 'none', import: { kind: 'idle' }, notice: null } }));
+  set((s) => ({ ui: { ...s.ui, newPieceOpen: false, panel: 'none', import: { kind: 'idle' }, notice: null, reopenOffer: null } }));
+}
+
+/** Back to « no piece open »: for an opening that failed half way (the engine refused, or it took too long). */
+export function closeProject(): void {
+  const engine = getEngine();
+  engine.pause();
+  engine.clear();
+  clearAudio();
+  set({ project: null, tracks: [], tempoMap: defaultTempoMap(), loop: { region: null, enabled: false }, playback: { ...DEFAULT_PLAYBACK } });
 }
 
 /** Opens what an import produced: one track, the whole piece. */
@@ -350,6 +365,11 @@ export function setImportStatus(status: ImportStatus): void {
 /** A calm sentence for the dialog (null removes it). */
 export function setDialogNotice(notice: string | null): void {
   set((s) => ({ ui: { ...s.ui, notice } }));
+}
+
+/** The kept piece that could not be opened, offered in the dialog (null removes the offer). */
+export function setReopenOffer(reopenOffer: ReopenOffer | null): void {
+  set((s) => ({ ui: { ...s.ui, reopenOffer } }));
 }
 
 export function setToolUpdateAvailable(toolUpdate: boolean): void {

@@ -176,3 +176,100 @@ describe('IndexedDB project storage', () => {
     expect(await new IndexedDbStorage(new IDBFactory(), undefined).requestPersistence()).toBe(false);
   });
 });
+
+// --------------------------------------------------------------------------
+// Browser behaviour that the in-memory fake database does not have: a large
+// value is delivered AFTER the transaction that asked for it has completed.
+// Reading `request.result` when the transaction completes then throws inside
+// an event handler, and nothing ever answers: a stored piece of real size never
+// came back at launch. These stand-ins reproduce that order of events.
+
+type Handler = (() => void) | null;
+
+/** A request whose `result` is unreadable until its success event, like a browser's. */
+class SlowRequest {
+  onsuccess: Handler = null;
+  onerror: Handler = null;
+  error: DOMException | null = null;
+  private done = false;
+  constructor(private readonly value: unknown) {}
+  get result(): unknown {
+    if (!this.done) throw new DOMException("Failed to read the 'result' property from 'IDBRequest': The request has not finished.", 'InvalidStateError');
+    return this.value;
+  }
+  succeed() {
+    this.done = true;
+    this.onsuccess?.();
+  }
+}
+
+/** A database whose reads answer `value`, with the transaction completing before or after the request. */
+function slowFactory(value: unknown, order: 'complete-first' | 'success-first') {
+  const makeTx = () => {
+    const tx = {
+      oncomplete: null as Handler,
+      onerror: null as Handler,
+      onabort: null as Handler,
+      error: null as DOMException | null,
+      commit() {},
+      abort() {},
+      objectStore() {
+        return {
+          get: () => {
+            const request = new SlowRequest(value);
+            setTimeout(() => (order === 'complete-first' ? tx.oncomplete?.() : request.succeed()), 1);
+            setTimeout(() => (order === 'complete-first' ? request.succeed() : tx.oncomplete?.()), 5);
+            return request;
+          },
+        };
+      },
+    };
+    return tx;
+  };
+  const db = {
+    objectStoreNames: { contains: () => true },
+    transaction: () => makeTx(),
+    close() {},
+    onversionchange: null as Handler,
+    onclose: null as Handler,
+  };
+  return {
+    open() {
+      const request = { onsuccess: null as Handler, onerror: null as Handler, onupgradeneeded: null as Handler, onblocked: null as Handler, result: db, error: null };
+      setTimeout(() => request.onsuccess?.(), 0);
+      return request;
+    },
+  } as unknown as IDBFactory;
+}
+
+describe('a large value is delivered after its transaction completed', () => {
+  const stored = { schema: 1, document: sampleDocument() };
+
+  it('a read answers when its own request succeeds, not when the transaction completes', async () => {
+    const storage = new IndexedDbStorage(slowFactory(stored, 'complete-first'), undefined);
+    expect((await storage.loadCurrent())?.project.title).toBe('Blues du dimanche');
+  });
+
+  it('the same for an audio file, whichever event comes first', async () => {
+    const bytes = new ArrayBuffer(8);
+    for (const order of ['complete-first', 'success-first'] as const) {
+      const storage = new IndexedDbStorage(slowFactory({ bytes, mimeType: 'audio/mpeg', fileName: 'a.mp3' }, order), undefined);
+      expect((await storage.loadAudio('a'))?.bytes).toBe(bytes);
+    }
+  });
+});
+
+describe('opening the database', () => {
+  it('a database that opens after we answered « blocked » is closed, not left open', async () => {
+    let closed = 0;
+    const db = { close: () => closed++, objectStoreNames: { contains: () => true } };
+    const request = { onsuccess: null as Handler, onerror: null as Handler, onupgradeneeded: null as Handler, onblocked: null as Handler, result: db, error: null };
+    const factory = { open: () => request } as unknown as IDBFactory;
+    const storage = new IndexedDbStorage(factory, undefined);
+    const opening = codeOf(storage.loadCurrent());
+    request.onblocked?.();
+    expect(await opening).toBe('unavailable');
+    request.onsuccess?.();
+    expect(closed).toBe(1);
+  });
+});

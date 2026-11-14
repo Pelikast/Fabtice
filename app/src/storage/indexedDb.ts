@@ -53,6 +53,9 @@ export class IndexedDbStorage implements ProjectStorage {
       } catch (e) {
         return reject(toStorageError(e, 'unavailable'));
       }
+      // Once we have answered « blocked » the caller has moved on: a database that opens
+      // later must not stay open (it would hold up the next upgrade), so it is closed.
+      let answered = false;
       request.onupgradeneeded = () => {
         const db = request.result;
         if (!db.objectStoreNames.contains(PROJECT)) db.createObjectStore(PROJECT);
@@ -60,6 +63,11 @@ export class IndexedDbStorage implements ProjectStorage {
       };
       request.onsuccess = () => {
         const db = request.result;
+        if (answered) {
+          db.close();
+          return;
+        }
+        answered = true;
         // Another tab upgrading the database, or the browser clearing it: reopen next time.
         db.onversionchange = () => {
           db.close();
@@ -70,8 +78,14 @@ export class IndexedDbStorage implements ProjectStorage {
         };
         resolve(db);
       };
-      request.onerror = () => reject(toStorageError(request.error, 'unavailable'));
-      request.onblocked = () => reject(new StorageError('unavailable', 'database blocked by another tab'));
+      request.onerror = () => {
+        answered = true;
+        reject(toStorageError(request.error, 'unavailable'));
+      };
+      request.onblocked = () => {
+        answered = true;
+        reject(new StorageError('unavailable', 'database blocked by another tab'));
+      };
     });
     this.opening = attempt;
     attempt.catch(() => {

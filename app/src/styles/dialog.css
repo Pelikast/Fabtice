@@ -132,6 +132,21 @@
 .mise-a-jour { margin-top: 10px; font-size: 13.5px; color: var(--encre-douce); }
 .accueil .import-note { margin: 14px 0 0; font-size: 13.5px; color: var(--encre-douce); }
 
+/* A kept piece that could not be opened: open it again, or (discreetly) forget it. */
+.reprise {
+  margin: 0 0 20px;
+  padding: 14px 16px;
+  background: var(--papier-fonce);
+  border: 1px solid var(--trait-fin);
+  border-radius: var(--rayon);
+}
+.accueil .reprise p { margin: 0 0 12px; color: var(--encre); }
+.reprise-actions { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.reprise .plein { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.reprise .bouton-cadre { width: auto; padding: 0 16px; }
+.reprise .lien.discret { font-size: 13.5px; color: var(--encre-douce); }
+.reprise-confirme p { margin-bottom: 12px; }
+
 /* Import error: ink text on a brass rule, never red (the ember is for playback only). */
 .import-erreur {
   margin: 4px 0 4px;

@@ -497,38 +497,109 @@ try {
     fs.rmSync(profile, { recursive: true, force: true });
   }
 
-  // ------------------------------------------------------------ the kept piece cannot be reopened
+  // ------------------------------------------------------------ the kept piece cannot be reopened: it stays kept, and is offered
   {
-    const { page, context } = await open();
+    const { page, context, errors } = await open();
     await pickFile(page, fixture('tone.wav'));
     const id = await pieceOpen(page);
     await sleep(400);
     // The audio of the kept piece goes missing (storage cleaned by the browser).
-    await page.evaluate(
-      () =>
-        new Promise((resolve) => {
-          const open = indexedDB.open('fabtice');
-          open.onsuccess = () => {
-            const tx = open.result.transaction('audio', 'readwrite');
-            tx.objectStore('audio').clear();
-            tx.oncomplete = () => resolve();
-          };
-        }),
-    );
+    const clearAudio = () =>
+      page.evaluate(
+        () =>
+          new Promise((resolve) => {
+            const open = indexedDB.open('fabtice');
+            open.onsuccess = () => {
+              const tx = open.result.transaction('audio', 'readwrite');
+              tx.objectStore('audio').clear();
+              tx.oncomplete = () => {
+                open.result.close();
+                resolve();
+              };
+            };
+          }),
+      );
+    await clearAudio();
     await page.reload();
     await page.waitForFunction(() => window.__fabtice);
     await page.waitForFunction(() => document.querySelector('.voile')?.classList.contains('ouverte') && document.querySelector('.accueil-avis'));
     const notice = await text(page, '.accueil-avis');
-    check('unreadable kept piece: the dialog opens with one calm sentence', notice.includes('« tone » n’a pas pu être rouvert') && (await state(page)).project === null, notice);
-    check('unreadable kept piece: no loop, the next launch is a clean start', await (async () => {
-      await page.reload();
-      await page.waitForFunction(() => window.__fabtice);
-      await sleep(600);
-      return (await dialogOpen(page)) && (await page.locator('.accueil-avis').count()) === 0 && (await storedDocument(page)) === null;
-    })());
-    check('the notice is gone once an import starts', true);
-    void id;
+    check('unreadable kept piece: the dialog opens with one calm sentence', notice.includes('« tone » n’a pas pu être rouvert') && notice.includes('toujours gardé sur cet appareil') && (await state(page)).project === null, notice);
+    check('unreadable kept piece: « Rouvrir « tone » » and a discreet « Oublier ce morceau » are offered', (await text(page, '.reprise .plein')) === 'Rouvrir « tone »' && (await text(page, '.reprise .lien')) === 'Oublier ce morceau');
+    check('unreadable kept piece: it is NOT forgotten', (await storedDocument(page))?.project.id === id);
+    await page.screenshot({ path: path.join(out, 'reprise-proposee.png') });
+    await page.click('.reprise .plein');
+    await page.waitForFunction(() => document.querySelector('.reprise') && !document.querySelector('.import-etat'));
+    check('« Rouvrir » on a piece that is really gone: offered again, still kept', (await page.locator('.reprise .plein').count()) === 1 && (await storedDocument(page))?.project.id === id);
+    check('no page errors (unreadable kept piece)', errors.length === 0, errors.join(' | '));
     await context.close();
+  }
+  {
+    // A launch cut short during a restore: no automatic attempt, the offer; « Rouvrir » then works.
+    const { page, context, errors } = await open();
+    await pickFile(page, fixture('tone.wav'));
+    const id = await pieceOpen(page);
+    await sleep(400);
+    await page.evaluate((pid) => localStorage.setItem('fabtice.restoring', pid), id);
+    await page.reload();
+    await page.waitForFunction(() => window.__fabtice);
+    await page.waitForFunction(() => document.querySelector('.reprise'));
+    const notice = await text(page, '.accueil-avis');
+    check('launch cut short: no automatic reopening, the dialog offers the piece', (await state(page)).project === null && (await dialogOpen(page)) && notice.includes('La dernière ouverture de « tone » s’est interrompue'), notice);
+    await page.reload();
+    await page.waitForFunction(() => window.__fabtice);
+    await page.waitForFunction(() => document.querySelector('.reprise'));
+    check('launch cut short: quitting without choosing does not trigger an attempt at the next launch', (await state(page)).project === null);
+    await page.click('.reprise .plein');
+    await pieceOpen(page, null);
+    check('launch cut short: « Rouvrir » opens it, the offer and the dialog are gone', (await state(page)).project.id === id && !(await dialogOpen(page)) && (await page.locator('.reprise').count()) === 0);
+    await page.reload();
+    await page.waitForFunction(() => window.__fabtice);
+    await pieceOpen(page, null);
+    check('launch cut short: the next launch opens it by itself again', (await state(page)).project.id === id);
+    check('no page errors (cut short)', errors.length === 0, errors.join(' | '));
+    await context.close();
+  }
+  {
+    // « Oublier ce morceau » asks twice; a new import replaces a kept piece and removes the offer.
+    const { page, context, errors } = await open();
+    await pickFile(page, fixture('tone.wav'));
+    const id = await pieceOpen(page);
+    await sleep(400);
+    await page.evaluate((pid) => localStorage.setItem('fabtice.restoring', pid), id);
+    await page.reload();
+    await page.waitForFunction(() => window.__fabtice);
+    await page.waitForFunction(() => document.querySelector('.reprise'));
+    await page.click('.reprise .lien');
+    const ask = await text(page, '.reprise-confirme');
+    check('forgetting asks for confirmation, in plain words', ask.includes('Oublier ce morceau ? Il sera effacé de cet appareil.') && (await storedDocument(page))?.project.id === id, ask.replace(/\n/g, ' / '));
+    await page.click('.reprise-confirme .plein');
+    check('« Non, le garder » goes back to the offer, nothing deleted', (await page.locator('.reprise .plein').count()) === 1 && (await storedDocument(page))?.project.id === id);
+    await page.click('.reprise .lien');
+    await page.click('.reprise-confirme .bouton-cadre');
+    await page.waitForFunction(() => !document.querySelector('.reprise'));
+    check('« Oui, l’oublier » deletes the piece and its audio', (await storedDocument(page)) === null && (await storedAudioCount(page)) === 0 && (await page.evaluate(() => localStorage.getItem('fabtice.restoring'))) === null);
+    await page.reload();
+    await page.waitForFunction(() => window.__fabtice);
+    await sleep(500);
+    check('after forgetting, the next launch is a clean start', (await dialogOpen(page)) && (await page.locator('.reprise').count()) === 0 && (await page.locator('.accueil-avis').count()) === 0);
+    await context.close();
+
+    // A new import replaces the kept piece.
+    const second = await open();
+    await pickFile(second.page, fixture('tone.wav'));
+    const keptId = await pieceOpen(second.page);
+    await sleep(400);
+    await second.page.evaluate((pid) => localStorage.setItem('fabtice.restoring', pid), keptId);
+    await second.page.reload();
+    await second.page.waitForFunction(() => window.__fabtice);
+    await second.page.waitForFunction(() => document.querySelector('.reprise'));
+    await pickFile(second.page, M4A);
+    const newId = await pieceOpen(second.page, null);
+    await sleep(900);
+    check('a new import replaces the kept piece and removes the offer', newId !== keptId && (await storedDocument(second.page))?.project.id === newId && (await second.page.locator('.reprise').count()) === 0 && (await state(second.page)).ui.reopenOffer === null);
+    check('no page errors (forget, replace)', errors.length === 0 && second.errors.length === 0, [...errors, ...second.errors].join(' | '));
+    await second.context.close();
   }
 
   // ------------------------------------------------------------ storage that fails
