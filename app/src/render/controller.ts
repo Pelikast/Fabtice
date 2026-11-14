@@ -24,6 +24,7 @@ import type { PcmAudio } from '../audio/pcm';
 import { getAudio } from '../audio/registry';
 import { sameTarget, type RenderErrorCode, type RenderStatus, type RenderTarget } from '../model/render';
 import { appStore, type AppState } from '../store/store';
+import { appliedFits } from './budget';
 import { getRenderer } from './index';
 import { setApplyProgress } from './progress';
 import { RenderError } from './types';
@@ -104,22 +105,50 @@ export async function applyRender(): Promise<void> {
     const renderer = getRenderer();
     const out = new Map<string, PcmAudio>();
     const tracks = s.tracks;
-    for (let i = 0; i < tracks.length; i++) {
-      const tr = tracks[i]!;
+    const sources = tracks.map((tr) => {
       const audio = getAudio(tr.audio.id);
       if (!audio) throw new RenderError('failed', `no audio for ${tr.id}`);
-      const pcm = await renderer.render({
-        audio,
-        semitones: target.semitones,
-        cents: target.cents,
-        tempoRatio: target.tempoRatio,
-        formants: target.formants && renderer.supportsFormants,
-        signal: abort.signal,
-        onProgress: (f) => setApplyProgress((i + Math.min(1, Math.max(0, f))) / tracks.length),
-      });
-      if (!stillMine()) return;
-      out.set(tr.id, pcm);
-    }
+      return audio;
+    });
+    // A render this device could not hold is refused before any work is done (`./budget.ts`).
+    if (!appliedFits(sources, target.tempoRatio)) throw new RenderError('memory', 'the applied render would not fit the device');
+    // The longest tracks first, `renderer.parallel` at a time; the progress counts frames (the work is proportional).
+    const order = tracks.map((_, i) => i).sort((a, b) => sources[b]!.frames - sources[a]!.frames);
+    const totalFrames = sources.reduce((n, a) => n + a.frames, 0) || 1;
+    const done = new Array<number>(tracks.length).fill(0);
+    const report = () => setApplyProgress(done.reduce((n, f, i) => n + f * sources[i]!.frames, 0) / totalFrames);
+    let next = 0;
+    let failure: unknown = null;
+    const lane = async () => {
+      while (failure === null && next < order.length) {
+        const i = order[next++]!;
+        try {
+          const pcm = await renderer.render({
+            audio: sources[i]!,
+            semitones: target.semitones,
+            cents: target.cents,
+            tempoRatio: target.tempoRatio,
+            formants: target.formants && renderer.supportsFormants,
+            signal: abort.signal,
+            onProgress: (f) => {
+              done[i] = Math.max(done[i]!, Math.min(1, Math.max(0, f)));
+              report();
+            },
+          });
+          done[i] = 1;
+          report();
+          out.set(tracks[i]!.id, pcm);
+        } catch (e) {
+          // The first failure is the one reported; the other lanes are stopped.
+          if (failure === null) failure = e;
+          abort.abort();
+        }
+      }
+    };
+    const lanes = Math.max(1, Math.min(renderer.parallel ?? 1, tracks.length));
+    await Promise.all(Array.from({ length: lanes }, lane));
+    if (failure !== null) throw failure;
+    if (!stillMine()) return;
     try {
       await getEngine().setRenderedTracks({
         semitones: target.semitones,

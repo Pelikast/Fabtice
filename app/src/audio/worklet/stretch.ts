@@ -41,7 +41,7 @@ interface Exports {
 }
 
 /** Minimal WASI: the module only needs a few stubs (no files, no clock use). */
-function wasiImports(module: WebAssembly.Module, getMemory: () => WebAssembly.Memory): WebAssembly.Imports {
+export function wasiImports(module: WebAssembly.Module, getMemory: () => WebAssembly.Memory): WebAssembly.Imports {
   const stub: Record<string, (...a: number[]) => number> = {
     fd_write: (_fd, iovs, n, outp) => {
       const dv = new DataView(getMemory().buffer);
