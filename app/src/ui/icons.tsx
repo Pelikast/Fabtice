@@ -98,3 +98,12 @@ export function CloseIcon() {
     </svg>
   );
 }
+
+/** A printer, in the same line as the other icons: the quiet « Imprimer » of the chart. */
+export function PrinterIcon() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M6 7V3.5h8V7M6 14H3.8V7.6h12.4V14H14M6 11.6h8v5H6z" />
+    </svg>
+  );
+}

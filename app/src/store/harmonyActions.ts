@@ -4,7 +4,7 @@
 // concert pitch, original key (the chart editor un-transposes what the user
 // typed with `untransposeForStorage`).
 
-import { entriesOf, mergedEntries, splitBeat, withBarChords, withoutBarEdit, withSection, type BarEntry } from '../chart/edits';
+import { entriesOf, mergedEntries, splitBeat, withBarChords, withChordMoved, withoutBarEdit, withSection, type BarEntry } from '../chart/edits';
 import { chordGoingOn } from '../chart/layout';
 import { transposeChord } from '../harmony/chord';
 import { sameKey, transposeKey } from '../harmony/key';
@@ -91,6 +91,15 @@ export function splitBar(bar: number): void {
   const going = chordGoingOnAt(s, bar);
   if (going === undefined) return;
   setBarChords(bar, [{ beatInBar: 0, chord: going }, { beatInBar: mid, chord: first ? first.chord : going }]);
+}
+
+/**
+ * Puts the `index`-th chord of bar `bar` on another beat (0-based): beat 3 of 4 is `2`, the middle of the
+ * bar, where a Real Book writes the second chord. A beat that would pass a neighbouring chord is refused.
+ */
+export function moveChord(bar: number, index: number, beatInBar: number): void {
+  const s = get();
+  setBarChords(bar, withChordMoved(current(bar), index, beatInBar, meterAtBar(s.tempoMap, bar).numerator));
 }
 
 /** Removes the `index`-th chord of bar `bar`; the chord before it goes on. */

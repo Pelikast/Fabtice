@@ -57,9 +57,7 @@
   .grille-vide span { height: 76px; }
   .feuille-infos { width: 100%; justify-content: space-between; gap: 8px; }
   .feuille-infos p { white-space: normal; }
-  .case { height: 76px; padding: 12px 2px 0 8px; font-size: 21px; gap: 8px; }
-  .case.deux { font-size: 15px; gap: 5px; }
-  .case.trois { font-size: 12.5px; gap: 4px; }
+  .case { --pg: 8px; --pd: 2px; --haut: 12px; --corps: 21px; height: 76px; gap: 8px; }
   .case .section { left: 5px; top: 4px; }
   /* The chord editor is a sheet from the bottom of the screen. */
   .editeur {
@@ -81,7 +79,8 @@
   .editeur-section-champs .lien-encre { min-height: 40px; }
   .cle-editeur { left: 0; width: min(320px, calc(100vw - 24px)); }
   .accord-case { min-height: 40px; margin: 0 -3px; padding: 0 3px; }
-  .accord-case[style] { margin-left: calc(var(--debut) * 88% - 3px); }
+  .case[data-rangs="2"] .accord-case { min-height: 0; }
+  .case .accord-case[data-debut] { left: calc(var(--debut) * (100% - var(--pg) - var(--pd)) + var(--pg) - 3px); }
   .accord-case.libre { min-width: 36px; height: 48px; }
   .case .numero { top: 4px; right: 5px; }
   .analyse-bouton { padding: 4px 6px; font-size: 12px; }

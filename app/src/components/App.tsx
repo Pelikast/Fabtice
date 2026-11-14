@@ -10,6 +10,7 @@ import { ApplyWaiting } from './ApplyRender';
 import { ChartView } from './ChartView';
 import { ExportAudioDialog } from './ExportAudioDialog';
 import { NewPieceDialog } from './NewPieceDialog';
+import { PrintDialog } from './PrintDialog';
 import { SeparationPanelHost } from './SeparationPanel';
 import { StorageNotice } from './StorageNotice';
 import { TopBar } from './TopBar';
@@ -18,7 +19,7 @@ import { Transport } from './Transport';
 
 export function App() {
   const mode = useApp((s) => s.view.mode);
-  const dialogOpen = useApp((s) => s.ui.newPieceOpen || s.ui.exportAudioOpen || s.render.status === 'rendering' || s.render.status === 'error');
+  const dialogOpen = useApp((s) => s.ui.newPieceOpen || s.ui.exportAudioOpen || s.ui.printOpen || s.render.status === 'rendering' || s.render.status === 'error');
   const dragging = useFileDrop();
   useGlobalKeys();
   // Each newly opened piece is analysed in the background once it can play (analysis/runner.ts).
@@ -37,6 +38,7 @@ export function App() {
       <StorageNotice />
       <NewPieceDialog />
       <ExportAudioDialog />
+      <PrintDialog />
       <ApplyWaiting />
       {dragging && (
         <div className="depot" aria-hidden="true">
