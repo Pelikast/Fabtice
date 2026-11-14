@@ -80,18 +80,34 @@ export class IndexedDbStorage implements ProjectStorage {
     return attempt;
   }
 
-  /** Runs `work` in one transaction and resolves with its result once the transaction has committed. */
+  /**
+   * Runs `work` in one transaction. A read resolves with the result of its
+   * request, as soon as that request succeeds; a write resolves once the
+   * transaction has committed.
+   *
+   * A read must NOT take its result when the transaction completes: the browser
+   * keeps large values (a whole piece of audio) apart and delivers them a
+   * little later, so the transaction can complete while the request is still
+   * pending. Reading `request.result` then throws, and nothing ever answered:
+   * a stored piece of real size never came back at launch.
+   */
   private async transact<T>(mode: IDBTransactionMode, stores: string[], work: (tx: IDBTransaction) => IDBRequest | null): Promise<T | undefined> {
     const db = await this.open();
     return new Promise<T | undefined>((resolve, reject) => {
       let tx: IDBTransaction | undefined;
       let last: IDBRequest | null = null;
+      const reading = mode === 'readonly';
       try {
         tx = db.transaction(stores, mode);
         last = work(tx);
-        // Commit now rather than when the event loop is next idle: a page that is
-        // being closed (the save on « page hidden ») would otherwise lose the write.
-        (tx as IDBTransaction & { commit?: () => void }).commit?.();
+        if (reading) {
+          const request = last;
+          if (request) request.onsuccess = () => resolve(request.result as T);
+        } else {
+          // Commit now rather than when the event loop is next idle: a page that is
+          // being closed (the save on « page hidden ») would otherwise lose the write.
+          (tx as IDBTransaction & { commit?: () => void }).commit?.();
+        }
       } catch (e) {
         // A request that throws (data that cannot be stored) leaves the transaction alive: cancel what it did.
         try {
@@ -101,7 +117,9 @@ export class IndexedDbStorage implements ProjectStorage {
         }
         return reject(toStorageError(e));
       }
-      tx.oncomplete = () => resolve(last ? (last.result as T) : undefined);
+      tx.oncomplete = () => {
+        if (!reading || !last) resolve(undefined);
+      };
       tx.onerror = () => reject(toStorageError(tx.error ?? last?.error));
       tx.onabort = () => reject(toStorageError(tx.error ?? last?.error));
     });
