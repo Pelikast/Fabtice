@@ -12,6 +12,7 @@ import { closePanel, openPanel, togglePanel } from '../store/actions';
 import { selectAnalysisStatus } from '../store/chartSelectors';
 import { appStore, useApp, type AnalysisRun } from '../store/store';
 import { useOutsideClose } from '../ui/useOutsideClose';
+import { useFitPanel } from '../ui/useFitPanel';
 
 const percent = (f: number) => Math.round(Math.min(1, Math.max(0, f)) * 100);
 const megabytes = (bytes: number) => formatNumber(bytes / 1e6, 0);
@@ -148,8 +149,9 @@ function useModels(): AnalysisModelInfo[] {
 export function AnalysisPanel({ ref }: { ref: Ref<HTMLDivElement> }) {
   const status = useApp(selectAnalysisStatus);
   const run = useApp((s) => s.analysisRun);
+  const fitRef = useFitPanel(ref);
   return (
-    <div ref={ref} className="fenetre panneau-analyse" role="dialog" aria-label={t('analysis.title')}>
+    <div ref={fitRef} className="fenetre panneau-analyse" role="dialog" aria-label={t('analysis.title')}>
       <h2 className="libelle">{t('analysis.title')}</h2>
       {status === 'running' ? (
         <>

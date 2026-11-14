@@ -185,6 +185,8 @@ try {
 
     // Export menu
     await page.click('button:has-text("Exporter")');
+    // The iReal Pro file is written asynchronously: wait for the link (the entry is disabled until then).
+    await page.waitForSelector('.menu-export a[data-export="ireal"]', { timeout: 5000 }).catch(() => {});
     const items = await page.$$eval('.menu-export [role="menuitem"]', (els) => els.map((e) => `${e.dataset.export}:${e.disabled}:${e.querySelector('small')?.textContent ?? ''}`));
     // The iReal Pro entry is a link to the page it writes (tests/export.mjs checks it); an anchor has no `disabled`.
     check('Exporter: iReal Pro is a link, printing available, audio later', items.join('|') === 'ireal:undefined:|print:false:|audio:true:dans une prochaine version', items.join('|'));
@@ -633,6 +635,67 @@ try {
       }
       check(`no page errors (editor placement ${w}×${h})`, errors.length === 0, errors.join(' | '));
       await page.close();
+    }
+  }
+
+  // ------------------------------------------------------------ every panel stays in the window, above the transport
+  {
+    const panels = [
+      { name: 'grid panel (Tempo)', sel: '.panneau-grille', view: 'pistes', open: (page) => page.click('.rang-tete.tempo') },
+      { name: 'analysis panel', sel: '.panneau-analyse', view: 'pistes', open: (page) => page.evaluate(() => window.__fabtice.actions.openPanel('analysis')) },
+      { name: 'settings', sel: '.reglages-app', view: 'pistes', open: (page) => page.click('button:has-text("Réglages")') },
+      { name: 'Exporter menu', sel: '.menu-export', view: 'pistes', open: (page) => page.click('button:has-text("Exporter")') },
+      { name: 'fine tuning', sel: '.panneau-accord', up: true, view: 'pistes', open: (page) => page.evaluate(() => window.__fabtice.actions.openPanel('tuning')) },
+      { name: 'key editor', sel: '.cle-editeur', view: 'grille', open: (page) => page.click('[data-testid="cle-bouton"]') },
+    ];
+    for (const [w, h] of [[1280, 800], [1024, 700], [960, 640]]) {
+      for (const view of ['pistes', 'grille']) {
+        const { page, errors } = await open(`?demo&moteur=factice&vue=${view}`, { width: w, height: h });
+        await sleep(300);
+        for (const p of panels.filter((x) => x.view === view)) {
+          await p.open(page);
+          await sleep(450);
+          const r = await page.evaluate(([sel, up]) => {
+            const panel = document.querySelector(sel);
+            if (!panel) return null;
+            // The tuning panel opens upwards from the Tonalité box, inside the transport bar: it only has to stay in the window.
+            const bas = up ? innerHeight : document.querySelector('.bas').getBoundingClientRect().top;
+            const pb = panel.getBoundingClientRect();
+            const out = [];
+            let last = null;
+            for (const b of panel.querySelectorAll('button, input, select, a')) {
+              b.scrollIntoView({ block: 'nearest' });
+              const r = b.getBoundingClientRect();
+              if (r.width === 0 || r.height === 0) continue;
+              last = b;
+              if (r.top < 0 - 0.5 || r.bottom > bas + 0.5 || r.left < -0.5 || r.right > innerWidth + 0.5 || r.top < pb.top - 0.5 || r.bottom > pb.bottom + 0.5) out.push((b.textContent || b.getAttribute('aria-label') || b.tagName).trim().slice(0, 24));
+            }
+            panel.scrollTop = 0;
+            const e = panel.getBoundingClientRect();
+            return { out, inside: e.top >= -0.5 && e.bottom <= bas + 0.5 && e.left >= -0.5 && e.right <= innerWidth + 0.5, top: e.top, bottom: e.bottom, bas, lastIndex: last ? [...panel.querySelectorAll('button, input, select, a')].indexOf(last) : -1 };
+          }, [p.sel, !!p.up]);
+          const tag = `${p.name} at ${w}×${h}`;
+          check(`${tag}: the panel and every control lie inside the window, above the transport`, !!r && r.out.length === 0 && r.inside, r ? `${r.out.join(', ')} ${Math.round(r.top)}-${Math.round(r.bottom)} / transport ${Math.round(r.bas)}` : 'not open');
+          if (r) {
+            // A real click would reach it: trial mode runs Playwright's hit-target check (nothing covers the control).
+            const last = page.locator(`${p.sel} :is(button, input, select, a):visible:enabled`).last();
+            let clickable = true;
+            let why = '';
+            try {
+              await last.click({ trial: true, timeout: 3000 });
+            } catch (e) {
+              clickable = false;
+              why = String(e.message).split('\n').slice(0, 3).join(' ');
+            }
+            check(`${tag}: the last control can really be clicked`, clickable, why);
+          }
+          if (w === 960) await page.screenshot({ path: path.join(out, `app-panneau-${p.sel.replace(/[^a-z-]/g, '')}-960.png`) });
+          await page.evaluate(() => window.__fabtice.actions.closePanel());
+          await sleep(150);
+        }
+        check(`panels ${w}×${h} ${view}: no page errors`, errors.length === 0, errors.join(' | '));
+        await page.close();
+      }
     }
   }
 

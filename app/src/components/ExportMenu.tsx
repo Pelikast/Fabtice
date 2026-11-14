@@ -7,6 +7,7 @@ import { chartForExport, exportToIRealPro } from '../export';
 import '../export/export.css';
 import { t } from '../i18n';
 import { closePanel, togglePanel } from '../store/actions';
+import { useFitPanel } from '../ui/useFitPanel';
 import { selectHasChords } from '../store/chartSelectors';
 import { getDesktopBridge } from '../platform/desktopBridge';
 import { appStore, useApp } from '../store/store';
@@ -97,8 +98,9 @@ function IRealEntries({ enabled }: { enabled: boolean }) {
 
 /** The menu's window, under its button. */
 function ExportPanel({ ref }: { ref: Ref<HTMLDivElement> }) {
+  const fitRef = useFitPanel(ref);
   return (
-    <div ref={ref} className="fenetre menu-export" role="menu" aria-label={t('top.export')}>
+    <div ref={fitRef} className="fenetre menu-export" role="menu" aria-label={t('top.export')}>
       <ExportItems />
     </div>
   );
