@@ -25,6 +25,7 @@ le stockage.
 | `npm run test:smoke` | après `build` : vérifications dans Chromium (Playwright préinstallé) et captures d'écran dans un dossier temporaire (`FABTICE_SMOKE_OUT` pour le choisir) |
 | `npm run test:import` | après `build` : import des cinq formats (sélecteur et glisser-déposer), rouverture du projet après rechargement (dont des morceaux de **taille réelle**, 0,5 à 32 Mo, dans un profil de navigateur persistant), morceau gardé mais impossible à rouvrir (offre « Rouvrir » / « Oublier »), autosauvegarde, stockage en échec, import par lien contre un faux `window.fabtice`, coût d'un morceau de cinq minutes (captures dans `FABTICE_IMPORT_OUT`) |
 | `npm run test:timeline` | après `build` : vérifications de la frise dans Chromium (formes d'onde, grille, boucle, défilement, zoom, suivi, téléphone, morceau de dix minutes) |
+| `npm run test:export` | après `build` : le menu « Exporter », le fichier iReal Pro téléchargé par le navigateur, et son lien relu (par un lecteur écrit dans le test) et comparé aux accords de la grille, avec une transposition et un instrument réglés, un accord tapé à la main, une analyse qui se termine |
 | `npm run test:engine` | après `build` (et, en option, `build:desktop`) : mesures du vrai moteur audio dans Chromium (tonalité, tempo, boucle, métronome, limiteur, charge) |
 | `npm run test:chart` | après `build` : la grille d'accords comparée à la maquette (même balisage des accords, mêmes tailles, sections, boucle, mesure en cours, instruments, états vides et « analyse en cours », téléphone), panneaux de corrections et d'accordage ; captures de l'app et de la maquette côte à côte dans `FABTICE_CHART_OUT` |
 
@@ -77,8 +78,8 @@ src/
                       automatique et état (runner.ts), progression fine
   chart/              affichage Grille d'accords : mise en page pure (layout.ts),
                       corrections pures (edits.ts), feuille, mesure en cours
-  export/             représentation de la grille pour l'export, contrat iReal Pro,
-                      impression
+  export/             représentation de la grille pour l'export, codage iReal Pro
+                      (IREAL-FORMAT.md : le format et ses sources), impression
   store/              état de l'app (store.ts), actions (actions.ts), valeurs
                       dérivées (derived.ts), préférences, document de projet
   audio/              contrat du moteur (AudioEngine.ts), vrai moteur
@@ -102,7 +103,7 @@ src/
   demo/               le morceau synthétique de ?demo
   styles/             jetons, base, une feuille par zone, téléphone
   assets/fonts/       polices (woff2) et leurs licences OFL
-tests/                vérifications dans Chromium (smoke.mjs, timeline.mjs, import.mjs, chart.mjs),
+tests/                vérifications dans Chromium (smoke.mjs, timeline.mjs, import.mjs, chart.mjs, export.mjs),
                       fichiers audio de test (fixtures/) et petit serveur
 ```
 
@@ -304,25 +305,51 @@ chantiers suivent, chacun dans son dossier.
 
 #### Export iReal Pro — `src/export/`
 
-- **Ce qui existe** : `chartForExport(state)` rend une représentation pure de la
-  grille (`ExportChart` : titre, tonalité écrite, métrique, tempo, `repeats:
-  'none'`, mesures avec section, double barre, changement de métrique, accords
-  au temps près, répétition, dernière mesure), en Ut **dans la tonalité jouée**
-  (transposition du transport appliquée ; l'instrument non : iReal Pro
-  transpose lui-même). Le contrat `exportToIRealPro(chart): IRealExport` (lien
-  `irealb://`, page HTML qui le porte, nom de fichier) lève
-  `ExportNotReadyError`. Le menu « Exporter » montre « bientôt » tant que
-  `IREAL_EXPORT_READY` est faux ; ensuite il enregistre la page HTML
-  (`components/ExportMenu.tsx`).
-- **Reste à faire** : le codage iReal (vocabulaire d'accords, cellules,
-  sections, métrique, style par défaut, chaîne du lien), ses tests, la remise à
-  l'utilisateur (page à ouvrir, lien à copier, app Mac), puis
-  `IREAL_EXPORT_READY = true`.
+- **Fait** : `chartForExport(state)` rend une représentation pure de la grille
+  (`ExportChart` : titre, tonalité écrite, métrique, tempo, mesures avec section,
+  double barre, changement de métrique, accords au temps près, répétition,
+  dernière mesure), en Ut **dans la tonalité jouée** (transposition du transport
+  appliquée ; l'instrument non : iReal Pro transpose lui-même).
+  `exportToIRealPro(chart)` (pur) en fait le lien `irealb://` (et l'ancien lien
+  `irealbook://`), la page HTML qui le porte (une phrase en français) et le nom
+  du fichier (celui du morceau). `IREAL_EXPORT_READY` est vrai.
+- **Le format** est décrit, avec ses sources (dépôts, licences), dans
+  `src/export/IREAL-FORMAT.md` (en anglais) : champs du lien, mélange des 50
+  caractères, cellules (une par temps), sections, mesures qui continuent
+  (`x`, barres obliques `p`), N.C., vocabulaire d'accords et ce qu'iReal Pro ne
+  sait pas écrire (l'approximation choisie, dite). À lire avant de toucher au
+  codage.
+- **Fichiers** : `ireal.ts` (champs, chaîne de la grille, mélange, lien, page),
+  `irealChords.ts` (la table des qualités d'iReal Pro et la correspondance avec
+  le vocabulaire de l'app : elle sert au codage et, dans les tests, au
+  décodage), `export.css` (les entrées du menu), `chartExport.ts`.
+- **Tests** : `ireal.test.ts` écrit des grilles et les relit avec un lecteur
+  indépendant (`src/test/irealDecoder.ts` : son propre mélange, son propre
+  découpage, une grammaire des qualités plutôt que la table) : le morceau de
+  démonstration, 2/4 à 7/4, deux et quatre accords par mesure, levée, N.C.,
+  répétitions, changement de métrique, 300 mesures, des grilles de toutes les
+  tailles autour des 50 caractères du mélange, chaque qualité avec chaque
+  extension, des titres étranges. `ireal.reference.test.ts` relit les mêmes liens
+  avec des lecteurs publiés, **sans les ajouter à l'app** : il ne fait rien
+  tant qu'on ne lui indique pas où ils sont (voir son en-tête :
+  `IREAL_REFERENCE_DIR`, `IREAL_REFERENCE_PYTHON`) ; `npm test` le saute.
+- **Remise à l'utilisateur** : « Grille pour iReal Pro » est un **lien normal** vers
+  la page enregistrée sous le nom du morceau (le navigateur l'enregistre ; dans
+  l'app Mac c'est un vrai téléchargement). Dans l'app Mac, « Ouvrir dans iReal Pro »
+  s'y ajoute : `window.fabtice.openInIRealPro(lien)`, typée dans
+  `platform/desktopBridge.ts` (facultative : une app Mac plus ancienne ne l'a
+  pas). Elle n'accepte que `irealb://` et 200 000 caractères au plus
+  (`desktop/src/ireal-link.js`).
+- **Reste à faire** : rien pour l'export lui-même. Seul le propriétaire peut
+  dire comment son iReal Pro importe le fichier (voir « ce qu'il reste à
+  vérifier » dans `IREAL-FORMAT.md`) ; les répétitions et les fins numérotées
+  ne sont pas écrites (la grille n'en a pas).
 
 #### Le menu « Exporter » et les panneaux
 
 « Exporter » est un petit menu (`components/ExportMenu.tsx`) : « Grille pour
-iReal Pro » et « Imprimer la grille » (« bientôt »), l'audio visible mais inactif
+iReal Pro » (un lien vers le fichier ; « Ouvrir dans iReal Pro » en plus dans l'app
+Mac) et « Imprimer la grille » (« bientôt »), l'audio visible mais inactif
 (lot 3). Le panneau « Tempo et mesures » (`components/GridPanel.tsx`) garde la
 saisie du lot 1 et gagne : tempo ÷ 2 et × 2, premier temps un temps plus tôt ou
 plus tard (de part et d'autre de « Premier temps ici »), l'origine de la grille,
@@ -411,7 +438,8 @@ moteur complet dans Chromium (enregistreur branché sur la sortie du worklet).
 
 Types exacts de `window.fabtice` tel que l'expose `desktop/src/preload.js`
 (`systemInfo`, `ytdlpStatus`, `ytdlpCheck`, `ytdlpInstall`, `extract`,
-`copyText`, `onYtdlpProgress`, `onExtractProgress`). `getDesktopBridge()`
+`copyText`, `onYtdlpProgress`, `onExtractProgress`, et `openInIRealPro`, facultative : elle
+ouvre un lien `irealb://` avec le système, rien d'autre). `getDesktopBridge()`
 renvoie l'objet dans l'app Mac, `null` sur le web. Pendant `extract`, le pont envoie
 `{ phase: 'info' }` (recherche), `{ phase: 'prepare', meta }` (le téléchargement va
 démarrer, rien à mesurer) puis `{ phase: 'download', percent, receivedBytes, totalBytes,
