@@ -386,6 +386,254 @@ scenarios.first = async () => {
   await context.close();
 };
 
+const HUB = /^https:\/\/(huggingface\.co|[^/]*\.hf\.co)\//;
+const CREMA_URL = 'https://huggingface.co/thebluescreen/crema-chords-onnx/resolve/302ae89e3ed7753fc8da9cb08274aff446d8fe47/crema_chords.onnx';
+const CREMA = { id: 'crema-chords', bytes: 2728454, sha256: '3222e641f23f668caabb48498d8d4db258216753af8d1da2753da002eb786c1e' };
+
+/** What the device keeps of the analysis tools, read from IndexedDB; each kept file is checked against its digest. */
+const keptTools = (page) =>
+  page.evaluate(
+    () =>
+      new Promise((resolve) => {
+        const open = indexedDB.open('fabtice-analysis-tools');
+        open.onerror = () => resolve({ files: {}, parts: {} });
+        open.onupgradeneeded = () => open.transaction.abort();
+        open.onsuccess = async () => {
+          const db = open.result;
+          const all = (store) =>
+            new Promise((ok) => {
+              const r = db.transaction(store).objectStore(store).getAll();
+              r.onsuccess = () => ok(r.result);
+              r.onerror = () => ok([]);
+            });
+          const hex = async (buf) => [...new Uint8Array(await crypto.subtle.digest('SHA-256', buf))].map((b) => b.toString(16).padStart(2, '0')).join('');
+          const files = {};
+          for (const f of await all('files')) files[f.id] = { bytes: f.data.byteLength, digestOk: (await hex(f.data)) === f.sha256 };
+          const parts = {};
+          for (const p of await all('parts')) parts[p.id] = (parts[p.id] ?? 0) + p.data.byteLength;
+          db.close();
+          resolve({ files, parts });
+        };
+      }),
+  );
+
+/** The panel's text (opens it if needed). */
+async function panelText(page) {
+  if (!(await page.locator('.panneau-analyse').count())) await page.locator('[data-testid="analyse-etat"]').first().click();
+  return page.locator('.panneau-analyse').innerText();
+}
+
+const runStep = (page) =>
+  page.evaluate(() => {
+    const r = window.__fabtice.store.getState().analysisRun;
+    return r.status === 'running' ? r.step : r.status;
+  });
+
+async function waitStep(page, step, timeout = 120000) {
+  await page.waitForFunction(
+    (st) => {
+      const r = window.__fabtice.store.getState().analysisRun;
+      return r.status === 'running' && r.step === st;
+    },
+    step,
+    { timeout, polling: 50 },
+  );
+}
+
+async function waitNoWorkers(page, ms = 6000) {
+  const t0 = Date.now();
+  for (let i = 0; i < ms / 100 && page.workers().length; i++) await sleep(100);
+  const gone = page.workers().length === 0;
+  if (gone && Date.now() - t0 > 400) note(`workers took ${Date.now() - t0} ms to be gone`);
+  return gone;
+}
+
+/** Cancellation: in the panel, by a new import, and during the download. */
+scenarios.cancel = async () => {
+  const context = await browser.newContext();
+  const { page, errors } = await open(context);
+  await importFile(page, SWING);
+  await analysisEnded(page); // the tools are now on the device
+
+  // --- in the panel, while the networks run
+  await openDialog(page);
+  await pickFile(page, SWING);
+  await waitStep(page, 'beats');
+  const t0 = Date.now();
+  await panelButton(page, 'Arrêter l’analyse');
+  await page.waitForFunction(() => window.__fabtice.store.getState().analysisRun.status === 'idle', null, { timeout: 3000 });
+  const took = Date.now() - t0;
+  check('cancel in the panel: the status is idle at once', took < 1500, `${took} ms`);
+  check('cancel in the panel: no result kept', !(await state(page)).hasAnalysis);
+  check('cancel in the panel: the piece stays playable', (await state(page)).engine === 'ready');
+  check('cancel in the panel: the worker is ended', await waitNoWorkers(page), `${page.workers().length} workers`);
+  await sleep(1500);
+  check('cancel in the panel: nothing comes back afterwards', !(await state(page)).hasAnalysis && (await runStep(page)) === 'idle');
+  // And an analysis started again works.
+  await panelButton(page, 'Analyser le morceau');
+  await analysisEnded(page);
+  check('cancel in the panel: a new analysis works afterwards', (await state(page)).hasAnalysis);
+
+  // --- a new import cancels the analysis of the previous piece
+  await openDialog(page);
+  await pickFile(page, SWING);
+  await waitStep(page, 'beats');
+  const first = (await state(page)).projectId;
+  await openDialog(page);
+  await pickFile(page, TONE);
+  await page.waitForFunction(
+    (id) => {
+      const s = window.__fabtice.store.getState();
+      return s.project && s.project.id !== id && s.transport.engine === 'ready';
+    },
+    first,
+    { timeout: 30000 },
+  );
+  const second = await state(page);
+  check('a new import: the piece changed', second.projectId !== first);
+  await analysisEnded(page);
+  const r2 = await result(page);
+  const st2 = await state(page);
+  // The new piece is a 1.5 s tone: the analysis of it says « no music », not « failed », not a result of the old piece.
+  check('a new import: the new piece gets its own verdict (nothing to analyse)', !r2 && st2.run.status === 'error' && st2.run.code === 'no-music', r2 ? `duration ${r2.duration.toFixed(1)} s` : JSON.stringify(st2.run));
+  check('a new import: no worker left', await waitNoWorkers(page, 20000), `${page.workers().length} workers`);
+  check('cancel: no console error', errors.length === 0, errors.join(' | '));
+  await context.close();
+
+  // --- during the download (a hub that never answers)
+  const fresh = await browser.newContext();
+  await fresh.route(HUB, () => {}); // never fulfilled: the download hangs
+  const hung = await open(fresh);
+  await importFile(hung.page, SWING);
+  await waitStep(hung.page, 'download');
+  await sleep(500);
+  const t1 = Date.now();
+  await panelButton(hung.page, 'Arrêter l’analyse');
+  await hung.page.waitForFunction(() => window.__fabtice.store.getState().analysisRun.status === 'idle', null, { timeout: 3000 });
+  check('cancel during the download: the status is idle at once', Date.now() - t1 < 1500, `${Date.now() - t1} ms`);
+  check('cancel during the download: the worker is ended', await waitNoWorkers(hung.page), `${hung.page.workers().length} workers`);
+  check('cancel during the download: the piece stays playable', (await state(hung.page)).engine === 'ready');
+  await fresh.close();
+};
+
+/** The network is missing: the piece stays usable, the analysis can start again later. */
+scenarios.network = async () => {
+  const context = await browser.newContext();
+  await context.route(HUB, (route) => route.abort('internetdisconnected'));
+  const { page, errors } = await open(context);
+  await importFile(page, SWING);
+  const t0 = Date.now();
+  await analysisEnded(page, 60000);
+  const st = await state(page);
+  check('network missing: the analysis stops with the download error', st.run.status === 'error' && st.run.code === 'download-failed', JSON.stringify(st.run));
+  note(`network missing: reported after ${((Date.now() - t0) / 1000).toFixed(1)} s (three tries)`);
+  check('network missing: the piece stays usable', st.engine === 'ready' && st.tracks === 1 && !st.hasAnalysis);
+  const text = await panelText(page);
+  check('network missing: the panel says so in French, and says what to do', /n’ont pas pu être téléchargés/.test(text) && /connexion/.test(text) && /jouable/.test(text), text.replace(/\s+/g, ' '));
+  check('network missing: nothing was kept', Object.keys((await keptTools(page)).files).length === 0);
+  check('network missing: no worker left', await waitNoWorkers(page));
+  // The connection comes back: the same button starts the analysis again.
+  await context.unroute(HUB);
+  await panelButton(page, 'Analyser de nouveau');
+  await analysisEnded(page);
+  check('network back: the analysis starts again and succeeds', (await state(page)).hasAnalysis);
+  const kept = await keptTools(page);
+  check('network back: the three tools are kept and intact', ['beat-this-logmel', 'beat-this-small0', 'crema-chords'].every((id) => kept.files[id]?.digestOk), JSON.stringify(kept.files));
+  check('network: no console error', errors.length === 0, errors.join(' | '));
+  await context.close();
+};
+
+/** A damaged download is refused and fetched again; refused for good after three tries. */
+scenarios.integrity = async () => {
+  // --- damaged once, then fine
+  let context = await browser.newContext();
+  let seen = 0;
+  await context.route(/crema_chords\.onnx/, (route) => {
+    seen++;
+    if (seen === 1) return route.fulfill({ status: 200, headers: { 'access-control-allow-origin': '*', 'content-type': 'application/octet-stream' }, body: Buffer.alloc(CREMA.bytes, 7) });
+    return route.continue();
+  });
+  let { page, errors } = await open(context);
+  await importFile(page, SWING);
+  await analysisEnded(page);
+  check('damaged once: the analysis still succeeds', (await state(page)).hasAnalysis);
+  check('damaged once: the file was fetched again', seen === 2, `${seen} requests`);
+  let kept = await keptTools(page);
+  check('damaged once: the kept file is the intact one', kept.files['crema-chords']?.digestOk === true && kept.files['crema-chords'].bytes === CREMA.bytes, JSON.stringify(kept));
+  check('damaged once: no piece of download left behind', Object.keys(kept.parts).length === 0, JSON.stringify(kept.parts));
+  check('damaged once: no console error', errors.length === 0, errors.join(' | '));
+  await context.close();
+
+  // --- always damaged
+  context = await browser.newContext();
+  seen = 0;
+  await context.route(/logmel\.onnx/, (route) => {
+    seen++;
+    return route.fulfill({ status: 200, headers: { 'access-control-allow-origin': '*', 'content-type': 'application/octet-stream' }, body: Buffer.alloc(4468830, 9) });
+  });
+  ({ page, errors } = await open(context));
+  await importFile(page, SWING);
+  await analysisEnded(page, 60000);
+  const st = await state(page);
+  check('always damaged: refused, the analysis stops with the download error', st.run.status === 'error' && st.run.code === 'download-failed', JSON.stringify(st.run));
+  check('always damaged: tried three times, no more', seen === 3, `${seen} requests`);
+  kept = await keptTools(page);
+  check('always damaged: the damaged file is not kept', !kept.files['beat-this-logmel'] && !kept.parts['beat-this-logmel'], JSON.stringify(kept));
+  check('always damaged: the piece stays usable', st.engine === 'ready' && st.tracks === 1);
+  await context.close();
+};
+
+/** The hub answers ranged requests from this origin, and an interrupted download is resumed. */
+scenarios.resume = async () => {
+  const context = await browser.newContext();
+  const ranges = [];
+  context.on('request', (req) => {
+    if (/crema_chords\.onnx/.test(req.url()) && req.headers().range) ranges.push(req.headers().range);
+  });
+  const { page, errors } = await open(context);
+  const probeResult = await page.evaluate(async (url) => {
+    const res = await fetch(url, { headers: { Range: 'bytes=0-99' } });
+    return { status: res.status, range: res.headers.get('Content-Range'), length: (await res.arrayBuffer()).byteLength };
+  }, CREMA_URL);
+  check('the hub answers a ranged request from this origin (206)', probeResult.status === 206 && probeResult.length === 100 && /\/2728454$/.test(probeResult.range ?? ''), JSON.stringify(probeResult));
+  ranges.length = 0;
+  // A download interrupted at 1 000 000 bytes: its first piece is already on the device.
+  const have = 1_000_000;
+  await page.evaluate(
+    async ([url, have]) => {
+      const part = await (await fetch(url, { headers: { Range: `bytes=0-${have - 1}` } })).arrayBuffer();
+      await new Promise((resolve, reject) => {
+        const open = indexedDB.open('fabtice-analysis-tools', 1);
+        open.onupgradeneeded = () => {
+          open.result.createObjectStore('files', { keyPath: 'id' });
+          open.result.createObjectStore('parts', { keyPath: ['id', 'index'] });
+        };
+        open.onsuccess = () => {
+          const tx = open.result.transaction('parts', 'readwrite');
+          tx.objectStore('parts').put({ id: 'crema-chords', index: 0, data: part });
+          tx.oncomplete = () => {
+            open.result.close();
+            resolve();
+          };
+          tx.onerror = () => reject(tx.error);
+        };
+        open.onerror = () => reject(open.error);
+      });
+    },
+    [CREMA_URL, have],
+  );
+  ranges.length = 0; // the seeding above asked for a range of its own
+  check('resume: the interrupted piece is on the device', (await keptTools(page)).parts['crema-chords'] === have);
+  await importFile(page, SWING);
+  await analysisEnded(page);
+  check('resume: the analysis succeeds', (await state(page)).hasAnalysis);
+  check('resume: only the rest was asked for', ranges.length === 1 && ranges[0] === `bytes=${have}-`, ranges.join(' | '));
+  const kept = await keptTools(page);
+  check('resume: the assembled file is intact and the pieces are gone', kept.files['crema-chords']?.digestOk === true && !kept.parts['crema-chords'], JSON.stringify(kept));
+  check('resume: no console error', errors.length === 0, errors.join(' | '));
+  await context.close();
+};
+
 /** A 4-minute piece: the cost of a real piece, and the memory it takes. */
 scenarios.long = async () => {
   const context = await browser.newContext();

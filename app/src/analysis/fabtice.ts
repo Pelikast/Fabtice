@@ -31,13 +31,18 @@ import {
 } from './types';
 import type { AnalyseRequestMessage, DecodeRequestMessage, FromWorker, ToWorker } from './worker/protocol';
 
-/** Share of the whole analysis each step takes once the tools are on the device (they add up to 1). */
+/**
+ * Share of the whole analysis each step takes once the tools are on the
+ * device (they add up to 1). Measured on a 4-minute piece, 4 threads: loading
+ * the networks and resampling 3.6 s, tuning 0.6 s, beats 13 s, chords 1.3 s,
+ * decoding 0.4 s.
+ */
 export const STEP_WEIGHTS: Record<Exclude<AnalysisStep, 'download'>, number> = {
-  prepare: 0.08,
-  tuning: 0.02,
-  beats: 0.3,
-  chords: 0.5,
-  finish: 0.1,
+  prepare: 0.15,
+  tuning: 0.03,
+  beats: 0.65,
+  chords: 0.12,
+  finish: 0.05,
 };
 /** The first download takes this share of the progress when there is one. */
 export const DOWNLOAD_SHARE = 0.3;
@@ -46,7 +51,7 @@ export const DOWNLOAD_SHARE = 0.3;
 const GRACE_MS = 300;
 
 /** Expected duration of the chord network, in seconds of work per second of music (for the steady progress). */
-const CHORD_SECONDS_PER_SECOND = 0.12;
+const CHORD_SECONDS_PER_SECOND = 0.01;
 
 export interface FabticeAnalyzerOptions {
   beatModel?: BeatModelChoice;
@@ -69,7 +74,8 @@ export class FabticeAnalyzer implements Analyzer {
   readonly id = 'fabtice';
   private readonly beatModel: BeatModelChoice;
   private readonly createWorker: () => Worker;
-  private running = false;
+  /** The analysis in progress (its signal tells when it is being given up: a new one may then start at once). */
+  private active: { signal?: AbortSignal } | null = null;
   private current: Worker | null = null;
   private kept: { audioId: string; outputs: NetworkOutputs; duration: number; models: string[] } | null = null;
 
@@ -93,14 +99,17 @@ export class FabticeAnalyzer implements Analyzer {
   }
 
   async analyse(request: AnalysisRequest): Promise<AnalysisResult> {
-    if (this.running) throw new AnalysisError('failed', 'an analysis is already running');
+    // One analysis at a time. One that was just cancelled may still be unwinding (its promise has
+    // not yet rejected when the runner starts the next one): it does not count.
+    if (this.active && !this.active.signal?.aborted) throw new AnalysisError('failed', 'an analysis is already running');
     if (!analysisSupported()) throw new AnalysisError('unsupported');
     const { signal } = request;
     if (signal?.aborted) throw new AnalysisError('cancelled');
     const { channels, sampleRate } = request;
     const length = channels[0]?.length ?? 0;
     if (!channels.length || length === 0) throw new AnalysisError('no-music');
-    this.running = true;
+    const mine = { signal };
+    this.active = mine;
     try {
       const duration = length / sampleRate;
       const reuse = this.kept && this.kept.audioId === request.audioId && (request.grid || request.key) ? this.kept : null;
@@ -126,7 +135,7 @@ export class FabticeAnalyzer implements Analyzer {
       if (outputs) this.kept = { audioId: request.audioId, outputs, duration, models };
       return result;
     } finally {
-      this.running = false;
+      if (this.active === mine) this.active = null;
     }
   }
 
@@ -197,7 +206,7 @@ export class FabticeAnalyzer implements Analyzer {
         let f = stepFraction;
         // The chord network gives no news while it runs: advance on the clock, never to the end.
         if (step === 'chords' && f === 0) {
-          const expected = Math.max(2, duration * CHORD_SECONDS_PER_SECOND);
+          const expected = Math.max(1, duration * CHORD_SECONDS_PER_SECOND);
           f = Math.min(0.95, 1 - Math.exp(-(performance.now() - stepStarted) / 1000 / expected));
         }
         latest = Math.max(latest, Math.min(1, base + weight * f));
