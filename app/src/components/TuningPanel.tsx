@@ -6,13 +6,15 @@ import { tuningInForce, tuningOffer } from '../store/chartSelectors';
 import { CENTS } from '../store/derived';
 import { compensateTuning, dismissTuningOffer } from '../store/harmonyActions';
 import { useApp } from '../store/store';
+import { useFitPanel } from '../ui/useFitPanel';
 
 /** Fine tuning in cents, kept out of the way: opened by the Tonalité value. */
 export function TuningPanel({ ref }: { ref: Ref<HTMLDivElement> }) {
   const cents = useApp((s) => s.playback.cents);
   const semitones = useApp((s) => s.playback.semitones);
+  const fitRef = useFitPanel(ref, true);
   return (
-    <div ref={ref} className="fenetre panneau-accord" role="dialog" aria-label={t('key.fine')}>
+    <div ref={fitRef} className="fenetre panneau-accord" role="dialog" aria-label={t('key.fine')}>
       <h2 className="libelle">{t('key.centsLabel')}</h2>
       <div className="cents">
         <button aria-label={t('key.centsDown')} disabled={cents <= CENTS.min} onClick={() => setCents(cents - 1)}>

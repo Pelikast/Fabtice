@@ -44,7 +44,7 @@ import {
 } from './geometry';
 import { chordMarkup } from './chordMarkup';
 import { ChordLayer } from './chordLayer';
-import { placeChordRow, rowChords, type RowChord } from './chordRow';
+import { placeChordRow, ROW_SIZES_PX, rowChords, type RowChord } from './chordRow';
 import { drawGrid, drawRuler, drawWave, readColors, type Colors } from './drawing';
 import { RULER_ROW_HEIGHT, TRACKS_FOOT, rulerHeight, rulerRows } from './layout';
 import { getPeaks, onPeaksChange } from './peakCache';
@@ -106,7 +106,7 @@ export class TimelineController {
   private chordLayer: ChordLayer | null = null;
   private chordItems: RowChord[] = [];
   private chordHtml = new WeakMap<RowChord, string>();
-  private chordMaxWidth = 0;
+  private chordMaxWidths: number[] = [];
   private chordDataStale = true;
   private chordStride = 1;
   private lastBars: unknown = null;
@@ -357,17 +357,17 @@ export class TimelineController {
     this.chordDataStale = false;
     this.chordHtml = new WeakMap();
     this.chordItems = [];
-    this.chordMaxWidth = 0;
+    this.chordMaxWidths = [];
     if (!layer || !this.hasChords) return;
     const ctx = selectDisplayContext(s);
     this.chordItems = rowChords(selectChartBars(s), s.tempoMap);
-    let widest = 0;
+    const widest = ROW_SIZES_PX.map(() => 0);
     for (const item of this.chordItems) {
       const html = chordMarkup(item.chord, ctx, item.doubtful);
       this.chordHtml.set(item, html);
-      widest = Math.max(widest, layer.measure(html, item.small));
+      for (let size = 0; size < widest.length; size++) widest[size] = Math.max(widest[size]!, layer.measure(html, item.small, size));
     }
-    this.chordMaxWidth = widest;
+    this.chordMaxWidths = widest;
   }
 
   /** Places the labels in view; returns the row's stride (1 = every chord, n = one label every n bars). */
@@ -375,18 +375,19 @@ export class TimelineController {
     const layer = this.chordLayer;
     if (!layer || !this.hasChords) return 1;
     if (this.chordDataStale) this.prepareChords();
-    const { placed, stride } = placeChordRow({
+    const { placed, stride, size } = placeChordRow({
       items: this.chordItems,
       map: this.s.tempoMap,
       t0: this.t0,
       pps: this.pps,
       viewW: this.viewW,
-      maxWidth: this.chordMaxWidth,
-      widthOf: (item) => layer.measure(this.chordHtml.get(item) ?? '', item.small),
+      maxWidths: this.chordMaxWidths,
+      widthOf: (item, level) => layer.measure(this.chordHtml.get(item) ?? '', item.small, level),
     });
-    layer.render(placed.map((pl) => ({ key: pl.key, html: this.chordHtml.get(pl.item) ?? '', small: pl.item.small, x: pl.x })));
+    layer.render(placed.map((pl) => ({ key: pl.key, html: this.chordHtml.get(pl.item) ?? '', small: pl.item.small, size, x: pl.x })));
     this.root.dataset.chordLabels = String(layer.count);
     this.root.dataset.chordStride = String(stride);
+    this.root.dataset.chordSize = String(size);
     return stride;
   }
 

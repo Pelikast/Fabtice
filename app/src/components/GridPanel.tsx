@@ -18,6 +18,7 @@ import {
   setBeatsPerBar,
 } from '../store/gridActions';
 import { useApp } from '../store/store';
+import { useFitPanel } from '../ui/useFitPanel';
 
 const NUMERATORS = Array.from({ length: NUMERATOR_MAX - NUMERATOR_MIN + 1 }, (_, i) => NUMERATOR_MIN + i);
 
@@ -64,9 +65,10 @@ export function GridPanel({ ref }: { ref: Ref<HTMLDivElement> }) {
   };
 
   const origin = t(`grid.origin.${map.origin}`);
+  const fitRef = useFitPanel(ref);
 
   return (
-    <div ref={ref} className="fenetre panneau-grille" role="dialog" aria-label={t('grid.title')}>
+    <div ref={fitRef} className="fenetre panneau-grille" role="dialog" aria-label={t('grid.title')}>
       <h2 className="libelle">{t('grid.title')}</h2>
 
       <div className="panneau-ligne">

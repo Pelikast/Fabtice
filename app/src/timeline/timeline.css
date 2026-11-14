@@ -34,7 +34,7 @@
 }
 
 /* Chord row: labels are moved with a transform by timeline/chordLayer.ts. The
-   type is the mockup's `.accord` (18 px, 14.5 px when the bar holds two chords);
+   type is the mockup's `.accord` (18 px, 14.5 px when the bar holds two chords; 16 and 14.5 px for the whole row when bars are narrow);
    the symbols themselves are styled by styles/chords.css, as in the chart. */
 .frise-accords {
   position: absolute;
@@ -56,6 +56,9 @@
   white-space: nowrap;
   color: var(--encre);
 }
+/* When the bars are narrow the whole row steps down (timeline/chordRow.ts#ROW_SIZES_PX), never below the two-chord size. */
+.frise-accord.taille-1 { font-size: 16px; }
+.frise-accord.taille-2 { font-size: 14.5px; }
 .frise-accord.deux { font-size: 14.5px; }
 /* The gauge that measures labels: same classes, never seen. */
 .frise-accord.frise-jauge { visibility: hidden; width: max-content; }

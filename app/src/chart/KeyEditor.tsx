@@ -14,6 +14,7 @@ import type { Key, KeyMode } from '../model/harmony';
 import { keyInForce, selectDisplayContext } from '../store/chartSelectors';
 import { setDisplayedKey } from '../store/harmonyActions';
 import { useApp } from '../store/store';
+import { useFitPanel } from '../ui/useFitPanel';
 import { transposeKey } from '../harmony/key';
 import { useOutsideClose } from '../ui/useOutsideClose';
 import { ChevronIcon } from '../ui/icons';
@@ -68,6 +69,16 @@ export function KeyEditor({ children }: { children: ReactNode }) {
 
 function KeyPanel({ ref, style, onClose }: { ref: React.Ref<HTMLDivElement>; style: CSSProperties; onClose: () => void }) {
   const self = useRef<HTMLDivElement | null>(null);
+  // Our own handle on the element, and the parent's, then the one that keeps the window above the transport.
+  const both = useCallback(
+    (el: HTMLDivElement | null) => {
+      self.current = el;
+      if (typeof ref === 'function') ref(el);
+      else if (ref) (ref as { current: HTMLDivElement | null }).current = el;
+    },
+    [ref],
+  );
+  const fitRef = useFitPanel(both);
   // Focus goes into the window (so that Escape reaches it), on the chosen note.
   useEffect(() => {
     const chosen = self.current?.querySelector<HTMLElement>('[aria-checked="true"]') ?? self.current?.querySelector<HTMLElement>('button');
@@ -84,11 +95,7 @@ function KeyPanel({ ref, style, onClose }: { ref: React.Ref<HTMLDivElement>; sty
   const analysedShown: Key | null = analysed ? transposeKey(analysed, shift) : null;
   return (
     <div
-      ref={(el) => {
-        self.current = el;
-        if (typeof ref === 'function') ref(el);
-        else if (ref) (ref as { current: HTMLDivElement | null }).current = el;
-      }}
+      ref={fitRef}
       className="fenetre cle-editeur"
       role="dialog"
       aria-label={t('key.edit.title')}

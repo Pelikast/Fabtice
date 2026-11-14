@@ -27,8 +27,8 @@ le stockage.
 | `npm run test:timeline` | après `build` : vérifications de la frise dans Chromium (formes d'onde, grille, boucle, défilement, zoom, suivi, téléphone, morceau de dix minutes) |
 | `npm run test:export` | après `build` : le menu « Exporter », le fichier iReal Pro téléchargé par le navigateur, et son lien relu (par un lecteur écrit dans le test) et comparé aux accords de la grille, avec une transposition et un instrument réglés, un accord tapé à la main, une analyse qui se termine |
 | `npm run test:engine` | après `build` (et, en option, `build:desktop`) : mesures du vrai moteur audio dans Chromium (tonalité, tempo, boucle, métronome, limiteur, charge) |
-| `npm run test:analysis` | après `build` : le **vrai** analyseur dans Chromium (télécharge les outils d'analyse depuis Hugging Face : réseau nécessaire). Le morceau d'essai du prototype passe par l'interface et le résultat est comparé à ce qu'on en sait et à ce que le prototype trouve ; deuxième usage sans téléchargement ; annulation (panneau, nouvel import, pendant le téléchargement) ; réseau absent ; téléchargement abîmé (refusé, repris, refusé pour de bon) ; reprise d'un téléchargement interrompu ; lecture pendant l'analyse ; morceau de 4 minutes ; chiffres de durée, de mémoire et de plus longue tâche du fil principal. `FABTICE_ANALYSIS_ONLY=<nom>` n'en lance qu'une partie |
-| `npm run test:chart` | après `build` : la grille d'accords comparée à la maquette (même balisage des accords, mêmes tailles, sections, boucle, mesure en cours, instruments, états vide et « analyse en cours », téléphone), puis les gestes (clic, glisser, suivi), l'éditeur d'accord, la tonalité, les sections, le clavier, l'autosauvegarde (rechargement d'un morceau gardé), le toucher réel sur téléphone (390 × 844) et l'impression (feuille de style d'impression, PDF A4 et Letter lus avec `pdftotext`, sauts de page) ; panneaux de corrections et d'accordage ; captures de l'app, de la maquette et des pages imprimées dans `FABTICE_CHART_OUT` (`pdftotext`, `pdfinfo` et `pdftoppm` de poppler sont nécessaires pour la partie impression) |
+| `npm run test:analysis` | après `build` : le **vrai** analyseur dans Chromium (télécharge les outils d'analyse depuis Hugging Face : réseau nécessaire). Le morceau d'essai du prototype passe par l'interface et le résultat est comparé à ce qu'on en sait et à ce que le prototype trouve ; deuxième usage sans téléchargement ; le panneau d'état qui s'ouvre seul au premier téléchargement (il se referme seul à la fin de l'analyse, reste ouvert si l'utilisateur y a touché ou en cas d'erreur) ; annulation (panneau, nouvel import, pendant le téléchargement) ; réseau absent ; téléchargement abîmé (refusé, repris, refusé pour de bon) ; reprise d'un téléchargement interrompu ; lecture pendant l'analyse ; morceau de 4 minutes ; chiffres de durée, de mémoire et de plus longue tâche du fil principal. `FABTICE_ANALYSIS_ONLY=<nom>` n'en lance qu'une partie |
+| `npm run test:chart` | après `build` : la grille d'accords comparée à la maquette (même balisage des accords, mêmes tailles, sections, boucle, mesure en cours, instruments, états vide et « analyse en cours », téléphone), puis les gestes (clic, glisser, suivi), l'éditeur d'accord (toujours entier et dans la fenêtre, à 1280 × 800 et 960 × 640), tous les panneaux flottants (Tempo, analyse, réglages, Exporter, accord fin, tonalité : dans la fenêtre, au-dessus du transport, dernier bouton cliquable, à 1280 × 800, 1024 × 700 et 960 × 640 ; `ui/useFitPanel.ts` leur donne une hauteur maximale et un défilement propre quand la fenêtre est trop basse), la tonalité, les sections, le clavier, l'autosauvegarde (rechargement d'un morceau gardé), le toucher réel sur téléphone (390 × 844) et l'impression (feuille de style d'impression, PDF A4 et Letter lus avec `pdftotext`, sauts de page) ; panneaux de corrections et d'accordage ; captures de l'app, de la maquette et des pages imprimées dans `FABTICE_CHART_OUT` (`pdftotext`, `pdfinfo` et `pdftoppm` de poppler sont nécessaires pour la partie impression) |
 
 Les fichiers audio de test de `test:import` sont dans `tests/fixtures/` (quelques
 dizaines de ko, tons synthétiques ; `make_fixtures.py` dit comment ils sont faits ;
@@ -372,7 +372,7 @@ Chromium (`npm run test:chart`).
 | `hit.ts` | quelle mesure est sous un point, même dans l'espace entre deux lignes ou au-delà de la dernière ; sélection d'une mesure à l'autre, dans les deux sens |
 | `useChartGestures.ts` | branche les événements du pointeur sur `gesture.ts` et en applique les effets (`seek`, `setLoopRegion(loopFromBars(…))`, `enterLoop()`) ; défilement automatique en bord de feuille pendant un glisser |
 | `stops.ts` | les arrêts du clavier (chaque accord, et la zone d'accord d'une mesure sans accord) et les déplacements aux flèches |
-| `editor.ts`, `ChordEditor.tsx` | l'état de l'éditeur, ce qu'un clic change à un accord (`patchChord`), la fenêtre elle-même |
+| `editor.ts`, `editorPlacement.ts`, `ChordEditor.tsx` | l'état de l'éditeur, ce qu'un clic change à un accord (`patchChord`), la place de la fenêtre (fonction pure), la fenêtre elle-même |
 | `KeyEditor.tsx` | la correction de la tonalité depuis « Tonalité de … » |
 | `useFollowLine.ts` | « Suivre la tête de lecture » sur la feuille |
 | `print.ts`, `../styles/print.css` | « Imprimer la grille » |
@@ -402,9 +402,15 @@ un tapotement est trop court (moins de 0,42 s) et un défilement bouge avant
 écran tactile, une ligne d'aide sous le titre le dit (`.aide-doigt`, affichée
 seulement si `(pointer: coarse)`).
 
-**L'éditeur d'accord** (`ChordEditor.tsx`) : une petite fenêtre accrochée sous la
-mesure (au-dessus s'il n'y a pas de place ; la feuille défile pour garder la
-mesure et la fenêtre en vue), et sur téléphone (moins de 760 px) un panneau qui
+**L'éditeur d'accord** (`ChordEditor.tsx`) : une petite fenêtre accrochée à la
+mesure. Sa place est choisie par une fonction pure (`editorPlacement.ts`, testée),
+toujours avec la fenêtre entière et la mesure dans la partie visible de la feuille,
+au-dessus du transport : sous la mesure, sinon au-dessus, sinon à côté (à droite
+puis à gauche), sinon sous la mesure après avoir fait défiler la feuille ; en
+dernier recours (fenêtre très basse, « Extension et basse » déplié), la fenêtre
+reçoit une hauteur maximale et défile à l'intérieur, à côté de la mesure. Elle est
+recalculée à l'ouverture, au changement de mesure, quand elle change de taille et
+quand la fenêtre de l'app change de taille. Sur téléphone (moins de 760 px) un panneau qui
 monte du bas de l'écran, la mesure restant visible au-dessus. Chaque choix
 s'applique aussitôt (pas de bouton « Valider »), par les actions de
 `store/harmonyActions.ts`. Champs, de haut en bas :
@@ -786,12 +792,19 @@ posé 9 px après la barre qui le commence (6 px pour un accord au milieu de la
 mesure, qui se range à son temps ou juste après le précédent, et s'efface
 s'il gênerait l'accord de la mesure suivante : celui du temps 1 est prioritaire) ;
 une mesure à deux accords les écrit à 14,5 px, comme la maquette. Un accord qui
-répète le précédent n'est pas réécrit. **Éclaircissement** : comme les numéros de
-mesure, une étiquette toutes les 2, 4, 8… mesures, la plus petite foulée qui
-laisse sa place à l'étiquette la plus large *du morceau* (donc la foulée ne
-change pas selon ce qui défile) ; chaque étiquette est alors l'accord en
-vigueur sur la barre gardée. Les traits de mesure du rang suivent la même
-foulée, pour ne jamais couper une étiquette. `data-chord-labels` et
+répète le précédent n'est pas réécrit. **Taille d'abord, éclaircissement ensuite** :
+quand les mesures se resserrent, *toute* la rangée s'écrit plus petit d'un coup
+(18, puis 16, puis 14,5 px, la taille d'une mesure à deux accords, plancher
+toujours lisible ; classes `taille-1` et `taille-2`, mêmes balisage et styles que
+la grille) avant d'abandonner le moindre accord. Seulement si la plus petite
+taille ne tient pas non plus, comme les numéros de mesure, une étiquette toutes les
+2, 4, 8… mesures (la plus petite foulée qui laisse sa place à l'étiquette la plus
+large), chaque étiquette étant alors l'accord en vigueur sur la barre gardée. La
+taille et la foulée (`chooseRowSize` dans `chordRow.ts`) ne dépendent que du zoom,
+de la mesure la plus étroite *du morceau* et de l'étiquette la plus large *du
+morceau* (jamais de ce qui défile : pas de scintillement) ; à un zoom confortable
+rien ne change (18 px). Les traits de mesure du rang suivent la même foulée, pour
+ne jamais couper une étiquette. `data-chord-size`, `data-chord-labels` et
 `data-chord-stride` sur `.frise` servent aux vérifications.
 
 **Courbe de tempo.** Un point par mesure (tempo moyen de la mesure, posé au

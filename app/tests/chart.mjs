@@ -185,6 +185,8 @@ try {
 
     // Export menu
     await page.click('button:has-text("Exporter")');
+    // The iReal Pro file is written asynchronously: wait for the link (the entry is disabled until then).
+    await page.waitForSelector('.menu-export a[data-export="ireal"]', { timeout: 5000 }).catch(() => {});
     const items = await page.$$eval('.menu-export [role="menuitem"]', (els) => els.map((e) => `${e.dataset.export}:${e.disabled}:${e.querySelector('small')?.textContent ?? ''}`));
     // The iReal Pro entry is a link to the page it writes (tests/export.mjs checks it); an anchor has no `disabled`.
     check('Exporter: iReal Pro is a link, printing available, audio later', items.join('|') === 'ireal:undefined:|print:false:|audio:true:dans une prochaine version', items.join('|'));
@@ -450,7 +452,10 @@ try {
     const ed = '[data-testid="editeur"]';
     const eb = await box(page, ed);
     const cb = await box(page, '.case[data-mesure="1"]');
-    check('the editor is anchored to the bar', Math.abs(eb.x - cb.x) < cb.width + 1 && eb.y >= cb.y - 2 && Math.abs(eb.y - (cb.y + cb.height)) < 20, `editor ${Math.round(eb.x)},${Math.round(eb.y)} bar ${Math.round(cb.x)},${Math.round(cb.y + cb.height)}`);
+    // Under, over or beside the bar (depending on the room), never on it, always right next to it.
+    const gapX = Math.max(cb.x - (eb.x + eb.width), eb.x - (cb.x + cb.width));
+    const gapY = Math.max(cb.y - (eb.y + eb.height), eb.y - (cb.y + cb.height));
+    check('the editor is anchored to the bar', Math.max(gapX, gapY) >= 0 && Math.max(gapX, gapY) < 20 && (gapX >= 0 ? gapY < cb.height : gapX < cb.width), `editor ${Math.round(eb.x)},${Math.round(eb.y)} bar ${Math.round(cb.x)},${Math.round(cb.y)}`);
     check('the chord being edited is ringed in ink', (await chordOf(page, 1).getAttribute('class')).includes('edite') && (await css(page, '.case[data-mesure="1"] .accord-case.edite', 'box-shadow')).includes(INK));
     check('the editor names the bar and shows the chord', (await text(page, `${ed} .editeur-tete h2`)) === 'MESURE 2' && (await text(page, `${ed} .editeur-apercu`)) === 'Fm7');
     check('it is a window of the design: paper, 1 px rule, 8 px radius, warm shadow', (await css(page, ed, 'background-color')) === 'rgb(251, 246, 236)' && (await css(page, ed, 'border-top-left-radius')) === '8px' && (await css(page, ed, 'box-shadow')) !== 'none');
@@ -579,6 +584,119 @@ try {
     await page.keyboard.press('Escape');
     check('no page errors (editor)', errors.length === 0, errors.join(' | '));
     await page.close();
+  }
+
+  // ------------------------------------------------------------ the chord editor stays whole and in view (computer)
+  {
+    const ed = '[data-testid="editeur"]';
+    for (const [w, h] of [[1280, 800], [960, 640]]) {
+      const { page, errors } = await open('?demo&moteur=factice&vue=grille', { width: w, height: h });
+      await sleep(300);
+      // A first line bar with two chords (the case of the report): split the second bar first.
+      await page.locator('.case[data-mesure="1"] .accord-case').first().click();
+      await sleep(200);
+      await page.click(`${ed} .editeur-actions button:has-text("Deux accords")`);
+      await page.keyboard.press('Escape');
+      await sleep(200);
+      let shot = 0;
+      for (const [label, bar] of [['first line, two chords', 1], ['first line', 0], ['middle', 13], ['last line', 24]]) {
+        for (const more of [false, true]) {
+          await page.locator(`.case[data-mesure="${bar}"] .accord-case`).first().click();
+          await sleep(200);
+          if (more) await page.click(`${ed} .editeur-plus`);
+          await sleep(900); // smooth scrolling settles
+          const r = await page.evaluate(() => {
+            const bb = (el) => el.getBoundingClientRect();
+            const view = bb(document.querySelector('.vue-grille'));
+            const transport = bb(document.querySelector('.bas'));
+            const bottom = Math.min(view.bottom, transport.top);
+            const editor = document.querySelector('[data-testid="editeur"]');
+            const eb = bb(editor);
+            const cell = bb(document.querySelector('.case.edite, .case:has(.accord-case.edite)') ?? document.body);
+            // Every control, once the editor's own scroll has brought it to the top of its window if needed.
+            const out = [];
+            for (const b of editor.querySelectorAll('button, input, select')) {
+              b.scrollIntoView({ block: 'nearest' });
+              const r = bb(b);
+              if (r.width === 0) continue;
+              if (r.top < view.top - 0.5 || r.bottom > bottom + 0.5 || r.left < view.left - 0.5 || r.right > view.right + 0.5 || r.top < eb.top - 0.5 || r.bottom > eb.bottom + 0.5) out.push((b.textContent || b.getAttribute('aria-label') || b.tagName).trim().slice(0, 24));
+            }
+            editor.scrollTop = 0;
+            const e2 = bb(editor);
+            return { out, editorInside: e2.top >= view.top - 0.5 && e2.bottom <= bottom + 0.5 && e2.left >= -0.5 && e2.right <= innerWidth + 0.5, cellVisible: cell.height > 0 && cell.top >= view.top - 0.5 && cell.bottom <= bottom + 0.5, e2, cell, bottom };
+          });
+          const tag = `${w}×${h}, ${label}${more ? ', extensions unfolded' : ''}`;
+          check(`editor, ${tag}: every control is inside the visible area above the transport`, r.out.length === 0 && r.editorInside, `${r.out.join(', ')} ${JSON.stringify([r.e2.top, r.e2.bottom, r.bottom])}`);
+          check(`editor, ${tag}: the bar being edited is visible and not covered`, r.cellVisible && !(r.e2.left < r.cell.right && r.e2.right > r.cell.left && r.e2.top < r.cell.bottom && r.e2.bottom > r.cell.top), JSON.stringify(r.cell));
+          if (shot++ < 8 && (more || label === 'first line, two chords')) await page.screenshot({ path: path.join(out, `app-grille-editeur-place-${w}-${bar}${more ? '-plus' : ''}.png`) });
+          await page.keyboard.press('Escape');
+          await sleep(150);
+        }
+      }
+      check(`no page errors (editor placement ${w}×${h})`, errors.length === 0, errors.join(' | '));
+      await page.close();
+    }
+  }
+
+  // ------------------------------------------------------------ every panel stays in the window, above the transport
+  {
+    const panels = [
+      { name: 'grid panel (Tempo)', sel: '.panneau-grille', view: 'pistes', open: (page) => page.click('.rang-tete.tempo') },
+      { name: 'analysis panel', sel: '.panneau-analyse', view: 'pistes', open: (page) => page.evaluate(() => window.__fabtice.actions.openPanel('analysis')) },
+      { name: 'settings', sel: '.reglages-app', view: 'pistes', open: (page) => page.click('button:has-text("Réglages")') },
+      { name: 'Exporter menu', sel: '.menu-export', view: 'pistes', open: (page) => page.click('button:has-text("Exporter")') },
+      { name: 'fine tuning', sel: '.panneau-accord', up: true, view: 'pistes', open: (page) => page.evaluate(() => window.__fabtice.actions.openPanel('tuning')) },
+      { name: 'key editor', sel: '.cle-editeur', view: 'grille', open: (page) => page.click('[data-testid="cle-bouton"]') },
+    ];
+    for (const [w, h] of [[1280, 800], [1024, 700], [960, 640]]) {
+      for (const view of ['pistes', 'grille']) {
+        const { page, errors } = await open(`?demo&moteur=factice&vue=${view}`, { width: w, height: h });
+        await sleep(300);
+        for (const p of panels.filter((x) => x.view === view)) {
+          await p.open(page);
+          await sleep(450);
+          const r = await page.evaluate(([sel, up]) => {
+            const panel = document.querySelector(sel);
+            if (!panel) return null;
+            // The tuning panel opens upwards from the Tonalité box, inside the transport bar: it only has to stay in the window.
+            const bas = up ? innerHeight : document.querySelector('.bas').getBoundingClientRect().top;
+            const pb = panel.getBoundingClientRect();
+            const out = [];
+            let last = null;
+            for (const b of panel.querySelectorAll('button, input, select, a')) {
+              b.scrollIntoView({ block: 'nearest' });
+              const r = b.getBoundingClientRect();
+              if (r.width === 0 || r.height === 0) continue;
+              last = b;
+              if (r.top < 0 - 0.5 || r.bottom > bas + 0.5 || r.left < -0.5 || r.right > innerWidth + 0.5 || r.top < pb.top - 0.5 || r.bottom > pb.bottom + 0.5) out.push((b.textContent || b.getAttribute('aria-label') || b.tagName).trim().slice(0, 24));
+            }
+            panel.scrollTop = 0;
+            const e = panel.getBoundingClientRect();
+            return { out, inside: e.top >= -0.5 && e.bottom <= bas + 0.5 && e.left >= -0.5 && e.right <= innerWidth + 0.5, top: e.top, bottom: e.bottom, bas, lastIndex: last ? [...panel.querySelectorAll('button, input, select, a')].indexOf(last) : -1 };
+          }, [p.sel, !!p.up]);
+          const tag = `${p.name} at ${w}×${h}`;
+          check(`${tag}: the panel and every control lie inside the window, above the transport`, !!r && r.out.length === 0 && r.inside, r ? `${r.out.join(', ')} ${Math.round(r.top)}-${Math.round(r.bottom)} / transport ${Math.round(r.bas)}` : 'not open');
+          if (r) {
+            // A real click would reach it: trial mode runs Playwright's hit-target check (nothing covers the control).
+            const last = page.locator(`${p.sel} :is(button, input, select, a):visible:enabled`).last();
+            let clickable = true;
+            let why = '';
+            try {
+              await last.click({ trial: true, timeout: 3000 });
+            } catch (e) {
+              clickable = false;
+              why = String(e.message).split('\n').slice(0, 3).join(' ');
+            }
+            check(`${tag}: the last control can really be clicked`, clickable, why);
+          }
+          if (w === 960) await page.screenshot({ path: path.join(out, `app-panneau-${p.sel.replace(/[^a-z-]/g, '')}-960.png`) });
+          await page.evaluate(() => window.__fabtice.actions.closePanel());
+          await sleep(150);
+        }
+        check(`panels ${w}×${h} ${view}: no page errors`, errors.length === 0, errors.join(' | '));
+        await page.close();
+      }
+    }
   }
 
   // ------------------------------------------------------------ the key

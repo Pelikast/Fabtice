@@ -3,6 +3,7 @@ import { t } from '../i18n';
 import type { MinorNotation } from '../model/project';
 import { openNewPiece, setFollow, setMinorNotation } from '../store/actions';
 import { useApp } from '../store/store';
+import { useFitPanel } from '../ui/useFitPanel';
 import { ExportItems } from './ExportMenu';
 
 const MINOR: { value: MinorNotation; sample: string }[] = [
@@ -13,8 +14,9 @@ const MINOR: { value: MinorNotation; sample: string }[] = [
 export function SettingsPopover({ ref }: { ref: Ref<HTMLDivElement> }) {
   const follow = useApp((s) => s.view.follow);
   const minor = useApp((s) => s.settings.minorNotation);
+  const fitRef = useFitPanel(ref);
   return (
-    <div ref={ref} className="fenetre reglages-app" role="dialog" aria-label={t('top.settings')}>
+    <div ref={fitRef} className="fenetre reglages-app" role="dialog" aria-label={t('top.settings')}>
       <label className="option">
         <input type="checkbox" checked={follow} onChange={(e) => setFollow(e.target.checked)} />
         <span>{t('settings.follow')}</span>
