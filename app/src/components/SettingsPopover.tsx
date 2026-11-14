@@ -3,6 +3,7 @@ import { t } from '../i18n';
 import type { MinorNotation } from '../model/project';
 import { openNewPiece, setFollow, setMinorNotation } from '../store/actions';
 import { useApp } from '../store/store';
+import { ExportItems } from './ExportMenu';
 
 const MINOR: { value: MinorNotation; sample: string }[] = [
   { value: 'm', sample: 'Cm7' },
@@ -31,6 +32,11 @@ export function SettingsPopover({ ref }: { ref: Ref<HTMLDivElement> }) {
       <button className="option lien-option" onClick={openNewPiece}>
         {t('settings.newProject')}
       </button>
+      {/* On a phone « Exporter » is not in the top bar: its entries are here. */}
+      <div className="export-tel" role="menu" aria-label={t('top.export')}>
+        <span className="libelle">{t('top.export')}</span>
+        <ExportItems />
+      </div>
     </div>
   );
 }

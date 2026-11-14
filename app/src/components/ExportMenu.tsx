@@ -3,7 +3,8 @@
 // export visible but inactive (lot 3).
 
 import { useCallback, useRef, type Ref } from 'react';
-import { chartForExport, exportToIRealPro, IREAL_EXPORT_READY, printChart, PRINT_READY } from '../export';
+import { PRINT_READY, printChart } from '../chart/print';
+import { chartForExport, exportToIRealPro, IREAL_EXPORT_READY } from '../export';
 import { t } from '../i18n';
 import { closePanel, togglePanel } from '../store/actions';
 import { selectHasChords } from '../store/chartSelectors';
@@ -46,15 +47,25 @@ function exportIReal(): void {
   setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
 }
 
+/** The menu's window, under its button. */
 function ExportPanel({ ref }: { ref: Ref<HTMLDivElement> }) {
+  return (
+    <div ref={ref} className="fenetre menu-export" role="menu" aria-label={t('top.export')}>
+      <ExportItems />
+    </div>
+  );
+}
+
+/** The entries of « Exporter »; also listed in the phone menu (« ⋯ »), where the top bar has no room for the menu. */
+export function ExportItems() {
   const hasChords = useApp(selectHasChords);
   const items: { key: string; label: string; ready: boolean; enabled: boolean; note: string; run: () => void }[] = [
     { key: 'ireal', label: t('export.ireal'), ready: IREAL_EXPORT_READY, enabled: hasChords, note: hasChords ? t('export.soon') : t('export.needsChords'), run: exportIReal },
-    { key: 'print', label: t('export.print'), ready: PRINT_READY, enabled: hasChords, note: hasChords ? t('export.soon') : t('export.needsChords'), run: printChart },
+    { key: 'print', label: t('export.print'), ready: PRINT_READY, enabled: hasChords, note: hasChords ? t('export.soon') : t('export.needsChords'), run: () => void printChart() },
     { key: 'audio', label: t('export.audio'), ready: false, enabled: false, note: t('export.audioLater'), run: () => {} },
   ];
   return (
-    <div ref={ref} className="fenetre menu-export" role="menu" aria-label={t('top.export')}>
+    <>
       {items.map((it) => {
         const active = it.ready && it.enabled;
         return (
@@ -74,6 +85,6 @@ function ExportPanel({ ref }: { ref: Ref<HTMLDivElement> }) {
           </button>
         );
       })}
-    </div>
+    </>
   );
 }

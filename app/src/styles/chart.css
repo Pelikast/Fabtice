@@ -16,13 +16,25 @@
   font-variation-settings: "opsz" 72, "SOFT" 60;
   letter-spacing: -0.01em;
 }
-.feuille-tete p { margin: 0; color: var(--encre-douce); font-size: 14px; white-space: nowrap; }
+.feuille-tete { position: relative; }
+.feuille-infos p { margin: 0; color: var(--encre-douce); font-size: 14px; white-space: nowrap; }
 .feuille-infos { display: flex; align-items: center; gap: 14px; }
 /* Ut, Si♭, Mi♭: the instrument the chart is written for. */
 .duo.instrument button { min-width: 40px; min-height: 30px; padding: 2px 9px; font-size: 14px; }
 
 /* Bars: four per line, ink bar lines. Each line closes with its own bar line. */
-.grille { display: flex; flex-direction: column; }
+.grille {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  /* Room for the editor sheet on a phone (set while it is open). */
+  padding-bottom: var(--editeur-bas, 0px);
+  /* The finger scrolls the sheet up and down; selecting is press and hold (chart/gesture.ts). */
+  touch-action: pan-y;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
 .ligne { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .ligne > .case:last-child { border-right: 1.5px solid var(--encre); }
 .case {
@@ -41,8 +53,11 @@
   white-space: nowrap;
   text-align: left;
   overflow: hidden;
+  cursor: pointer;
   transition: background var(--vite) var(--courbe);
 }
+.case:hover { background: var(--papier-fonce); }
+.case.dans-boucle:hover { background: rgba(184, 135, 58, 0.26); }
 .case.deux { font-size: 22px; gap: 10px; }
 .case.trois { font-size: 17px; gap: 7px; }
 .case.dans-boucle { background: var(--laiton-voile); }
@@ -81,8 +96,30 @@
   transform-origin: left;
   transform: scaleX(var(--avance, 0));
 }
+/* A chord is a button (the click edits it); it looks like the bare symbol until pointed at. */
+.accord-case {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin: 0 -5px;
+  padding: 0 5px;
+  border-radius: var(--rayon);
+  text-align: inherit;
+  white-space: inherit;
+  transition: box-shadow var(--vite) var(--courbe), background var(--vite) var(--courbe);
+}
+.accord-case:hover { box-shadow: inset 0 0 0 1px var(--encre-pale); }
+/* The chord being edited: a clear ink ring on a lighter ground, never the ember. */
+.accord-case.edite, .accord-case.edite:hover { background: var(--papier-clair); box-shadow: 0 0 0 1.5px var(--encre); }
 /* A chord that starts after the bar line sits where its beat is. */
-.accord-case[style] { margin-left: calc(var(--debut) * 88%); }
+.accord-case[style] { margin-left: calc(var(--debut) * 88% - 5px); }
+/* A bar with no chord of its own (a repeat sign, or empty): its chord area is a button too. */
+.accord-case.libre { flex: 1; align-self: center; justify-content: center; min-width: 44px; height: 56px; }
+.section { cursor: pointer; }
+.section::after { content: ""; position: absolute; inset: -6px; }
+.section:hover { background: var(--papier-clair); }
 /* The previous chord goes on: the one-bar repeat sign. */
 .repete {
   margin: 0 auto;
@@ -93,6 +130,162 @@
   line-height: 1;
   color: var(--encre-douce);
 }
+
+/* In a bar-repeat button the sign is centred by the button. */
+.accord-case.libre .repete { margin: 0; padding: 0; }
+
+/* The key in the title line: a plain text button, a small chevron says it opens. */
+.cle-ancre { position: relative; display: inline-block; }
+.cle-bouton {
+  display: inline-block;
+  margin: -3px -6px;
+  padding: 3px 6px;
+  border-radius: var(--rayon);
+  color: inherit;
+  white-space: nowrap;
+  transition: background var(--vite) var(--courbe);
+}
+.cle-bouton:hover, .cle-bouton[aria-expanded="true"] { background: var(--papier-fonce); color: var(--encre); }
+.cle-bouton .chevron { width: 9px; height: 9px; margin-left: 6px; vertical-align: 0.04em; opacity: 0.75; }
+.cle-editeur { width: 300px; padding: 12px 14px 14px; }
+.cle-editeur h2 { margin: 0 0 10px; }
+.cle-mode { display: inline-flex; margin-bottom: 10px; }
+.cle-mode button { min-height: 34px; padding: 3px 14px; font-size: 14px; }
+.cle-notes { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+.cle-editeur .panneau-note { margin: 10px 2px 12px; }
+.cle-editeur .bouton-cadre { margin-bottom: 0; }
+/* Only on a touch screen: pressing and holding is not something one guesses. */
+.aide-doigt { display: none; }
+@media (pointer: coarse) {
+  .aide-doigt { display: block; margin: -8px 0 16px; color: var(--encre-douce); font-size: 13px; line-height: 1.35; }
+}
+
+/* ---------- The chord editor ---------- */
+
+.editeur {
+  z-index: 20;
+  width: 372px;
+  max-width: calc(100% - 4px);
+  max-height: calc(100dvh - 150px);
+  overflow-y: auto;
+  padding: 8px 14px 14px;
+  outline: none;
+  white-space: normal;
+  cursor: auto;
+  font-size: 14px;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.editeur-tete { display: flex; align-items: center; gap: 10px; min-height: 40px; margin-bottom: 4px; }
+.editeur-tete h2 { margin: 0; }
+.editeur-accords { flex: none; }
+.editeur-accords button { min-width: 34px; min-height: 30px; padding: 2px 8px; font-size: 14px; }
+.editeur-apercu {
+  margin-left: auto;
+  font-family: var(--titre);
+  font-size: 26px;
+  font-weight: 540;
+  line-height: 1;
+  font-variation-settings: "opsz" 48, "SOFT" 50;
+}
+.editeur-apercu .continue { opacity: 0.55; }
+.editeur-apercu .aucun { color: var(--encre-pale); }
+.editeur-tete .fermer { flex: none; margin: 0 -8px 0 0; }
+.editeur-note { margin: 0 2px 8px; font-size: 13px; color: var(--encre-douce); }
+.editeur-doute {
+  margin: 0 0 10px;
+  padding: 10px 12px 12px;
+  border: 1px dotted var(--encre-pale);
+  border-radius: var(--rayon);
+}
+.editeur-doute p { margin: 0 0 8px; font-size: 13.5px; color: var(--encre-douce); }
+.editeur-autres { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; font-size: 13px; color: var(--encre-douce); }
+.editeur-autres .puce { font-family: var(--titre); font-size: 18px; font-weight: 520; }
+.editeur-saisie input,
+.editeur-section input {
+  width: 100%;
+  min-width: 0;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--trait);
+  border-radius: var(--rayon);
+  background: #fff;
+  font-size: 16px;
+  color: var(--encre);
+}
+.editeur-saisie input::placeholder, .editeur-section input::placeholder { color: var(--encre-pale); }
+.editeur-saisie input[aria-invalid="true"] { border-color: var(--encre); box-shadow: inset 0 0 0 1px var(--encre); }
+.editeur-erreur { margin: 6px 2px 0; font-size: 12.5px; color: var(--encre-douce); font-style: italic; }
+.editeur-groupe { display: grid; gap: 6px; margin-top: 8px; }
+.editeur-notes, .editeur-extensions { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.editeur-natures { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.choix-accord {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 2px;
+  border: 1px solid var(--trait);
+  border-radius: var(--rayon);
+  background: var(--papier);
+  font-family: var(--titre);
+  font-size: 18px;
+  font-weight: 520;
+  font-variation-settings: "opsz" 36, "SOFT" 50;
+  white-space: nowrap;
+  transition: background var(--vite) var(--courbe), border-color var(--vite) var(--courbe), color var(--vite) var(--courbe);
+}
+.choix-accord:hover { border-color: var(--encre-pale); background: var(--papier-fonce); }
+.choix-accord[data-checked="true"] { border-color: var(--encre); background: var(--encre); color: var(--papier-clair); }
+.choix-accord[data-checked="true"] .ext { color: inherit; }
+/* Quiet links of the editor: ink, with a pale rule (the ember underline of `.lien` is for the dialogs). */
+.lien-encre {
+  padding: 0;
+  color: var(--encre-douce);
+  font-weight: 560;
+  text-decoration: underline;
+  text-decoration-color: var(--encre-pale);
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.lien-encre:hover { color: var(--encre); text-decoration-color: var(--encre); }
+.editeur-plus { display: block; min-height: 34px; margin: 4px 2px 0; font-size: 13.5px; }
+.editeur-basse { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 8px 2px 0; font-size: 13.5px; color: var(--encre-douce); }
+.editeur-basse select {
+  min-width: 110px;
+  height: 38px;
+  padding: 0 10px;
+  border: 1px solid var(--trait);
+  border-radius: var(--rayon);
+  background: var(--papier);
+  font-size: 14px;
+  color: var(--encre);
+}
+.editeur-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--trait-fin);
+}
+.editeur-actions .bouton-cadre { min-height: 36px; padding: 4px 8px; font-size: 13.5px; line-height: 1.2; text-align: center; }
+.editeur-actions .bouton-cadre[aria-pressed="true"] { border-color: var(--encre); background: var(--encre); color: var(--papier-clair); }
+.editeur-section { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--trait-fin); }
+.editeur-section-champs { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 6px; }
+.editeur-section-champs input { flex: 1 1 110px; width: auto; }
+.puce {
+  min-width: 38px;
+  min-height: 38px;
+  padding: 0 10px;
+  border: 1px solid var(--trait);
+  border-radius: var(--rayon);
+  background: var(--papier);
+  transition: background var(--vite) var(--courbe), border-color var(--vite) var(--courbe);
+}
+.puce:hover { border-color: var(--encre-pale); background: var(--papier-fonce); }
+.puce[aria-pressed="true"] { border-color: var(--encre); background: var(--encre); color: var(--papier-clair); }
+.puce-lettre { font-family: var(--titre); font-size: 17px; font-weight: 540; }
 
 /* ---------- Empty and « analysis running » states ---------- */
 
