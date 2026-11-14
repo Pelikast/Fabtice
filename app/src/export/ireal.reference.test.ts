@@ -93,7 +93,8 @@ function expectedMeasures(chart: ExportChart): (string | null)[][] {
 }
 
 suite('readers of the iReal Pro format, on the links the export writes', () => {
-  const req = createRequire(path.join(dir ?? '/', 'package.json'));
+  // Even a skipped suite runs its body to collect the tests: load the readers only when they are asked for.
+  const req = dir ? createRequire(path.join(dir, 'package.json')) : (() => ({}) as never);
   const readIReal = req('ireal-reader') as (data: string) => { songs: { title: string; composer: string; style: string; key: string; bpm: number | null; music: { measures: (string | null)[][] } }[] };
   const ml = req('@music-i18n/ireal-musicxml') as {
     Playlist: new (data: string) => { songs: { title: string; key: string; bpm: number; cells: unknown[]; style: string }[] };
