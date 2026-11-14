@@ -60,10 +60,26 @@
 @media (hover: hover) {
   .case:hover { background: var(--papier-fonce); }
   .case.dans-boucle:hover { background: rgba(184, 135, 58, 0.26); }
+  .case.dans-boucle.partielle:hover { background: var(--papier-fonce); }
 }
 .case.deux { font-size: 22px; gap: 10px; }
 .case.trois { font-size: 17px; gap: 7px; }
 .case.dans-boucle { background: var(--laiton-voile); }
+/* A loop that starts or ends inside a bar veils that part of the bar only (--boucle-de / --boucle-a, fractions of its width). */
+.case.dans-boucle.partielle { background: none; }
+.case.partielle::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--boucle-de, 0) * 100%);
+  right: calc((1 - var(--boucle-a, 1)) * 100%);
+  background: var(--laiton-voile);
+  pointer-events: none;
+}
+@media print {
+  .case.partielle::before { display: none; }
+}
 /* Section change: a double bar line. */
 .case.double { border-left-width: 6px; border-left-style: double; }
 .case .numero {

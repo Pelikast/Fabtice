@@ -329,11 +329,18 @@ describe('« Exporter le son »', () => {
     expect(plan.files[0]!.sources).toHaveLength(5);
     actions.stepSemitones(1);
     actions.stepSemitones(1);
+    // A loop that is not made of whole bars (120 BPM, 4/4: beat 3 of bar 1 to beat 3 of bar 2): the name says where.
     actions.setLoopRegion({ start: 1, end: 3 });
     plan = planAudioExport(appStore.getState(), { what: 'tracks', range: 'loop', format: 'wav' }, [s.tracks[0]!.id, s.tracks[2]!.id]);
-    expect(plan.files.map((f) => f.name)).toEqual(['Blues du dimanche – Voix – boucle (+2 demi-tons).wav', 'Blues du dimanche – Basse – boucle (+2 demi-tons).wav']);
-    expect(plan.archiveName).toBe('Blues du dimanche – pistes – boucle (+2 demi-tons).zip');
+    expect(plan.files.map((f) => f.name)).toEqual(['Blues du dimanche – Voix – boucle 1.3 à 2.3 (+2 demi-tons).wav', 'Blues du dimanche – Basse – boucle 1.3 à 2.3 (+2 demi-tons).wav']);
+    expect(plan.archiveName).toBe('Blues du dimanche – pistes – boucle 1.3 à 2.3 (+2 demi-tons).zip');
     expect(plan.range).toEqual({ start: 1, end: 3 });
+    // Whole bars keep the short form, and the range is exactly the loop.
+    actions.setLoopRegion({ start: 2, end: 6.0 });
+    plan = planAudioExport(appStore.getState(), { what: 'mix', range: 'loop', format: 'wav' });
+    expect(plan.files[0]!.name).toBe('Blues du dimanche – mélange – boucle 2–3 (+2 demi-tons).wav');
+    expect(plan.range).toEqual({ start: 2, end: 6 });
+    actions.setLoopRegion({ start: 1, end: 3 });
     for (const tr of appStore.getState().tracks) if (!tr.mute) actions.toggleMute(tr.id);
     expect(() => planAudioExport(appStore.getState(), { what: 'mix', range: 'whole', format: 'wav' })).toThrow(ExportError);
   });
