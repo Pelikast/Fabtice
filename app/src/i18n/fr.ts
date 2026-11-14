@@ -491,18 +491,19 @@ export const fr = {
   'settings.formantsNote': 'Pour le rendu appliqué et l’export : une voix transposée garde son caractère. Sans effet sur la préécoute.',
 
   // Lot 3: « Appliquer »
-  'apply.button': 'Appliquer',
-  'apply.buttonTitle': 'Recalculer les pistes avec le meilleur moteur pour cette tonalité et ce tempo',
-  'apply.applied': 'rendu appliqué',
-  'apply.waitTitle': 'Rendu de qualité',
+  // The two words of the second line never split (the button wraps after « Appliquer »).
+  'apply.button': 'Appliquer meilleure\u00a0qualité',
+  'apply.buttonTitle': 'Recalculer les pistes en meilleure qualité pour cette tonalité et ce tempo',
+  'apply.applied': 'meilleure qualité appliquée',
+  'apply.waitTitle': 'Meilleure qualité',
   'apply.working': 'Calcul des pistes…',
   'apply.waitText': 'Fabtice recalcule les pistes avec le meilleur moteur. La lecture continue en préécoute.',
   'apply.cancel': 'Annuler',
   'apply.remaining': 'Encore environ {time}.',
   'apply.remainingShort': 'Moins d’une minute restante.',
-  'apply.error.unsupported': 'Ce navigateur ne peut pas faire le rendu de qualité ; la préécoute continue.',
-  'apply.error.memory': 'Cet appareil ne peut pas contenir le rendu de qualité de ce morceau ; la préécoute continue.',
-  'apply.error.failed': 'Le rendu n’a pas abouti ; la préécoute continue.',
+  'apply.error.unsupported': 'Ce navigateur ne peut pas calculer la meilleure qualité ; la préécoute continue.',
+  'apply.error.memory': 'Cet appareil ne peut pas contenir la meilleure qualité de ce morceau ; la préécoute continue.',
+  'apply.error.failed': 'La meilleure qualité n’a pas pu être calculée ; la préécoute continue.',
 
   // Lot 3: « Exporter le son »
   'exportAudio.title': 'Exporter le son',
