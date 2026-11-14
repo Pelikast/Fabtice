@@ -104,3 +104,51 @@ label.option:hover, .lien-option:hover { background: var(--papier-fonce); }
   border-radius: 0 0 var(--rayon) var(--rayon);
   font-weight: 600;
 }
+
+/* Analysis status, next to the title: discreet, ink only. */
+.analyse-etat { position: relative; flex: none; align-self: center; }
+.analyse-bouton {
+  padding: 5px 8px;
+  border-radius: var(--rayon);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--encre-douce);
+  white-space: nowrap;
+  transition: background var(--vite) var(--courbe), color var(--vite) var(--courbe);
+}
+.analyse-bouton:hover, .analyse-bouton[aria-expanded="true"] { background: var(--papier-fonce); color: var(--encre); }
+.panneau-analyse {
+  top: calc(100% + 10px);
+  left: 0;
+  width: 330px;
+  padding: 14px 16px 16px;
+}
+.panneau-analyse h2 { margin: 0 0 8px; }
+.panneau-analyse .bouton-cadre { margin-top: 12px; }
+.analyse-note { margin-top: 4px; }
+.analyse-progres { height: 3px; background: var(--trait-fin); border-radius: 2px; overflow: hidden; }
+.analyse-progres span {
+  display: block;
+  height: 100%;
+  background: var(--encre-douce);
+  transform-origin: left;
+  transition: transform var(--vite) linear;
+}
+.analyse-etape { margin: 8px 0 0; font-size: 13px; color: var(--encre-douce); font-variant-numeric: tabular-nums; }
+.analyse-sources { margin-top: 10px; font-size: 12.5px; color: var(--encre-douce); }
+.analyse-sources p { margin: 0 0 6px; }
+.analyse-sources ul { margin: 0; padding-left: 16px; }
+.analyse-sources li + li { margin-top: 3px; }
+.analyse-sources strong { color: var(--encre); font-weight: 600; }
+
+/* Exporter: a small menu under its button. */
+.menu-ancre { position: relative; display: inline-flex; }
+.menu-export {
+  top: calc(100% + 8px);
+  right: 0;
+  width: 290px;
+}
+.menu-export .option { flex-direction: column; align-items: flex-start; gap: 1px; }
+.menu-export .option:hover:not(:disabled) { background: var(--papier-fonce); }
+.menu-export .option:disabled { color: var(--encre-douce); cursor: default; }
+.menu-export .option small { font-size: 12px; font-style: italic; color: var(--encre-douce); }

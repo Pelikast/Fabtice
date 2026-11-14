@@ -10,9 +10,12 @@
 
 import { useStore } from 'zustand';
 import { createStore, type StoreApi } from 'zustand/vanilla';
+import type { AnalysisErrorCode, AnalysisStep } from '../analysis/types';
 import type { EngineError, EngineState } from '../audio/AudioEngine';
 import { defaultTempoMap } from '../grid/tempoMap';
 import type { ImportProgress } from '../import/types';
+import type { AnalysisResult } from '../model/analysis';
+import { emptyCorrections, type Corrections } from '../model/corrections';
 import type {
   AppSettings,
   LoopState,
@@ -37,7 +40,22 @@ export interface ReopenOffer {
 }
 
 /** Small floating panels; only one is open at a time. */
-export type PanelId = 'none' | 'settings' | 'grid' | 'tuning';
+export type PanelId = 'none' | 'settings' | 'grid' | 'tuning' | 'export' | 'analysis';
+
+/**
+ * The analysis of the open piece, as the interface shows it (never saved).
+ * « Done » is not a state of its own: `AppState.analysis` holds the result.
+ */
+export type AnalysisRun =
+  | { status: 'idle' }
+  | {
+      status: 'running';
+      /** The project being analysed (a result for another one is dropped). */
+      projectId: string;
+      /** Changes a few times per analysis; the fine progress is in `analysis/progress.ts`. */
+      step: AnalysisStep;
+    }
+  | { status: 'error'; projectId: string; code: AnalysisErrorCode };
 
 /** Why the piece will not be kept on this device (shown as a calm notice). */
 export type StorageNotice = 'unavailable' | 'full';
@@ -70,7 +88,14 @@ export interface TransportState {
 export interface AppState {
   project: Project | null;
   tracks: Track[];
+  /** The grid in force; its `origin` says who made it (see `model/tempoMap.ts`). */
   tempoMap: TempoMap;
+  /** The last analysis of the open piece, as it came out; null until one has finished. */
+  analysis: AnalysisResult | null;
+  /** What the user changed or added by hand (see `model/corrections.ts`). */
+  corrections: Corrections;
+  /** Progress or failure of the analysis (interface only, not saved). */
+  analysisRun: AnalysisRun;
   loop: LoopState;
   playback: PlaybackSettings;
   view: ViewSettings;
@@ -92,6 +117,7 @@ export function defaultView(): ViewSettings {
     triplets: false,
     snap: true,
     follow: true,
+    instrument: 'ut',
   };
 }
 
@@ -100,6 +126,9 @@ export function initialState(): AppState {
     project: null,
     tracks: [],
     tempoMap: defaultTempoMap(),
+    analysis: null,
+    corrections: emptyCorrections(),
+    analysisRun: { status: 'idle' },
     loop: { region: null, enabled: false },
     playback: { ...DEFAULT_PLAYBACK },
     view: defaultView(),

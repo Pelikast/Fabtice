@@ -5,6 +5,8 @@ import type { ViewMode } from '../model/project';
 import { closePanel, openNewPiece, setViewMode, togglePanel } from '../store/actions';
 import { useApp } from '../store/store';
 import { useOutsideClose } from '../ui/useOutsideClose';
+import { AnalysisStatus } from './AnalysisStatus';
+import { ExportMenu } from './ExportMenu';
 import { SettingsPopover } from './SettingsPopover';
 
 const VIEWS: ViewMode[] = ['pistes', 'grille'];
@@ -29,6 +31,7 @@ export function TopBar() {
       <div className="projet">
         <span className={`projet-titre${project ? '' : ' vide'}`}>{project ? project.title : t('top.noPiece')}</span>
         {project && <span className="projet-source">{source}</span>}
+        {project && <AnalysisStatus />}
       </div>
       <nav className="menus" aria-label={t('top.menus')}>
         <button className="menu cache-tel" onClick={openNewPiece}>
@@ -55,9 +58,7 @@ export function TopBar() {
             </button>
           ))}
         </span>
-        <button className="menu cache-tel" disabled title={t('top.exportSoon')}>
-          {t('top.export')}
-        </button>
+        <ExportMenu />
         <button
           ref={buttonRef}
           className="menu cache-tel"

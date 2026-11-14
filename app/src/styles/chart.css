@@ -1,4 +1,4 @@
-/* ---------- Grille d'accords (empty state in lot 1) ---------- */
+/* ---------- Grille d'accords (web/maquette/style.css, « Grille d'accords ») ---------- */
 
 .vue-grille { overflow: auto; scrollbar-width: thin; scrollbar-color: var(--trait) transparent; }
 .feuille {
@@ -9,6 +9,7 @@
 .feuille-tete { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
 .feuille-tete h1 {
   margin: 0;
+  min-width: 0;
   font-family: var(--titre);
   font-size: 30px;
   font-weight: 500;
@@ -16,6 +17,84 @@
   letter-spacing: -0.01em;
 }
 .feuille-tete p { margin: 0; color: var(--encre-douce); font-size: 14px; white-space: nowrap; }
+.feuille-infos { display: flex; align-items: center; gap: 14px; }
+/* Ut, Si♭, Mi♭: the instrument the chart is written for. */
+.duo.instrument button { min-width: 40px; min-height: 30px; padding: 2px 9px; font-size: 14px; }
+
+/* Bars: four per line, ink bar lines. Each line closes with its own bar line. */
+.grille { display: flex; flex-direction: column; }
+.ligne { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.ligne > .case:last-child { border-right: 1.5px solid var(--encre); }
+.case {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  height: 92px;
+  padding: 14px 8px 0 16px;
+  border-left: 1.5px solid var(--encre);
+  border-bottom: 1px solid var(--trait);
+  font-family: var(--titre);
+  font-size: 30px;
+  font-weight: 520;
+  font-variation-settings: "opsz" 48, "SOFT" 50;
+  white-space: nowrap;
+  text-align: left;
+  overflow: hidden;
+  transition: background var(--vite) var(--courbe);
+}
+.case.deux { font-size: 22px; gap: 10px; }
+.case.trois { font-size: 17px; gap: 7px; }
+.case.dans-boucle { background: var(--laiton-voile); }
+/* Section change: a double bar line. */
+.case.double { border-left-width: 6px; border-left-style: double; }
+.case .numero {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  font-family: var(--texte);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--encre-pale);
+}
+.case .section {
+  position: absolute;
+  top: 6px;
+  left: 8px;
+  min-width: 20px;
+  padding: 0 5px;
+  border: 1.5px solid var(--encre);
+  font-size: 13px;
+  font-weight: 620;
+  line-height: 17px;
+  text-align: center;
+}
+/* The bar being played fills with an ember hairline (set every frame: chart/usePlayheadBar.ts). */
+.case.jouee::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 3px;
+  background: var(--braise);
+  transform-origin: left;
+  transform: scaleX(var(--avance, 0));
+}
+/* A chord that starts after the bar line sits where its beat is. */
+.accord-case[style] { margin-left: calc(var(--debut) * 88%); }
+/* The previous chord goes on: the one-bar repeat sign. */
+.repete {
+  margin: 0 auto;
+  padding-right: 8px;
+  font-family: var(--musique);
+  font-size: 0.9em;
+  font-weight: 400;
+  line-height: 1;
+  color: var(--encre-douce);
+}
+
+/* ---------- Empty and « analysis running » states ---------- */
 
 /* An empty chart: bar lines drawn, nothing written yet. */
 .grille-vide {
@@ -42,3 +121,4 @@
 }
 .vide-message p { margin: 0 0 18px; color: var(--encre-douce); }
 .vide-message .bouton-cadre { display: inline-flex; width: auto; padding: 0 18px; }
+.vide-message .analyse-note { text-align: left; }

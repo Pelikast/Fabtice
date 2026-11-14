@@ -16,6 +16,9 @@ import {
   togglePlay,
   toggleTriplets,
 } from '../store/actions';
+import { withAccidentals } from '../harmony/ChordSymbol';
+import { keyLabel, transposeKey } from '../harmony/key';
+import { keyInForce } from '../store/chartSelectors';
 import { SEMITONES, TEMPO_RATIO, targetBpm } from '../store/derived';
 import { appStore, useApp } from '../store/store';
 import { useFrame } from '../ui/frameLoop';
@@ -164,7 +167,15 @@ function KeyControl() {
   const refs = useRef([valueRef, panelRef]).current;
   useOutsideClose(open, refs, useCallback(() => closePanel(), []));
 
-  const detail = cents !== 0 ? t('key.cents', { cents: formatSigned(cents) }) : semitones === 0 ? t('key.original') : t('key.semitones');
+  // With a known key, as in the mockup: « A♭ · original », « A♭ → D♭ » (concert pitch, the instrument is the chart's business).
+  const key = useApp((s) => keyInForce(s).key);
+  const minor = useApp((s) => s.settings.minorNotation);
+  const keyDetail = key
+    ? semitones === 0
+      ? `${keyLabel(key, minor)} · ${t('key.original')}`
+      : `${keyLabel(key, minor)} → ${keyLabel(transposeKey(key, semitones), minor)}`
+    : null;
+  const detail = cents !== 0 ? t('key.cents', { cents: formatSigned(cents) }) : (keyDetail ?? (semitones === 0 ? t('key.original') : t('key.semitones')));
   return (
     <div className="reglage" role="group" aria-label={t('key.label')}>
       <span className="reglage-nom">{t('key.label')}</span>
@@ -181,7 +192,7 @@ function KeyControl() {
         onClick={() => togglePanel('tuning')}
       >
         <strong data-testid="ton">{formatSigned(semitones)}</strong>
-        <small>{detail}</small>
+        <small>{withAccidentals(detail)}</small>
       </button>
       <button className="pas" aria-label={t('key.up')} disabled={semitones >= SEMITONES.max} onClick={() => stepSemitones(1)}>
         +

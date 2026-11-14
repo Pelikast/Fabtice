@@ -170,6 +170,19 @@ export function firstDownbeat(map: TempoMap): Seconds {
 export function nominalBpm(map: TempoMap, duration?: Seconds): number {
   const segs = map.segments;
   if (segs.length === 1) return segs[0]!.bpm;
+  // An analysed map has one segment per beat and React selectors ask often: memoised per map.
+  let cached = nominalCache.get(map);
+  if (!cached) nominalCache.set(map, (cached = new Map()));
+  const hit = cached.get(duration);
+  if (hit !== undefined) return hit;
+  const value = weightedMedianBpm(segs, duration);
+  cached.set(duration, value);
+  return value;
+}
+
+const nominalCache = new WeakMap<TempoMap, Map<Seconds | undefined, number>>();
+
+function weightedMedianBpm(segs: readonly TempoSegment[], duration?: Seconds): number {
   const weighted = segs.map((s, i) => {
     const next = segs[i + 1];
     const end = next ? next.time : duration ?? s.time;

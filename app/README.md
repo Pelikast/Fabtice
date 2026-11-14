@@ -26,18 +26,33 @@ le stockage.
 | `npm run test:import` | après `build` : import des cinq formats (sélecteur et glisser-déposer), rouverture du projet après rechargement (dont des morceaux de **taille réelle**, 0,5 à 32 Mo, dans un profil de navigateur persistant), morceau gardé mais impossible à rouvrir (offre « Rouvrir » / « Oublier »), autosauvegarde, stockage en échec, import par lien contre un faux `window.fabtice`, coût d'un morceau de cinq minutes (captures dans `FABTICE_IMPORT_OUT`) |
 | `npm run test:timeline` | après `build` : vérifications de la frise dans Chromium (formes d'onde, grille, boucle, défilement, zoom, suivi, téléphone, morceau de dix minutes) |
 | `npm run test:engine` | après `build` (et, en option, `build:desktop`) : mesures du vrai moteur audio dans Chromium (tonalité, tempo, boucle, métronome, limiteur, charge) |
+| `npm run test:chart` | après `build` : la grille d'accords comparée à la maquette (même balisage des accords, mêmes tailles, sections, boucle, mesure en cours, instruments, états vides et « analyse en cours », téléphone), panneaux de corrections et d'accordage ; captures de l'app et de la maquette côte à côte dans `FABTICE_CHART_OUT` |
 
 Les fichiers audio de test de `test:import` sont dans `tests/fixtures/` (quelques
 dizaines de ko, tons synthétiques ; `make_fixtures.py` dit comment ils sont faits ;
 le m4a est `desktop/test/fixtures/tone-dash.m4a`).
 
 `?moteur=factice` force le moteur factice (aucun son) ; les tests d'interface
-(`test:smoke`, `test:import`) l'utilisent. `?demo` à la fin de l'adresse (`http://localhost:5173/?demo`) ouvre un morceau
-synthétique de quatre pistes, généré dans le code, sans fichier audio ;
-`?demo&vue=grille` ouvre directement l'affichage Grille d'accords. En mode
-démo, `window.__fabtice` donne accès au magasin, au moteur et aux actions ;
-`?debug` donne le même accès sans morceau de démonstration (tests du navigateur).
-Le morceau de démonstration n'est jamais gardé sur l'appareil.
+(`test:smoke`, `test:import`, `test:chart`) l'utilisent. `?demo` à la fin de l'adresse (`http://localhost:5173/?demo`) ouvre un morceau
+synthétique de quatre pistes, généré dans le code, sans fichier audio, **déjà
+analysé** : tempo qui bouge un peu à partir de la mesure 5, grille d'accords de
+la maquette (un accord douteux mesure 12, deux accords mesure 15), sections A,
+B, A « posées à la main », enregistrement accordé un peu haut (+18 cents).
+Variantes :
+
+| Adresse | Effet |
+|---|---|
+| `?demo&vue=grille` | ouvre directement l'affichage Grille d'accords |
+| `?demo&analyse=lente` | pas encore analysé : l'analyse (factice) tourne lentement, avec un premier « téléchargement » des outils |
+| `?demo&analyse=instant` | pas encore analysé : l'analyse (factice) se fait aussitôt |
+| `?demo&analyse=echec` | l'analyse (factice) échoue |
+| `?demo&analyse=aucune` | le morceau du lot 1 : 110 BPM fixe saisi à la main, pas d'analyse automatique (les vérifications de la frise s'en servent) |
+
+En mode démo, `window.__fabtice` donne accès au magasin, au moteur, aux actions
+et, sous `lot2`, aux actions d'analyse, de grille et d'harmonie ; `?debug` donne
+le même accès (sans `lot2`) sans morceau de démonstration (tests du navigateur).
+Le morceau de démonstration n'est jamais gardé sur l'appareil. `?analyse=…` vaut
+aussi hors démo (même analyse factice, sur l'extrait du prototype).
 
 Les fichiers construits (`web/index.html`, `web/assets/`, `desktop/ui/`) ne
 sont pas versionnés. Netlify lance `npm ci && npm run build` dans `app/`.
@@ -48,10 +63,22 @@ sont pas versionnés. Netlify lance `npm ci && npm run build` dans `app/`.
 src/
   main.tsx            démarrage : langue, préférences, branchement du moteur, ?demo,
                       réouverture du morceau gardé, vérification de l'outil d'import
-  model/              types des données (projet, pistes, carte de tempo, document)
+  model/              types des données (projet, pistes, carte de tempo, document,
+                      harmonie, résultat d'analyse, corrections à la main)
   grid/               calculs de grille, purs et testés : temps <-> mesures,
                       traits de mesure et de sous-grille, magnétisme, boucles,
-                      clics du métronome, formats d'affichage, « Battre le tempo »
+                      clics du métronome, formats d'affichage, « Battre le tempo »,
+                      carte de tempo à partir de temps analysés, corrections
+                      (× 2, ÷ 2, premier temps), courbe de tempo par mesure
+  harmony/            accords et tonalités, purs et testés : vocabulaire, lecture
+                      (saisie et étiquettes Harte), orthographe par degré,
+                      transposition, instruments ; composant <ChordSymbol>
+  analysis/           contrat de l'analyseur, analyseur factice, lancement
+                      automatique et état (runner.ts), progression fine
+  chart/              affichage Grille d'accords : mise en page pure (layout.ts),
+                      corrections pures (edits.ts), feuille, mesure en cours
+  export/             représentation de la grille pour l'export, contrat iReal Pro,
+                      impression
   store/              état de l'app (store.ts), actions (actions.ts), valeurs
                       dérivées (derived.ts), préférences, document de projet
   audio/              contrat du moteur (AudioEngine.ts), vrai moteur
@@ -75,7 +102,7 @@ src/
   demo/               le morceau synthétique de ?demo
   styles/             jetons, base, une feuille par zone, téléphone
   assets/fonts/       polices (woff2) et leurs licences OFL
-tests/                vérifications dans Chromium (smoke.mjs, timeline.mjs, import.mjs),
+tests/                vérifications dans Chromium (smoke.mjs, timeline.mjs, import.mjs, chart.mjs),
                       fichiers audio de test (fixtures/) et petit serveur
 ```
 
@@ -119,12 +146,199 @@ tests/                vérifications dans Chromium (smoke.mjs, timeline.mjs, imp
 - `LoopState` (zone et marche/arrêt), `PlaybackSettings` (demi-tons −12…+12,
   cents −50…+50, tempo en rapport 0,25…2, métronome), `ViewSettings`
   (affichage, échelle en pixels par seconde, hauteur de piste, Auto,
-  sous-grille 1/2/4/8, triolets, magnétisme, suivi), `AppSettings` (notation
+  sous-grille 1/2/4/8, triolets, magnétisme, suivi, instrument de la grille), `AppSettings` (notation
   des accords mineurs).
 - Le tempo cible affiché vient de `targetBpm()` (`store/derived.ts`) ; tant que
   le tempo du morceau n'est pas saisi, le transport parle en pourcentage.
 
+### Lot 2 : analyse, corrections, harmonie (document version 2)
+
+Principe : **ce que l'analyse a produit et ce que l'utilisateur a changé sont
+rangés à part**, si bien que « pas encore analysé », « analysé » et « corrigé à
+la main » se distinguent toujours, et qu'une nouvelle analyse n'écrase jamais
+une correction sans qu'on le demande. Tout est stocké **en temps source
+(secondes)**, jamais en mesures : un accord ou une section reste sur la musique
+quand on corrige la grille ; l'affichage le pose sur le temps (accord) ou la
+barre de mesure (section) les plus proches de la grille en vigueur.
+
+| Donnée | Où | Contenu |
+|---|---|---|
+| Résultat d'analyse | `AppState.analysis`, `model/analysis.ts#AnalysisResult` | tel qu'il est sorti, jamais modifié : temps analysés (`beats.times`, indice du premier temps, métrique et sa sûreté), tonalité (tonique, mode, sûreté, autres lectures), accordage (écart à La 440 en cents, sûreté), accords (`time`, accord ou `null` pour N.C., sûreté, `doubtful`, autres lectures), analyseur et modèles, date. `null` = pas encore analysé |
+| Grille en vigueur | `AppState.tempoMap` (inchangé, lu par le moteur et la frise) | son `origin` dit qui l'a faite : `default` (personne), `manual` (panneau du lot 1, tempo fixe), `analysis` (temps analysés, un segment par temps : `grid/beats.ts#tempoMapFromBeats`), `corrected` (temps analysés corrigés à la main : × 2, ÷ 2, premier temps, métrique). Les temps analysés restent dans le résultat : « Revenir à l'analyse » est toujours possible |
+| Corrections | `AppState.corrections`, `model/corrections.ts#Corrections` | tonalité choisie (`key`, `null` = celle de l'analyse), accordage corrigé (`tuningCents`), offre d'accordage refusée, accords écrits à la main (`chords` : temps et accord), plages réécrites à la main (`handSpans` : là, l'analyse est masquée), lettres de section (`sections` : temps de la barre et texte) |
+| Instrument | `view.instrument` (`ut`, `sib`, `mib`) | affichage seul, gardé avec le morceau |
+| État de l'analyse | `AppState.analysisRun` (non gardé) | `idle`, `running` (projet, étape), `error` (code). La progression fine (fraction, octets téléchargés) est dans un petit magasin à part, `analysis/progress.ts`, pour ne pas réveiller tout l'écran (ni l'autosauvegarde, qui attend que le magasin se calme) plusieurs fois par seconde |
+
+Un accord (`model/harmony.ts#ChordSymbol`) : fondamentale (classe de hauteur
+0–11, sans orthographe), qualité (les quatorze du décodeur du prototype, mêmes
+noms, plus `7sus4` et `aug7`), extensions (`b9`, `9`, `#11`, `13`, `alt`… :
+suggestions quand elles viennent de l'analyse), basse. L'orthographe se fait à
+l'affichage, par degré dans la tonalité (`harmony/pitch.ts`) : tonalités en
+bémols en bémols, en dièses en dièses, ♭2 ♭3 ♯4 ♭6 ♭7 pour les degrés
+chromatiques, septième diminuée de passage en degré haussé (C, C♯°7, Dm7), jamais
+de double altération ni de C♭, F♭, E♯, B♯ (le nom simple à la place).
+
+Les accords sont gardés **en Ut, dans la tonalité d'origine**. La transposition
+(demi-tons du transport) et l'instrument (Si♭ : une seconde majeure au-dessus ;
+Mi♭ : une sixte majeure au-dessus) ne servent qu'à l'affichage et à l'export :
+`harmony/display.ts#displayContext`, `store/chartSelectors.ts#selectDisplayContext`.
+
+**Ce qui est en vigueur** se lit par `store/chartSelectors.ts` : `keyInForce`,
+`tuningInForce`, `tuningOffer` (proposer de ramener à 440), `selectChords` (accords
+de l'analyse hors des plages réécrites, plus les accords à la main, posés sur la
+grille en vigueur), `selectChartBars` (toutes les mesures de la grille),
+`selectBarChords(s, n)` (« les accords de la mesure n tels qu'affichés » : accords
+gardés et contexte d'affichage pour les écrire), `selectAnalysisStatus`,
+`selectHasCorrections`. Sélecteurs mémorisés ; dans un composant, ne sélectionner
+que des valeurs stables (un nouvel objet à chaque appel fait boucler React).
+
+**Actions** (nouveaux fichiers ; `actions.ts` n'a gagné que la remise à zéro de
+l'analyse et des corrections à l'ouverture d'un morceau) :
+
+| Fichier | Actions |
+|---|---|
+| `store/analysisActions.ts` | `applyAnalysis(result, { replaceCorrections })` : la grille analysée remplace la grille en vigueur sauf si l'utilisateur en a fait une (`manual`, `corrected`) ; rien de ce qui est fait à la main n'est touché, sauf demande expresse (alors seules les sections restent). `setAnalysisRun` |
+| `store/gridActions.ts` | `doubleTheTempo`, `halveTheTempo`, `moveDownbeat(±1)`, `setBeatsPerBar`, `placeDownbeatAtPlayhead` (sur des temps analysés : le temps le plus proche devient le premier temps), `resetGridToAnalysis`, `gridCorrectionsAvailable` |
+| `store/harmonyActions.ts` | `setBarChords(mesure, [{ beatInBar, chord }])` (toute correction d'accord réécrit la mesure entière), `replaceChord`, `splitBar`, `removeChord`, `confirmBar` (l'accord douteux est validé), `resetBar` (rendre la mesure à l'analyse), `resetChordCorrections`, `setKey`, `setTuningCorrection`, `compensateTuning`, `dismissTuningOffer`, `setSection`, `setInstrument`, `resetHarmonyCorrections`, `untransposeForStorage` (un accord tapé tel qu'affiché, ramené en Ut dans la tonalité d'origine) |
+
+**Document version 2** (`model/document.ts`) : `analysis` et `corrections` en plus,
+origine de grille `corrected`, `view.instrument`. La migration 1 → 2
+(`storage/documentFormat.ts#MIGRATIONS`) ouvre un morceau du lot 1 comme « pas
+encore analysé », sa grille gardée telle quelle. À la lecture, un résultat
+d'analyse abîmé ou d'une version inconnue est **abandonné** (il se recalcule) :
+un morceau n'est jamais perdu pour lui ; les corrections, elles, doivent se
+relire exactement, sinon le document est `corrupt`.
+
+**À brancher à la fusion** : l'autosauvegarde (`storage/keeper.ts`, fonction
+`changed`) ne connaît pas encore `analysis` ni `corrections`. Elle doit utiliser
+`store/document.ts#documentChanged`, qui donne la liste complète ; sinon une
+correction d'accord, de tonalité ou de section n'est gardée qu'au prochain autre
+changement (le résultat d'une analyse, lui, part avec le changement de grille
+qui l'accompagne).
+
 ## Contrats pour la suite
+
+### Lot 2 : ce qui existe et ce qui reste, par chantier
+
+Le socle du lot 2 est en place : modèle et document v2, module `harmony/`,
+magasin et actions, contrats ci-dessous, `?demo` analysé, `test:chart`. Quatre
+chantiers suivent, chacun dans son dossier.
+
+#### Analyseur — `src/analysis/`
+
+- **Contrat** (`analysis/types.ts`) : `Analyzer.analyse(request)` reçoit l'audio
+  décodé à 48 kHz (`channels`, `sampleRate`, `audioId`), éventuellement la grille
+  et la tonalité de l'utilisateur (`grid`, `key` : il doit alors les garder et ne
+  décoder que les accords dessus, le « regrid » du prototype), `onProgress`
+  (étapes `download`, `prepare`, `tuning`, `beats`, `chords`, `finish`, fraction
+  qui ne recule jamais, octets téléchargés) et `signal` (annulation : rejeter
+  vite avec `AnalysisError('cancelled')`). Il rend un `AnalysisResult` complet ou
+  rejette avec un `AnalysisError` (`download-failed`, `unsupported`, `memory`,
+  `no-music`, `failed`). `models()` donne la liste des modèles (nom, rôle en
+  français, adresse, hébergeur, licence, taille, déjà en cache ou non) :
+  l'interface l'affiche au premier téléchargement.
+- **Ce qui existe** : `MockAnalyzer` (`analysis/mock.ts` : minuterie, faux
+  téléchargement, résultat fixe : l'extrait du prototype `demo-swing.json`, copié
+  dans `analysis/demoSwing.ts` et traduit par `fromDemoSwing.ts`, ou celui du
+  morceau de démonstration) ; la fabrique `getAnalyzer()` (`analysis/index.ts`) ;
+  le lancement automatique (`analysis/runner.ts#startAutoAnalysis`, branché dans
+  `App.tsx` : chaque morceau ouvert et jouable sans analyse est analysé une fois,
+  en arrière-plan ; un échec n'est pas relancé tout seul) ; `runAnalysis()` et
+  `cancelAnalysis()` ; l'état affiché (barre du haut, panneau « Analyse du
+  morceau », grille vide « Analyse en cours… » avec sources et licences) ; la
+  liste des modèles du prototype et leurs empreintes (`analysis/models.ts`).
+- **Reste à faire** : le vrai analyseur (Web Worker, ONNX Runtime Web, cache et
+  vérification des modèles), porté du prototype `web/spikes/analyse/` dans ce
+  contrat ; le brancher par défaut dans `createAnalyzer()` (garder le factice
+  pour `?analyse=factice` et pour Node) ; traduire sa sortie : qualités du
+  prototype telles quelles (`model/harmony.ts`, mêmes noms), suggestions
+  d'extensions (« sus4 + 7 » devient la qualité `7sus4`), basse, `doubtful`
+  d'après sa propre calibration (le prototype : moyenne géométrique < 0,35),
+  étiquettes Harte par `harmony/parse.ts#parseHarte`. Décider de l'hébergement
+  des modèles (copie sous un compte du projet, voir PASSATION). Mesurer la
+  mémoire sur iPhone.
+
+#### Grille d'accords — `src/chart/`
+
+- **Ce qui existe** : la mise en page pure et testée (`chart/layout.ts` :
+  accords en vigueur, mesures, répétition « 𝄎 », sections et doubles barres,
+  lignes de quatre mesures, ligne de levée, boucle, mesure en cours) ; les
+  corrections pures (`chart/edits.ts`) ; la feuille en lecture seule
+  (`chart/ChartSheet.tsx`, fidèle à la maquette : `.feuille`, `.grille`, `.case`,
+  `.section`, `.numero`, `.deux`, `.double`, `.dans-boucle`, `.jouee`) avec
+  l'en-tête (titre, tonalité affichée, métrique, tempo) et le choix Ut / Si♭ /
+  Mi♭ ; le filet braise de la mesure en cours, mené par la boucle d'animation
+  (`chart/usePlayheadBar.ts`, jamais par React) ; les états vide, « analyse en
+  cours », échec, aucun accord ; le téléphone.
+- **Coutures** : chaque mesure porte `data-mesure` (indice) et chaque accord
+  `data-accord` (rang dans la mesure) et `data-origine` (`analysis` ou `manual`) ;
+  `ChartGrid` accepte `onBarPointerDown` et `onChordClick` (non branchés) ; un
+  accord qui ne commence pas sur la barre reçoit `--debut` (fraction de la mesure).
+- **Reste à faire** : les gestes (clic sur une mesure = `seek` au début de la
+  mesure, glisser sur des mesures = `setLoopRegion(loopFromBars(…))` puis
+  `enterLoop()`, comme dans la frise ; les cases deviennent alors des boutons) ;
+  l'éditeur d'accord au clic (champ lu par `parseChord`, propositions tirées de
+  `alternatives`, `replaceChord` / `splitBar` / `removeChord` / `confirmBar` /
+  `resetBar`, accord tapé tel qu'affiché puis `untransposeForStorage`) ; la pose
+  des lettres de section (`setSection`) ; la correction de la tonalité (menu des
+  24 tonalités : `allKeys`, `keyNameFr`, `setKey`) ; l'impression
+  (`export/index.ts#printChart`, styles d'impression, puis `PRINT_READY = true`) ;
+  suivre la mesure en cours en lecture (défilement, réglage « Suivre ») ; les
+  entrées « Exporter » dans le menu du téléphone.
+
+#### Frise du temps — `src/timeline/` (seulement ceci)
+
+- **Rang des accords** : l'afficher quand `selectHasChords(state)` est vrai
+  (`rulerRows({ hasChords })`, aujourd'hui `false` en dur dans `Timeline.tsx`,
+  `controller.ts` et `components/RulerHeads.tsx`, qui a déjà `ChordsHead`). Lire
+  `selectChartBars(state)` (mesures, accords avec `beatInBar`, `repeat`, sections)
+  ou `selectChords(state)` (chaque accord et son temps `beat` sur la grille ;
+  position x par `beatToTime(tempoMap, beat)`), et `selectDisplayContext(state)`
+  pour l'écrire (`displayChord(chord, ctx).parts` : fondamentale, qualité ou
+  triangle, extensions, basse ; ou `displayChordText`). Styles de la maquette :
+  `.accord`, `.accord.deux` (18 px et 14,5 px). Les accords douteux à l'encre
+  douce, comme dans la grille. Redessiner quand `analysis`, `corrections`,
+  `tempoMap`, `playback.semitones`, `view.instrument` ou
+  `settings.minorNotation` changent.
+- **Courbe de tempo** : une carte analysée a un segment **par temps** ; dessinée
+  segment par segment (comme aujourd'hui), elle tremble et porte un point à
+  chaque temps. Dessiner `grid/tempoCurve.ts#tempoCurve(map, t0, t1)` (un point
+  par mesure, tempo moyen de la mesure) avec `curveRange()` pour l'échelle, et la
+  ligne pointillée au tempo nominal (`nominalBpm`, mémorisé par carte).
+- **Temps analysés** : `barLines`, `subGridLines`, `snapTime`, `loopFromBars`,
+  `barsOfRange`, `metronomeClicks` donnent déjà les bonnes lignes sur une carte
+  variable (tests sur les vrais temps de `demo-swing.json`,
+  `grid/beats.test.ts`). L'effacement de la sous-grille se décide sur le tempo
+  le plus rapide de la carte (`maxBpm`).
+
+#### Export iReal Pro — `src/export/`
+
+- **Ce qui existe** : `chartForExport(state)` rend une représentation pure de la
+  grille (`ExportChart` : titre, tonalité écrite, métrique, tempo, `repeats:
+  'none'`, mesures avec section, double barre, changement de métrique, accords
+  au temps près, répétition, dernière mesure), en Ut **dans la tonalité jouée**
+  (transposition du transport appliquée ; l'instrument non : iReal Pro
+  transpose lui-même). Le contrat `exportToIRealPro(chart): IRealExport` (lien
+  `irealb://`, page HTML qui le porte, nom de fichier) lève
+  `ExportNotReadyError`. Le menu « Exporter » montre « bientôt » tant que
+  `IREAL_EXPORT_READY` est faux ; ensuite il enregistre la page HTML
+  (`components/ExportMenu.tsx`).
+- **Reste à faire** : le codage iReal (vocabulaire d'accords, cellules,
+  sections, métrique, style par défaut, chaîne du lien), ses tests, la remise à
+  l'utilisateur (page à ouvrir, lien à copier, app Mac), puis
+  `IREAL_EXPORT_READY = true`.
+
+#### Le menu « Exporter » et les panneaux
+
+« Exporter » est un petit menu (`components/ExportMenu.tsx`) : « Grille pour
+iReal Pro » et « Imprimer la grille » (« bientôt »), l'audio visible mais inactif
+(lot 3). Le panneau « Tempo et mesures » (`components/GridPanel.tsx`) garde la
+saisie du lot 1 et gagne : tempo ÷ 2 et × 2, premier temps un temps plus tôt ou
+plus tard (de part et d'autre de « Premier temps ici »), l'origine de la grille,
+« Revenir à l'analyse », « Analyser de nouveau ». Le panneau de l'accord fin
+(Tonalité) dit à quel La l'enregistrement est accordé et propose « Ramener à
+440 » (les cents du transport) ou « Laisser tel quel ». Le transport écrit la
+tonalité comme la maquette : « A♭ · original », « A♭ → D♭ ».
 
 ### Moteur audio — `src/audio/AudioEngine.ts`
 
@@ -234,7 +448,7 @@ chaque ouverture, de façon déterministe. Les préférences de l'utilisateur
 |---|---|
 | `ProjectStorage.ts` | le contrat (`replaceCurrent`, `saveCurrent`, `loadCurrent`, `loadAudio`, `clearCurrent`, `requestPersistence`…) et `StorageError` (`unavailable`, `quota`, `corrupt`, `io`) |
 | `indexedDb.ts` | l'implémentation : base `fabtice` v1, deux magasins, `project` (clé `current` : `{ schema, document }`) et `audio` (une entrée par `AudioRef.id` : `{ bytes, mimeType, fileName }`). `replaceCurrent` réécrit les deux dans **une seule transaction** : en cas d'échec, l'ancien projet reste entier. Les transactions sont validées tout de suite (`commit()`), sinon une page qui se ferme perdrait l'écriture |
-| `documentFormat.ts` | lecture sûre : version du document (`MIGRATIONS`, vide pour l'instant ; une version **plus récente** est ignorée, jamais écrasée à la lecture), contrôle de la forme (sinon `corrupt`) ; `STORAGE_SCHEMA` pour l'enveloppe |
+| `documentFormat.ts` | lecture sûre : version du document (`MIGRATIONS` : de 1, lot 1, à 2, lot 2 ; une version **plus récente** est ignorée, jamais écrasée à la lecture), contrôle de la forme (sinon `corrupt`) ; `STORAGE_SCHEMA` pour l'enveloppe |
 | `keeper.ts` | le gardien : `keepNewProject()` (à appeler quand un nouveau morceau est ouvert et jouable : demande le stockage persistant la première fois, écrit audio et document ensemble, remplace l'ancien projet) puis autosauvegarde de tout changement du document, **différée** (700 ms de calme, 5 s au plus pendant un geste continu), une écriture à la fois, jamais attendue par l'écran ; `flush()` à la fermeture (`pagehide`, onglet masqué). Rien n'est écrit pour un morceau dont l'audio n'est pas encore gardé, ni pour le morceau de démonstration. La file d'écritures **ne rejette jamais** (un travail qui échoue n'empoisonne pas les suivants) et une écriture qui ne répond pas au bout de 2 minutes est abandonnée avec l'avis habituel |
 | `restore.ts` | lancement : « Ouverture de « titre »… » (la fenêtre n'apparaît que si cela dure plus de 250 ms) avec **l'étape en cours** (lecture du morceau gardé, préparation du son, mise en place des pistes), puis `restoreProject()` (mêmes identifiants de projet, de piste et d'audio). **Chaque étape a sa limite de temps généreuse** (`RESTORE_LIMITS` : document 20 s, lecture 60 s, décodage 3 min par piste, moteur 60 s) : une réouverture n'attend jamais indéfiniment. **Au moindre échec ou dépassement, le morceau gardé est CONSERVÉ** : la fenêtre « Nouveau morceau » s'ouvre avec une phrase calme et propose « Rouvrir « titre » » et, plus discret, « Oublier ce morceau » (confirmé par une seconde question). Un marqueur dans `localStorage` pendant la réouverture couvre une page tuée par le système (manque de mémoire sur téléphone) : au lancement suivant il n'y a **pas de nouvel essai automatique**, la même proposition s'affiche, jusqu'à ce que l'utilisateur choisisse. « Rouvrir » (`reopenKept`) ignore ce marqueur ; « Oublier » (`forgetKept`) supprime le document, l'audio et le marqueur. Un nouvel import réussi remplace le morceau gardé et retire la proposition (`ui.reopenOffer`) |
 | `timeout.ts` | `withTimeout()` et `StepTimeout` : une limite de temps pour une étape qui pourrait ne jamais répondre |
@@ -318,7 +532,7 @@ Tout ce qui se dessine le long du temps, dans l'affichage Pistes : règle
 (courbe de tempo, numéros de mesure, bande de boucle), formes d'onde, grille
 et sous-grille, voile de boucle, tête de lecture, défilement, zoom, Auto,
 suivi de la tête de lecture et interactions. L'accord (rang « Accords » de la
-règle) n'est pas dessiné au lot 1 (`rulerRows({ hasChords: false })`).
+règle) n’est pas encore dessiné (`rulerRows({ hasChords: false })`) : voir « Lot 2 », plus haut, pour ce que la frise doit lire.
 
 **Mise en page.** La frise remplit la colonne de droite de `.plan`, dans le
 défileur vertical `.travail`, qui ne défile **jamais** horizontalement : le
@@ -402,9 +616,13 @@ de même (mesures 1, 5, 9… à une sur quatre). La sous-grille disparaît sous 
 (`TIMELINE_ONLY=desktop|stress|phone` pour une seule partie ;
 `FABTICE_TIMELINE_OUT` pour le dossier des captures).
 
-## Saisie de la grille (lot 1, sans analyse)
+## Saisie et correction de la grille
 
 Le clic sur « Tempo » en tête de règle ouvre un panneau : tempo du morceau
-(30–300), « Battre le tempo », temps par mesure (2–7, à la noire), « Premier
-temps ici » (le premier temps de la mesure 1 à la position de lecture).
-Tout passe par `setManualGrid()` et `setDownbeatAtPlayhead()`.
+(30–300), « Battre le tempo », temps par mesure (2–7, à la noire), tempo ÷ 2 et
+× 2, « Premier temps ici » (le premier temps de la mesure 1 à la position de
+lecture) entre « un temps plus tôt » et « un temps plus tard », puis l'origine
+de la grille, « Revenir à l'analyse » et « Analyser de nouveau ». Saisir ou
+battre un tempo fait une grille fixe (`setManualGrid`, lot 1), qui remplace les
+temps analysés ; les autres corrections gardent les temps analysés et n'en
+changent que la numérotation (`store/gridActions.ts`, `grid/corrections.ts`).

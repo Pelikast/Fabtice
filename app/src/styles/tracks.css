@@ -185,3 +185,14 @@ button.rang-tete:hover, button.rang-tete[aria-expanded="true"] { background: var
 .panneau-ligne.empile { flex-direction: column; align-items: stretch; gap: 6px; }
 .temps-mesure button { flex: 1; height: 38px; padding: 0; }
 .panneau-separe { margin: 2px -16px 14px; border: 0; border-top: 1px solid var(--trait-fin); }
+
+/* Corrections of the grid (lot 2): tempo x 2 and / 2, first beat by one beat. */
+.corrige button { flex: 1; height: 38px; padding: 0; font-variant-numeric: tabular-nums; }
+.corrige button:disabled, .temps-mesure button:disabled { color: var(--encre-pale); background: none; cursor: default; }
+.premier-temps { display: grid; grid-template-columns: 40px minmax(0, 1fr) 40px; gap: 6px; }
+.premier-temps .pas-temps { padding: 0; font-family: var(--titre); font-size: 22px; font-weight: 500; line-height: 1; }
+.premier-temps .bouton-cadre:disabled { color: var(--encre-pale); cursor: default; }
+.panneau-note.origine { margin-bottom: 8px; }
+.panneau-actions { display: flex; justify-content: space-between; gap: 12px; }
+.panneau-actions .lien { min-height: 32px; font-size: 13.5px; }
+.panneau-actions .lien:only-child { margin-left: auto; }

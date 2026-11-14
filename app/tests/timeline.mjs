@@ -41,7 +41,8 @@ async function open(viewport, { touch = false, dpr = 1 } = {}) {
   page.on('crash', () => console.log('PAGE CRASHED'));
   page.on('close', () => console.log('page closed'));
   page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
-  await page.goto(`${url}/?demo`);
+  // The lot 1 demo: a constant 110 BPM grid (the checks compute bar lines from it), no analysis.
+  await page.goto(`${url}/?demo&analyse=aucune`);
   await page.waitForFunction(() => window.__fabtice && window.__fabtice.store.getState().transport.engine === 'ready', null, { timeout: 15000 });
   await page.evaluate(() => document.fonts.ready);
   await page.waitForFunction(() => document.querySelector('.frise')?.dataset.peaks === 'ready', null, { timeout: 15000 });

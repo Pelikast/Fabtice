@@ -1,3 +1,5 @@
+import { useEffect } from 'react';
+import { startAutoAnalysis } from '../analysis/runner';
 import { t } from '../i18n';
 import { useApp } from '../store/store';
 import { useFileDrop } from '../ui/useFileDrop';
@@ -14,6 +16,8 @@ export function App() {
   const dialogOpen = useApp((s) => s.ui.newPieceOpen);
   const dragging = useFileDrop();
   useGlobalKeys();
+  // Each newly opened piece is analysed in the background once it can play (analysis/runner.ts).
+  useEffect(() => startAutoAnalysis(), []);
   return (
     <>
       <div className="app" data-vue={mode} inert={dialogOpen}>

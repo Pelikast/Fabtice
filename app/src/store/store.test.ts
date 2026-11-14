@@ -8,6 +8,7 @@ import { constantTempoMap } from '../grid/tempoMap';
 import { fakeClock } from '../test/fakeClock';
 import * as actions from './actions';
 import { steppedTempoRatio, targetBpm } from './derived';
+import { PROJECT_DOCUMENT_VERSION } from '../model/document';
 import { fromProjectDocument, toProjectDocument } from './document';
 import { appStore, initialState } from './store';
 
@@ -167,7 +168,7 @@ describe('store and engine wiring', () => {
   it('round-trips the project document', () => {
     actions.stepSemitones(1);
     const doc = toProjectDocument(appStore.getState(), new Date(0))!;
-    expect(doc.version).toBe(1);
+    expect(doc.version).toBe(PROJECT_DOCUMENT_VERSION);
     expect(doc.savedAt).toBe('1970-01-01T00:00:00.000Z');
     const json = JSON.parse(JSON.stringify(doc));
     const restored = fromProjectDocument(json, initialState());

@@ -54,6 +54,15 @@
   .feuille-tete { flex-direction: column; gap: 2px; margin-bottom: 14px; }
   .feuille-tete h1 { font-size: 24px; }
   .grille-vide span { height: 76px; }
+  .feuille-infos { width: 100%; justify-content: space-between; gap: 8px; }
+  .feuille-tete p { white-space: normal; }
+  .case { height: 76px; padding: 12px 2px 0 8px; font-size: 21px; gap: 8px; }
+  .case.deux { font-size: 15px; gap: 5px; }
+  .case.trois { font-size: 12.5px; gap: 4px; }
+  .case .section { left: 5px; top: 4px; }
+  .case .numero { top: 4px; right: 5px; }
+  .analyse-bouton { padding: 4px 6px; font-size: 12px; }
+  .panneau-analyse { position: fixed; top: 50px; left: 10px; right: 10px; width: auto; }
 
   .bas {
     grid-template-columns: 1fr;

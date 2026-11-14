@@ -1,6 +1,7 @@
 // A plausible stored project document, for storage tests.
 
 import { defaultTempoMap } from '../grid/tempoMap';
+import { emptyCorrections } from '../model/corrections';
 import { PROJECT_DOCUMENT_VERSION, type ProjectDocument } from '../model/document';
 import { defaultView } from '../store/store';
 
@@ -31,6 +32,8 @@ export function sampleDocument(overrides: Partial<ProjectDocument> = {}): Projec
     loop: { region: { start: 2, end: 6 }, enabled: true },
     playback: { semitones: 2, cents: -10, tempoRatio: 0.8, metronome: true },
     view,
+    analysis: null,
+    corrections: emptyCorrections(),
     savedAt: '2026-11-13T10:05:00.000Z',
     ...overrides,
   };
