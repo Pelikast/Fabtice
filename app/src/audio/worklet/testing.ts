@@ -152,3 +152,45 @@ export function seamMetric(x: Float32Array, from: number): number {
   }
   return mx / Math.sqrt(s2 / n);
 }
+
+// ---------------------------------------------------------------- rendered audio (« Appliquer »)
+
+/** Rendered audio for the player: the same 16-bit blocks as a track (what the offline renderer hands the engine). */
+export function renderedOf(l: Float32Array, r?: Float32Array): TrackData {
+  const s = storeTrack(r ? [l, r] : [l]);
+  return new TrackData(s.frames, s.mono, s.chunks);
+}
+
+/** Gives the core a rendered set for its tracks, in the order they were added (`ids`). */
+export function applySet(core: PlayerCore, ids: string[], data: TrackData[], semitones: number, ratio: number): void {
+  core.setRendered(semitones, ratio, new Map(ids.map((id, i) => [id, data[i]!])));
+}
+
+/**
+ * A linear chirp in SOURCE time: its frequency is `f0 + beta * t` at source
+ * second t, so the frequency heard says which source second is heard (whatever
+ * the tempo, when the pitch is not changed).
+ */
+export function chirp(f0: number, beta: number, seconds: number, amp = 0.5): Float32Array {
+  const a = new Float32Array(Math.round(seconds * SR));
+  for (let i = 0; i < a.length; i++) {
+    const t = i / SR;
+    a[i] = amp * Math.sin(2 * Math.PI * (f0 * t + (beta * t * t) / 2));
+  }
+  return a;
+}
+
+/** The same chirp as an ideal tempo change (pitch kept) makes it at tempo `ratio`: rendered second tau is source second tau * ratio. */
+export function chirpRendered(f0: number, beta: number, sourceSeconds: number, ratio: number, amp = 0.5): Float32Array {
+  const a = new Float32Array(Math.round((sourceSeconds / ratio) * SR));
+  for (let i = 0; i < a.length; i++) {
+    const tau = i / SR;
+    a[i] = amp * Math.sin(2 * Math.PI * (f0 * tau + (beta * ratio * tau * tau) / 2));
+  }
+  return a;
+}
+
+/** The source second a chirp window `[from, from + len)` of the output is playing, from its frequency. */
+export function chirpSecond(x: Float32Array, from: number, len: number, f0: number, beta: number): number {
+  return (zeroCrossFreq(x, from, from + len) - f0) / beta;
+}

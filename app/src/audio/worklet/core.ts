@@ -139,8 +139,6 @@ interface CoreTrack {
   solo: boolean;
   needPrime: boolean;
   active: boolean;
-  /** The rendered audio of this track (« Appliquer »), or null. */
-  rendered: TrackData | null;
 }
 
 export interface CoreStats {
@@ -185,8 +183,17 @@ export class PlayerCore {
   private sinceStart = 0;
 
   // ----- « Appliquer »: the rendered set and the route
-  /** What the rendered audio was made for, or null. `semitones` includes the cents. */
-  private renderedSet: { semitones: number; ratio: number } | null = null;
+  /**
+   * The rendered set in force: what it was made for (`semitones` includes the cents, `ratio` is the tempo) and
+   * its audio by track id. `reading` is the set being read while the rendered audio is live: it stays the same
+   * (even when `cur` is dropped or replaced) until that audio has faded out.
+   */
+  private cur: { semitones: number; ratio: number; data: Map<string, TrackData> } | null = null;
+  private reading: { semitones: number; ratio: number; data: Map<string, TrackData> } | null = null;
+  /** Output frames the rendered audio still goes on alone, after the route was set back to the preview (its stretchers are warming up). */
+  private holdFrames = 0;
+  /** The path the metronome is scheduled from: the one mostly heard. */
+  private scanPath: 0 | 1 = 0;
   /** Where the output is going: 0 the preview (stretchers), 1 the rendered audio as it is. */
   path: 0 | 1 = 0;
   /** Weight of the rendered audio in the output, 0…1 (a crossfade moves it between the two ends). */
@@ -256,7 +263,7 @@ export class PlayerCore {
 
   addTrack(id: string, data: TrackData, mix: { volume: number; mute: boolean; solo: boolean }): void {
     this.removeTrack(id);
-    this.tracks.push({ id, data, proc: this.factory.create(), gain: 0, vol: mix.volume, mute: mix.mute, solo: mix.solo, needPrime: true, active: false, rendered: null });
+    this.tracks.push({ id, data, proc: this.factory.create(), gain: 0, vol: mix.volume, mute: mix.mute, solo: mix.solo, needPrime: true, active: false });
   }
 
   removeTrack(id: string): void {
@@ -264,6 +271,8 @@ export class PlayerCore {
     if (i < 0) return;
     this.tracks[i]!.proc.destroy();
     this.tracks.splice(i, 1);
+    this.cur?.data.delete(id);
+    this.reading?.data.delete(id);
   }
 
   /** Drops every track and stops, at 0. */
@@ -281,7 +290,7 @@ export class PlayerCore {
     this.pendingSeek = -1;
     this.clickCount = 0;
     this.limiter.reset();
-    this.renderedSet = null;
+    this.cur = null;
     this.apos = 0;
     this.path = 0;
     this.settleRoute();
@@ -372,21 +381,39 @@ export class PlayerCore {
    * not used until every track has).
    */
   setRendered(semitones: number, ratio: number, entries: ReadonlyMap<string, TrackData>): void {
-    this.renderedSet = { semitones, ratio };
-    for (const t of this.tracks) t.rendered = entries.get(t.id) ?? null;
+    this.cur = { semitones, ratio, data: new Map(entries) };
     this.updateRoute();
   }
 
-  /** Drops the rendered set (the player goes back to the preview, with a crossfade when it is playing). */
+  /**
+   * Drops the rendered set. What is playing from it finishes its crossfade
+   * first (the page drops a set at the very moment a change of key or tempo
+   * sends the player back to the preview).
+   */
   clearRendered(): void {
-    this.renderedSet = null;
-    for (const t of this.tracks) t.rendered = null;
+    this.cur = null;
     this.updateRoute();
+    if (!this.aLive) this.reading = null;
+  }
+
+  /** Source frames per output frame of what is mostly heard: the live tempo, or the rendered audio's own while it is. */
+  get heardRate(): number {
+    return this.mixApplied >= 0.5 ? this.readRatio : this.rate;
+  }
+
+  /** True when the set in force has rendered audio for this track. */
+  hasRendered(id: string): boolean {
+    return this.cur?.data.has(id) ?? false;
   }
 
   /** True when the rendered audio is what is (being) heard. */
   get appliedInUse(): boolean {
     return this.path === 1;
+  }
+
+  /** The tempo ratio the audio being read was rendered at: the source frames one output frame covers. */
+  private get readRatio(): number {
+    return this.reading?.ratio ?? this.rate;
   }
 
   /**
@@ -395,9 +422,11 @@ export class PlayerCore {
    * (the tempo smoothing has reached them), else the preview.
    */
   private wantedPath(): 0 | 1 {
-    const set = this.renderedSet;
+    const set = this.cur;
     if (!set || this.tracks.length === 0) return 0;
-    for (const t of this.tracks) if (!t.rendered) return 0;
+    // a set that replaced the one still being read waits until that one has faded out
+    if (this.aLive && this.reading !== set) return 0;
+    for (const t of this.tracks) if (!set.data.has(t.id)) return 0;
     if (Math.abs(this.semitones - set.semitones) > 1e-9) return 0;
     if (Math.abs(this.rateTarget - set.ratio) > 1e-9 || Math.abs(this.rate - set.ratio) > 1e-9) return 0;
     return 1;
@@ -408,13 +437,21 @@ export class PlayerCore {
     this.mixApplied = this.path;
     this.pLive = this.path === 0;
     this.aLive = this.path === 1;
+    this.holdFrames = 0;
+    this.reading = this.path === 1 ? this.cur : null;
+    this.scanPath = this.path;
   }
 
   /**
    * Called before every quantum (and when the set changes): starts the route
    * change when the settings ask for it. While nothing is audible (paused,
-   * fading out for a seek) it is immediate; while playing it is a crossfade
-   * at the same heard position.
+   * fading out for a seek) it is immediate. While playing:
+   *   - to the rendered audio: the read position starts at the heard position
+   *     and the preview fades out over `xfade` frames;
+   *   - back to the preview: the stretchers must be fed from the heard
+   *     position and need their latency (about 150 ms, as after a seek) before
+   *     they sound, so the rendered audio goes on until they do, then fades
+   *     out over `xfade` frames at the same heard position.
    */
   private updateRoute(): void {
     const want = this.wantedPath();
@@ -425,42 +462,60 @@ export class PlayerCore {
       if (this.playing) this.apos = this.cursor; // a seek is about to replace the position
       return;
     }
-    const heard = this.heardLive();
     const L = this.loop;
     if (want === 1) {
       if (!this.aLive) {
-        this.apos = heard;
+        // the position being read is the heard one, plus what the limiter holds back
+        this.apos = this.heardLive() + LIMITER_DELAY * this.rate;
         this.wrapOutA = -1;
+        this.reading = this.cur;
         this.aLive = true;
       }
+      this.holdFrames = 0;
       this.path = 1;
-      // The clicks come from the rendered cursor now: forget the ones not started, they are scanned again from here.
-      this.dropFutureClicks();
-      this.metro.resync = true;
     } else {
       if (!this.pLive) {
-        // The stretchers are fed `latency` ahead of what is heard, and primed as after a seek.
-        const latSrc = this.lat.a * this.rate + this.lat.b;
-        let c = heard + latSrc;
-        const loopActive = L.enabled && heard < L.end;
-        if (loopActive && c >= L.end) {
-          c -= L.len;
-          this.wrapOut = this.outFrame - (c - L.start) / this.rate;
-        } else this.wrapOut = -1;
+        // Feed the stretchers so that, when they sound (after their latency `hold`), they are at the position
+        // the rendered audio will have reached: it goes on at its own tempo meanwhile.
+        const rate = this.rate;
+        const latSrc = this.lat.a * rate + this.lat.b;
+        const hold = Math.ceil(this.latencyOut(rate)) + 256;
+        const ratio = this.readRatio;
+        let c = this.apos + (ratio - rate) * hold + latSrc;
+        const loopActive = L.enabled && this.apos < L.end;
+        if (loopActive && c >= L.end) c -= L.len;
         this.ip = Math.floor(c);
         this.acc = c - this.ip;
+        this.wrapOut = -1;
         for (const t of this.tracks) t.needPrime = true;
         this.pLive = true;
-        this.dropFutureClicks();
-        if (this.metro.enabled) this.scheduleHeard(heard, latSrc, loopActive);
-      } else {
-        this.dropFutureClicks();
-      }
+        this.holdFrames = hold;
+      } else this.holdFrames = 0;
       this.path = 0;
-      this.metro.resync = true;
     }
-    // The heard position is known from the cursor formulas now, not from the start of playback.
+    // the heard position comes from the cursor formulas now, not from the start of playback
     this.sinceStart = Number.MAX_SAFE_INTEGER / 2;
+  }
+
+  /**
+   * The metronome follows whichever path is mostly heard: when that changes,
+   * the clicks not started yet are forgotten and scheduled again from the new
+   * cursor (a click is heard where its beat is, whichever path made the sound).
+   */
+  private syncScanner(): void {
+    const dominant = this.mixApplied >= 0.5 ? 1 : 0;
+    if (dominant === this.scanPath) return;
+    this.scanPath = dominant;
+    this.dropFutureClicks();
+    this.metro.resync = true;
+    if (dominant === 0 && this.metro.enabled && this.playing) {
+      // the preview's scan starts at its cursor, which is `latSrc` ahead of what it makes heard: schedule the beats in between
+      const L = this.loop;
+      const latSrc = this.lat.a * this.rate + this.lat.b;
+      let from = this.ip + this.acc - latSrc;
+      if (L.enabled && from < L.start && this.wrapOut >= 0) from += L.len;
+      this.scheduleHeard(from, latSrc, L.enabled && from < L.end, this.rate);
+    }
   }
 
   /** Forgets the pending clicks that have not started yet (they are scanned again from the new cursor). */
@@ -475,34 +530,34 @@ export class PlayerCore {
   }
 
   /**
-   * Schedules the beats between the heard position and the preview cursor,
-   * which the preview's own scan (from its cursor) will not see: a beat `b`
-   * is heard at `outFrame + (b - heard) / rate`.
+   * Schedules the beats between `from` (the position being read) and
+   * `from + span`, which the preview's own scan (from its cursor) will not
+   * see: a beat `b` is mixed `(b - from) / rate` output frames from now.
    */
-  private scheduleHeard(heard: number, span: number, loopActive: boolean): void {
+  private scheduleHeard(from: number, span: number, loopActive: boolean, rate: number): void {
     const M = this.metro;
-    if (M.frames.length === 0) return;
+    if (M.frames.length === 0 || span <= 0) return;
     const L = this.loop;
-    const add = (from: number, to: number, at: number) => {
+    const add = (a: number, b: number, at: number) => {
       const fr = M.frames;
       let lo = 0;
       let hi = fr.length;
       while (lo < hi) {
         const mid = (lo + hi) >> 1;
-        if (fr[mid]! < from) lo = mid + 1;
+        if (fr[mid]! < a) lo = mid + 1;
         else hi = mid;
       }
-      for (let i = lo; i < fr.length && fr[i]! < to; i++) {
+      for (let i = lo; i < fr.length && fr[i]! < b; i++) {
         if (this.clickCount >= MAX_PENDING_CLICKS) return;
-        this.clickF[this.clickCount] = Math.round(this.outFrame + at + (fr[i]! - from) / this.rate);
+        this.clickF[this.clickCount] = Math.round(this.outFrame + at + (fr[i]! - a) / rate);
         this.clickAcc[this.clickCount] = M.accents[i] === 1 ? 1 : 0;
         this.clickCount++;
       }
     };
-    if (loopActive && heard + span >= L.end) {
-      add(heard, L.end, 0);
-      add(L.start, L.start + (heard + span - L.end), (L.end - heard) / this.rate);
-    } else add(heard, heard + span, 0);
+    if (loopActive && from + span >= L.end) {
+      add(from, L.end, 0);
+      add(L.start, L.start + (from + span - L.end), (L.end - from) / rate);
+    } else add(from, from + span, 0);
   }
 
   pause(): void {
@@ -578,7 +633,7 @@ export class PlayerCore {
     const L = this.loop;
     let h: number;
     if (this.mixApplied >= 0.5) {
-      h = this.apos - LIMITER_DELAY * this.rate;
+      h = this.apos - LIMITER_DELAY * this.readRatio;
       if (L.enabled && this.wrapOutA >= 0 && this.outFrame - this.wrapOutA < LIMITER_DELAY && h < L.start) {
         h = L.start + ((((h - L.start) % L.len) + L.len) % L.len); // still hearing the tail of the previous pass
       }
@@ -665,6 +720,7 @@ export class PlayerCore {
     outL.fill(0);
     outR.fill(0);
     this.updateRoute();
+    this.syncScanner();
     if (!this.playing || this.tracks.length === 0) {
       this.noteStats(t0, false);
       return;
@@ -693,7 +749,7 @@ export class PlayerCore {
 
     // metronome: map the source span consumed by this quantum onto output frames
     if (this.metro.enabled) {
-      if (this.path === 0) {
+      if (this.scanPath === 0) {
         const c0 = ip + accBefore;
         const span = N * rate;
         if (loopActive && c0 + span >= L.end) {
@@ -703,18 +759,24 @@ export class PlayerCore {
         } else this.scanBeats(c0, c0 + span, 0, rate);
       } else {
         // the rendered audio has no latency: a beat is heard when the read position reaches it
-        const span = N * rate;
+        const ar = this.readRatio;
+        const span = N * ar;
         if (loopActiveA && a0 + span >= L.end) {
-          const k = (L.end - a0) / rate;
-          this.scanBeats(a0, L.end, 0, rate, 0);
-          this.scanBeats(L.start, L.start + (a0 + span - L.end), k, rate, 0);
-        } else this.scanBeats(a0, a0 + span, 0, rate, 0);
+          const k = (L.end - a0) / ar;
+          this.scanBeats(a0, L.end, 0, ar, 0);
+          this.scanBeats(L.start, L.start + (a0 + span - L.end), k, ar, 0);
+        } else this.scanBeats(a0, a0 + span, 0, ar, 0);
       }
     }
 
     // the two paths are mixed with equal-power weights while the route changes
     const mixBefore = this.mixApplied;
-    const mixAfter = this.path === 1 ? Math.min(1, mixBefore + N / this.xfade) : Math.max(0, mixBefore - N / this.xfade);
+    let mixAfter: number;
+    if (this.path === 1) mixAfter = Math.min(1, mixBefore + N / this.xfade);
+    else if (this.holdFrames > 0) {
+      mixAfter = mixBefore; // the stretchers are not sounding yet: the rendered audio goes on alone
+      this.holdFrames -= N;
+    } else mixAfter = Math.max(0, mixBefore - N / this.xfade);
     const crossfading = pv && ap;
     if (crossfading) {
       for (let i = 0; i < N; i++) {
@@ -841,17 +903,21 @@ export class PlayerCore {
       this.ip = nip;
     }
     if (ap) {
-      let na = a0 + N * rate;
+      const ar = this.readRatio;
+      let na = a0 + N * ar;
       if (loopActiveA && na >= L.end) {
         na -= L.len;
-        this.wrapOutA = this.outFrame - N + (L.end - a0) / rate;
+        this.wrapOutA = this.outFrame - N + (L.end - a0) / ar;
       }
       this.apos = na;
     }
     // the route's crossfade moves on; a path that has faded out stops
     this.mixApplied = mixAfter;
     if (mixAfter >= 1 && this.path === 1) this.pLive = false;
-    else if (mixAfter <= 0 && this.path === 0) this.aLive = false;
+    else if (mixAfter <= 0 && this.path === 0) {
+      this.aLive = false;
+      this.reading = null;
+    }
 
     if (this.mg === 0 && this.mgTarget === 0 && this.fadeAction !== FADE_NONE) {
       const action = this.fadeAction;
@@ -903,9 +969,15 @@ export class PlayerCore {
    * before the loop start).
    */
   private fillApplied(track: CoreTrack, a0: number, loopActive: boolean, dl: Float32Array, dr: Float32Array): void {
-    const data = track.rendered!;
-    const ratio = this.renderedSet!.ratio;
+    const data = this.reading?.data.get(track.id);
+    const ratio = this.readRatio;
     const L = this.loop;
+    if (!data) {
+      // a track the set has no audio for (added while it plays): silent on this path
+      dl.fill(0, 0, N);
+      dr.fill(0, 0, N);
+      return;
+    }
     if (!loopActive) {
       readTrack(data, Math.round(a0 / ratio), N, dl, dr, 0);
       return;

@@ -119,7 +119,7 @@ class FabticePlayer extends AudioWorkletProcessor {
     Atomics.store(i32, 0, this.seq - 1); // odd: being written
     f64[0] = c.heardPos();
     f64[1] = currentFrame;
-    f64[2] = c.rate;
+    f64[2] = c.heardRate;
     Atomics.store(i32, 1, c.playing ? FLAG_PLAYING : 0);
     Atomics.store(i32, 0, this.seq); // even: consistent
   }
