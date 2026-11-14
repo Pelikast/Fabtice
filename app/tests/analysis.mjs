@@ -10,6 +10,9 @@
 //     the prototype itself finds on the same file;
 //   - the models are downloaded from Hugging Face the first time (progress,
 //     steps in French), then kept: a second analysis downloads nothing;
+//   - the status panel that opens by itself the first time the tools are
+//     downloaded: it closes by itself when the analysis ends, unless the user
+//     touched it, and stays open on an error;
 //   - cancellation (in the panel, and by a new import), the network missing
 //     (the piece stays usable, the analysis starts again), a damaged download
 //     (refused, fetched again; refused for good after three tries), a hub that
@@ -18,7 +21,7 @@
 //     quantum over budget;
 //   - the cost: analysis time for this file and for a 4-minute piece, peak
 //     memory of the browser's processes, longest task of the main thread.
-// Scenarios: first, cancel, network, integrity, resume, playing, long.
+// Scenarios: first, panel, cancel, network, integrity, resume, playing, long.
 //
 // The models are fetched for real: the network must reach Hugging Face. Set
 // FABTICE_ANALYSIS_ONLY=<name> to run one scenario (names are in `scenarios`).
@@ -387,6 +390,94 @@ scenarios.first = async () => {
   note(`second use: analysis ${mt2.seconds.toFixed(1)} s, longest main-thread task ${mt2.longestTask.toFixed(0)} ms, worst timer lateness ${mt2.worstLag.toFixed(0)} ms`);
   check('second use: no console error', second.errors.length === 0, second.errors.join(' | '));
   await context.close();
+};
+
+/**
+ * The status panel that opens by itself during the first download of the tools
+ * (a fresh browser context keeps none): it leaves by itself when the analysis
+ * ends, unless the user touched it; an error keeps it open.
+ */
+scenarios.panel = async () => {
+  const panelOpen = async (page) => (await page.locator('.panneau-analyse').count()) > 0;
+  const waitPanel = (page, open, timeout = 4000) =>
+    page.waitForFunction((want) => !!document.querySelector('.panneau-analyse') === want, open, { timeout, polling: 50 }).then(() => true, () => false);
+
+  // --- 1. left alone: it opens by itself, then closes by itself when the analysis is done
+  {
+    const context = await browser.newContext(); // empty storage: the tools are downloaded
+    const { page, errors } = await open(context);
+    await importFile(page, SWING);
+    await waitStep(page, 'download');
+    check('panel, first download: it opens by itself', await waitPanel(page, true), 'no panel');
+    check('panel, first download: it explains where the tools come from', /Hugging Face|huggingface/i.test(await page.locator('.panneau-analyse').innerText().catch(() => '')));
+    await analysisEnded(page);
+    check('panel, left alone: it closes by itself when the analysis ends', await waitPanel(page, false), 'still open');
+    check('panel, left alone: the analysis succeeded', (await state(page)).hasAnalysis);
+    check('panel, left alone: no console error', errors.length === 0, errors.join(' | '));
+    await context.close();
+  }
+
+  // --- 2. touched by the user: it stays open (the hub is held back until the user has pressed in the panel)
+  {
+    const context = await browser.newContext();
+    let release;
+    const gate = new Promise((r) => (release = r));
+    await context.route(HUB, async (route) => {
+      await gate;
+      await route.continue();
+    });
+    const { page, errors } = await open(context);
+    await importFile(page, SWING);
+    await waitStep(page, 'download');
+    check('panel, touched: it opens by itself', await waitPanel(page, true), 'no panel');
+    await page.locator('.panneau-analyse h2').click(); // the user reads it, presses in it
+    release();
+    await analysisEnded(page);
+    await sleep(1200);
+    check('panel, touched: it stays open after the analysis, which succeeded', (await panelOpen(page)) && (await state(page)).hasAnalysis);
+    check('panel, touched: no console error', errors.length === 0, errors.join(' | '));
+    await context.close();
+  }
+
+  // --- 3. the status button pressed twice (closed, opened again by the user): it stays too
+  {
+    const context = await browser.newContext();
+    let release;
+    const gate = new Promise((r) => (release = r));
+    await context.route(HUB, async (route) => {
+      await gate;
+      await route.continue();
+    });
+    const { page } = await open(context);
+    await importFile(page, SWING);
+    await waitStep(page, 'download');
+    await waitPanel(page, true);
+    await page.locator('[data-testid="analyse-etat"]').click();
+    check('panel, status button: pressed once it closes', await waitPanel(page, false), 'still open');
+    await page.locator('[data-testid="analyse-etat"]').click();
+    check('panel, status button: pressed again it opens', await waitPanel(page, true), 'not open');
+    release();
+    await analysisEnded(page);
+    await sleep(1200);
+    check('panel, status button: it stays open after the analysis', await panelOpen(page));
+    await context.close();
+  }
+
+  // --- 4. an error keeps it open, with the reason
+  {
+    const context = await browser.newContext();
+    await context.route(HUB, (route) => route.abort('internetdisconnected'));
+    const { page } = await open(context);
+    await importFile(page, SWING);
+    check('panel, error: it opened by itself for the download', await waitPanel(page, true, 15000), 'no panel');
+    await analysisEnded(page, 60000);
+    await sleep(1200);
+    const st = await state(page);
+    const text = (await panelOpen(page)) ? await page.locator('.panneau-analyse').innerText() : '';
+    check('panel, error: the analysis failed', st.run.status === 'error' && st.run.code === 'download-failed', JSON.stringify(st.run));
+    check('panel, error: it stays open and says what happened', (await panelOpen(page)) && /n’ont pas pu être téléchargés/.test(text), text.replace(/\s+/g, ' '));
+    await context.close();
+  }
 };
 
 const HUB = /^https:\/\/(huggingface\.co|[^/]*\.hf\.co)\//;

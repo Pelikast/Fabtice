@@ -61,7 +61,8 @@ export function AnalysisStatus() {
   const text = statusText(run, fraction);
   if (!text && !open) return null;
   return (
-    <span className="analyse-etat">
+    // Any press on the button or in the panel means the user has taken it over: it then stays until they close it.
+    <span className="analyse-etat" onPointerDownCapture={() => (openedByItself.current = false)}>
       {text && (
         <button
           ref={buttonRef}
