@@ -123,7 +123,7 @@ function SeparationPanel({ ref }: { ref: Ref<HTMLDivElement> }) {
 function Offer() {
   const run = useApp((s) => s.separationRun);
   const duration = useApp((s) => s.project?.duration ?? 0);
-  const choice = useSeparationChoice();
+  const choice = useSeparationChoice(true);
   const [wanted, setWanted] = useState<StemId[]>([]);
   const [cached, setCached] = useState<boolean | null>(null);
   useEffect(() => {
@@ -217,6 +217,7 @@ function Running() {
 function Done() {
   const result = useApp((s) => s.separation.result)!;
   const showing = useApp((s) => s.separation.showing);
+  const run = useApp((s) => s.separationRun);
   const [confirming, setConfirming] = useState(false);
   const [usage, setUsage] = useState<SeparationUsage | null>(null);
   const [again, setAgain] = useState(false);
@@ -231,6 +232,11 @@ function Done() {
   const time = formatWait(result.computeSeconds);
   return (
     <>
+      {run.status === 'error' && (
+        <p className="panneau-avis" role="alert">
+          {t(`separation.error.${run.code}`)}
+        </p>
+      )}
       <p className="panneau-note">{t(result.fellBack ? 'separation.doneFallback' : 'separation.done', { name: result.modelName, time })}</p>
       {showing === 'whole' && <p className="panneau-note discret">{t('separation.wholeNote')}</p>}
       <button className="bouton-cadre" data-testid="bascule-morceau" onClick={() => void (showing === 'instruments' ? showWholePiece() : showInstruments())}>

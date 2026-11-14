@@ -37,6 +37,7 @@ import { t } from '../i18n';
 import { emptySeparation } from '../model/separation';
 import type { Track } from '../model/project';
 import { closeProject, openNewPiece, restoreProject, setDialogNotice, setImportStatus, setReopenOffer } from '../store/actions';
+import { toProjectDocument } from '../store/document';
 import { setSeparationNotice } from '../store/separationActions';
 import { appStore } from '../store/store';
 import type { ProjectKeeper } from './keeper';
@@ -202,7 +203,12 @@ async function attempt(deps: ReturnType<typeof resolve>, doc: ProjectDocument): 
     await withTimeout(restoreProject(opened, audio, () => current), limits.prepare, 'prepare');
     keeper.adopt(doc.project.id);
     marker.clear();
-    if (instrumentsLost) setSeparationNotice(t('separation.lostAtRestore'));
+    if (instrumentsLost) {
+      setSeparationNotice(t('separation.lostAtRestore'));
+      // The kept document still names the lost instruments: keep the whole piece instead, now.
+      const whole = toProjectDocument(appStore.getState());
+      if (whole) void storage.saveCurrent(whole).catch(() => {});
+    }
     // Left-overs (a separation cut short, instruments no longer referenced): swept quietly, never awaited.
     const keep = new Set([...opened.tracks, ...opened.separation.aside].filter((tr) => tr.audio.origin === 'separated').map((tr) => tr.audio.id));
     void storage.pruneTrackAudio(keep).catch(() => {});

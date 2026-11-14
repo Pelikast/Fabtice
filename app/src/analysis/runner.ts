@@ -13,7 +13,7 @@
 // The status (`AppState.analysisRun`) is what the interface shows; the
 // result goes to `AppState.analysis`.
 
-import { pcmToMono } from '../audio/pcm';
+import { pcmToMonoInSlices } from '../audio/pcm';
 import { getAudio } from '../audio/registry';
 import { beatGridOf } from '../grid/beats';
 import { applyAnalysis, setAnalysisRun } from '../store/analysisActions';
@@ -77,10 +77,15 @@ export async function runAnalysis(): Promise<void> {
   };
 
   const userGrid = s.tempoMap.origin === 'manual' || s.tempoMap.origin === 'corrected';
+  // The analysis listens in mono anyway ((l + r) / 2, its own mix): one transient Float32 copy,
+  // made from the registry's 16-bit samples a slice at a time, let go once the analyser has it.
+  const mono = await pcmToMonoInSlices(audio);
+  if (!stillMine()) {
+    if (running === mine) running = null;
+    return;
+  }
   const request: AnalysisRequest = {
-    // The analysis listens in mono anyway ((l + r) / 2, its own mix): one transient Float32 copy,
-    // made from the registry's 16-bit samples and let go once the analyser has it.
-    channels: [pcmToMono(audio)],
+    channels: [mono],
     sampleRate: audio.sampleRate,
     audioId: track.audio.id,
     grid: userGrid ? beatGridOf(s.tempoMap, project.duration) : null,

@@ -214,7 +214,8 @@ const TYPICAL_PIECE_SECONDS = 240;
  */
 function ImportStems() {
   const stems = useApp((s) => s.ui.importStems);
-  const choice = useSeparationChoice();
+  // The graphics chip is asked only once an instrument is ticked (the estimate depends on it).
+  const choice = useSeparationChoice(stems.length > 0);
   const [more, setMore] = useState(false);
   const offered = offeredStems(choice);
   const details = getModelList().list.models.filter((m) => m.kind === 'detail');

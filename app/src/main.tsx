@@ -6,7 +6,6 @@ import { App } from './components/App';
 import * as actions from './store/actions';
 import { checkToolUpdate } from './import/controller';
 import { getDesktopBridge } from './platform/desktopBridge';
-import { getDevice } from './separation/device';
 import { refreshModelList } from './separation/models';
 import { setLanguage } from './i18n';
 import { startStorage } from './storage';
@@ -19,13 +18,11 @@ persistPreferences(appStore);
 connectEngine(appStore, getEngine());
 
 const params = new URLSearchParams(window.location.search);
-// Lot 3: the device is probed once (automatic choice of the separation tool), and the list of tools is
-// fetched from the repository (the bundled copy stays in use if that fails). Not fetched, unless
+// Lot 3: the list of separation tools is fetched from the repository (the bundled copy stays in use if that fails). Not fetched, unless
 // `?outils=distant` asks for it: on the test and demo addresses (`?debug`, `?demo`, `?moteur=factice`)
 // and on a page served from this machine (development, the browser checks), which must never depend
 // on the network; in the Mac app, whose security policy does not allow that address yet
 // (`desktop/src/protocol.js`, see app/README.md « Séparateur »).
-void getDevice();
 const localPage = ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname);
 const testAddress = params.has('debug') || params.has('demo') || params.get('moteur') === 'factice' || localPage || getDesktopBridge() !== null;
 if (!testAddress || params.get('outils') === 'distant') void refreshModelList();

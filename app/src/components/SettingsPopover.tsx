@@ -70,7 +70,7 @@ function AdvancedSettings() {
   const setting = useApp((s) => s.settings.advanced.separationModel);
   const formants = useApp((s) => s.settings.advanced.formants);
   const tools = useMainTools();
-  const auto = useSeparationChoice();
+  const auto = useSeparationChoice(open);
   const autoChoice = setting === 'auto' ? auto : null;
   return (
     <div className="avance">

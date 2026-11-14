@@ -175,6 +175,28 @@ export function pcmToMono(pcm: PcmAudio): Float32Array {
 }
 
 /**
+ * `pcmToMono`, a slice at a time: hands the main thread back every few
+ * chunks, so a long piece never blocks a frame (the analysis starts with it).
+ */
+export async function pcmToMonoInSlices(pcm: PcmAudio, chunksPerSlice = 8): Promise<Float32Array> {
+  const out = new Float32Array(pcm.frames);
+  const r = new Float32Array(CHUNK);
+  for (let c = 0; c < pcm.chunks.length; c++) {
+    const s = c * CHUNK;
+    const n = Math.min(CHUNK, pcm.frames - s);
+    const view = out.subarray(s, s + n);
+    readPcm(pcm, 0, s, view);
+    if (!pcm.mono) {
+      const rv = r.subarray(0, n);
+      readPcm(pcm, 1, s, rv);
+      for (let i = 0; i < n; i++) view[i] = (view[i]! + rv[i]!) / 2;
+    }
+    if (c % chunksPerSlice === chunksPerSlice - 1) await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+  return out;
+}
+
+/**
  * Writes audio progressively (a separator handing out a track slice by slice,
  * an offline render, a restore reading chunks): `write()` Float32 blocks at
  * any frame offset, `finish()` gives the `PcmAudio`. A two-channel writer whose

@@ -103,9 +103,29 @@ export function estimateSeconds(model: SeparationModelSpec, backend: SeparationB
   return Math.max(5, pieceSeconds * factor);
 }
 
-/** Reads the device once (WebGPU adapter, memory, cores, phone or not). Never rejects. */
+type Nav = Navigator & { deviceMemory?: number; gpu?: { requestAdapter(o?: unknown): Promise<unknown> } };
+
+/** What can be read at once, without asking the graphics chip (phone or not, browser, memory, cores). */
+function quickSignals(gpu: DeviceSignals['gpu']): DeviceSignals {
+  const nav = typeof navigator === 'undefined' ? null : (navigator as Nav);
+  return {
+    userAgent: nav?.userAgent ?? '',
+    maxTouchPoints: nav?.maxTouchPoints ?? 0,
+    deviceMemory: nav?.deviceMemory,
+    hardwareConcurrency: nav?.hardwareConcurrency,
+    gpu,
+    desktopApp: typeof window !== 'undefined' && 'fabtice' in window,
+  };
+}
+
+/**
+ * Reads the device (WebGPU adapter, memory, cores, phone or not). Never rejects.
+ * Asking for the adapter makes Chromium print a warning on a machine without
+ * one, so it is done only when the separation is really being considered
+ * (`getDevice()`), never at launch.
+ */
 export async function probeDevice(): Promise<DeviceProfile> {
-  const nav = typeof navigator === 'undefined' ? null : (navigator as Navigator & { deviceMemory?: number; gpu?: { requestAdapter(o?: unknown): Promise<unknown> } });
+  const nav = typeof navigator === 'undefined' ? null : (navigator as Nav);
   let gpu: DeviceSignals['gpu'] = null;
   try {
     const adapter = (await nav?.gpu?.requestAdapter({ powerPreference: 'high-performance' })) as
@@ -116,14 +136,7 @@ export async function probeDevice(): Promise<DeviceProfile> {
   } catch {
     gpu = null;
   }
-  return assessDevice({
-    userAgent: nav?.userAgent ?? '',
-    maxTouchPoints: nav?.maxTouchPoints ?? 0,
-    deviceMemory: nav?.deviceMemory,
-    hardwareConcurrency: nav?.hardwareConcurrency,
-    gpu,
-    desktopApp: typeof window !== 'undefined' && 'fabtice' in window,
-  });
+  return assessDevice(quickSignals(gpu));
 }
 
 let probed: Promise<DeviceProfile> | null = null;
@@ -135,9 +148,9 @@ export function getDevice(): Promise<DeviceProfile> {
   return probed;
 }
 
-/** The device if already probed (screens read it synchronously), else a neutral computer. */
+/** The device if already probed (screens read it synchronously), else what is known without the graphics chip. */
 export function knownDevice(): DeviceProfile {
-  return known ?? { phone: false, gpu: 'none', browser: 'other', memoryGB: null, cores: 4, desktopApp: false };
+  return known ?? assessDevice(quickSignals(null));
 }
 
 /** Replaces the probed device (tests, `?demo`). */

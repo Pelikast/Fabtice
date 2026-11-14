@@ -231,6 +231,8 @@ describe('reopening a separated piece', () => {
     expect(s.tracks.map((tr) => tr.role)).toEqual(['morceau']);
     expect(s.separation).toEqual(emptySeparation());
     expect(s.ui.separationNotice).toMatch(/morceau entier/);
+    // The kept document no longer names the lost instruments.
+    await vi.waitFor(() => expect(JSON.parse(storage.json!).separation.result).toBeNull());
   });
 
   it('wholePieceOf keeps the whole track and its mix', () => {

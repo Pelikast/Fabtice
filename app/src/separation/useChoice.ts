@@ -10,24 +10,36 @@ import { getModelList, onModelListChange } from './models';
 import { currentChoice } from './runner';
 import type { ModelChoice } from './types';
 
-/** Re-renders when the list of tools changes or the device becomes known. */
-function useListVersion(): number {
+/**
+ * Re-renders when the list of tools changes or, when `probe` is true, once
+ * the device has been probed (the graphics chip is asked only then: see
+ * `separation/device.ts#probeDevice`).
+ */
+function useListVersion(probe = false): number {
   const [version, setVersion] = useState(0);
   useEffect(() => {
     let alive = true;
     const off = onModelListChange(() => alive && setVersion((v) => v + 1));
-    void getDevice().then(() => alive && setVersion((v) => v + 1));
     return () => {
       alive = false;
       off();
     };
   }, []);
+  useEffect(() => {
+    if (!probe) return;
+    let alive = true;
+    void getDevice().then(() => alive && setVersion((v) => v + 1));
+    return () => {
+      alive = false;
+    };
+  }, [probe]);
   return version;
 }
 
-export function useSeparationChoice(): ModelChoice | null {
+/** The tool in use. `probe`: the separation is really being considered (panel open, an instrument ticked): ask the graphics chip. */
+export function useSeparationChoice(probe = false): ModelChoice | null {
   const setting = useApp((s) => s.settings.advanced.separationModel);
-  const version = useListVersion();
+  const version = useListVersion(probe);
   const [choice, setChoice] = useState<ModelChoice | null>(() => currentChoice());
   useEffect(() => setChoice(currentChoice()), [setting, version]);
   return choice;

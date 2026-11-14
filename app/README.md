@@ -292,7 +292,10 @@ rendu et l'export lisent par plages (`readPcm`) ou font une copie passagère
 (`pcmToChannels`) puis la lâchent. L'import convertit dès le décodage, la
 réouverture aussi (une piste à la fois). 16 bits, c'est la précision que le
 moteur a toujours jouée (96 dB), sous le bruit des mp3, m4a et vieux disques.
-Pour écrire progressivement (séparateur, rendu) : `PcmWriter`.
+Pour écrire progressivement (séparateur, rendu) : `PcmWriter`. Après une
+séparation, le morceau entier reste en mémoire à côté des instruments (une piste
+de plus, 58 Mo pour cinq minutes) : l'analyse l'écoute, et le retour au morceau
+entier est immédiat.
 
 Mesures (`npm run test:memory`, Chromium sans carte graphique, vrai moteur,
 mémoire résidente de tous les processus Chromium, avant → après ouverture) :

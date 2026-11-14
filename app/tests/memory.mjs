@@ -46,7 +46,16 @@ async function measure(page) {
       // not available
     }
     const engine = window.__fabtice.engine;
-    return { total, engineBytes: typeof engine.memoryBytes === 'function' ? engine.memoryBytes() : null };
+    const lot3 = window.__fabtice.lot3;
+    return {
+      total,
+      engineBytes: typeof engine.memoryBytes === 'function' ? engine.memoryBytes() : null,
+      registryBytes: lot3 ? lot3.registry.registryBytes() : null,
+      // Same chunks in the engine and in the registry: no second copy.
+      shared: lot3
+        ? window.__fabtice.store.getState().tracks.every((tr) => lot3.registry.getAudio(tr.audio.id)?.chunks[0].l.buffer instanceof SharedArrayBuffer)
+        : null,
+    };
   });
 }
 
@@ -86,7 +95,7 @@ try {
     const errors = [];
     page.on('pageerror', (e) => errors.push(e.message));
     await page.goto(`${url}/?debug&analyse=aucune`);
-    await page.waitForFunction(() => window.__fabtice);
+    await page.waitForFunction(() => window.__fabtice && window.__fabtice.lot3);
     const before = await measure(page);
     const rssBefore = rss();
     await openTracks(page, count, 300);
@@ -98,6 +107,7 @@ try {
       `${count} stereo track(s) of 5 min: page memory ${mb(before.total)} -> ${mb(after.total)} (+${mb(after.total - before.total)}); engine holds ${mb(after.engineBytes)}; ` +
         `resident (all Chromium processes) ${mb(rssBefore)} -> ${mb(rssAfter)} (+${mb(rssAfter - rssBefore)}); for reference the samples as Float32 = ${mb(pcmFloat)}, as 16-bit = ${mb(pcmFloat / 2)}`,
     );
+    check(`${count} track(s): the registry holds the samples once, in shared memory, and the engine uses those`, after.shared === true && after.registryBytes === after.engineBytes, `${after.registryBytes} / ${after.engineBytes}`);
     check(`${count} track(s): no page errors`, errors.length === 0, errors.join(' | '));
     await page.close();
   }
