@@ -53,7 +53,24 @@ export function useFitPanel(outer?: Ref<HTMLDivElement>, up = false) {
   useLayoutEffect(fit);
   useEffect(() => {
     window.addEventListener('resize', fit);
-    return () => window.removeEventListener('resize', fit);
+    // Content that changes inside the panel without the panel itself rendering again (a child's
+    // own state: a folded section opened, a notice that arrives) must also be fitted.
+    let frame = 0;
+    const later = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        fit();
+      });
+    };
+    const node = el.current;
+    const mutations = typeof MutationObserver === 'undefined' || !node ? null : new MutationObserver(later);
+    mutations?.observe(node!, { childList: true, subtree: true, characterData: true });
+    return () => {
+      window.removeEventListener('resize', fit);
+      mutations?.disconnect();
+      if (frame) cancelAnimationFrame(frame);
+    };
   }, [fit]);
 
   return useCallback(

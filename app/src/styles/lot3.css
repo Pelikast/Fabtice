@@ -57,11 +57,14 @@
 }
 .pied-separation .lien { font-size: 13.5px; min-height: 32px; text-align: left; }
 
-/* The way into the separation, under the last track header. */
+/* The way into the separation, under the last track header. It sits in the room the
+   plan keeps under the tracks (`--pied-pistes`): the header column never gets taller than
+   the timeline (its 14 px scrollbar), so « Auto » still fits every track without overflow. */
 .pistes-pied {
   display: flex;
   align-items: center;
   height: 44px;
+  margin-bottom: -30px;
   padding: 0 8px;
   border-right: 1px solid var(--trait);
 }
@@ -219,6 +222,13 @@
   .stems-choix { margin-top: 18px; }
 }
 
+/* The way into the separation in the phone menu (the track column is narrow there). */
+.entree-separation { display: none; font-weight: 600; }
+.entree-separation:hover { background: var(--papier-fonce); }
+@media (max-width: 760px) {
+  .entree-separation { display: flex; }
+}
+
 /* « Réglages avancés », folded in the settings. */
 .avance { margin-top: 4px; padding-top: 4px; border-top: 1px solid var(--trait-fin); }
 .avance-titre { font-weight: 600; color: var(--encre-douce); }
@@ -232,6 +242,16 @@ label.option.option-colonne { justify-content: flex-start; }
 
 /* The transport's right side gets one more box: nothing may shrink the metronome. */
 .reglages .metronome { flex: none; }
-@media (max-width: 1040px) and (min-width: 761px) {
+/* Medium widths: « Appliquer » is one box more on the right of the transport. Only while it is
+   there, the right side tightens (narrower steppers, the metronome and « Triolets » as icons)
+   and the play controls give up being exactly centred, so that nothing overlaps. */
+@media (max-width: 1180px) and (min-width: 761px) {
+  .bas:has(.appliquer, .applique) { grid-template-columns: minmax(0, 1fr) auto auto; }
+  .bas:has(.appliquer, .applique) .reglages { gap: 6px; }
+  .bas:has(.appliquer, .applique) .reglage { padding: 5px 3px 6px; }
+  .bas:has(.appliquer, .applique) .reglage > .pas { width: 24px; }
+  .bas:has(.appliquer, .applique) .valeur { min-width: 56px; }
+  .bas:has(.appliquer, .applique) .metronome { width: 48px; font-size: 0; gap: 0; }
+  .bas:has(.appliquer, .applique) .bascule { font-size: 0; gap: 0; padding: 0 9px; }
   .appliquer, .applique { min-width: 0; padding: 0 9px; font-size: 13px; }
 }

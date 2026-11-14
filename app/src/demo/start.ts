@@ -19,6 +19,7 @@
 
 import { MockAnalyzer, replaceAnalyzer } from '../analysis';
 import { getEngine } from '../audio';
+import { pcmFromChannels, readPcm } from '../audio/pcm';
 import { audioSeconds, getAudio, registryBytes, type DecodedAudio } from '../audio/registry';
 import { exportWithApp, planAudioExport } from '../export/audio';
 import * as renderController from '../render/controller';
@@ -59,6 +60,7 @@ export const lot3Handle = {
   render: renderController,
   exportAudio: { ...exportActions, planAudioExport, exportWithApp },
   registry: { getAudio, registryBytes },
+  pcm: { pcmFromChannels, readPcm },
   storage: getProjectStorage,
 };
 

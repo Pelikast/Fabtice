@@ -189,7 +189,8 @@ try {
     await page.waitForSelector('.menu-export a[data-export="ireal"]', { timeout: 5000 }).catch(() => {});
     const items = await page.$$eval('.menu-export [role="menuitem"]', (els) => els.map((e) => `${e.dataset.export}:${e.disabled}:${e.querySelector('small')?.textContent ?? ''}`));
     // The iReal Pro entry is a link to the page it writes (tests/export.mjs checks it); an anchor has no `disabled`.
-    check('Exporter: iReal Pro is a link, printing available, audio later', items.join('|') === 'ireal:undefined:|print:false:|audio:true:dans une prochaine version', items.join('|'));
+    // Lot 3: the sound is available too (« Exporter le son », tests/separation.mjs).
+    check('Exporter: iReal Pro is a link, printing and the sound available', items.join('|') === 'ireal:undefined:|print:false:|audio:false:', items.join('|'));
     await page.keyboard.press('Escape');
 
     check('no page errors (desktop)', errors.length === 0, errors.join(' | '));

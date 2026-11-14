@@ -28,6 +28,8 @@ le stockage.
 | `npm run test:export` | après `build` : le menu « Exporter », le fichier iReal Pro téléchargé par le navigateur, et son lien relu (par un lecteur écrit dans le test) et comparé aux accords de la grille, avec une transposition et un instrument réglés, un accord tapé à la main, une analyse qui se termine |
 | `npm run test:engine` | après `build` (et, en option, `build:desktop`) : mesures du vrai moteur audio dans Chromium (tonalité, tempo, boucle, métronome, limiteur, charge) |
 | `npm run test:analysis` | après `build` : le **vrai** analyseur dans Chromium (télécharge les outils d'analyse depuis Hugging Face : réseau nécessaire). Le morceau d'essai du prototype passe par l'interface et le résultat est comparé à ce qu'on en sait et à ce que le prototype trouve ; deuxième usage sans téléchargement ; le panneau d'état qui s'ouvre seul au premier téléchargement (il se referme seul à la fin de l'analyse, reste ouvert si l'utilisateur y a touché ou en cas d'erreur) ; annulation (panneau, nouvel import, pendant le téléchargement) ; réseau absent ; téléchargement abîmé (refusé, repris, refusé pour de bon) ; reprise d'un téléchargement interrompu ; lecture pendant l'analyse ; morceau de 4 minutes ; chiffres de durée, de mémoire et de plus longue tâche du fil principal. `FABTICE_ANALYSIS_ONLY=<nom>` n'en lance qu'une partie |
+| `npm run test:separation` | après `build` : les écrans du lot 3 dans Chromium (séparation : fenêtre « Nouveau morceau », panneau, téléchargement, progression, repli, annulation, échec, pistes dans leurs teintes, morceau entier et retour, « Libérer la place » ; réglages avancés ; « Appliquer » ; « Exporter le son » avec un WAV et une archive téléchargés et relus) à 1280 × 800, 960 × 640 et 390 × 844 (dans la fenêtre, au-dessus du transport), puis des instruments de **taille réelle** gardés et rouverts après rechargement (profil persistant). `FABTICE_SEPARATION_OUT` pour les captures, `FABTICE_SEPARATION_ONLY=screens\|flows\|export\|storage` |
+| `npm run test:memory` | après `build`, au premier plan : la mémoire d'un morceau de cinq minutes stéréo en une piste puis en sept, avec le vrai moteur (chiffres affichés) |
 | `npm run test:chart` | après `build` : la grille d'accords comparée à la maquette (même balisage des accords, mêmes tailles, sections, boucle, mesure en cours, instruments, états vide et « analyse en cours », téléphone), puis les gestes (clic, glisser, suivi), l'éditeur d'accord (toujours entier et dans la fenêtre, à 1280 × 800 et 960 × 640), tous les panneaux flottants (Tempo, analyse, réglages, Exporter, accord fin, tonalité : dans la fenêtre, au-dessus du transport, dernier bouton cliquable, à 1280 × 800, 1024 × 700 et 960 × 640 ; `ui/useFitPanel.ts` leur donne une hauteur maximale et un défilement propre quand la fenêtre est trop basse), la tonalité, les sections, le clavier, l'autosauvegarde (rechargement d'un morceau gardé), le toucher réel sur téléphone (390 × 844) et l'impression (feuille de style d'impression, PDF A4 et Letter lus avec `pdftotext`, sauts de page) ; panneaux de corrections et d'accordage ; captures de l'app, de la maquette et des pages imprimées dans `FABTICE_CHART_OUT` (`pdftotext`, `pdfinfo` et `pdftoppm` de poppler sont nécessaires pour la partie impression) |
 
 Les fichiers audio de test de `test:import` sont dans `tests/fixtures/` (quelques
@@ -49,9 +51,12 @@ Variantes :
 | `?demo&analyse=instant` | pas encore analysé : l'analyse (factice) se fait aussitôt |
 | `?demo&analyse=echec` | l'analyse (factice) échoue |
 | `?demo&analyse=aucune` | le morceau du lot 1 : 110 BPM fixe saisi à la main, pas d'analyse automatique (les vérifications de la frise s'en servent) |
+| `?demo&separation=entier\|faite\|lente\|repli\|echec` | lot 3 : le morceau en une piste entière, pas encore séparé, déjà séparé, en cours (lent, premier téléchargement), avec repli sur le processeur, en échec |
+| `?demo&rendu=lent`, `?demo&export=ouvert` | lot 3 : « Appliquer » assez lent pour voir l'attente ; « Exporter le son » ouvert |
 
 En mode démo, `window.__fabtice` donne accès au magasin, au moteur, aux actions
-et, sous `lot2`, aux actions d'analyse, de grille et d'harmonie ; `?debug` donne
+et, sous `lot2`, aux actions d'analyse, de grille et d'harmonie, sous `lot3` à la
+séparation, au rendu, à l'export, au registre et au stockage ; `?debug` donne
 le même accès (sans `lot2`) sans morceau de démonstration (tests du navigateur).
 Le morceau de démonstration n'est jamais gardé sur l'appareil.
 
@@ -94,14 +99,19 @@ src/
                       KeyEditor.tsx), clavier (stops.ts), suivi (useFollowLine.ts),
                       impression (print.ts), feuille et mesure en cours
   export/             représentation de la grille pour l'export, codage iReal Pro
-                      (IREAL-FORMAT.md : le format et ses sources)
+                      (IREAL-FORMAT.md : le format et ses sources) ; audio/ : export
+                      du son (lot 3 : plan, rendu, encodeurs, archive, remise)
+  separation/         séparation des instruments (lot 3) : contrat, liste des outils
+                      (models.json), choix selon l'appareil, séparateur factice, lancement
+  render/             rendu hors ligne et « Appliquer » (lot 3) : contrat, rendu factice,
+                      contrôleur
   store/              état de l'app (store.ts), actions (actions.ts), valeurs
                       dérivées (derived.ts), préférences, document de projet
   audio/              contrat du moteur (AudioEngine.ts), vrai moteur
                       (WorkletEngine.ts + worklet/), moteur factice
                       (MockEngine.ts), fabrique (index.ts), branchement au
-                      magasin (connect.ts), registre de l'audio décodé,
-                      stockage 16 bits partagé (storage.ts), binaire wasm
+                      magasin (connect.ts), registre de l'audio décodé, forme
+                      16 bits partagée unique (pcm.ts, storage.ts), binaire wasm
                       de Signalsmith et ses licences (wasm/)
   timeline/           TOUT ce qui se dessine le long du temps : formes d'onde,
                       grille, règle, boucle, tête de lecture, défilement, zoom
@@ -229,6 +239,227 @@ relire exactement, sinon le document est `corrupt`.
 qui donne la liste complète (analyse et corrections comprises) : une correction
 d'accord, de tonalité ou de section est gardée comme le reste. `test:chart`
 le vérifie (correction, rechargement, correction retrouvée).
+
+### Lot 3 : le socle (document version 3)
+
+Le socle du lot 3 est en place : modèle et document v3, une seule copie de
+l'audio décodé, stockage des instruments séparés, trois contrats avec chacun
+un remplaçant factice branché sur l'écran, écrans de la séparation, de
+« Appliquer » et de « Exporter le son », réglages avancés, `test:separation` et
+`test:memory`. Trois chantiers suivent, chacun dans son dossier (plus bas).
+
+#### Modèle
+
+| Donnée | Où | Contenu |
+|---|---|---|
+| Pistes jouées | `AppState.tracks` (inchangé) | toujours les pistes **affichées et jouées** : le morceau entier, ou les instruments séparés. Une piste séparée porte `stem` (`model/separation.ts#StemId` : `vocals`, `drums`, `bass`, `guitar`, `piano`, `winds`, `other`, et les parties détaillées `kick`, `snare`, `hihat`, `toms`, `cymbals`, `saxophone`, `brass`) et `audio.origin: 'separated'` ; sa couleur vient de `STEM_ROLE` (les teintes de `DESIGN.md`, une partie détaillée prend celle de sa famille) |
+| Séparation | `AppState.separation`, `model/separation.ts#SeparationState` | `result` (dernière séparation finie : identifiant, outil et son SHA-256, carte graphique ou processeur, repli, parties données, parties gardées, dates, durée du calcul, durée du morceau ; `null` = jamais séparé ou place libérée), `showing` (`whole` ou `instruments`), `aside` : **l'autre jeu de pistes, avec son mixage**. C'est ce qui permet « Revenir au morceau entier » et « Revoir les instruments » sans rien recalculer : les deux jeux s'échangent. Invariants (vérifiés à la lecture) : sans résultat, le morceau entier est affiché et rien n'est de côté ; avec un résultat, un des deux jeux est le morceau entier, l'autre les instruments |
+| Séparation en cours | `AppState.separationRun` (non gardé) | `idle`, `running` (outil, étape `download`/`prepare`/`separate`/`finish`, carte graphique ou processeur, `fellBack`), `error` (code). Fraction, temps restant et octets téléchargés : `separation/progress.ts` (petit magasin à part, comme l'analyse) |
+| Rendu « Appliquer » | `AppState.render`, `model/render.ts` (non gardé) | `none`, `rendering`, `applied`, `error`, chacun avec la cible (`RenderTarget` : demi-tons, cents, tempo, formants, pistes) ; un rendu dont la cible n'est plus celle de l'état est périmé. Ce que l'écran montre : `render/controller.ts#selectApplyState` (`original`, `preview`, `rendering`, `applied`). Les fichiers rendus ne sont **jamais gardés** |
+| Préférences d'export | `AppState.exportPrefs`, `model/audioExport.ts` | quoi (`mix`, `tracks`), durée (`whole`, `loop`), format (`wav`, `mp3`, `flac`) ; gardées avec le morceau |
+| Réglages avancés | `AppState.settings.advanced`, `model/project.ts#AdvancedSettings` | outil de séparation (`auto` ou l'identifiant d'un outil de la liste) et « Conserver le timbre » (formants). **Par appareil** (`localStorage`, `store/preferences.ts`), pas par morceau : le bon outil dépend de la machine, le timbre est une habitude |
+| Choix de la fenêtre « Nouveau morceau » | `AppState.ui.importStems` | les instruments cochés (aucun par défaut) ; la séparation démarre seule quand le morceau importé peut jouer, puis la liste est vidée |
+
+**Document version 3** (`model/document.ts`) : `separation` et `exportPrefs` en
+plus ; `tracks` contient les pistes affichées, `separation.aside` l'autre jeu.
+Migration 2 → 3 (`storage/documentFormat.ts#MIGRATIONS`) : jamais séparé,
+préférences d'export par défaut. À la lecture : la séparation et les pistes
+doivent se relire exactement (sinon `corrupt`, comme les corrections), une
+préférence d'export illisible redevient celle par défaut.
+`store/document.ts#documentChanged` suit `separation` et `exportPrefs` (pas les
+états de calcul) : l'autosauvegarde les garde.
+
+**Actions** : `store/separationActions.ts` (`toggleImportStem`,
+`applySeparation`, `showWholePiece`, `showInstruments`, `dropSeparation`,
+`setSeparationModel`, `setFormants`, `setSeparationRun`, `stemName`…). Changer
+de jeu ne recharge jamais le moteur : les pistes de l'autre jeu sont ajoutées
+(`addTrack`, alignées à 0) puis les anciennes retirées ; la position et la
+lecture continuent. `store/exportActions.ts` : la fenêtre d'export et ses
+préférences.
+
+#### Une seule copie de l'audio décodé (`audio/pcm.ts`)
+
+Jusqu'au lot 2, chaque piste était gardée deux fois : en Float32 dans le
+registre (formes d'onde, analyse) **et** en 16 bits dans le moteur. Désormais
+le registre (`audio/registry.ts`) ne garde que la forme 16 bits du moteur,
+`PcmAudio` : blocs de 32 768 images en `SharedArrayBuffer` (mémoire ordinaire si
+la page n'est pas isolée), deux canaux égaux gardés une fois. **Le moteur reçoit
+ces mêmes blocs** (`EngineTrack.pcm`, `engineTrack()`), sans copie : la mémoire
+partagée est partagée avec le fil audio, pas copiée. La frise lit les blocs
+(`timeline/peaks.ts`), l'analyse reçoit une copie Float32 mono **passagère**
+(`pcmToMono`, le mélange `(g + d) / 2` qu'elle faisait déjà), la séparation, le
+rendu et l'export lisent par plages (`readPcm`) ou font une copie passagère
+(`pcmToChannels`) puis la lâchent. L'import convertit dès le décodage, la
+réouverture aussi (une piste à la fois). 16 bits, c'est la précision que le
+moteur a toujours jouée (96 dB), sous le bruit des mp3, m4a et vieux disques.
+Pour écrire progressivement (séparateur, rendu) : `PcmWriter`.
+
+Mesures (`npm run test:memory`, Chromium sans carte graphique, vrai moteur,
+mémoire résidente de tous les processus Chromium, avant → après ouverture) :
+
+| Morceau | Avant (lot 2) | Après (lot 3) | Échantillons Float32 / 16 bits |
+|---|---|---|---|
+| 5 min stéréo, 1 piste | +272 Mo | +166 Mo | 110 / 55 Mo |
+| 5 min stéréo, 7 pistes | +1 250 Mo | +485 Mo | 769 / 385 Mo |
+
+#### Où restent les instruments séparés (`storage/`)
+
+**IndexedDB**, base `fabtice` passée en version 2 : deux magasins de plus,
+`pcm` (blocs de 16 morceaux de 32 768 images, 1 Mo par canal, clé `[audioId,
+bloc]`) et `pcmInfo` (une fiche par piste, écrite **en dernier** : une écriture
+interrompue ne laisse rien de lisible, jamais une demi-piste). Contrat :
+`ProjectStorage.saveTrackAudio`, `loadTrackAudio` (relue directement en mémoire
+partagée, prête pour le moteur, sans décodage), `deleteTrackAudio`,
+`pruneTrackAudio` (restes d'une écriture coupée, balayés à la réouverture),
+`trackAudioUsage` (place prise). Un nouveau morceau (`replaceCurrent`) et
+« Oublier » (`clearCurrent`) effacent aussi les instruments. Les octets
+d'origine du morceau restent gardés comme avant (le morceau entier se décode à
+nouveau). Le séparateur écrit les instruments **avant** que le document ne les
+cite (`separation/runner.ts`) ; le morceau de démonstration et un morceau pas
+encore gardé n'écrivent rien.
+
+Pourquoi pas le système de fichiers privé de l'origine : IndexedDB est le
+magasin que l'app utilise déjà partout où elle tourne (pages http(s), origine
+`fabtice://app` de l'app Mac, workers), avec le même quota et la même
+« persistance » ; un seul endroit à vider quand un morceau en remplace un autre ;
+les flux d'écriture du système de fichiers privé sont arrivés tard dans Safari.
+Vérifié dans l'app Mac par `desktop/test/e2e/separated-storage.test.js` (deux
+pistes stéréo de 2 min 30, 58 Mo, écrites, app quittée et relancée, relues à
+l'échantillon près en mémoire partagée, puis effacées ; le même test écrit un
+fichier de même taille dans le système de fichiers privé et dit s'il revient),
+et dans Chromium avec un profil persistant par `test:separation` (morceau de
+2 min 30, six pistes, rechargement, puis « Libérer la place »).
+
+**Réouverture** (`storage/restore.ts`, dans le même parcours qui ne bloque
+jamais et ne détruit jamais) : l'original est relu et décodé, puis les
+instruments sont relus tels quels (étape « Lecture des instruments
+séparés… », limite `RESTORE_LIMITS.instrument`). S'il en manque un (effacé par
+le navigateur, abîmé, trop lent), le morceau s'ouvre **entier**, le résumé de
+séparation est abandonné et une phrase calme le dit
+(`separation.lostAtRestore`) : le morceau, lui, n'est jamais perdu.
+
+#### Contrats pour les trois chantiers suivants
+
+##### Séparateur — `src/separation/`
+
+| Fichier | Rôle |
+|---|---|
+| `types.ts` | le contrat : `Separator` (`separate(request)`, `isCached`, `toolsUsage`, `forgetTools`), `SeparationRequest` (audio `PcmAudio`, outil, `backend: 'auto' \| 'cpu'`, `onProgress`, `onTrack` facultatif, `signal`), `SeparationProgress` (étape, fraction qui ne recule jamais, **temps restant mesuré**, octets, carte graphique ou processeur, `fellBack`), `SeparationOutput`, `SeparationError` (`cancelled`, `download-failed`, `unsupported`, `memory`, `unknown-model`, `failed`), `SeparationModelSpec`, `DeviceProfile`, `ModelChoice` |
+| `models.json` | **la liste des outils**, gardée dans ce dépôt : les trois paliers du prototype (BS-RoFormer SW, HTDemucs 6 sources, SCNet), adresse figée, taille, SHA-256 (identiques au prototype, un test le vérifie), page source, licence connue en français, `licenceUnclear`, vitesses (mesurées ou estimées, dit), mémoire, réglages du prototype (`config`, opaque pour l'app) |
+| `models.ts` | lecture de la liste : copie embarquée, et au lancement `refreshModelList()` va chercher `models.json` à son adresse brute publique (`REMOTE_MODEL_LIST_URL`, branche `main`), avec une limite de temps ; **validation stricte** (`validateModelList` : https, hôte autorisé `huggingface.co`, révision de 40 caractères, SHA-256, taille, parties connues ; un document qui échoue est ignoré en entier, jamais à moitié). Une liste distante vide est valable : tous les outils sont retirés. Pas de requête sur les adresses de test et de démonstration, ni depuis la machine elle-même (développement, vérifications), sauf `?outils=distant` |
+| `device.ts` | **choix automatique, pur et testé** : `assessDevice` (téléphone, navigateur, puce graphique, mémoire, cœurs), `chooseModel` (téléphone → le plus léger ; Safari → processeur, le meilleur outil sur puce Apple ; puce Apple ailleurs → le meilleur sur la carte graphique ; autre puce ou aucune → l'outil équilibré ; un outil que la mémoire ne tient pas est sauté), `resolveModel` (le réglage avancé gagne tant que son outil est dans la liste), `estimateSeconds` (vitesse de la liste × durée, plus lent avec peu de cœurs) ; `probeDevice()` (WebGPU, mémoire) une fois par page |
+| `mock.ts` | `MockSeparator` : copies filtrées par bandes (graves pour la basse, médium pour la voix…), au rythme voulu, avec premier téléchargement, repli sur le processeur, annulation et erreurs ; le panneau dit « Outil d'essai » quand il est en service |
+| `index.ts` | la fabrique `getSeparator()` (aujourd'hui toujours le factice ; `?separation=lente\|instant\|repli\|echec`), `SEPARATION_TOOLS_DB` |
+| `runner.ts` | lancement (`startSeparation({ stems })`, `startAutoSeparation` après un import), annulation, rassemblement des parties non demandées dans « Autres » (`gatherParts`), écriture sur l'appareil puis mise en place, `freeSeparatedTracks`, `separationUsage` |
+| `progress.ts`, `useChoice.ts` | progression fine ; l'outil et l'estimation pour l'écran (`formatWait`, `formatSize`) |
+
+**Ce que l'agent de la séparation doit construire** : un `OnnxSeparator`
+(fichiers à lui dans `src/separation/`, branché dans `index.ts` comme le vrai
+analyseur l'est dans `analysis/index.ts` : le vrai par défaut dans un
+navigateur, le factice dans Node, sur `?demo` et les adresses de test), porté
+du prototype `web/spikes/separation/` (paliers, STFT, découpage en tranches,
+recouvrement), dans un **Web Worker** (ONNX Runtime Web, variante WebGPU puis
+WebAssembly, fichiers servis par l'app comme pour l'analyse). Exigences du
+contrat : lire l'audio par plages et ne pas le garder ; rendre chaque partie en
+`PcmAudio` de même longueur (48 kHz, rééchantillonnage aller et retour à sa
+charge) ; progression régulière avec un **temps restant honnête** ; au premier
+échec de la carte graphique, continuer **avec le même outil** sur le
+processeur et le dire tout de suite (`fellBack`), jamais changer d'outil seul ;
+annulation rapide qui libère la mémoire (terminer le worker) ; mémoire basse
+sur téléphone (la page de l'iPhone a été fermée par le système avec SCNet :
+tranches courtes, rien en double). Téléchargement : réutiliser
+`analysis/models/download.ts` (reprise, SHA-256) avec
+`openModelStore(SEPARATION_TOOLS_DB)` (une base à part, pour que la place des
+outils se montre et se libère à part) et traduire `AnalysisError` en
+`SeparationError` ; `toolsUsage`/`forgetTools` lisent et vident cette base.
+Mesurer sur le morceau d'essai et noter les vitesses réelles dans
+`models.json` (`speed`, `measured: true`). Les séparations détaillées
+(batterie détaillée, saxophone) : une entrée `kind: 'detail'` avec `input` dans
+la liste, **seulement si un outil existe** ; leur mise en place (une piste
+remplacée par ses parties) demandera un document v4. **L'app Mac** : sa
+politique de sécurité (`desktop/src/protocol.js`, `connect-src`) doit ouvrir
+`https://raw.githubusercontent.com` pour la liste distante (aujourd'hui l'app
+Mac utilise la copie embarquée), et rien d'autre ne change pour les outils
+(Hugging Face est déjà ouvert).
+
+##### Rendu hors ligne et « Appliquer » — `src/render/`
+
+| Fichier | Rôle |
+|---|---|
+| `types.ts` | le contrat : `OfflineRenderer.render(request)` → `PcmAudio` ; `RenderRequest` (audio, demi-tons, cents, rapport de tempo, formants, plage en temps source facultative, progression, annulation), `supportsFormants`, `RenderError`. La sortie dure **exactement** `round(images de la plage / tempo)`, est **alignée** (l'image k correspond au temps source `début + k × tempo / 48 000` : le moteur compense son propre retard, aucun silence ajouté), commence et finit sans clic |
+| `mock.ts` | `MockRenderer` : grains fenêtrés superposés, sans rééchantillonnage : durées et alignement justes, ni transposition ni timbre |
+| `index.ts` | la fabrique `getRenderer()` (`?rendu=lent` pour voir l'attente) |
+| `controller.ts` | « Appliquer » : rend chaque piste affichée l'une après l'autre (écran d'attente, annulable, la lecture continue en préécoute), garde **la seule copie** du rendu (16 bits partagés) et la donne au moteur ; tout changement de tonalité, tempo, formants ou pistes le périme : il est lâché aussitôt, retour à la préécoute ; `appliedAudioFor` (l'export s'en sert quand il correspond) |
+
+**Ajout au contrat du moteur** (`audio/AudioEngine.ts`, rétrocompatible) :
+`setRenderedTracks(set | null)` et `isRenderedInUse()`. Un `RenderedSet` donne,
+pour chaque piste chargée, l'audio rendu et les réglages qu'il contient
+(demi-tons, cents, tempo). Le moteur le fait entendre **tel quel** (ni étirement
+ni transposition) seulement tant que ses réglages en direct sont exactement
+ceux du jeu et qu'il couvre toutes les pistes ; sinon il joue la préécoute,
+et le passage de l'un à l'autre se fait aussitôt, à la même position, sans
+arrêt ni clic. **Tout reste en temps source** pour l'interface : position,
+déplacement, boucle, clics, durée ; correspondance linéaire (image rendue k =
+temps source `k × tempo / 48 000`). Mixage, boucle (fondu au repli), métronome
+et limiteur comme en préécoute. `loadTracks()` et `clear()` lâchent le jeu,
+`removeTrack()` retire l'entrée de la piste. `MockEngine` l'implémente
+(`snapshot().rendered`). `WorkletEngine` rejette pour l'instant (chemin marqué
+« NOT YET IMPLEMENTED ») : l'écran reste en préécoute et le dit calmement.
+
+**Ce que l'agent du rendu doit construire** : un `RubberBandRenderer`
+(Rubber Band R3 « finer », binaires `web/spikes/lecteur/engines/rubberband*.wasm`
+et leur source, à reprendre sans recompiler sans nouvelles mesures), dans un
+worker, respectant durée et alignement exacts (compenser le retard de
+démarrage de Rubber Band, mesurer), formants en option ; le brancher dans
+`render/index.ts` ; et le chemin de lecture des fichiers appliqués dans
+`WorkletEngine` + `worklet/` (un lecteur sans étirement par piste, choix
+préécoute / appliqué au quantum avec fondu court, positions converties), avec
+ses mesures dans `test:engine`. Mémoire : le rendu de 7 pistes est une copie de
+plus à l'allure jouée (à 0,7 fois, 1,4 fois la taille des sources) ; à
+mesurer, et à garder hors mémoire (fichiers temporaires) si c'est trop pour un
+téléphone (question ouverte).
+
+##### Export audio — `src/export/audio/`
+
+| Fichier | Rôle |
+|---|---|
+| `types.ts` | le contrat : `AudioEncoder.encode(PcmAudio, { onProgress, signal })` → `Blob` (lecture par blocs, jamais une copie Float32 entière), `ExportPlan` (format, plage, tonalité, tempo, formants, fichiers et leurs pistes avec leur gain, archive), `ExportError` (`cancelled`, `nothing`, `encoder-missing`, `memory`, `failed`) |
+| `plan.ts` | ce qu'on fabrique, pur et testé : **le mélange tel qu'on l'entend** (muet, solo et volumes compris) en un fichier, ou **les pistes séparément, chacune à son plein niveau** (muet, solo et volume ignorés : une piste séparée est une matière première ; on coche celles qu'on veut) en une archive ; le morceau entier ou la boucle ; noms de fichiers lisibles (« Blues du dimanche – Basse – boucle (+2 demi-tons, tempo 80 %).wav ») |
+| `run.ts` | rend chaque piste par le rendu hors ligne (ou reprend le rendu appliqué s'il correspond, ou copie la plage telle quelle à la tonalité et au tempo d'origine), mélange dans un seul accumulateur (une piste rendue à la fois en mémoire), baisse le tout uniformément si le mélange dépasse la pleine échelle (jamais d'écrêtage), encode, met en archive |
+| `encoders.ts`, `wav.ts` | le registre des encodeurs (`registerEncoder`) ; WAV 16 bits, écrit directement depuis les blocs 16 bits. MP3 et FLAC sont affichés « bientôt » tant qu'ils manquent |
+| `zip.ts` | archive ZIP sans compression (l'audio ne se compresse guère), noms UTF-8, CRC lu par tranches (le fichier reste un `Blob`) |
+| `deliver.ts` | remise : un lien normal vers le fichier (`download`), comme pour iReal Pro ; le navigateur l'enregistre, l'app Mac en fait un vrai téléchargement |
+
+**Ce que l'agent de l'export doit construire** : les encodeurs MP3 et FLAC
+(portages WebAssembly d'encodeurs libres, chargés au premier usage, dans un
+worker, licences jointes), enregistrés par `registerEncoder` ; vérifier la
+remise du fichier dans l'app Mac (dialogue d'enregistrement d'Electron) avec un
+test de bout en bout ; mesurer la mémoire d'un export de sept pistes de cinq
+minutes (le WAV de sept pistes en archive pèse environ 400 Mo) et, s'il le
+faut, écrire par morceaux (flux) plutôt qu'en `Blob` entier.
+
+#### Écrans
+
+| Où | Quoi |
+|---|---|
+| Fenêtre « Nouveau morceau » (`NewPieceDialog.tsx`, `ImportStems`) | « Instruments à séparer » comme la maquette : les instruments que **l'outil en service** fournit (BS-RoFormer SW : six ; SCNet : quatre ; « Vents » n'apparaît que si un outil le donne), aucun coché ; coché : estimation honnête (« environ 14 min pour un morceau de quatre minutes, sur cet appareil »), les non cochés vont dans « Autres » ; « Aller plus loin : batterie détaillée, saxophone… » dit qu'aucun outil détaillé n'est proposé tant que la liste n'en a pas |
+| Sous les en-têtes de pistes (`SeparationEntry`) ; menu « ⋯ » sur téléphone | « Séparer les instruments » (« Séparer » sur téléphone), puis « Instruments » |
+| Barre du haut (`SeparationStatus`) | « Séparation · 34 % », ou « Séparation interrompue » ; ouvre le panneau |
+| Panneau « Instruments » (`SeparationPanel.tsx`) | outil, estimation (« estimation, pas encore mesurée » quand c'est le cas), premier téléchargement (taille, hôte, page source, licence connue, et pour une licence floue : Fabtice ne distribue pas ces poids), instruments voulus, « Séparer » ; pendant : étape, jauge, temps restant, carte graphique ou processeur, **avis calme du repli** (filet de laiton), « Annuler » ; après : outil et durée, « Revenir au morceau entier » / « Revoir les instruments », place prise sur l'appareil (instruments, outils), « Libérer la place » (confirmé), « Séparer de nouveau » |
+| Réglages (`SettingsPopover.tsx`) | « Réglages avancés », replié : outil de séparation (« Automatique : Le plus fin », et pourquoi), « Conserver le timbre » |
+| Transport (`ApplyRender.tsx`) | « Appliquer » quand la tonalité ou le tempo diffèrent de l'original et que le rendu n'est pas en place ; écran d'attente court (« Calcul des pistes… », jauge, « Annuler ») ; une fois appliqué, « rendu appliqué », discret (pointillé, encre douce) ; jamais la braise |
+| « Exporter » → « Le son… » (`ExportAudioDialog.tsx`) | quoi, durée (avec les mesures de la boucle), format, rappel de la tonalité et du tempo, « Exporter », progression, « Enregistrer « nom » » |
+
+Tous les panneaux sont vérifiés dans la fenêtre et au-dessus du transport à
+1280 × 800, 960 × 640 et 390 × 844 (`test:separation`, `ui/useFitPanel.ts`).
+
+Adresses de démonstration du lot 3 (le morceau de démonstration en **une**
+piste entière d'abord) : `?demo&separation=entier` (pas encore séparé),
+`=faite` (déjà séparé), `=lente` (séparation lente avec premier
+téléchargement), `=repli` (la carte graphique « lâche », le processeur
+continue), `=echec` ; `&rendu=lent` (voir l'attente d'« Appliquer ») ;
+`&export=ouvert`. `window.__fabtice.lot3` (avec `?demo` et `?debug`) donne la
+séparation, le rendu, l'export, le registre, le format 16 bits et le stockage.
 
 ## Contrats pour la suite
 
@@ -545,8 +776,8 @@ plus se corrige accord par accord (onglets) mais ne se découpe pas davantage.
 
 « Exporter » est un petit menu (`components/ExportMenu.tsx`) : « Grille pour
 iReal Pro » (un lien vers le fichier ; « Ouvrir dans iReal Pro » en plus dans l'app
-Mac), « Imprimer la grille » (disponible, voir plus haut), l'audio visible mais
-inactif (lot 3). Sur téléphone la barre du haut n'a pas la place du menu : ses
+Mac), « Imprimer la grille » (disponible, voir plus haut), « Le son : mélange,
+pistes ou boucle… » (lot 3 : ouvre « Exporter le son »). Sur téléphone la barre du haut n'a pas la place du menu : ses
 entrées sont reprises dans le menu « ⋯ » (`SettingsPopover`, `ExportItems`). Le
 panneau « Tempo et mesures » (`components/GridPanel.tsx`) garde la
 saisie du lot 1 et gagne : tempo ÷ 2 et × 2, premier temps un temps plus tôt ou
@@ -559,13 +790,17 @@ tonalité comme la maquette : « A♭ · original », « A♭ → D♭ ».
 ### Moteur audio — `src/audio/AudioEngine.ts`
 
 Interface `AudioEngine` : `loadTracks`, `addTrack`, `removeTrack`, `clear`,
+`setRenderedTracks` et `isRenderedInUse` (lot 3, « Appliquer » : voir « Rendu hors
+ligne et « Appliquer » » plus haut),
 `play` (à appeler dans le geste de l'utilisateur la première fois), `pause`,
 `seek`, `getPosition` (position **entendue**, appelée à chaque image : sans
 allocation), `getDuration`, `setLoop`, `setTransposition(demi-tons, cents)`,
 `setTempoRatio`, `setTrackMix`, `setMetronome`, `setClickTrack` (temps des
 clics, calculés par `grid/lines.ts#metronomeClicks`), `on('state' | 'ended' |
-'error')`, `dispose`. Pistes en Float32 par canal, à 48 kHz
-(`ENGINE_SAMPLE_RATE`).
+'error')`, `dispose`. Pistes à 48 kHz (`ENGINE_SAMPLE_RATE`), données soit par
+`pcm` (la forme 16 bits du registre, utilisée telle quelle, sans copie : c'est ce
+que l'app passe depuis le lot 3), soit par `channels` (Float32 par canal,
+converti une fois : tests).
 
 `MockEngine` l'implémente avec une horloge (aucun son) : avancée au rapport de
 tempo, boucle, arrêt en fin de morceau, et `snapshot()` pour vérifier ce qu'il
@@ -593,9 +828,9 @@ vrai moteur (pas d'AudioWorklet, pas d'isolation COOP/COEP donc pas de
 - **Mémoire** (conception du prototype) : pistes en blocs de 16 bits de 32 768
   images dans des `SharedArrayBuffer`, pistes mono (canaux identiques à un pas
   de 16 bits près) stockées une seule fois. Un morceau stéréo de 5 minutes
-  pèse environ 58 Mo par piste dans le moteur, **en plus** des `Float32` du
-  registre (`registry.ts`, 115 Mo par piste stéréo de 5 minutes) et des
-  instances Signalsmith (environ 6 Mo de mémoire wasm par piste).
+  pèse environ 58 Mo par piste ; depuis le lot 3 ce sont **les blocs du
+  registre eux-mêmes** (`audio/pcm.ts`), plus de copie Float32 à côté. S'y
+  ajoutent les instances Signalsmith (environ 6 Mo de mémoire wasm par piste).
 - **Boucle** : repli côté entrée avec fondu enchaîné de 20 ms ; l'étireur voit
   un signal continu (pas de clic, pas de dérive). Hors de la boucle (après un
   déplacement au-delà de sa fin), la lecture va jusqu'à la fin du morceau.
@@ -655,17 +890,18 @@ qui envoie ces en-têtes, pas par `file://`.
 
 Un seul projet à la fois (lot 1) : le document du projet courant
 (`ProjectDocument`, `model/document.ts`, produit par
-`store/document.ts#toProjectDocument`) et les **octets audio d'origine** (le mp3,
-le m4a… tel qu'importé). Le PCM décodé n'est jamais gardé : il est recalculé à
-chaque ouverture, de façon déterministe. Les préférences de l'utilisateur
+`store/document.ts#toProjectDocument`), les **octets audio d'origine** (le mp3,
+le m4a… tel qu'importé) et, depuis le lot 3, les **instruments séparés** en 16
+bits (voir « Où restent les instruments séparés »). Le PCM décodé de l'original
+n'est jamais gardé : il est recalculé à chaque ouverture, de façon déterministe. Les préférences de l'utilisateur
 (notation, suivi, sous-grille, magnétisme) restent dans `localStorage`
 (`store/preferences.ts`).
 
 | Fichier | Rôle |
 |---|---|
-| `ProjectStorage.ts` | le contrat (`replaceCurrent`, `saveCurrent`, `loadCurrent`, `loadAudio`, `clearCurrent`, `requestPersistence`…) et `StorageError` (`unavailable`, `quota`, `corrupt`, `io`) |
-| `indexedDb.ts` | l'implémentation : base `fabtice` v1, deux magasins, `project` (clé `current` : `{ schema, document }`) et `audio` (une entrée par `AudioRef.id` : `{ bytes, mimeType, fileName }`). `replaceCurrent` réécrit les deux dans **une seule transaction** : en cas d'échec, l'ancien projet reste entier. Les transactions sont validées tout de suite (`commit()`), sinon une page qui se ferme perdrait l'écriture |
-| `documentFormat.ts` | lecture sûre : version du document (`MIGRATIONS` : de 1, lot 1, à 2, lot 2 ; une version **plus récente** est ignorée, jamais écrasée à la lecture), contrôle de la forme (sinon `corrupt`) ; `STORAGE_SCHEMA` pour l'enveloppe |
+| `ProjectStorage.ts` | le contrat (`replaceCurrent`, `saveCurrent`, `loadCurrent`, `loadAudio`, `clearCurrent`, `requestPersistence`…, et pour les instruments séparés `saveTrackAudio`, `loadTrackAudio`, `deleteTrackAudio`, `pruneTrackAudio`, `trackAudioUsage`) et `StorageError` (`unavailable`, `quota`, `corrupt`, `io`) |
+| `indexedDb.ts` | l'implémentation : base `fabtice` v2, quatre magasins, `project` (clé `current` : `{ schema, document }`), `audio` (une entrée par `AudioRef.id` : `{ bytes, mimeType, fileName }`), `pcm` et `pcmInfo` (les instruments séparés, lot 3). `replaceCurrent` réécrit les deux dans **une seule transaction** : en cas d'échec, l'ancien projet reste entier. Les transactions sont validées tout de suite (`commit()`), sinon une page qui se ferme perdrait l'écriture |
+| `documentFormat.ts` | lecture sûre : version du document (`MIGRATIONS` : de 1, lot 1, à 2, lot 2, puis à 3, lot 3 ; une version **plus récente** est ignorée, jamais écrasée à la lecture), contrôle de la forme (sinon `corrupt`) ; `STORAGE_SCHEMA` pour l'enveloppe |
 | `keeper.ts` | le gardien : `keepNewProject()` (à appeler quand un nouveau morceau est ouvert et jouable : demande le stockage persistant la première fois, écrit audio et document ensemble, remplace l'ancien projet) puis autosauvegarde de tout changement du document, **différée** (700 ms de calme, 5 s au plus pendant un geste continu), une écriture à la fois, jamais attendue par l'écran ; `flush()` à la fermeture (`pagehide`, onglet masqué). Rien n'est écrit pour un morceau dont l'audio n'est pas encore gardé, ni pour le morceau de démonstration. La file d'écritures **ne rejette jamais** (un travail qui échoue n'empoisonne pas les suivants) et une écriture qui ne répond pas au bout de 2 minutes est abandonnée avec l'avis habituel |
 | `restore.ts` | lancement : « Ouverture de « titre »… » (la fenêtre n'apparaît que si cela dure plus de 250 ms) avec **l'étape en cours** (lecture du morceau gardé, préparation du son, mise en place des pistes), puis `restoreProject()` (mêmes identifiants de projet, de piste et d'audio). **Chaque étape a sa limite de temps généreuse** (`RESTORE_LIMITS` : document 20 s, lecture 60 s, décodage 3 min par piste, moteur 60 s) : une réouverture n'attend jamais indéfiniment. **Au moindre échec ou dépassement, le morceau gardé est CONSERVÉ** : la fenêtre « Nouveau morceau » s'ouvre avec une phrase calme et propose « Rouvrir « titre » » et, plus discret, « Oublier ce morceau » (confirmé par une seconde question). Un marqueur dans `localStorage` pendant la réouverture couvre une page tuée par le système (manque de mémoire sur téléphone) : au lancement suivant il n'y a **pas de nouvel essai automatique**, la même proposition s'affiche, jusqu'à ce que l'utilisateur choisisse. « Rouvrir » (`reopenKept`) ignore ce marqueur ; « Oublier » (`forgetKept`) supprime le document, l'audio et le marqueur. Un nouvel import réussi remplace le morceau gardé et retire la proposition (`ui.reopenOffer`) |
 | `timeout.ts` | `withTimeout()` et `StepTimeout` : une limite de temps pour une étape qui pourrait ne jamais répondre |
@@ -688,8 +924,8 @@ affiche une phrase calme, une seule fois (`components/StorageNotice.tsx`), et
 l'ancien projet gardé est lui aussi oublié pour ne pas être rouvert à tort.
 
 **Ce que la version finale doit respecter.** Après un import, la mémoire ne
-garde que le PCM décodé (environ 22 Mo par minute en stéréo, dans
-`audio/registry.ts`, lu par la frise et par le moteur) : les octets d'origine
+garde que le PCM décodé, une seule fois (environ 11 Mo par minute en stéréo 16
+bits, dans `audio/registry.ts`, lu par la frise et partagé avec le moteur) : les octets d'origine
 sont libérés dès qu'ils sont écrits dans IndexedDB. Un nouveau morceau remplace l'ancien seulement une fois ouvert et jouable
 (`openImportedPiece` résolu). Toute nouvelle donnée du projet doit entrer dans
 `ProjectDocument` (et `MIGRATIONS` si le format change), sinon elle n'est pas

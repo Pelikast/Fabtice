@@ -54,7 +54,7 @@ function SeparationPhoneEntry() {
   const separated = useApp((s) => s.separation.result !== null);
   if (!hasProject) return null;
   return (
-    <button className="option lien-option" data-separation-entry onClick={() => togglePanel('separation')}>
+    <button className="option entree-separation" data-separation-entry onClick={() => togglePanel('separation')}>
       {separated ? t('separation.instrumentsEntry') : t('separation.entry')}
     </button>
   );
