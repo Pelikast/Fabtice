@@ -18,10 +18,9 @@ const fs = require('node:fs');
 const http = require('node:http');
 const os = require('node:os');
 const path = require('node:path');
-const { ROOT, launchApp, windowByUrl } = require('./helpers');
+const { ROOT, launchInterface: launch, pieceReady, assertClean, clock, state, storedDocument } = require('./helpers');
 
 const STUB = path.join(ROOT, 'test', 'fixtures', 'stub-yt-dlp.js');
-const FIXTURES = path.join(ROOT, 'test', 'fixtures');
 const APP_FIXTURES = path.join(ROOT, '..', 'app', 'tests', 'fixtures');
 const OUT = process.env.FABTICE_E2E_OUT || null;
 const ASSET = process.platform === 'darwin' ? 'yt-dlp_macos' : 'yt-dlp_linux';
@@ -46,74 +45,6 @@ async function releaseServer() {
   });
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   return { base: `http://127.0.0.1:${server.address().port}`, close: () => server.close() };
-}
-
-// Runs in the page before anything else: policy violations and the texts the
-// import dialog goes through.
-function pageProbe() {
-  window.__csp = [];
-  window.__seen = [];
-  document.addEventListener('securitypolicyviolation', (e) => window.__csp.push(`${e.violatedDirective} ${e.blockedURI}`));
-  new MutationObserver(() => {
-    const el = document.querySelector('.import-etat .phase span');
-    const text = el && el.textContent;
-    if (text && window.__seen[window.__seen.length - 1] !== text) window.__seen.push(text);
-  }).observe(document, { childList: true, subtree: true, characterData: true });
-}
-
-async function launch(env, userData) {
-  const problems = [];
-  const app = await launchApp(
-    { FABTICE_USER_DATA: userData, FABTICE_E2E_QUERY: '?debug', FABTICE_STUB_FIXTURES: FIXTURES, ...env },
-    { initScript: pageProbe },
-  );
-  app.context().on('console', (msg) => {
-    if (msg.type() === 'error' || msg.type() === 'warning') problems.push(`[${msg.type()}] ${msg.text()}`);
-  });
-  const page = await windowByUrl(app, 'fabtice://app/');
-  page.on('pageerror', (e) => problems.push(`[pageerror] ${e.message}`));
-  await page.waitForSelector('.voile', { state: 'attached', timeout: 60000 });
-  return { app, page, problems };
-}
-
-const state = (page) => page.evaluate(() => {
-  const s = window.__fabtice.store.getState();
-  return { project: s.project, engine: s.transport.engine, loop: s.loop, playback: s.playback, importKind: s.ui.import.kind, dialog: s.ui.newPieceOpen };
-});
-
-async function pieceReady(page, timeout = 60000) {
-  await page.waitForFunction(() => {
-    const s = window.__fabtice.store.getState();
-    return s.project && (s.transport.engine === 'ready' || s.transport.engine === 'playing') && s.ui.import.kind === 'idle' && !s.ui.newPieceOpen;
-  }, null, { timeout });
-}
-
-async function assertClean(page, problems, label) {
-  const csp = await page.evaluate(() => window.__csp);
-  assert.deepEqual(csp, [], `${label}: CSP violations`);
-  assert.deepEqual(problems, [], `${label}: console errors or warnings`);
-}
-
-async function clock(page) {
-  return page.locator('[data-testid="temps"]').innerText();
-}
-
-async function storedLoopAndKey(page) {
-  return page.evaluate(() => new Promise((resolve) => {
-    const open = indexedDB.open('fabtice');
-    open.onerror = () => resolve(null);
-    open.onsuccess = () => {
-      const db = open.result;
-      if (!db.objectStoreNames.contains('project')) return resolve(null);
-      const get = db.transaction('project').objectStore('project').get('current');
-      get.onsuccess = () => {
-        db.close();
-        const d = get.result && get.result.document;
-        resolve(d ? JSON.stringify({ loop: d.loop, playback: d.playback }) : null);
-      };
-      get.onerror = () => resolve(null);
-    };
-  }));
 }
 
 test('first launch: link → import → waveform → play → loop and key → relaunch', async () => {
@@ -186,8 +117,8 @@ test('first launch: link → import → waveform → play → loop and key → r
       saved = { title: set.project.title, loop: set.loop, semitones: 2, id: set.project.id };
       // Autosave: the stored document carries them before we quit.
       for (let i = 0; i < 100; i++) {
-        const stored = await storedLoopAndKey(page);
-        if (stored && JSON.parse(stored).playback.semitones === 2 && JSON.parse(stored).loop.region) break;
+        const stored = await storedDocument(page);
+        if (stored && stored.playback.semitones === 2 && stored.loop.region) break;
         await page.waitForTimeout(100);
       }
       await assertClean(page, problems, 'before quitting');

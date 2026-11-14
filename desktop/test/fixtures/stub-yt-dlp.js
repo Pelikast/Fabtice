@@ -9,6 +9,15 @@
 //
 // FABTICE_STUB_MODE: dash (default) | webm | live | long | fail
 // FABTICE_STUB_LOG: optional file receiving one JSON line per invocation
+// FABTICE_STUB_FILE: hand back this file (any size, any extension) instead of
+//   the small fixture, to test pieces of real size
+// FABTICE_STUB_START_DELAY_MS: say nothing for this long when the download
+//   starts (the self-extracting binary of an older Mac, slow to start)
+// FABTICE_STUB_PROGRESS: known (default) | unknown (no total, like a download
+//   whose size yt-dlp cannot know) | none (no progress line at all)
+// FABTICE_STUB_PROGRESS_GAP_MS: pause between two progress lines
+// The progress lines are the ones real yt-dlp prints (see parseProgressLine in
+// src/extract.js and its unit test).
 
 const fs = require('node:fs');
 const path = require('node:path');
@@ -53,6 +62,7 @@ function solveWithRuntime() {
   process.stderr.write(`[youtube] [jsc:node] stub challenge ${ok ? 'solved' : `FAILED status=${r.status} stderr=${JSON.stringify(r.stderr)}`}\n`);
 }
 
+const STUB_FILE = process.env.FABTICE_STUB_FILE || null;
 const FIXTURES = {
   dash: { file: 'tone-dash.m4a', ext: 'm4a', container: 'm4a_dash', acodec: 'mp4a.40.2', formatId: '140' },
   webm: { file: 'tone.webm', ext: 'webm', container: 'webm_dash', acodec: 'opus', formatId: '251' },
@@ -69,7 +79,9 @@ if (args.includes('--dump-single-json')) {
   }
   const url = args[args.length - 1];
   const id = new URL(url).searchParams.get('v');
-  const fx = FIXTURES[mode] || FIXTURES.dash;
+  const fx = STUB_FILE
+    ? { file: path.basename(STUB_FILE), ext: path.extname(STUB_FILE).slice(1), container: 'file', acodec: 'unknown', formatId: '0' }
+    : FIXTURES[mode] || FIXTURES.dash;
   const info = {
     id,
     title: 'Tonalité d’essai',
@@ -86,11 +98,44 @@ if (args.includes('--dump-single-json')) {
     abr: 64,
     asr: 44100,
     audio_channels: 2,
-    filesize: fs.statSync(path.join(FIXTURE_DIR, fx.file)).size,
+    filesize: fs.statSync(STUB_FILE || path.join(FIXTURE_DIR, fx.file)).size,
     protocol: 'https',
     formats: [],
   };
   process.stdout.write(JSON.stringify(info));
+  process.exit(0);
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+const MIB = 1024 * 1024;
+const size = (bytes) => (bytes >= MIB ? `${(bytes / MIB).toFixed(2)}MiB` : `${(bytes / 1024).toFixed(2)}KiB`).padStart(10);
+
+async function download(source, out) {
+  const startDelay = Number(process.env.FABTICE_STUB_START_DELAY_MS || 0);
+  const gap = Number(process.env.FABTICE_STUB_PROGRESS_GAP_MS || 0);
+  const kind = process.env.FABTICE_STUB_PROGRESS || 'known';
+  if (startDelay > 0) await sleep(startDelay);
+  const total = fs.statSync(source).size;
+  process.stderr.write('[debug] stub: download starts\n');
+  process.stdout.write(`[info] stub: Downloading 1 format(s): 140\n[download] Destination: ${out}\n`);
+  // The lines real yt-dlp prints with --newline (observed against a local server).
+  if (kind === 'known') {
+    for (const pct of [0, 25, 50, 75, 100]) {
+      process.stdout.write(`[download] ${`${pct.toFixed(1)}%`.padStart(6)} of ${size(total)} at ${pct === 0 ? ' Unknown B/s' : '  1.28MiB/s'} ETA ${pct === 100 ? '00:00' : '00:01'}\n`);
+      if (gap) await sleep(gap);
+    }
+    process.stdout.write(`[download] 100% of ${size(total)} in 00:00:01 at 1.27MiB/s\n`);
+  } else if (kind === 'unknown') {
+    for (const fraction of [0.1, 0.35, 0.7, 1]) {
+      process.stdout.write(`[download] ${size(Math.round(total * fraction))} at   1.28MiB/s (00:00:01)\n`);
+      if (gap) await sleep(gap);
+    }
+    process.stdout.write(`[download] 100% of ${size(total)} in 00:00:01 at 1.27MiB/s\n`);
+  }
+  fs.copyFileSync(source, out);
   process.exit(0);
 }
 
@@ -101,13 +146,11 @@ if (infoPath) {
     process.exit(2);
   }
   const info = JSON.parse(fs.readFileSync(infoPath, 'utf8'));
-  const fx = Object.values(FIXTURES).find((f) => f.ext === info.ext) || FIXTURES.dash;
-  const out = value('--output').replace('%(ext)s', fx.ext);
-  for (const pct of ['0.0', '50.0', '100.0']) process.stdout.write(`[download] ${pct.padStart(5)}% of 34.00KiB\n`);
-  fs.copyFileSync(path.join(FIXTURE_DIR, fx.file), out);
-  process.stdout.write(`[download] Destination: ${out}\n`);
-  process.exit(0);
+  const source = STUB_FILE || path.join(FIXTURE_DIR, (Object.values(FIXTURES).find((f) => f.ext === info.ext) || FIXTURES.dash).file);
+  const ext = STUB_FILE ? path.extname(STUB_FILE).slice(1) : (Object.values(FIXTURES).find((f) => f.ext === info.ext) || FIXTURES.dash).ext;
+  const out = value('--output').replace('%(ext)s', ext);
+  download(source, out);
+} else {
+  process.stderr.write('ERROR: stub does not understand these arguments\n');
+  process.exit(2);
 }
-
-process.stderr.write('ERROR: stub does not understand these arguments\n');
-process.exit(2);
