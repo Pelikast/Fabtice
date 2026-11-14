@@ -20,9 +20,11 @@
     "test:timeline": "node tests/timeline.mjs",
     "test:import": "node tests/import.mjs",
     "test:chart": "node tests/chart.mjs",
-    "test:export": "node tests/export.mjs"
+    "test:export": "node tests/export.mjs",
+    "test:analysis": "node tests/analysis.mjs"
   },
   "dependencies": {
+    "onnxruntime-web": "1.31.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "zustand": "^5.1.0"

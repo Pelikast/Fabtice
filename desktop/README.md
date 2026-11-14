@@ -113,8 +113,11 @@ Fonctionnement :
   d’isolation COOP/COEP (SharedArrayBuffer, AudioWorklet), les bons types MIME
   (dont `.wasm`) et une politique de sécurité (CSP) stricte : scripts et
   styles de l’app seulement, WebAssembly, `blob:` pour les médias et les
-  workers, styles en ligne pour React, rien depuis le réseau. Les chemins qui
-  sortent du dossier sont refusés.
+  workers, styles en ligne pour React. Du réseau, **une seule chose** : le
+  téléchargement des outils d’analyse (`connect-src` : `https://huggingface.co`
+  et `https://*.cdn.hf.co`, le réseau de contenu de Hugging Face vers lequel il
+  redirige, dont le premier mot est la région du serveur), vérifiés par leur
+  SHA-256 côté interface. Les chemins qui sortent du dossier sont refusés.
 - La page de diagnostic est servie par `fabtice://diagnostic/` et partage le
   même `window.fabtice` (`src/preload.js`). Les appels IPC ne sont acceptés
   que de ces deux adresses, depuis la fenêtre principale d’une page.
@@ -213,6 +216,13 @@ l’interface (`test/e2e/journey.test.js`) : lien collé, installation de l’ou
 extraction, forme d’onde, lecture avec le vrai moteur (aucune violation de la
 politique de sécurité), boucle et tonalité, relance avec le même dossier de
 données, lien refusé, import d’un fichier.
+
+`test/e2e/analysis.test.js` fait la **vraie analyse** dans l’app, sous la
+politique livrée : import d’un fichier, téléchargement des outils depuis
+Hugging Face, worker et ONNX Runtime, résultat comparé à ce qu’on sait du morceau
+d’essai, outils gardés dans IndexedDB, relance, nouvelle analyse sans
+télécharger. Il télécharge 18 Mo : il ne tourne que si
+`FABTICE_E2E_ANALYSIS=1` (`FABTICE_E2E_ANALYSIS=1 xvfb-run -a npm run test:e2e`).
 
 Deux autres fichiers gardent des défauts déjà rencontrés :
 

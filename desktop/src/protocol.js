@@ -19,7 +19,15 @@ const APP_URL = `${SCHEME}://${HOST_APP}/index.html`;
 const DIAGNOSTIC_URL = `${SCHEME}://${HOST_DIAGNOSTIC}/index.html`;
 
 // Self scripts and styles, WebAssembly, inline styles (React sets style
-// attributes), blob: for media and workers, nothing from the network.
+// attributes), blob: for media and workers. The network is reachable for one
+// thing only: the analysis tools (models) the interface downloads at first
+// use, from their public repositories on Hugging Face (checked against their
+// SHA-256 by the interface). `huggingface.co` answers with a redirect to
+// Hugging Face's own content network, `us.aws.cdn.hf.co` as observed (the first
+// label is the region of the server, hence the wildcard on that one label of
+// the domain `cdn.hf.co`); the policy is checked on every hop of a redirect.
+// Nothing else is allowed: no other host, no plain http.
+const MODEL_HOSTS = ['https://huggingface.co', 'https://*.cdn.hf.co'];
 const CSP = [
   "default-src 'none'",
   "script-src 'self' 'wasm-unsafe-eval'",
@@ -28,7 +36,7 @@ const CSP = [
   "font-src 'self'",
   "media-src 'self' blob:",
   "worker-src 'self' blob:",
-  "connect-src 'self' blob:",
+  `connect-src 'self' blob: ${MODEL_HOSTS.join(' ')}`,
   "object-src 'none'",
   "base-uri 'none'",
   "form-action 'none'",
@@ -150,6 +158,6 @@ function installHandler(protocol, roots) {
 }
 
 module.exports = {
-  SCHEME, HOST_APP, HOST_DIAGNOSTIC, APP_URL, DIAGNOSTIC_URL, CSP,
+  SCHEME, HOST_APP, HOST_DIAGNOSTIC, APP_URL, DIAGNOSTIC_URL, CSP, MODEL_HOSTS,
   mimeFor, resolveRequest, respond, isTrustedUrl, registerScheme, installHandler,
 };

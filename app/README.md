@@ -27,6 +27,7 @@ le stockage.
 | `npm run test:timeline` | après `build` : vérifications de la frise dans Chromium (formes d'onde, grille, boucle, défilement, zoom, suivi, téléphone, morceau de dix minutes) |
 | `npm run test:export` | après `build` : le menu « Exporter », le fichier iReal Pro téléchargé par le navigateur, et son lien relu (par un lecteur écrit dans le test) et comparé aux accords de la grille, avec une transposition et un instrument réglés, un accord tapé à la main, une analyse qui se termine |
 | `npm run test:engine` | après `build` (et, en option, `build:desktop`) : mesures du vrai moteur audio dans Chromium (tonalité, tempo, boucle, métronome, limiteur, charge) |
+| `npm run test:analysis` | après `build` : le **vrai** analyseur dans Chromium (télécharge les outils d'analyse depuis Hugging Face : réseau nécessaire). Le morceau d'essai du prototype passe par l'interface et le résultat est comparé à ce qu'on en sait et à ce que le prototype trouve ; deuxième usage sans téléchargement ; annulation (panneau, nouvel import, pendant le téléchargement) ; réseau absent ; téléchargement abîmé (refusé, repris, refusé pour de bon) ; reprise d'un téléchargement interrompu ; lecture pendant l'analyse ; morceau de 4 minutes ; chiffres de durée, de mémoire et de plus longue tâche du fil principal. `FABTICE_ANALYSIS_ONLY=<nom>` n'en lance qu'une partie |
 | `npm run test:chart` | après `build` : la grille d'accords comparée à la maquette (même balisage des accords, mêmes tailles, sections, boucle, mesure en cours, instruments, états vide et « analyse en cours », téléphone), puis les gestes (clic, glisser, suivi), l'éditeur d'accord, la tonalité, les sections, le clavier, l'autosauvegarde (rechargement d'un morceau gardé), le toucher réel sur téléphone (390 × 844) et l'impression (feuille de style d'impression, PDF A4 et Letter lus avec `pdftotext`, sauts de page) ; panneaux de corrections et d'accordage ; captures de l'app, de la maquette et des pages imprimées dans `FABTICE_CHART_OUT` (`pdftotext`, `pdfinfo` et `pdftoppm` de poppler sont nécessaires pour la partie impression) |
 
 Les fichiers audio de test de `test:import` sont dans `tests/fixtures/` (quelques
@@ -52,8 +53,18 @@ Variantes :
 En mode démo, `window.__fabtice` donne accès au magasin, au moteur, aux actions
 et, sous `lot2`, aux actions d'analyse, de grille et d'harmonie ; `?debug` donne
 le même accès (sans `lot2`) sans morceau de démonstration (tests du navigateur).
-Le morceau de démonstration n'est jamais gardé sur l'appareil. `?analyse=…` vaut
-aussi hors démo (même analyse factice, sur l'extrait du prototype).
+Le morceau de démonstration n'est jamais gardé sur l'appareil.
+
+**Quel analyseur ?** Dans un navigateur, le **vrai** analyseur est celui par
+défaut. Le factice (`MockAnalyzer`, l'extrait du prototype) sert dans Node (tests
+unitaires), dans un navigateur qui ne sait pas faire tourner un worker, et sur les
+adresses des suites de tests et de la démo : `?analyse=factice|lente|instant|echec`,
+`?demo` (qui pose le sien), et les pages de test, c'est-à-dire `?moteur=factice` ou
+`?debug`, **sauf** `?analyse=reel`, qui demande le vrai (c'est ce que font
+`test:analysis` et le test de bout en bout de l'app Mac). Raison : les suites
+existantes importent des fichiers à longueur de temps et ne doivent ni télécharger
+des outils ni charger la machine. `?modele=complet` choisit le grand réseau
+Beat This! (83 Mo) au lieu du léger (10 Mo), pour comparer.
 
 Les fichiers construits (`web/index.html`, `web/assets/`, `desktop/ui/`) ne
 sont pas versionnés. Netlify lance `npm ci && npm run build` dans `app/`.
@@ -74,7 +85,8 @@ src/
   harmony/            accords et tonalités, purs et testés : vocabulaire, lecture
                       (saisie et étiquettes Harte), orthographe par degré,
                       transposition, instruments ; composant <ChordSymbol>
-  analysis/           contrat de l'analyseur, analyseur factice, lancement
+  analysis/           contrat de l'analyseur, analyseur factice, vrai analyseur
+                      (fabtice.ts + worker/ + engine/ + models/), lancement
                       automatique et état (runner.ts), progression fine
   chart/              affichage Grille d'accords : mise en page pure (layout.ts),
                       corrections pures (edits.ts), gestes (gesture.ts, hit.ts,
@@ -239,26 +251,109 @@ chantiers suivent, chacun dans son dossier.
   `no-music`, `failed`). `models()` donne la liste des modèles (nom, rôle en
   français, adresse, hébergeur, licence, taille, déjà en cache ou non) :
   l'interface l'affiche au premier téléchargement.
-- **Ce qui existe** : `MockAnalyzer` (`analysis/mock.ts` : minuterie, faux
-  téléchargement, résultat fixe : l'extrait du prototype `demo-swing.json`, copié
-  dans `analysis/demoSwing.ts` et traduit par `fromDemoSwing.ts`, ou celui du
-  morceau de démonstration) ; la fabrique `getAnalyzer()` (`analysis/index.ts`) ;
-  le lancement automatique (`analysis/runner.ts#startAutoAnalysis`, branché dans
-  `App.tsx` : chaque morceau ouvert et jouable sans analyse est analysé une fois,
-  en arrière-plan ; un échec n'est pas relancé tout seul) ; `runAnalysis()` et
-  `cancelAnalysis()` ; l'état affiché (barre du haut, panneau « Analyse du
-  morceau », grille vide « Analyse en cours… » avec sources et licences) ; la
-  liste des modèles du prototype et leurs empreintes (`analysis/models.ts`).
-- **Reste à faire** : le vrai analyseur (Web Worker, ONNX Runtime Web, cache et
-  vérification des modèles), porté du prototype `web/spikes/analyse/` dans ce
-  contrat ; le brancher par défaut dans `createAnalyzer()` (garder le factice
-  pour `?analyse=factice` et pour Node) ; traduire sa sortie : qualités du
-  prototype telles quelles (`model/harmony.ts`, mêmes noms), suggestions
-  d'extensions (« sus4 + 7 » devient la qualité `7sus4`), basse, `doubtful`
-  d'après sa propre calibration (le prototype : moyenne géométrique < 0,35),
-  étiquettes Harte par `harmony/parse.ts#parseHarte`. Décider de l'hébergement
-  des modèles (copie sous un compte du projet, voir PASSATION). Mesurer la
-  mémoire sur iPhone.
+- **Le vrai analyseur** (porté du prototype `web/spikes/analyse/`, mêmes
+  algorithmes et mêmes constantes ; ce qui n'est pas porté : les deux autres
+  post-traitements des temps du prototype, `dbn` et `joint`, que le réglage par
+  défaut n'emploie pas) :
+  - `analysis/fabtice.ts` (`FabticeAnalyzer`, côté fil principal, léger) : mélange
+    le morceau en mono par tranches (le moteur ne voit jamais son audio touché),
+    le **transfère** à un Web Worker, traduit ses messages en progression (une
+    fraction pour tout, qui ne recule jamais, poids des étapes mesurés ; un
+    battement régulier pendant le réseau d'accords, qui ne donne pas de nouvelles),
+    termine le worker à la fin ou à l'annulation (la mémoire de WebAssembly ne se
+    rend que comme cela). **Un worker par analyse.** Annuler rejette tout de suite
+    avec `cancelled`, demande au worker de s'arrêter et le termine après 300 ms ; le
+    worker peut mettre quelques secondes à disparaître s'il est au milieu d'un calcul,
+    sans que l'écran l'attende. Une nouvelle analyse peut démarrer aussitôt.
+    Les sorties des réseaux (quelques Mo) sont gardées pour l'audio qui vient d'être
+    analysé : redemandée avec `grid` ou `key` (la grille ou la tonalité de
+    l'utilisateur), l'analyse ne refait que le décodage, dans un nouveau worker, sans
+    renvoyer l'audio.
+  - `analysis/worker/analysis.worker.ts` (module worker, assemblé par Vite) :
+    télécharge et vérifie les outils, ouvre les trois sessions ONNX Runtime Web
+    (WebAssembly ; **fils** quand la page est isolée, jusqu'à 4, un seul sinon),
+    ramène l'audio à 22,05 kHz (Beat This!) et 44,1 kHz (CREMA) par le
+    rééchantillonneur du prototype, lance les réseaux, libère les sessions, décode
+    la grille, la tonalité et les accords, traduit en `AnalysisResult`.
+    L'annulation est lue entre deux morceaux de travail (les boucles rendent la
+    main à la boucle d'événements) et pendant le téléchargement (abandon du `fetch`).
+  - `analysis/engine/` : les calculs, **purs** (sans navigateur, testés dans Node) :
+    `fft`, `resample`, `tuning` (accordage), `beats` (log-mel, réseau en tranches de
+    30 s, pics, probabilité de premier temps), `meter` (métrique 3 ou 4 : HMM sur la
+    probabilité de premier temps, a priori 3 : 0,2 et 4 : 0,6), `chords` (CREMA, mise
+    en commun par temps), `decode` (décodage calé sur les temps avec l'a priori de
+    l'harmonie jazz, confiance, extensions suggérées, basse), `key` (profils de
+    Krumhansl), `pipeline` (l'enchaînement), `result` (la traduction vers le modèle :
+    « sus4 + 7 » devient la qualité `7sus4`, « sus2 + 7 » est abandonné, `doubtful`
+    quand la moyenne géométrique de la probabilité du réseau est < 0,35, premier
+    temps = premier temps numéroté 1 ; la tonalité et la grille de l'utilisateur sont
+    gardées telles quelles, avec une sûreté de 1). `engine/fixtures/` : les entrées
+    déterministes et `make-fixtures.mjs`, qui fait tourner **les fonctions du
+    prototype** dessus et écrit `prototype-values.json` ; les tests comparent le port
+    à ces valeurs.
+  - `analysis/models.ts` : la liste des fichiers, avec adresse (révision figée),
+    taille, licence et SHA-256, identique à celle du prototype (un test le vérifie).
+    `analysis/models/store.ts` : où ils restent ; `analysis/models/download.ts` :
+    comment ils arrivent.
+- **Quel réseau Beat This! ?** Le **léger** (`small0`, 10,5 Mo), pour tout le monde.
+  Le prototype propose aussi le complet (`final0`, 83 Mo) et on aurait pu le
+  préférer sur ordinateur « parce que la qualité prime » ; mesuré ici, c'est
+  l'inverse sur le morceau d'essai : le complet lit le tempo à moitié (40 temps
+  trouvés sur 80) dès qu'on joue à 1 fois la vitesse et au-delà (et à 0,85 fois :
+  mélange des deux) ; il n'est bon qu'à 0,7 fois. Le léger trouve environ 96 % des
+  temps à toutes les vitesses essayées (0,7 à 1,3 fois). Il pèse 8 fois moins à
+  télécharger, tourne presque deux fois plus vite, et c'est la configuration dont
+  le prototype a relevé les justesses. `?modele=complet` essaie le grand ; un
+  réglage avancé pourra l'offrir (une seule pièce d'essai : à confirmer sur de
+  vrais enregistrements).
+- **Téléchargement des outils** : au premier usage (première analyse), depuis les
+  dépôts publics de Hugging Face, **à la révision figée** du prototype ; 17,8 Mo
+  pour les trois fichiers. Chaque fichier est vérifié par son SHA-256 avant usage
+  (et à chaque lecture depuis l'appareil : une copie abîmée est jetée et
+  retéléchargée) ; un fichier complet qui ne correspond pas est **refusé, jamais
+  gardé**, et repris du début ; trois essais au plus (attentes de 0,8 s puis 1,6 s),
+  puis `download-failed` (« Les outils d'analyse n'ont pas pu être téléchargés.
+  Vérifiez votre connexion… le morceau reste jouable » : l'analyse se relance par
+  « Analyser de nouveau »). Progression réelle en octets sur tous les fichiers à
+  télécharger. **Reprise** : le fichier est écrit par morceaux de 2 Mo ; après une
+  coupure (ou une page fermée) l'essai suivant demande la suite (`Range`) ; si le
+  serveur ignore la plage, le fichier recommence. Le hub répond aux requêtes avec
+  `Range` depuis une autre origine (vérifié dans Chromium).
+- **Où ils restent, et pourquoi** : **IndexedDB**, base `fabtice-analysis-tools`
+  (fichiers complets et morceaux de téléchargement), pas le Cache Storage du
+  prototype : IndexedDB est le seul stockage qui se comporte de la même façon dans
+  toutes les situations de l'app, pages http(s) et origine `fabtice://app` de l'app
+  Mac (**vérifié dans l'app**, test de bout en bout), dans une page et dans un
+  worker. Si IndexedDB est inutilisable (stockage bloqué, fenêtre privée), l'analyse
+  marche quand même : les fichiers restent en mémoire le temps de la page.
+- **Assemblage** : `onnxruntime-web` 1.31.1 (version exacte, comme dans le
+  prototype), variante `ort.wasm.min.mjs` (alias dans `vite.config.ts`), dont les
+  deux fichiers WebAssembly (`ort-wasm-simd-threaded.mjs` et `.wasm`, 14,8 Mo,
+  importés avec `?url`) sont servis **par l'app elle-même**, jamais par un CDN ; la
+  licence (MIT) part avec. Serveur de développement, `npm run build` et
+  `npm run build:desktop` (base relative, protocole `fabtice://`) : même code. Dans
+  l'app Mac, la politique de sécurité n'ouvre que `https://huggingface.co` et
+  `https://*.cdn.hf.co` (voir `desktop/src/protocol.js`).
+- **Mesures** (cette machine, 4 cœurs, sans carte graphique, Chromium ; elles ne
+  valent pas pour les appareils du propriétaire) : morceau d'essai de 37,6 s, outils
+  déjà là, **6 à 13 s** selon la charge de la machine (le chargement des réseaux en prend 2) ; morceau de 4
+  minutes, **19 à 26 s** ; mémoire du navigateur **+1 Go** pendant le réseau de
+  temps (indépendant de la durée : il travaille par tranches de 30 s ; rendue 5 s
+  après la fin), c'est ce que ONNX Runtime réserve pour ce réseau ; plus longue
+  tâche du fil principal **< 100 ms** ; lire le morceau pendant l'analyse ne gêne pas
+  le moteur audio (aucun quantum hors budget). Justesse sur le morceau d'essai :
+  96,3 % des temps (précision 93,9 %), 19 premiers temps sur 20, 4/4, Si majeur,
+  accordage 30,5 cents (connu : 30), fondamentale juste 84,2 % du temps,
+  fondamentale et qualité 74,3 % : **les chiffres du prototype, à l'identique**.
+  Mémoire sur iPhone : non mesurée ici ; 1 Go de plus pendant le réseau de temps est
+  beaucoup pour un téléphone (voir PASSATION : la page y a été fermée par le système
+  pendant la séparation). Un manque de mémoire est annoncé (`memory`) quand le
+  navigateur le dit, mais une page fermée de force par le système ne peut pas l'être.
+- **Reste à faire** : décider de l'hébergement des conversions ONNX (copie sous un
+  compte du projet, voir PASSATION) ; mesurer la mémoire sur iPhone et, si besoin,
+  rogner (tranches plus courtes pour le réseau de temps, au prix d'un autre
+  résultat) ; un réglage avancé pour le grand réseau de temps ; les extensions
+  d'accord et la basse restent des suggestions (peu fiables, mesuré).
 
 #### Grille d'accords — `src/chart/`
 

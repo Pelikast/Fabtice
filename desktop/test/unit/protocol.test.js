@@ -67,6 +67,22 @@ test('every answer carries the isolation headers and the CSP', async () => {
   await res.arrayBuffer();
 });
 
+test('the policy lets the interface reach the model hosts, and nothing else', () => {
+  const directives = Object.fromEntries(proto.CSP.split(';').map((d) => d.trim().split(/\s+/)).map(([name, ...values]) => [name, values]));
+  // The download of the analysis tools: Hugging Face and its content network, in https only.
+  assert.deepEqual(directives['connect-src'], ["'self'", 'blob:', 'https://huggingface.co', 'https://*.cdn.hf.co']);
+  assert.deepEqual(proto.MODEL_HOSTS, ['https://huggingface.co', 'https://*.cdn.hf.co']);
+  // Nothing wider in what can load or run: scripts, workers and the rest are as before.
+  assert.deepEqual(directives['default-src'], ["'none'"]);
+  assert.deepEqual(directives['script-src'], ["'self'", "'wasm-unsafe-eval'"]);
+  assert.deepEqual(directives['worker-src'], ["'self'", 'blob:']);
+  for (const [name, values] of Object.entries(directives)) {
+    if (name !== 'connect-src') assert.ok(!values.some((v) => /^https?:|^\*$|^data:$/.test(v) && !(name === 'img-src' && v === 'data:')), `${name} is open to the network`);
+  }
+  assert.ok(!directives['connect-src'].includes('*'));
+  assert.ok(!directives['connect-src'].some((v) => v.startsWith('http:')));
+});
+
 test('missing file, unknown host and directories are 404', () => {
   assert.equal(get('fabtice://app/nope.js').status, 404);
   assert.equal(get('fabtice://app/assets').status, 404);
