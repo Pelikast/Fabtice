@@ -1,4 +1,4 @@
-# Passation — état du projet au 14 novembre 2026, lots 1 et 2 livrés
+# Passation — état du projet au 14 novembre 2026, lots 1 à 3 livrés
 
 Ce document sert à reprendre le projet dans une nouvelle session sans relire
 l'historique. `CLAUDE.md` (cahier des charges, décisions, mesures) et
@@ -23,8 +23,8 @@ déjà rencontrés et le plan.
 - Chaque lot se termine par une version de l'app Mac qu'il télécharge depuis
   les « Releases » GitHub. Netlify ne se déploie que sur son clic, en fin de
   lot (voir `CLAUDE.md`, Conventions).
-- **Un lot ne commence que sur son feu vert explicite.** Les lots 1 et 2 sont
-  livrés ; le lot 3 attend son accord après ses essais du lot 2.
+- **Un lot ne commence que sur son feu vert explicite.** Les lots 1 à 3 sont
+  livrés (il n'a encore essayé que le lot 1) ; le lot 4 attend son accord.
 - **Publier demande son accord à chaque fois** : l'environnement refuse un
   push sur `main` tant qu'il ne l'a pas confirmé. Lui poser la question
   (publier ou non) quand la branche est verte sur les Mac de GitHub.
@@ -36,13 +36,13 @@ déjà rencontrés et le plan.
 
 | Dossier | Contenu | État |
 |---|---|---|
-| `app/` | L'interface, commune au web et à l'app Mac : écran, frise du temps, moteur audio, import, stockage local, analyse, grille d'accords, export iReal Pro | lots 1 et 2 livrés |
-| `desktop/` | App Mac Electron : sert l'interface, import d'un lien par yt-dlp, fenêtre de diagnostic | lots 1 et 2 livrés, deux téléchargements |
+| `app/` | L'interface, commune au web et à l'app Mac : écran, frise du temps, moteur audio, import, stockage local, analyse, grille d'accords, export iReal Pro, séparation des instruments, rendu « Appliquer », export audio | lots 1 à 3 livrés |
+| `desktop/` | App Mac Electron : sert l'interface, import d'un lien par yt-dlp, enregistrement des fichiers exportés, fenêtre de diagnostic | lots 1 à 3 livrés, deux téléchargements |
 | `web/` | Site statique : la construction de `app/` y dépose `index.html` et `assets/` (non versionnés) | prêt, non déployé |
 | `web/maquette/` | Maquette de l'écran principal, validée par le propriétaire | référence visuelle |
-| `web/spikes/lecteur/` | Prototype du moteur de lecture (Signalsmith et Rubber Band) | sert encore pour le rendu « Appliquer » (lot 3) |
+| `web/spikes/lecteur/` | Prototype du moteur de lecture (Signalsmith et Rubber Band) | porté ; ses binaires Rubber Band servent au rendu « Appliquer » |
 | `web/spikes/analyse/` | Tempo, mesures, tonalité, accordage, accords | porté dans `app/src/analysis/` ; sert de référence aux tests |
-| `web/spikes/separation/` | Séparation des instruments dans le navigateur | prototype validé en qualité, trop lent |
+| `web/spikes/separation/` | Séparation des instruments dans le navigateur | porté dans `app/src/separation/` ; sert de référence à `test:separation-prototype` |
 | `.github/workflows/desktop-mac.yml` | Vérifie l'interface, fabrique et teste les deux apps sur les Mac de GitHub | fonctionne |
 
 ### Interface (`app/`)
@@ -60,8 +60,10 @@ retenir :
 - **Moteur audio** (`src/audio/`) : un seul AudioWorklet, Signalsmith Stretch,
   contexte à 48 kHz, boucle, métronome, limiteur sur le mélange. Porté du
   prototype, avec quatre corrections (pause, position après déplacement, repli
-  de boucle, traîne du limiteur). Rubber Band n'est pas porté : il reste dans
-  le prototype pour le lot 3.
+  de boucle, traîne du limiteur). Depuis le lot 3, il joue aussi **tel quel**
+  le rendu d'« Appliquer » (ni étirement ni transposition) tant que la
+  tonalité et le tempo en direct sont ceux du rendu ; tout reste en temps
+  source pour l'interface (position, boucle, clics).
 - **Import** (`src/import/`) : mp3, wav, aiff, m4a, flac (lecteur AIFF maison,
   Chromium ne le décode pas) ; lien par le pont de l'app Mac, avec
   installation de l'outil au premier usage et proposition de mise à jour.
@@ -71,8 +73,14 @@ retenir :
   réouverture au lancement avec une limite de temps par étape. En cas d'échec
   le morceau est conservé et la fenêtre propose « Rouvrir » ou « Oublier ».
   Toute nouvelle donnée du projet doit entrer dans `ProjectDocument` (version
-  2 depuis le lot 2) avec une migration, et dans `documentChanged`
-  (`store/document.ts`), sinon elle n'est pas sauvegardée.
+  3 depuis le lot 3) avec une migration, et dans `documentChanged`
+  (`store/document.ts`), sinon elle n'est pas sauvegardée. Les instruments
+  séparés sont gardés dans la même base (version 2, magasins `pcm` et
+  `pcmInfo`), en 16 bits, par blocs, et relus sans décodage.
+- **Une seule copie de l'audio décodé** (`src/audio/pcm.ts`) : 16 bits en
+  mémoire partagée, la même pour le moteur, la frise, l'analyse, la
+  séparation, le rendu et l'export. Ne jamais garder de copie Float32 d'une
+  piste entière : lire par plages (`readPcm`), écrire avec `PcmWriter`.
 - **Analyse** (`src/analysis/`) : dans un Web Worker, avec ONNX Runtime Web
   1.31.1 servi par l'app. Temps et premiers temps par Beat This! (réseau
   léger `small0` : le complet lit le tempo à moitié sur le morceau d'essai),
@@ -92,15 +100,38 @@ retenir :
 - **Export iReal Pro** (`src/export/`) : un fichier HTML contenant le lien
   `irealb://`, et « Ouvrir dans iReal Pro » dans l'app Mac. Le format et ses
   sources sont décrits dans `src/export/IREAL-FORMAT.md`.
+- **Séparation** (`src/separation/`) : dans un Web Worker, ONNX Runtime Web,
+  carte graphique (WebGPU) puis processeur **avec le même outil**. Trois
+  outils dans `models.json` (BS-RoFormer SW, HTDemucs 6 sources, SCNet),
+  choisis selon l'appareil (`device.ts`) ou à la main dans les réglages
+  avancés. La liste est aussi lue à distance (fichier du dépôt, branche
+  `main`), validée strictement, avec la copie embarquée en secours. Les
+  outils se téléchargent depuis Hugging Face, vérifiés par SHA-256, dans une
+  base à part. Les parties non demandées sont réunies dans « Autres ».
+  « Copier le rapport » donne la vitesse réelle d'une séparation.
+- **Rendu « Appliquer »** (`src/render/`) : Rubber Band R3 « finer » hors
+  ligne dans des workers (jusqu'à trois pistes à la fois), longueur exacte,
+  alignement mesuré et compensé, timbre conservé en option. Le rendu reste
+  **en mémoire** (jamais gardé), avec un refus calme si l'appareil est trop
+  petit ; tout changement de tonalité, de tempo ou de pistes le périme.
+- **Export audio** (`src/export/audio/`) : le mélange tel qu'on l'entend ou
+  les pistes à plein niveau en archive, morceau entier ou boucle, en WAV, MP3
+  (LAME, 256 kbit/s) ou FLAC (libFLAC), encodeurs WebAssembly dans un worker.
+  À une autre tonalité ou un autre tempo, l'export passe par le rendu.
 - Adresses utiles en développement : `?demo` (morceau synthétique déjà
   analysé), `?debug` (accès au magasin et au moteur par `window.__fabtice`),
   `?moteur=factice` (moteur sans son), `?analyse=reel` ou
   `factice|lente|instant|echec|aucune`. Avec `?debug`, `?demo` ou
-  `?moteur=factice`, l'analyse est factice sauf `?analyse=reel`.
-- Tests : `npm test` (près de 700 tests unitaires), puis après
+  `?moteur=factice`, l'analyse, la séparation et le rendu sont factices sauf
+  `?analyse=reel`, `?separation=reel`, `?rendu=reel`. Démonstrations du lot
+  3 : `?demo&separation=entier|faite|lente|repli|echec`, `&rendu=lent`,
+  `&export=ouvert`.
+- Tests : `npm test` (plus de 800 tests unitaires), puis après
   `npm run build` : `test:smoke`, `test:timeline`, `test:engine`,
-  `test:import`, `test:chart`, `test:export`, `test:analysis` (Chromium ;
-  ce dernier télécharge les outils d'analyse).
+  `test:import`, `test:chart`, `test:export`, `test:separation`,
+  `test:export-audio`, `test:render`, `test:memory` (Chromium), et ceux qui
+  téléchargent des outils : `test:analysis`, `test:separation-real`
+  (une dizaine de minutes), `test:separation-prototype`.
 
 ### App Mac (`desktop/`)
 
@@ -116,7 +147,11 @@ retenir :
   (recherche, préparation, téléchargement avec un vrai pourcentage), rapport
   du dernier import (copiable depuis « Diagnostic… »), `openInIRealPro`.
 - La politique de sécurité n'ouvre le réseau qu'à Hugging Face, pour les
-  outils d'analyse (`connect-src`, dans `src/protocol.js`).
+  outils d'analyse et de séparation, et à `raw.githubusercontent.com`, pour
+  la liste des outils de séparation (`connect-src`, dans `src/protocol.js`).
+- Les fichiers exportés passent par la fenêtre d'enregistrement de macOS
+  (`src/downloads.js`). Le rapport de la dernière séparation s'ajoute au
+  rapport de « Diagnostic… ».
 - yt-dlp n'est pas embarqué : le binaire officiel `yt-dlp_macos` est téléchargé
   dans le dossier de données de l'app, vérifié par SHA-256, avec nouvelles
   tentatives automatiques et proposition de mise à jour au lancement.
@@ -135,7 +170,11 @@ retenir :
   installation de l'outil, import, lecture, boucle, tonalité, relance et
   morceau retrouvé ; `real-size.test.js` le refait avec des morceaux de
   plusieurs Mo ; `analysis.test.js` fait une vraie analyse dans l'app (avec
-  `FABTICE_E2E_ANALYSIS=1`, lancé par le workflow sans être bloquant).
+  `FABTICE_E2E_ANALYSIS=1`) et `separation.test.js` une vraie séparation
+  (`FABTICE_E2E_SEPARATION=1`), lancés par le workflow sans être bloquants ;
+  `apply-render.test.js`, `audio-export.test.js` et
+  `separated-storage.test.js` vérifient le rendu, l'export et les
+  instruments gardés dans l'app.
 - On ne peut pas lire les journaux GitHub depuis la session : la fabrication
   pousse son résultat sur la branche `ci-logs`
   (`git fetch origin ci-logs && git show FETCH_HEAD:STATUS.md`).
@@ -145,9 +184,9 @@ retenir :
 ### Prototypes encore utiles
 
 - **Lecteur** (`web/spikes/lecteur/`) : Rubber Band 4.0 (GPL), mode R3, trop
-  lourd en direct mais meilleur en justesse ; réservé au rendu « Appliquer »
-  et à l'export (lot 3). Les moteurs sont compilés avec Zig (`engines/`), qui
-  n'est pas installé ici : les binaires versionnés sont réutilisés.
+  lourd en direct mais meilleur en justesse ; il sert au rendu « Appliquer »
+  et à l'export. Les moteurs sont compilés avec Zig (`engines/`), qui n'est
+  pas installé ici : le binaire versionné (sans SIMD) est réutilisé tel quel.
 - **Analyse** (`web/spikes/analyse/`) : le prototype d'origine, porté tel
   quel dans l'app. **Beat This!** (MIT, ONNX sur Hugging Face
   `nilsbc/beat-this-onnx`) et **CREMA** (BSD-2,
@@ -157,10 +196,10 @@ retenir :
   jazz ; extensions peu fiables. Ces conversions appartiennent à des tiers :
   une copie sous un compte du projet reste à décider avec le propriétaire.
 - **Séparation** (`web/spikes/separation/`) : ONNX Runtime Web, variante
-  `ort.webgpu` ; trois paliers (BS-RoFormer SW, HTDemucs 6, SCNet). Mesures et
-  problèmes : voir « Mesures de la phase 0 » dans `CLAUDE.md`. À traiter au
-  lot 3 : vitesse, mémoire sur iPhone, repli sur le processeur en gardant le
-  modèle.
+  `ort.webgpu` ; trois paliers (BS-RoFormer SW, HTDemucs 6, SCNet). Mesures :
+  voir « Mesures de la phase 0 » dans `CLAUDE.md`. L'app donne les mêmes
+  parties que ce prototype, au bruit de calcul près
+  (`npm run test:separation-prototype`).
 
 ## Pièges de l'environnement de travail
 
@@ -199,6 +238,13 @@ retenir :
   (`FABTICE_HOLD_WINDOW`) et l'ouvrent une fois attachés.
 - L'app Mac ne peut être essayée que par le propriétaire ; ici, seuls les tests
   avec faux yt-dlp et la fabrication sur GitHub sont possibles.
+- Les vérifications qui mesurent la fluidité ou le temps (`test:timeline`,
+  `test:engine`, la partie « 4 minutes » de `test:analysis`) échouent parfois
+  quand plusieurs agents chargent la machine : les relancer au calme avant de
+  chercher une panne.
+- La somme des parties d'une séparation ne redonne pas le morceau (HTDemucs
+  s'en écarte à −13 dB, comme dans le prototype) : ce n'est pas un test de
+  portage. Comparer au prototype.
 
 ## Plan de la v1
 
@@ -206,8 +252,8 @@ retenir :
 |---|---|---|
 | 1 | Socle, interface de la maquette, import (lien et fichier), lecteur avec boucle, tonalité, tempo, zoom, sous-grille ; app Mac en deux téléchargements | **livré, essayé par le propriétaire sur le Mac Intel, deux défauts corrigés** |
 | 2 | Analyse, corrections à la main, affichage Grille d'accords, export iReal Pro | **livré, en attente de ses essais** |
-| 3 | Séparation avec choix automatique du modèle, rendu « Appliquer », export audio | à lancer sur son feu vert |
-| 4 | Métronome avancé, repères, réglages, projets `.fabtice`, version web hors ligne, finitions | |
+| 3 | Séparation avec choix automatique du modèle, rendu « Appliquer », export audio | **livré, en attente de ses essais** |
+| 4 | Métronome avancé, repères, réglages, projets `.fabtice`, version web hors ligne, finitions | à lancer sur son feu vert |
 
 ## Lot 1 — ce qui a été livré
 
@@ -290,13 +336,57 @@ Limites connues :
 - L'impression n'a été vérifiée que dans Chromium.
 - Pas de détection automatique des sections.
 
-## Lot 3 — à préparer après son accord
+## Lot 3 — ce qui a été livré
 
-Séparation des instruments avec choix automatique du modèle, rendu
-« Appliquer » (Rubber Band R3), export audio. Voir « Mesures de la phase 0 »
-dans `CLAUDE.md` et le prototype `web/spikes/separation/` : la vitesse, la
-mémoire et le repli sur le processeur en gardant le modèle sont les trois
-problèmes à traiter. Le moteur et l'interface acceptent déjà plusieurs pistes.
+À l'import (case décochée par défaut, avec une estimation de l'attente) ou
+plus tard (« Séparer les instruments » sous les pistes), le morceau est séparé
+en instruments : voix, batterie, basse, guitare, piano, autres, selon l'outil.
+La séparation tourne en arrière-plan, le morceau reste jouable ; les
+instruments sont gardés sur l'appareil et reviennent à la réouverture ;
+« Revenir au morceau entier » et « Revoir les instruments » échangent les deux
+jeux de pistes sans recalcul. Quand la tonalité ou le tempo diffèrent de
+l'original, « Appliquer » recalcule les pistes avec Rubber Band derrière un
+écran d'attente annulable, puis le lecteur joue ce rendu tel quel.
+« Exporter » → « Le son… » fabrique le mélange, les pistes ou la boucle en
+WAV, MP3 ou FLAC, à la tonalité et au tempo choisis.
+
+Choix faits pendant le lot, à lui faire valider :
+
+- Les instruments non cochés sont réunis dans une piste « Autres ».
+- Les pistes exportées séparément sont à plein niveau (muet, solo et volume
+  ignorés) ; le mélange est exporté tel qu'on l'entend.
+- Une seule qualité par format : MP3 à 256 kbit/s constant, FLAC 16 bits.
+- Le rendu « Appliquer » vit **en mémoire**, pas dans des fichiers
+  temporaires comme l'écrit `CLAUDE.md` : un AudioWorklet ne lit pas de
+  fichier. Il n'est jamais gardé ; à la réouverture il est à refaire.
+- En quittant le rendu appliqué (nouveau réglage), la préécoute s'entend
+  0,2 à 0,35 s plus tard, sans coupure ni clic.
+- L'app Mac lit la liste des outils sur `raw.githubusercontent.com`.
+- « Vents » et les séparations détaillées (batterie détaillée, saxophone)
+  n'apparaissent pas : aucun outil de la liste ne les fournit. Les ajouter
+  demandera un outil, une entrée `kind: 'detail'` et un document version 4.
+
+Limites connues :
+
+- **Le chemin par la carte graphique n'a tourné nulle part** (ni carte
+  graphique ni Mac ici, et sans doute pas sur les Mac de GitHub). Tous les
+  cas d'échec repassent sur le processeur avec le même outil ; à essayer sur
+  le M1 du propriétaire, qui doit renvoyer « Copier le rapport ».
+- Sur le processeur, ici : SCNet 2 fois la durée du morceau, HTDemucs 2,7
+  fois, BS-RoFormer 17,7 fois ; mémoire de pointe +1,5 Go, +2,9 Go, +4,7 Go.
+  Les vitesses de `models.json` pour HTDemucs et SCNet sont des estimations.
+- **iPhone non résolu** : SCNet demande plus de 1,3 Go à lui seul (segment
+  fixe de 11 s). Il faudrait une autre conversion ou un outil plus léger.
+- « Appliquer » est long sur un gros morceau : ici 15 à 20 s de calcul par
+  minute de piste stéréo et par worker (sept pistes de cinq minutes : 5 à 6
+  minutes avec trois workers). À mesurer sur ses Mac. Pistes possibles :
+  ne rendre que la boucle, ou que les pistes audibles.
+- Alignement du rendu : chaque clic à moins de 2 ms, sauf à demi-vitesse
+  (pire écart 4 ms, la grille de Rubber Band).
+- Une archive exportée de plus de 4 Go est refusée (pas de ZIP64).
+- La vraie fenêtre d'enregistrement de macOS n'a pas pu être essayée ici.
+- Les 29 Mo du calcul graphique d'ONNX Runtime s'ajoutent à l'app (chargés
+  seulement pour une séparation).
 
 ## Points ouverts
 
@@ -308,8 +398,14 @@ problèmes à traiter. Le moteur et l'interface acceptent déjà plusieurs piste
   l'outil. Aucune ne doit contourner les protections de YouTube.
 - Essais du lot 2 par le propriétaire, en particulier l'analyse sur de vrais
   enregistrements de jazz et l'ouverture de la grille dans iReal Pro.
-- Quota Netlify épuisé jusqu'au 20 novembre ; trouver d'ici le lot 3 un moyen
-  d'essayer sur l'iPhone sans le consommer.
+- Essais du lot 3 par le propriétaire : une séparation sur le M1 (Chrome,
+  Safari, app Mac) et sur le Mac Intel, avec le texte de « Copier le
+  rapport » ; l'attente d'« Appliquer » ; l'écoute d'un MP3 exporté ; la
+  fenêtre d'enregistrement de l'app Mac.
+- Selon ses mesures : calcul natif dans l'app Mac pour la séparation si le
+  navigateur reste trop lent ; outil plus léger pour le téléphone.
+- Quota Netlify épuisé jusqu'au 20 novembre : la version web n'est pas
+  déployée, rien n'a donc pu être essayé sur l'iPhone.
 - Compte développeur Apple (99 $ par an) à décider avant une diffusion
   publique, pour supprimer l'avertissement de macOS.
 - Licences des modèles de séparation : le propriétaire a choisi de tout
