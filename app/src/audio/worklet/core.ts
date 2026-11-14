@@ -475,18 +475,25 @@ export class PlayerCore {
       this.path = 1;
     } else {
       if (!this.pLive) {
-        // Feed the stretchers so that, when they sound (after their latency `hold`), they are at the position
-        // the rendered audio will have reached: it goes on at its own tempo meanwhile.
-        const rate = this.rate;
-        const latSrc = this.lat.a * rate + this.lat.b;
-        const hold = Math.ceil(this.latencyOut(rate)) + 256;
+        // Feed the stretchers so that, when they sound (after their latency), they are at the position the rendered
+        // audio will have reached: it goes on at its own tempo meanwhile, while the tempo smoothing carries the
+        // live one to its target.
         const ratio = this.readRatio;
-        let c = this.apos + (ratio - rate) * hold + latSrc;
+        let quanta = Math.ceil((this.latencyOut(this.rateTarget) + 256) / N);
+        let plan = this.ratePlan(quanta);
+        quanta = Math.ceil((this.lat.a + this.lat.b / plan.rateEnd + 256) / N);
+        plan = this.ratePlan(quanta);
+        const hold = quanta * N;
+        const latSrc = this.lat.a * plan.rateEnd + this.lat.b;
+        let c = this.apos + ratio * hold + latSrc - plan.advance;
         const loopActive = L.enabled && this.apos < L.end;
-        if (loopActive && c >= L.end) c -= L.len;
+        this.wrapOut = -1;
+        if (loopActive && c >= L.end) {
+          c -= L.len;
+          this.wrapOut = this.outFrame - (c - L.start) / this.rate;
+        }
         this.ip = Math.floor(c);
         this.acc = c - this.ip;
-        this.wrapOut = -1;
         for (const t of this.tracks) t.needPrime = true;
         this.pLive = true;
         this.holdFrames = hold;
@@ -495,6 +502,18 @@ export class PlayerCore {
     }
     // the heard position comes from the cursor formulas now, not from the start of playback
     this.sinceStart = Number.MAX_SAFE_INTEGER / 2;
+  }
+
+  /** What the tempo smoothing will do over `quanta` quanta: the source frames the live tempo covers, and where it stands then. */
+  private ratePlan(quanta: number): { advance: number; rateEnd: number } {
+    let r = this.rate;
+    let advance = 0;
+    for (let i = 0; i < quanta; i++) {
+      const d = this.rateTarget - r;
+      r += Math.abs(d) <= 0.004 ? d : Math.sign(d) * 0.004;
+      advance += N * r;
+    }
+    return { advance, rateEnd: r };
   }
 
   /**

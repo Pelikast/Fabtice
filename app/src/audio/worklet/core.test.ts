@@ -570,7 +570,7 @@ describe('applied playback (« Appliquer »)', () => {
       worst = Math.max(worst, dev);
       if (rates[q] === rates[q - 1] && mix[q] === mix[q - 1] && Math.abs(rates[q]! - core.rate) < 1e-9 + 0.2) calmWorst = Math.max(calmWorst, dev);
     }
-    expect(worst, 'largest difference between a step of the heard position and N * rate (frames)').toBeLessThan(400);
+    expect(worst, 'largest difference between a step of the heard position and N * rate (frames)').toBeLessThan(60);
     expect(calmWorst, 'same, where the tempo and the route are steady (frames)').toBeLessThan(30);
     // and what is heard is where it says: the chirp's frequency gives the source second
     const win = 4096;

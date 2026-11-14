@@ -513,7 +513,11 @@ ajoutée n'a pas de rendu, donc le jeu cesse d'être entendu jusqu'à un nouveau
   bas : les étireurs doivent être nourris depuis la position entendue et
   mettent leur latence (152 ms à vitesse normale, 340 ms à 0,25 fois, mesurées)
   avant de sonner ; le rendu continue, à son propre tempo, pendant ce temps
-  (0,16 s à tempo 1, 0,18 s à 0,7), puis fondu de 15 ms.
+  (0,17 s vers un tempo de 0,9 ou 1, 0,22 s vers 0,5), puis fondu de 15 ms ;
+  le curseur des étireurs est calculé pour que leur son et le rendu se
+  retrouvent à la même position (le lissage du tempo est pris en compte :
+  l'écart entre les deux au moment du fondu est de 0,7 ms, contre 6 ms avant ce
+  calcul).
 - Le métronome suit le chemin le plus entendu : au changement, les clics pas
   encore commencés sont oubliés et placés de nouveau d'après la nouvelle
   position (aucun clic perdu ni doublé, mesuré sur quatre allers-retours).
@@ -524,10 +528,12 @@ Mesures (`npm test` : `audio/worklet/core.test.ts`, 13 vérifications du rendu ;
   l'arrondi 16 bits), retardé du seul limiteur ;
 - position entendue (`getPosition`) contre la fréquence d'un glissando qui dit
   la seconde source entendue, avant, pendant et après les deux passages : 1 à 3
-  ms d'écart en régime, **9 ms au plus aux passages** (un seul relevé à 36 ms
-  sur une dizaine, non reproduit : machine chargée) ; la position rapportée ne saute jamais (entre deux
-  relevés distants de moins de 20 ms, elle avance de ce que l'horloge dit à
-  0,7 ms près ; un saut de la latence du moteur serait de 152 ms) ;
+  ms d'écart en régime, 5 à 9 ms au plus aux passages (les instants où les deux
+  rendus sont mélangés pendant 15 ms ne sont pas comparés : une fréquence lue
+  sur 43 ms n'y veut rien dire) ; la position rapportée ne saute jamais (entre
+  deux relevés distants de moins de 20 ms, elle avance de ce que l'horloge dit à
+  12 ms près au pire sur plusieurs essais, le plus souvent à 1 ou 2 ms ; un saut
+  de la latence du moteur serait de 152 ms) ;
 - pas de discontinuité : le plus grand pas d'échantillon reste à **1,3 à 1,4
   fois** celui d'un sinus stable de 2 kHz (un clic serait bien plus), dans les
   deux sens (seuil du test : 1,5) ;
@@ -580,7 +586,7 @@ jamais la braise. Vérifié à 1280 × 800 et 390 × 844 (captures de `test:rend
    étireurs tournent déjà ; revenus du rendu ils ne tournent plus et leur latence
    (152 ms à vitesse normale) est incompressible avec le binaire actuel (`outputSeek` de
    Signalsmith, qui la supprimerait au prix d'un pic de calcul, n'est pas exporté
-   par le wasm). Le **nouveau réglage s'entend donc 0,16 s (tempo 1) à 0,35 s (0,25 fois) après le geste**
+   par le wasm). Le **nouveau réglage s'entend donc 0,17 s (vers 0,9 ou 1) à 0,22 s (vers 0,5), jusqu'à 0,35 s (0,25 fois) après le geste**
    (ancien rendu entre-temps), sans arrêt ni clic ni saut de position. Un
    changement continu (curseur) ne paie ce délai qu'une fois.
 2. *Même tonalité = mêmes demi-tons et cents au centième* : le moteur compare la

@@ -904,9 +904,14 @@ try {
         const [c0, p0] = series[idx - 1], [c1, p1] = series[idx];
         if (c1 - c0 > 4800 || c1 === c0) continue;
         const P = (p0 + ((p1 - p0) * (F - c0)) / (c1 - c0)) / 48000;
-        const keyAt = marks.find((m) => m[0] === 'key')[1] - first / 48000; // in recorder time
-        if (f > 300 && f < 4000 && !(t > keyAt - 0.2 && t < keyAt + 1.2)) {
-          // (the key change at the end moves the chirp up two semitones: not compared)
+        const at = (name) => marks.find((m) => m[0] === name)[1] - first / 48000; // clock time -> recorder time
+        const keyAt = at('key');
+        const toApplied = at('to applied');
+        const toPreview = at('to preview');
+        // not compared: the key change at the end (the chirp moves up two semitones) and the two crossfades, where
+        // two different renderings of the chirp are mixed for 15 ms and a frequency read over 43 ms means nothing
+        const mixing = (t > toApplied - 0.06 && t < toApplied + 0.06) || (t > toPreview + 0.12 && t < toPreview + 0.3);
+        if (f > 300 && f < 4000 && !mixing && !(t > keyAt - 0.2 && t < keyAt + 1.2)) {
           const err = Math.abs(P - heardSec) * 1000;
           rows.push([+t.toFixed(2), +((P - heardSec) * 1000).toFixed(1)]);
           if (err > worst) { worst = err; worstAt = t; }

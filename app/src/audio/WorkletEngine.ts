@@ -373,6 +373,7 @@ export class WorkletEngine implements AudioEngine {
       if (t.pcm.frames === 0 || t.pcm.channelCount < 1 || t.pcm.channelCount > 2) throw new EngineFailure('load', `rendered track ${t.id}: empty or ${t.pcm.channelCount} channels`);
     }
     if (!(set.tempoRatio >= 0.25 && set.tempoRatio <= 2)) throw new EngineFailure('load', `rendered set: tempo ${set.tempoRatio}`);
+    if (!this.node) throw new EngineFailure('context', 'no audio worklet to play the rendered audio');
     const token = this.loadToken;
     this.applied = { semitones: set.semitones, cents: set.cents, tempoRatio: set.tempoRatio, tracks: new Map(set.tracks.map((t) => [t.id, t.pcm])) };
     this.post({
@@ -381,7 +382,14 @@ export class WorkletEngine implements AudioEngine {
       ratio: set.tempoRatio,
       tracks: set.tracks.map((t) => ({ id: t.id, frames: t.pcm.frames, mono: t.pcm.mono, chunks: t.pcm.chunks })),
     });
-    await this.roundTrip();
+    try {
+      await this.roundTrip();
+    } catch (e) {
+      // not sure what the audio thread holds: nothing, on both sides
+      this.applied = null;
+      this.post({ type: 'rendered-clear' });
+      throw e;
+    }
     if (token !== this.loadToken) throw new EngineFailure('load', 'the tracks were replaced while the rendered audio was sent');
   }
 
