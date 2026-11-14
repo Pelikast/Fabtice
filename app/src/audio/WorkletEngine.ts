@@ -454,7 +454,7 @@ export class WorkletEngine implements AudioEngine {
         const timer = setTimeout(() => reject(new EngineFailure('context', 'the audio worklet did not start in time')), 30000);
         this.onReady = (m) => {
           clearTimeout(timer);
-          this.diag = { loadAvg: 0, loadMax: 0, overBudget: 0, activeTracks: 0, missingChunks: 0, wasmBytes: m.wasmBytes, latencyA: m.latencyA, latencyB: m.latencyB };
+          this.diag = { loadAvg: 0, loadMax: 0, overBudget: 0, activeTracks: 0, missingChunks: 0, wasmBytes: m.wasmBytes, latencyA: m.latencyA, latencyB: m.latencyB, applied: 0 };
           resolve();
         };
       });
