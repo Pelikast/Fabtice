@@ -459,6 +459,44 @@ try {
     await context.close();
   }
 
+  // ------------------------------------------------------------ pieces of real size come back (the browser keeps big values apart)
+  // A stored piece once never came back: the browser hands large values over
+  // after the transaction that read them completes, and fixtures of a few kB
+  // never took that path. Sizes here: a few hundred kB, a few MB, tens of MB.
+  for (const seconds of [3, 35, 180]) {
+    const big = path.join(work, `taille-reelle-${seconds}.wav`);
+    writeTone(big, { kind: 'wav', seconds });
+    const size = fs.statSync(big).size;
+    // A persistent profile: a throw-away context keeps its database in memory,
+    // where large values are never set apart, and could not show the fault.
+    const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'fabtice-import-profile-'));
+    const persistent = await chromium.launchPersistentContext(profile, { args: ['--no-sandbox'], viewport: { width: 1280, height: 800 } });
+    const { page, context, errors } = await open({ context: persistent });
+    await pickFile(page, big);
+    const id = await pieceOpen(page, null, 120000);
+    await sleep(1200);
+    const stored = await page.evaluate(
+      () =>
+        new Promise((resolve) => {
+          const open = indexedDB.open('fabtice');
+          open.onsuccess = () => {
+            const all = open.result.transaction('audio').objectStore('audio').getAll();
+            all.onsuccess = () => resolve(all.result.map((a) => a.bytes.byteLength));
+          };
+        }),
+    );
+    check(`real size ${(size / 1e6).toFixed(1)} MB: the whole file is stored`, stored.length === 1 && stored[0] === size, JSON.stringify(stored));
+    const t0 = Date.now();
+    await page.reload();
+    await page.waitForFunction(() => window.__fabtice);
+    await pieceOpen(page, null, 20000).catch(() => {});
+    const back = await state(page);
+    check(`real size ${(size / 1e6).toFixed(1)} MB: comes back by itself after a reload, within a few seconds`, back.project?.id === id && Date.now() - t0 < 20000, `${back.project?.id === id ? 'back' : 'NOT back'} after ${((Date.now() - t0) / 1000).toFixed(1)} s, dialog ${(await dialogOpen(page)) ? 'open' : 'closed'}`);
+    check(`real size ${(size / 1e6).toFixed(1)} MB: dialog closed, no page errors`, !(await dialogOpen(page)) && errors.length === 0, errors.join(' | '));
+    await context.close();
+    fs.rmSync(profile, { recursive: true, force: true });
+  }
+
   // ------------------------------------------------------------ the kept piece cannot be reopened
   {
     const { page, context } = await open();
