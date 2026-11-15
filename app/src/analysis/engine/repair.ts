@@ -61,8 +61,6 @@ export interface RepairOptions {
   fit: number;
   /** The same, for the bar repair (led by the downbeat evidence, which then has to agree). */
   barFit: number;
-  /** The tempo repair changes the count only if a found interval deviates from the surrounding tempo by more than this (|ln|). */
-  gross: number;
   /** Downbeat evidence (log-likelihood, nats) needed to overrule the timing decision. */
   veto: number;
   /** Bars on each side of a passage whose downbeat evidence is weighed. */
@@ -77,7 +75,7 @@ export const REPAIR: RepairOptions = {
   window: 12,
   flag: Math.log(1.3),
   gap: 3,
-  extend: 2,
+  extend: 0,
   context: 8,
   contextMin: 4,
   steady: Math.log(1.2),
@@ -85,9 +83,8 @@ export const REPAIR: RepairOptions = {
   maxBeats: 16,
   fit: 0.2,
   barFit: 0.3,
-  gross: 0,
-  veto: 1,
-  bars: 4,
+  veto: 2,
+  bars: 12,
   maxShift: 2,
   regularize: true,
 };
@@ -231,8 +228,8 @@ export function repairTempo(beats: readonly number[], m: number, downAt: Downbea
   const repairs: RepairedPassage[] = [];
   let previousEnd = 0;
   for (const [a, b] of runs) {
-    // The two beats kept on either side: the run's ends, or up to `gap` beats further out when
-    // the run's own end beats are off (the last beat of a burst is rarely on a true beat).
+    // The two beats kept on either side: the run's ends, or (`extend` > 0, off by default:
+    // measured, it breaks more than it mends without downbeat evidence) a few beats further out.
     let pick: { s: number; e: number; before: number; after: number; k: number; misfit: number } | null = null;
     for (let ext = 0; ext <= o.extend; ext++) {
       for (let ds = 0; ds <= ext; ds++) {
@@ -260,13 +257,6 @@ export function repairTempo(beats: readonly number[], m: number, downAt: Downbea
     if (found === 1 && k === 1) continue; // one interval, nothing inside to place
     const inner = fillBeats(beats[s]!, beats[e]!, k, before, after);
     if (found === k && !o.regularize) continue; // the count is right: the bars are not moved, the beats stay as found
-    if (found !== k && o.gross > 0) {
-      // A count is changed only against a gross error of the found beats (a beat too many or too few shows as one).
-      const p = Math.sqrt(before * after);
-      let worst = 0;
-      for (let j = s; j < e; j++) worst = Math.max(worst, Math.abs(Math.log(d[j]! / p)));
-      if (worst < o.gross) continue;
-    }
     if (downAt) {
       const asFound = evidence(beats, s, e, beats.slice(s + 1, e), m, o, downAt);
       const asFilled = evidence(beats, s, e, inner, m, o, downAt);

@@ -24,7 +24,7 @@ function activations(r: Recorded): BeatActivations {
   return { beat: Float32Array.from(r.beat), down: Float32Array.from(r.down), frames: r.beat.length, fps: recorded.fps };
 }
 
-const results = Object.entries(recorded.cases as Record<string, Recorded>).map(([name, r]) => {
+const results = Object.entries(recorded.cases as unknown as Record<string, Recorded>).map(([name, r]) => {
   const act = activations(r);
   const c: Case = {
     name,
