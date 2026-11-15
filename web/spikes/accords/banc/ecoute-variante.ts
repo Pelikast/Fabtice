@@ -13,7 +13,8 @@ import { join } from 'node:path';
 import { bassBeats } from '../../../../app/src/analysis/engine/bassline';
 import { applyBassCue, blendUnits, selectHarmony, stemFeatures, type BassCueOptions, type StemFeatures } from '../../../../app/src/analysis/engine/listen';
 import type { DecodeOptions } from '../../../../app/src/analysis/engine/decode';
-import { beatUnits, chartFromUnits, frameChroma } from '../../../../app/src/analysis/engine/pipeline';
+import type { HarmonyListening } from '../../../../app/src/analysis/engine/chart';
+import { beatUnits, chartFromUnits, frameChroma, gridFromActivations, type NetworkOutputs } from '../../../../app/src/analysis/engine/pipeline';
 import { listen, lowAudio } from './ecoute';
 import { output, prepare, segmentsOf } from './lib';
 import { DATA } from './paths';
@@ -38,6 +39,28 @@ export function stemsOf(input: VariantInput, which: 'ideales' | 'reelles'): Part
   const dir = join(DATA, 'separes', 'htdemucs-6s', input.id, input.condition);
   if (!ALL.every((s) => existsSync(join(dir, `${s}.flac`)))) return {};
   return Object.fromEntries(ALL.map((s) => [s, join(dir, `${s}.flac`)]));
+}
+
+/**
+ * As the app's worker does after a separation: the network on each part but
+ * the drums and the bass, the harmony parts chosen from what it heard, then
+ * the network on the remix of those parts and the bass. Null without stems.
+ */
+export async function harmonyOf(input: VariantInput, o: NetworkOutputs, stems: Partial<Record<StemName, string>>): Promise<HarmonyListening | null> {
+  void input;
+  const grid = gridFromActivations(o.act).grid;
+  const mixUnits = beatUnits(o.frames, o.timeScale, grid);
+  const feats: Record<string, StemFeatures> = {};
+  for (const [name, path] of Object.entries(stems) as [StemName, string][]) {
+    if (name === 'drums' || name === 'bass') continue;
+    const l = await listen({ paths: [path] }, o.tuning);
+    feats[name] = stemFeatures(l.frames, l.rms, beatUnits(l.frames, l.timeScale, grid), mixUnits, grid.numbers);
+  }
+  const pick = selectHarmony(feats) as StemName[];
+  if (!pick.length) return null;
+  if (stems.bass) pick.push('bass');
+  const l = await listen({ paths: pick.map((s) => stems[s]!) }, o.tuning);
+  return { frames: l.frames, timeScale: l.timeScale, stems: pick };
 }
 
 export function listening(cfg: ListeningConfig): Variant {

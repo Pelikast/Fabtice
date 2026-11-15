@@ -11,6 +11,9 @@
 // ported: the default never uses them.
 
 import { AnalysisError, type AnalysisStep } from '../types';
+import { bassBand } from './bassband';
+import { bassAudio } from './bassline';
+import type { BassListening, HarmonyListening } from './chart';
 import { beatLogits, downProbAt, logMel, postMinimal, type BeatActivations } from './beats';
 import { cremaFrames, poolSegments, type ChordFrames, type PooledUnit } from './chords';
 import { buildSegments, decodeChords, type ChordSegment, type DecodeOptions } from './decode';
@@ -53,6 +56,19 @@ export interface NetworkOutputs {
   frames: ChordFrames;
   /** Tuning correction stretched the audio by this factor (original time × timeScale = model time). */
   timeScale: number;
+  /** What else the chord analysis listens to (`chart.ts`): absent in outputs kept from before. */
+  listening?: Listening;
+}
+
+/** The harmony parts of a separation and the bass line (see `chart.ts`). */
+export interface Listening {
+  harmony: HarmonyListening | null;
+  bass: BassListening | null;
+}
+
+/** The bass register of the mix at the bass estimate's rate (no separation). */
+export function bandBass(audio44: Float32Array): BassListening {
+  return { low: bassAudio(bassBand(audio44, 44100), 44100), from: 'band' };
 }
 
 /** Beat stage: log-mel graph, then the beat network. */
@@ -182,5 +198,7 @@ export async function runNetworks(ort: OrtLike, sessions: Sessions, audio22: Flo
   const act = await beatStage(ort, sessions, audio22, ctl);
   ctl.step('chords');
   const { frames, timeScale } = await chordStage(ort, sessions, audio44, tuning, ctl);
-  return { tuning, act, frames, timeScale };
+  ctl.check();
+  const bass = bandBass(audio44);
+  return { tuning, act, frames, timeScale, listening: { harmony: null, bass } };
 }

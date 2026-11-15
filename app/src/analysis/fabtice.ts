@@ -119,7 +119,7 @@ export class FabticeAnalyzer implements Analyzer {
       let message: ToWorker;
       let transfer: Transferable[] = [];
       if (reuse) {
-        message = { type: 'decode', outputs: reuse.outputs, duration: reuse.duration, models: reuse.models, grid: request.grid ?? null, key: request.key ?? null } satisfies DecodeRequestMessage;
+        message = { type: 'decode', outputs: reuse.outputs, duration: reuse.duration, models: reuse.models, grid: request.grid ?? null, key: request.key ?? null, known: request.knownCharts ?? null } satisfies DecodeRequestMessage;
       } else {
         const mono = await this.mix(channels, length, signal);
         message = {
@@ -130,6 +130,7 @@ export class FabticeAnalyzer implements Analyzer {
           beatModel: this.beatModel,
           grid: request.grid ?? null,
           key: request.key ?? null,
+          known: request.knownCharts ?? null,
         } satisfies AnalyseRequestMessage;
         transfer = [mono.buffer];
       }

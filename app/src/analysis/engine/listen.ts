@@ -5,6 +5,7 @@
 // carry the harmony, and pools the evidence. Pure.
 
 import type { BassBeat } from './bassline';
+import type { EvidenceSource } from './evidence';
 import { N_CHORDS, NO_CHORD, chordPcs, chordRoot, type ChordFrames, type PooledUnit } from './chords';
 
 /** What the selector reads from one part. */
@@ -161,6 +162,46 @@ export function applyBassCue(
     }
     return { ...u, logp };
   });
+}
+
+/**
+ * The same cue as a source of evidence (`evidence.ts`): per beat, log(floor +
+ * the chord's bass support), « no chord » left at 0, and the weight of the
+ * beat's position times how clearly the bass sounds. `applyEvidence` with it
+ * gives the decoder exactly what `applyBassCue` gives.
+ */
+export function bassSource(
+  bass: readonly BassBeat[],
+  numbers: readonly number[],
+  beatsPerBar: number,
+  options: Partial<BassCueOptions> = {},
+): EvidenceSource {
+  const o = { ...BASS_CUE, ...options };
+  const tones: number[][] = [];
+  for (let c = 0; c < NO_CHORD; c++) tones.push(chordPcs(c));
+  const logp: (Float64Array | null)[] = [];
+  const weight: number[] = [];
+  for (let i = 0; i < numbers.length; i++) {
+    const b = bass[i];
+    if (!b) {
+      logp.push(null);
+      weight.push(0);
+      continue;
+    }
+    const q = Float64Array.from(b.pcs, (v) => b.strength * v + (1 - b.strength) / 12);
+    const l = new Float64Array(N_CHORDS);
+    for (let c = 0; c < NO_CHORD; c++) {
+      const t = tones[c]!;
+      let s = q[t[0]!]!;
+      for (let k = 1; k < t.length; k++) s += o.tones * q[t[k]!]!;
+      l[c] = Math.log(o.floor + s);
+    }
+    const nb = numbers[i]!;
+    const pos = nb === 1 ? o.positions[0] : beatsPerBar % 2 === 0 && nb === beatsPerBar / 2 + 1 ? o.positions[1] : o.positions[2];
+    logp.push(l);
+    weight.push(o.weight * pos);
+  }
+  return { name: 'bass', logp, weight };
 }
 
 /**

@@ -9,6 +9,7 @@
 import type { AnalysisResult } from '../../model/analysis';
 import type { Key } from '../../model/harmony';
 import type { BeatModelChoice } from '../models';
+import type { KnownCharts } from '../engine/chart';
 import type { NetworkOutputs } from '../engine/pipeline';
 import type { AnalysisErrorCode, AnalysisStep, DownloadProgress, GridHint } from '../types';
 
@@ -20,6 +21,7 @@ export interface AnalyseRequestMessage {
   beatModel: BeatModelChoice;
   grid: GridHint | null;
   key: Key | null;
+  known: KnownCharts | null;
   /** Length of the piece in seconds. */
   duration: number;
 }
@@ -32,6 +34,7 @@ export interface DecodeRequestMessage {
   models: string[];
   grid: GridHint | null;
   key: Key | null;
+  known: KnownCharts | null;
 }
 
 export type ToWorker = AnalyseRequestMessage | DecodeRequestMessage | { type: 'cancel' };

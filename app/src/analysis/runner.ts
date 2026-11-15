@@ -19,6 +19,7 @@ import { beatGridOf } from '../grid/beats';
 import { applyAnalysis, setAnalysisRun } from '../store/analysisActions';
 import { appStore, type AppState } from '../store/store';
 import { autoAnalysisDisabled, getAnalyzer } from './index';
+import { knownChartsFor } from './knownCharts';
 import { analysisProgressStore, setAnalysisProgress } from './progress';
 import { AnalysisError, type AnalysisProgress, type AnalysisRequest } from './types';
 
@@ -84,12 +85,18 @@ export async function runAnalysis(): Promise<void> {
     if (running === mine) running = null;
     return;
   }
+  const knownCharts = await knownChartsFor(project.title);
+  if (!stillMine()) {
+    if (running === mine) running = null;
+    return;
+  }
   const request: AnalysisRequest = {
     channels: [mono],
     sampleRate: audio.sampleRate,
     audioId: track.audio.id,
     grid: userGrid ? beatGridOf(s.tempoMap, project.duration) : null,
     key: s.corrections.key,
+    knownCharts,
     onProgress,
     signal: abort.signal,
   };
