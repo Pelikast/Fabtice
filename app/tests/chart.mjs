@@ -273,7 +273,8 @@ try {
     const items = await page.$$eval('.menu-export [role="menuitem"]', (els) => els.map((e) => `${e.dataset.export}:${e.disabled}:${e.querySelector('small')?.textContent ?? ''}`));
     // The iReal Pro entry is a link to the page it writes (tests/export.mjs checks it); an anchor has no `disabled`.
     // Lot 3: the sound is available too (« Exporter le son », tests/separation.mjs).
-    check('Exporter: iReal Pro is a link, printing and the sound available', items.join('|') === 'ireal:undefined:|print:false:|audio:false:', items.join('|'));
+    // Lot 4: « Enregistrer le projet… » first, off for the demo piece (never kept nor saved), saying why.
+    check('Exporter: the project (off for the demo), iReal Pro is a link, printing and the sound available', items.join('|') === 'project:true:pas pour la démonstration|ireal:undefined:|print:false:|audio:false:', items.join('|'));
     await page.keyboard.press('Escape');
 
     check('no page errors (desktop)', errors.length === 0, errors.join(' | '));

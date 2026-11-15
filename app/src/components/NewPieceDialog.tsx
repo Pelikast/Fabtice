@@ -118,7 +118,7 @@ function Choices({ open, desktop }: { open: boolean; desktop: boolean }) {
   // Lot 4: a `.fabtice` project, offered calmly after the main way in. Its file picker is made on the
   // spot (`chooseProjectFile`): the dialog keeps a single file field, the audio one.
   const projectLine = (
-    <div className="sinon ouvrir-projet">
+    <div className="ouvrir-projet">
       {t('new.openProjectLead')}{' '}
       <button className="lien" data-testid="ouvrir-projet" onClick={chooseProjectFile}>
         {t('new.openProject')}
