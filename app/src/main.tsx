@@ -7,6 +7,8 @@ import * as actions from './store/actions';
 import { checkToolUpdate } from './import/controller';
 import { refreshModelList } from './separation/models';
 import { setLanguage } from './i18n';
+import * as standardsLibrary from './standards/library';
+import { initStandards } from './standards/offer';
 import { startStorage } from './storage';
 import { appStore } from './store/store';
 import { persistPreferences } from './store/preferences';
@@ -25,6 +27,8 @@ const params = new URLSearchParams(window.location.search);
 const localPage = ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname);
 const testAddress = params.has('debug') || params.has('demo') || params.get('moteur') === 'factice' || localPage;
 if (!testAddress || params.get('outils') === 'distant') void refreshModelList();
+// The chord charts of standards: what is on the device, and the remote list of collections (same rule as above).
+void initStandards({ remoteList: !testAddress || params.get('outils') === 'distant' });
 // The dialog stays closed from the first paint instead of flashing: it opens
 // once we know whether a piece is kept on the device (see storage/restore.ts).
 appStore.setState((s) => ({ ui: { ...s.ui, newPieceOpen: false } }));
@@ -35,7 +39,7 @@ if (params.has('demo')) {
 } else {
   // `?debug`: the same handle as `?demo` (store, engine, actions) for the browser checks, without the demo piece.
   if (params.has('debug')) {
-    window.__fabtice = { store: appStore, engine: getEngine(), actions, ready: Promise.resolve() };
+    window.__fabtice = { store: appStore, engine: getEngine(), actions, standards: standardsLibrary, ready: Promise.resolve() };
     void import('./demo/start').then((m) => {
       if (window.__fabtice) window.__fabtice.lot3 = m.lot3Handle;
     });

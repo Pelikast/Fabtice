@@ -17,6 +17,7 @@
 import { getEngine } from '../audio';
 import { onAudioChange } from '../audio/registry';
 import { snapTime } from '../grid/lines';
+import { loopFromDrag, loopWithEdgeAt, type LoopEdge, type LoopSnap } from '../grid/loops';
 import type { Seconds, TimeRange } from '../model/project';
 import { applyAutoFit, enterLoop, seek, setLoopRegion, setZoom } from '../store/actions';
 import { selectChartBars, selectDisplayContext, selectHasChords } from '../store/chartSelectors';
@@ -28,19 +29,16 @@ import { clamp, meterAtBar, nominalBpm } from '../grid/tempoMap';
 import {
   DRAG_THRESHOLD_PX,
   EDGE_GRAB_PX,
-  adjustLoopEdge,
   clampT0,
   fitToView,
   followT0,
   hitLoopEdge,
-  loopFromDrag,
   pxPerSecondForBarWidth,
   sliderAnchorX,
   timeToX,
   wheelPixels,
   wheelZoomFactor,
   xToTime,
-  type LoopEdge,
 } from './geometry';
 import { chordMarkup } from './chordMarkup';
 import { ChordLayer } from './chordLayer';
@@ -77,7 +75,7 @@ interface Lane {
 type Gesture =
   | { kind: 'press'; pointerId: number; region: Region; startX: number; startY: number; startTime: Seconds; at: number; touch: boolean }
   | { kind: 'select'; pointerId: number; startTime: Seconds; last: TimeRange | null }
-  | { kind: 'edge'; pointerId: number; edge: LoopEdge; origin: TimeRange; last: TimeRange | null }
+  | { kind: 'edge'; pointerId: number; edge: LoopEdge; origin: TimeRange; offset: Seconds; last: TimeRange | null }
   | { kind: 'pan'; pointerId: number; lastX: number; velocity: number; lastAt: number }
   | { kind: 'pinch'; pps0: number; dist0: number; anchorTime: Seconds };
 
@@ -742,7 +740,9 @@ export class TimelineController {
     const edge = this.edgeAt(e.clientX, region, touch);
     const loop = this.s.loop.region;
     if (edge && loop) {
-      this.gesture = { kind: 'edge', pointerId: e.pointerId, edge, origin: { ...loop }, last: null };
+      // The edge follows the pointer from where it was grabbed, not from the pointer's own place.
+      const offset = (edge === 'start' ? loop.start : loop.end) - this.timeAt(e.clientX);
+      this.gesture = { kind: 'edge', pointerId: e.pointerId, edge, origin: { ...loop }, offset, last: null };
       this.root.style.cursor = 'ew-resize';
       this.userScrolled();
       return;
@@ -807,9 +807,12 @@ export class TimelineController {
     const g = this.gesture;
     if (!g || (g.kind !== 'select' && g.kind !== 'edge')) return;
     const t = this.timeAt(clientX);
-    const map = this.s.tempoMap;
+    const { tempoMap: map, view } = this.s;
     const duration = this.duration;
-    const next = g.kind === 'select' ? loopFromDrag(map, g.startTime, t, duration) : adjustLoopEdge(map, g.origin, g.edge, t, duration);
+    // The magnet that moves the playhead cuts the loop too: the active sub-grid when on, free when off.
+    const snap: LoopSnap = view.snap ? { subdivision: view.subdivision, triplets: view.triplets } : null;
+    const next =
+      g.kind === 'select' ? loopFromDrag(map, g.startTime, t, duration, snap) : loopWithEdgeAt(map, g.origin, g.edge, t + g.offset, duration, snap);
     if (g.last && Math.abs(g.last.start - next.start) < 1e-9 && Math.abs(g.last.end - next.end) < 1e-9) return;
     g.last = next;
     setLoopRegion(next);

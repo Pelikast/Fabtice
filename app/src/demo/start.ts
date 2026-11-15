@@ -37,6 +37,7 @@ import { getProjectStorage } from '../storage';
 import * as exportActions from '../store/exportActions';
 import * as separationActions from '../store/separationActions';
 import { appStore } from '../store/store';
+import * as standardsLibrary from '../standards/library';
 import * as actions from '../store/actions';
 import * as analysisActions from '../store/analysisActions';
 import * as gridActions from '../store/gridActions';
@@ -54,6 +55,8 @@ declare global {
       lot2?: { analysis: typeof analysisActions; grid: typeof gridActions; harmony: typeof harmonyActions };
       /** Lot 3: separation, « Appliquer », audio export, the audio registry and the storage. */
       lot3?: typeof lot3Handle;
+      /** The library of known chord charts (`?debug`): `findStandard`, `standardsStatus`… */
+      standards?: typeof standardsLibrary;
       ready: Promise<void>;
     };
   }

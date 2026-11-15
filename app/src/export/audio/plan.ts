@@ -1,6 +1,7 @@
 // What « Exporter le son » makes, from the state and the choices: pure,
 // tested in Node.
 
+import { formatLoop } from '../../grid/loopText';
 import { t } from '../../i18n';
 import type { ExportPreferences } from '../../model/audioExport';
 import type { Track } from '../../model/project';
@@ -46,7 +47,7 @@ export function planAudioExport(s: AppState, prefs: ExportPreferences, chosen: r
   const range = loop ?? { start: 0, end: project.duration };
   const { semitones, cents, tempoRatio } = s.playback;
   const base = safeFileName(project.title);
-  const suffix = `${loop ? ` – ${t('exportAudio.nameLoop')}` : ''}${changesSuffix(semitones, cents, tempoRatio)}`;
+  const suffix = `${loop ? ` – ${t('exportAudio.nameLoop')} ${formatLoop(s.tempoMap, loop).text}` : ''}${changesSuffix(semitones, cents, tempoRatio)}`;
   const ext = prefs.format;
   let files: ExportFileSpec[];
   let archiveName: string | null = null;

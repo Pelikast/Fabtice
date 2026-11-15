@@ -1,6 +1,7 @@
 import { useCallback, useRef } from 'react';
 import { getEngine } from '../audio';
-import { formatClock, formatLoopBars, formatPosition, formatSigned } from '../grid/format';
+import { formatClock, formatPosition, formatSigned } from '../grid/format';
+import { formatLoop } from '../grid/loopText';
 import { decimalSeparator, formatNumber, t } from '../i18n';
 import type { Subdivision } from '../model/project';
 import {
@@ -56,7 +57,9 @@ function PositionReadout() {
   const timeRef = useRef<HTMLSpanElement>(null);
   const barRef = useRef<HTMLElement>(null);
   const beatRef = useRef<HTMLElement>(null);
-  const loopText = useApp((s) => (s.loop.enabled && s.loop.region ? formatLoopBars(s.tempoMap, s.loop.region) : null));
+  const loopText = useApp((s) => (s.loop.enabled && s.loop.region ? formatLoop(s.tempoMap, s.loop.region).text : null));
+  const loopLong = useApp((s) => (s.loop.enabled && s.loop.region ? formatLoop(s.tempoMap, s.loop.region).long : undefined));
+  const loopWhole = useApp((s) => s.loop.region !== null && formatLoop(s.tempoMap, s.loop.region).whole);
   const engineError = useApp((s) => (s.transport.engine === 'error' ? (s.transport.error?.code ?? 'runtime') : null));
 
   useFrame(() => {
@@ -86,9 +89,10 @@ function PositionReadout() {
         <span className="ou">
           {t('pos.bar')} <b ref={barRef} /> · {t('pos.beat')} <b ref={beatRef} />
           {loopText && (
-            <span>
-              {' '}
-              · {t('pos.loop')} <b>{loopText}</b>
+            // Whole bars read in line (« boucle 5–8 »); a longer reading goes under the position.
+            <span className={`boucle-texte${loopWhole ? '' : ' hors-ligne'}`} data-testid="boucle-texte" title={loopLong}>
+              {loopWhole ? ' · ' : ''}
+              {t('pos.loop')} <b>{loopText}</b>
             </span>
           )}
         </span>

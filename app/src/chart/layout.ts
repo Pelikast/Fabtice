@@ -9,7 +9,7 @@
 // corrected (first beat moved, tempo doubled…).
 
 import { barStartTime, barToBeat, beatToBar, beatToTime, meterAtBar, timeToBar, timeToBeat } from '../grid/tempoMap';
-import { barsOfRange } from '../grid/lines';
+import { loopCoverage, type LoopCoverage } from '../grid/loops';
 import type { AnalysedChord } from '../model/analysis';
 import type { Corrections, SectionMark } from '../model/corrections';
 import type { ChordSymbol } from '../model/harmony';
@@ -167,9 +167,26 @@ export function chartLines(bars: readonly ChartBar[], perLine = BARS_PER_LINE): 
   return lines;
 }
 
-/** Bars covered by the loop (inclusive), or null when there is no loop to show. */
-export function loopBars(map: TempoMap, region: TimeRange | null, enabled: boolean): { first: number; last: number } | null {
-  return region && enabled ? barsOfRange(map, region) : null;
+/**
+ * Bars touched by the loop (inclusive) and how much of the first and last
+ * one is inside it (fractions of the bar), or null when there is no loop to show.
+ */
+export function loopBars(map: TempoMap, region: TimeRange | null, enabled: boolean): LoopCoverage | null {
+  return region && enabled ? loopCoverage(map, region) : null;
+}
+
+/** The part of bar `bar` that is looped, as fractions of its width (a whole bar: 0 to 1), or null when none of it is. */
+export function loopedPart(loop: LoopCoverage | null, bar: number): { from: number; to: number } | null {
+  if (!loop || bar < loop.first || bar > loop.last) return null;
+  return { from: bar === loop.first ? loop.from : 0, to: bar === loop.last ? loop.to : 1 };
+}
+
+/** The loop coverage as a string and back: a selector must return something React can compare. */
+export const loopKey = (l: LoopCoverage | null): string => (l ? `${l.first}:${l.last}:${l.from}:${l.to}` : '');
+export function loopFromKey(key: string): LoopCoverage | null {
+  if (!key) return null;
+  const [first, last, from, to] = key.split(':').map(Number) as [number, number, number, number];
+  return { first, last, from, to };
 }
 
 /** Bar index and progress through it (0…1) at a source time: drives the current-bar hairline. */

@@ -4,7 +4,8 @@
 
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { deliverable, ExportError, exportWithApp, hasEncoder, planAudioExport, type Delivered } from '../export/audio';
-import { formatLoopBars, formatSigned } from '../grid/format';
+import { formatSigned } from '../grid/format';
+import { formatLoop } from '../grid/loopText';
 import { formatNumber, t } from '../i18n';
 import { AUDIO_FORMATS, type AudioFormat, type ExportPreferences } from '../model/audioExport';
 import { setExportProgress, useRenderProgress } from '../render/progress';
@@ -26,7 +27,11 @@ function ExportAudioBox() {
   const prefs = useApp((s) => s.exportPrefs);
   const tracks = useApp((s) => s.tracks);
   const hasLoop = useApp((s) => s.loop.region !== null);
-  const loopText = useApp((s) => (s.loop.region ? formatLoopBars(s.tempoMap, s.loop.region) : null));
+  const loopNote = useApp((s) => {
+    if (!s.loop.region) return null;
+    const l = formatLoop(s.tempoMap, s.loop.region);
+    return t(l.whole ? 'exportAudio.loopBars' : 'exportAudio.loopSpan', l.whole ? { bars: l.text } : { span: l.text });
+  });
   const semitones = useApp((s) => s.playback.semitones);
   const cents = useApp((s) => s.playback.cents);
   const ratio = useApp((s) => s.playback.tempoRatio);
@@ -117,7 +122,7 @@ function ExportAudioBox() {
                 on={prefs.range === 'loop' && hasLoop}
                 disabled={!hasLoop}
                 label={t('exportAudio.loop')}
-                note={loopText ? t('exportAudio.loopBars', { bars: loopText }) : t('exportAudio.noLoop')}
+                note={loopNote ?? t('exportAudio.noLoop')}
                 onPick={() => set({ range: 'loop' })}
               />
             </div>

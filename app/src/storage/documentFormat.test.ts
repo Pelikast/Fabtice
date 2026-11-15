@@ -24,6 +24,13 @@ describe('reading a stored document', () => {
     expect(readDocument(json(doc))).toEqual(doc);
   });
 
+  it('keeps a loop that is not made of whole bars exactly as it was cut, and reads a loop of whole bars the same way', () => {
+    for (const region of [{ start: 2.3125, end: 6.4375 }, { start: 2.123456789012, end: 2.5 }, { start: 2, end: 6 }]) {
+      const doc = { ...sampleDocument(), loop: { region, enabled: true } };
+      expect(readDocument(json(doc))?.loop).toEqual({ region, enabled: true });
+    }
+  });
+
   it('ignores a version written by a newer app (null, not an error)', () => {
     expect(readDocument(json({ ...sampleDocument(), version: 4 }))).toBeNull();
     expect(readDocument(json({ ...sampleDocument(), version: 99, anything: 'else' }))).toBeNull();

@@ -26,7 +26,7 @@ const check = (name, cond, detail = '') => {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const near = (a, b, tol) => Math.abs(a - b) <= tol;
 
-// TIMELINE_ONLY=desktop|chords|stress|phone runs one section (handy when debugging).
+// TIMELINE_ONLY=desktop|chords|stress|loops|phone runs one section (handy when debugging).
 const only = process.env.TIMELINE_ONLY || '';
 const want = (name) => !only || only === name;
 const chordsWanted = () => !only || only === 'chords';
@@ -238,16 +238,20 @@ try {
     });
     check('playhead drawn at the new position', near(headX, xOfTime(g, pos), 1.2), `${headX.toFixed(1)} vs ${xOfTime(g, pos).toFixed(1)}`);
 
-    // ---- Drag selects bars (lanes, mouse)
+    // ---- Drag selects a loop on the active sub-grid (eighths here), lanes and mouse
+    const beatDur = 60 / g.bpm;
+    const barDur = g.beats * beatDur;
+    const snapTo = (t, step) => g.first + Math.round((t - g.first) / step) * step;
+    const eighth = beatDur / 2;
     await page.mouse.move(xOfTime(g, barTime(g, 10) + 1.0), laneY);
     await page.mouse.down();
     await page.mouse.move(xOfTime(g, barTime(g, 12) + 0.5), laneY, { steps: 6 });
     let reg = (await state(page)).loop.region;
-    check('dragging on the lanes selects whole bars while moving', near(reg.start, barTime(g, 10), 1e-6) && near(reg.end, barTime(g, 13), 1e-6), JSON.stringify(reg));
+    check('dragging on the lanes selects a loop on the eighth sub-grid while moving', near(reg.start, snapTo(barTime(g, 10) + 1.0, eighth), 1e-6) && near(reg.end, snapTo(barTime(g, 12) + 0.5, eighth), 1e-6) && !near(reg.start, barTime(g, 10), 0.01), JSON.stringify(reg));
     await page.mouse.move(xOfTime(g, barTime(g, 8) + 0.2), laneY, { steps: 6 });
     await page.mouse.up();
     reg = (await state(page)).loop.region;
-    check('dragging backwards selects from the first bar touched', near(reg.start, barTime(g, 8), 1e-6) && near(reg.end, barTime(g, 11), 1e-6), JSON.stringify(reg));
+    check('dragging backwards selects from the point where the drag ended to where it began', near(reg.start, snapTo(barTime(g, 8) + 0.2, eighth), 1e-6) && near(reg.end, snapTo(barTime(g, 10) + 1.0, eighth), 1e-6), JSON.stringify(reg));
     // The click target is where the pointer went down, never where it was released:
     // the playhead either stays (inside the new loop) or goes to the loop start.
     {
@@ -267,21 +271,29 @@ try {
     await page.mouse.move(xOfTime(g, barTime(g, 16) + 0.5), g.mesTop + 12, { steps: 5 });
     await page.mouse.up();
     reg = (await state(page)).loop.region;
-    check('dragging in the bars row selects bars', near(reg.start, barTime(g, 14), 1e-6) && near(reg.end, barTime(g, 17), 1e-6), JSON.stringify(reg));
+    check('dragging in the bars row selects on the sub-grid too', near(reg.start, snapTo(barTime(g, 14) + 0.5, eighth), 1e-6) && near(reg.end, snapTo(barTime(g, 16) + 0.5, eighth), 1e-6), JSON.stringify(reg));
+    // Whole bars are still one drag away: bar lines are lines of the sub-grid.
+    await page.mouse.move(xOfTime(g, barTime(g, 14) + 0.1), g.mesTop + 12);
+    await page.mouse.down();
+    await page.mouse.move(xOfTime(g, barTime(g, 17) - 0.1), g.mesTop + 12, { steps: 5 });
+    await page.mouse.up();
+    reg = (await state(page)).loop.region;
+    check('a drag from bar line to bar line makes a loop of whole bars (read as « 15–17 »)', near(reg.start, barTime(g, 14), 1e-6) && near(reg.end, barTime(g, 17), 1e-6) && (await page.locator('[data-testid="boucle-texte"]').innerText()).includes('15–17'), `${JSON.stringify(reg)} ${await page.locator('[data-testid="boucle-texte"]').innerText()}`);
 
-    // ---- Edge drag adjusts the loop bar by bar
+    // ---- Edge drag moves the edge by the same amount, on the sub-grid
     const endX = xOfTime(g, reg.end);
     await page.mouse.move(endX - 1, g.mesTop + 12);
     check('cursor on a loop edge', (await page.evaluate(() => document.querySelector('.frise').style.cursor)) === 'ew-resize');
+    await page.mouse.move(endX, g.mesTop + 12);
     await page.mouse.down();
-    await page.mouse.move(endX + (barTime(g, 2) - barTime(g, 0)) * g.pps - 6, g.mesTop + 12, { steps: 6 });
+    await page.mouse.move(endX + barDur * 2 * g.pps, g.mesTop + 12, { steps: 6 });
     await page.mouse.up();
     let reg2 = (await state(page)).loop.region;
     check('dragging the right edge extends the loop by two bars', near(reg2.start, barTime(g, 14), 1e-6) && near(reg2.end, barTime(g, 19), 1e-6), JSON.stringify(reg2));
     const startX2 = xOfTime(g, reg2.start);
-    await page.mouse.move(startX2 + 1, laneY);
+    await page.mouse.move(startX2, laneY);
     await page.mouse.down();
-    await page.mouse.move(startX2 + (barTime(g, 1) - barTime(g, 0)) * g.pps + 4, laneY, { steps: 6 });
+    await page.mouse.move(startX2 + barDur * g.pps, laneY, { steps: 6 });
     await page.mouse.up();
     reg2 = (await state(page)).loop.region;
     check('dragging the left edge on the lanes shortens the loop by one bar', near(reg2.start, barTime(g, 15), 1e-6) && near(reg2.end, barTime(g, 19), 1e-6), JSON.stringify(reg2));
@@ -298,6 +310,171 @@ try {
     await page.click('[aria-label="Lecture en boucle"]');
     await sleep(350);
     check('loop back on: full strength', Number(await page.evaluate(() => getComputedStyle(document.querySelector('.frise-voile')).opacity)) === 1);
+
+    // ---- Loops follow the magnetism: sub-grid when on, free when off (mouse), read-out, edges, minimum length
+    {
+      await page.evaluate(() => window.__fabtice.actions.setLoopRegion(null));
+      // Four bars across the lanes: a sixteenth is about 15 px.
+      await page.evaluate((v) => window.__fabtice.actions.setZoom(v), Math.floor((g.width - 70) / (barTime(g, 4) - barTime(g, 0))));
+      await page.evaluate(() => window.__fabtice.actions.seek(0));
+      await sleep(250);
+      const z = await geo(page);
+      const beat = 60 / z.bpm;
+      const sixteenth = beat / 4;
+      const snapAt = (t) => z.first + Math.round((t - z.first) / sixteenth) * sixteenth;
+      const readOut = async () => (await page.locator('[data-testid="boucle-texte"]').innerText()).replace(/\s+/g, ' ').trim();
+      const loopNow = async () => (await state(page)).loop.region;
+      const drag = async (fromT, toT, y = laneY) => {
+        // From nothing: a press near an edge of a loop would grab that edge.
+        await page.evaluate(() => window.__fabtice.actions.setLoopRegion(null));
+        await page.mouse.move(xOfTime(z, fromT), y);
+        await page.mouse.down();
+        await page.mouse.move(xOfTime(z, toT), y, { steps: 8 });
+        await page.mouse.up();
+        await sleep(120);
+      };
+      const T1 = barTime(z, 1) + beat; // bar 2, beat 2
+      await page.selectOption('.choix select', '4'); // sixteenths
+      const T2 = barTime(z, 3) + 2 * beat + 3 * sixteenth; // bar 4, beat 3 and three sixteenths
+      await drag(T1 + 0.01, T2 - 0.012, laneY);
+      let r = await loopNow();
+      check('sub-grid loop: from beat 2 of bar 2 to the 4th sixteenth of beat 3 of bar 4 (sixteenths, mouse on the lanes)', near(r.start, T1, 1e-6) && near(r.end, T2, 1e-6), `${r.start} ${r.end} vs ${T1} ${T2}`);
+      check('sub-grid loop: read as « 2.2 à 4.3 (4e double) »', (await readOut()).includes('boucle 2.2 à 4.3 (4e double)'), await readOut());
+      const title = await page.locator('[data-testid="boucle-texte"]').getAttribute('title');
+      check('sub-grid loop: the title spells it out', title === 'de la mesure 2, temps 2, à la mesure 4, temps 3, 4e double', title);
+      const bandBox = await page.locator('.frise-bande').boundingBox();
+      const veilBox = await page.locator('.frise-voile').boundingBox();
+      check('sub-grid loop: the band and the veil start and end on the sub-grid, not on bars', near(bandBox.x, xOfTime(z, T1), 1.5) && near(bandBox.width, (T2 - T1) * z.pps, 2) && near(veilBox.x, bandBox.x, 1) && near(veilBox.width, bandBox.width, 1));
+      await page.screenshot({ path: path.join(out, 'loop-subgrid-sixteenths-1280.png') });
+      // The same on the bars row.
+      await page.evaluate(() => window.__fabtice.actions.setLoopRegion(null));
+      await drag(T1 - 0.01, T2 + 0.012, z.mesTop + 12);
+      r = await loopNow();
+      check('sub-grid loop: the bars row cuts on the sub-grid too', near(r.start, T1, 1e-6) && near(r.end, T2, 1e-6), `${r.start} ${r.end}`);
+
+      // Triplets: eighth-note triplets, to the third triplet of beat 3.
+      await page.selectOption('.choix select', '2');
+      await page.click('.bascule');
+      await sleep(100);
+      const T2t = barTime(z, 3) + 2 * beat + (2 / 3) * beat;
+      await drag(T1 + 0.01, T2t - 0.01, laneY);
+      r = await loopNow();
+      check('triplets: from beat 2 of bar 2 to the third triplet of beat 3 of bar 4', near(r.start, T1, 1e-6) && near(r.end, T2t, 1e-6), `${r.start} ${r.end} vs ${T2t}`);
+      check('triplets: read as « 2.2 à 4.3 (3e triolet) »', (await readOut()).includes('boucle 2.2 à 4.3 (3e triolet)'), await readOut());
+      await page.screenshot({ path: path.join(out, 'loop-triplets-1280.png') });
+      await page.click('.bascule');
+      await page.selectOption('.choix select', '4');
+
+      // Magnet off: free, to the pixel.
+      await page.click('[aria-label^="Magnétisme"]');
+      const x1 = xOfTime(z, T1) + 0.4 * sixteenth * z.pps;
+      const x2 = xOfTime(z, T2) + 0.3 * sixteenth * z.pps;
+      await page.mouse.move(x1, laneY);
+      await page.mouse.down();
+      await page.mouse.move(x2, laneY, { steps: 8 });
+      await page.mouse.up();
+      await sleep(120);
+      r = await loopNow();
+      check('free loop (magnet off): the ends are where the pointer was, off the grid', near(r.start, timeOfX(z, x1), 1e-6) && near(r.end, timeOfX(z, x2), 1e-6) && Math.abs(r.start - T1) > 0.3 * sixteenth, `${r.start} ${r.end}`);
+      check('free loop: read with « ≈ » and the nearest sixteenth', (await readOut()).includes('≈'), await readOut());
+      await page.screenshot({ path: path.join(out, 'loop-free-1280.png') });
+      // Free edges: the edge moves exactly with the pointer.
+      const edgeX = xOfTime(z, r.end);
+      await page.mouse.move(edgeX, laneY);
+      await page.mouse.down();
+      await page.mouse.move(edgeX + 37.3, laneY, { steps: 6 });
+      await page.mouse.up();
+      await sleep(120);
+      let r2 = await loopNow();
+      check('free edge drag: the end moves exactly with the pointer, the start stays', near(r2.start, r.start, 1e-9) && near(r2.end, r.end + 37.3 / z.pps, 1e-6), `${r2.end - r.end} vs ${37.3 / z.pps}`);
+      const sx = xOfTime(z, r2.start);
+      await page.mouse.move(sx, z.mesTop + 12);
+      await page.mouse.down();
+      await page.mouse.move(sx - 22.6, z.mesTop + 12, { steps: 6 });
+      await page.mouse.up();
+      await sleep(120);
+      let r3 = await loopNow();
+      check('free edge drag, bars row: the start moves exactly with the pointer', near(r3.start, r2.start - 22.6 / z.pps, 1e-6) && near(r3.end, r2.end, 1e-9), `${r3.start - r2.start} vs ${-22.6 / z.pps}`);
+      await page.click('[aria-label^="Magnétisme"]'); // magnet on again
+
+      // Edge drags with the magnet: to the nearest line of the sub-grid.
+      await drag(T1 + 0.01, T2 - 0.012, laneY);
+      r = await loopNow();
+      const endEdgeX = xOfTime(z, r.end);
+      await page.mouse.move(endEdgeX, laneY);
+      await page.mouse.down();
+      await page.mouse.move(endEdgeX + 2.3 * sixteenth * z.pps, laneY, { steps: 6 });
+      await page.mouse.up();
+      await sleep(120);
+      r2 = await loopNow();
+      check('edge drag with the magnet: the end goes to the nearest sixteenth line (2.3 steps -> 2)', near(r2.end, r.end + 2 * sixteenth, 1e-6) && near(r2.start, r.start, 1e-9), `${(r2.end - r.end) / sixteenth} steps`);
+      const startEdgeX = xOfTime(z, r2.start);
+      await page.mouse.move(startEdgeX, z.mesTop + 12);
+      await page.mouse.down();
+      await page.mouse.move(startEdgeX - 5.6 * sixteenth * z.pps, z.mesTop + 12, { steps: 6 });
+      await page.mouse.up();
+      await sleep(120);
+      r3 = await loopNow();
+      check('edge drag with the magnet (bars row): the start goes to the nearest sixteenth line (5.6 steps -> 6)', near(r3.start, r2.start - 6 * sixteenth, 1e-6) && near(r3.end, r2.end, 1e-9), `${(r2.start - r3.start) / sixteenth} steps`);
+
+      // Pushing an edge through the other: the loop keeps its minimum length.
+      await page.mouse.move(xOfTime(z, r3.start), z.mesTop + 12);
+      await page.mouse.down();
+      await page.mouse.move(xOfTime(z, r3.end) + 40, z.mesTop + 12, { steps: 6 });
+      await page.mouse.up();
+      await sleep(120);
+      r = await loopNow();
+      check('an edge pushed past the other leaves at least the minimum length, on the sub-grid', near(r.end, r3.end, 1e-9) && r.end - r.start >= 0.1 && r.end - r.start < 0.2 && near((r.end - r.start) / sixteenth, Math.round((r.end - r.start) / sixteenth), 1e-6), `${r.end - r.start} s`);
+
+      // A drag that comes back to where it began: one step, never a tiny loop; a plain click: no loop change, the playhead moves.
+      const back = barTime(z, 2) + beat;
+      await page.mouse.move(xOfTime(z, back), laneY);
+      await page.mouse.down();
+      await page.mouse.move(xOfTime(z, back) + 30, laneY, { steps: 4 });
+      await page.mouse.move(xOfTime(z, back) + 1, laneY, { steps: 4 });
+      await page.mouse.up();
+      await sleep(120);
+      r = await loopNow();
+      check('a drag back to its start leaves a loop of one sub-grid step (a sixteenth), on the grid', near(r.end - r.start, sixteenth, 1e-6) && near(r.start, back, 1e-6), `${r.end - r.start} s`);
+      const keep = JSON.stringify(await loopNow());
+      await page.mouse.click(xOfTime(z, barTime(z, 0) + 3 * beat), laneY);
+      await sleep(100);
+      check('a click without drag leaves the loop alone and moves the playhead', JSON.stringify(await loopNow()) === keep && near(await position(page), snapAt(barTime(z, 0) + 3 * beat), 1e-6), `${await position(page)}`);
+
+      // The loop is heard where it was cut: play it at double speed and watch where the position goes.
+      await drag(T1 + 0.01, T2 - 0.012, laneY);
+      const heard = await page.evaluate(
+        async ([a, b]) => {
+          const f = window.__fabtice;
+          f.actions.setTempoRatio(2);
+          f.engine.seek(a);
+          await f.engine.play();
+          const seen = [];
+          let wraps = 0;
+          let last = a;
+          const t0 = performance.now();
+          while (performance.now() - t0 < 3600) {
+            await new Promise((res) => setTimeout(res, 20));
+            const p = f.engine.getPosition();
+            if (p < last - 0.5) wraps++;
+            last = p;
+            seen.push(p);
+          }
+          f.engine.pause();
+          f.actions.setTempoRatio(1);
+          return { wraps, min: Math.min(...seen), max: Math.max(...seen), a, b };
+        },
+        [T1, T2],
+      );
+      check('the engine loops on the cut bounds: the position wraps and stays inside', heard.wraps >= 1 && heard.min >= T1 - 0.06 && heard.max <= T2 + 0.06, JSON.stringify(heard));
+      await page.evaluate(() => window.__fabtice.actions.seek(0));
+
+      // Back to the state the rest of this section expects.
+      await page.selectOption('.choix select', '2');
+      await page.evaluate(() => window.__fabtice.actions.setLoopRegion(null));
+      await page.evaluate(() => window.__fabtice.actions.setAuto(true));
+      await sleep(250);
+    }
 
     // ---- Muted and silenced lanes drop to 22 %
     await page.click('.piste-tete >> nth=1 >> .muet');
@@ -366,11 +543,14 @@ try {
     const tBefore = (await geo(page)).t0;
     await page.mouse.move(thumb.x + thumb.width / 2, thumb.y + thumb.height / 2);
     await page.mouse.down();
-    await page.mouse.move(thumb.x + thumb.width / 2 + 120, thumb.y + thumb.height / 2, { steps: 5 });
+    // Towards the side where there is room (the loop selected above may have turned the page to the end).
+    const room = barBox.width - thumb.width - (thumb.x - barBox.x);
+    const dragBy = room > 130 ? 120 : -120;
+    await page.mouse.move(thumb.x + thumb.width / 2 + dragBy, thumb.y + thumb.height / 2, { steps: 5 });
     await page.mouse.up();
     await sleep(100);
     const tAfter = (await geo(page)).t0;
-    check('dragging the scrollbar thumb scrolls', tAfter > tBefore + 1, `${tBefore.toFixed(2)} -> ${tAfter.toFixed(2)} s`);
+    check('dragging the scrollbar thumb scrolls', Math.abs(tAfter - tBefore) > 1 && (dragBy > 0) === (tAfter > tBefore), `${tBefore.toFixed(2)} -> ${tAfter.toFixed(2)} s`);
     await page.mouse.click(barBox.x + 4, barBox.y + barBox.height / 2);
     await sleep(100);
     check('clicking the scrollbar rule pages back', (await geo(page)).t0 < tAfter);
@@ -693,7 +873,7 @@ try {
     // ---- bars and beats of the analysed map drive the grid, the snapping and the selection
     {
       const { page, context, errors } = await open({ width: 1280, height: 800 }, { query: '?demo' });
-      await page.evaluate(() => window.__fabtice.actions.setZoom(120));
+      await page.evaluate(() => window.__fabtice.actions.setZoom(90)); // beats 9 to 17 (about 4 s) in view
       await page.evaluate(() => window.__fabtice.actions.seek(0));
       await sleep(300);
       const g = await page.evaluate(() => {
@@ -735,14 +915,14 @@ try {
       await sleep(200);
       const pos = await position(page);
       check('analysed beats: a click snaps to the analysed beat', near(pos, target, 0.012), `${pos.toFixed(3)} vs ${target.toFixed(3)}`);
-      // Selecting bars in the chord row selects whole analysed bars.
+      // Selecting in the chord row follows the analysed beats (quarter-note sub-grid, magnet on).
       await page.mouse.move(px(g.bt[9]) + 3, g.mesY - 30);
       await page.mouse.down();
       await page.mouse.move(px(g.bt[17]) + 3, g.mesY - 30, { steps: 8 });
       await page.mouse.up();
       await sleep(200);
       const loop = (await state(page)).loop.region;
-      check('analysed bars: dragging across the chord row selects whole bars on the analysed grid', loop && near(loop.start, g.bt[8], 0.012) && near(loop.end, g.bt[20], 0.012), JSON.stringify(loop));
+      check('analysed beats: dragging across the chord row selects from beat to beat on the analysed grid', loop && near(loop.start, g.bt[9], 0.012) && near(loop.end, g.bt[17], 0.012), JSON.stringify(loop) + ' bt ' + [8, 9, 10, 16, 17, 18].map((i) => g.bt[i].toFixed(3)));
       check('no page errors (grid)', errors.length === 0, errors.join(' | '));
       await context.close();
     }
@@ -1065,6 +1245,70 @@ try {
     await context.close();
   }
 
+  // ------------------------------------------------------------ a loop that is not made of whole bars is kept, and found again after a reload
+  if (want('loops')) {
+    const SWING = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../../web/spikes/analyse/demo/demo-swing.mp3');
+    const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+    const page = await context.newPage();
+    const errors = [];
+    page.on('pageerror', (e) => errors.push(e.message));
+    await page.goto(`${url}/?debug&moteur=factice&analyse=aucune`);
+    await page.waitForFunction(() => window.__fabtice, null, { timeout: 15000 });
+    await page.locator('.accueil input[type="file"]').setInputFiles(SWING);
+    await page.waitForFunction(() => window.__fabtice.store.getState().project !== null && window.__fabtice.store.getState().transport.engine === 'ready', null, { timeout: 30000 });
+    await page.waitForFunction(() => document.querySelector('.frise')?.dataset.peaks === 'ready', null, { timeout: 30000 });
+    const s0 = await state(page);
+    check('reload: a plain fixed grid, no analysis (the loop is read on it)', s0.tempoMap.segments.length === 1 && s0.analysis === null, `${s0.tempoMap.segments.length} segments`);
+    await page.evaluate(() => window.__fabtice.actions.setSubdivision(4));
+    await page.evaluate(() => window.__fabtice.actions.setZoom(100));
+    await page.evaluate(() => window.__fabtice.actions.seek(0));
+    await sleep(300);
+    const z = await geo(page);
+    const beat = 60 / z.bpm;
+    const T1 = barTime(z, 1) + beat;
+    const T2 = barTime(z, 3) + 2 * beat + 0.75 * beat;
+    const laneY = z.lanesTop + z.laneH / 2;
+    await page.mouse.move(xOfTime(z, T1 + 0.01), laneY);
+    await page.mouse.down();
+    await page.mouse.move(xOfTime(z, T2 - 0.012), laneY, { steps: 8 });
+    await page.mouse.up();
+    await sleep(150);
+    const made = (await state(page)).loop.region;
+    check('reload: the loop is cut on the sixteenth sub-grid with the mouse', near(made.start, T1, 1e-6) && near(made.end, T2, 1e-6), JSON.stringify(made));
+    await page.screenshot({ path: path.join(out, 'loop-before-reload-1280.png') });
+    await sleep(2500); // autosave is debounced
+    await page.reload();
+    await page.waitForFunction(() => window.__fabtice && window.__fabtice.store.getState().project !== null && window.__fabtice.store.getState().transport.engine === 'ready', null, { timeout: 30000 });
+    const back = await state(page);
+    check('reload: the loop comes back to the sample, still on', JSON.stringify(back.loop) === JSON.stringify({ region: made, enabled: true }), JSON.stringify(back.loop));
+    check('reload: the transport reads it as before', (await page.locator('[data-testid="boucle-texte"]').innerText()).includes('2.2 à 4.3 (4e double)'), await page.locator('[data-testid="boucle-texte"]').innerText());
+    const snap = await page.evaluate(() => window.__fabtice.engine.snapshot());
+    check('reload: the engine got the same bounds', snap.loop && near(snap.loop.start, made.start, 1e-9) && near(snap.loop.end, made.end, 1e-9), JSON.stringify(snap.loop));
+    // A free loop (magnet off) is kept as freely as it was cut.
+    await page.evaluate(() => window.__fabtice.actions.setSubdivision(4));
+    await page.click('[aria-label^="Magnétisme"]');
+    await page.evaluate(() => window.__fabtice.actions.setZoom(100));
+    await page.evaluate(() => window.__fabtice.actions.setLoopRegion(null));
+    await sleep(200);
+    const z2 = await geo(page);
+    const fx1 = 400.37;
+    const fx2 = 811.91;
+    await page.mouse.move(fx1, z2.lanesTop + z2.laneH / 2);
+    await page.mouse.down();
+    await page.mouse.move(fx2, z2.lanesTop + z2.laneH / 2, { steps: 8 });
+    await page.mouse.up();
+    await sleep(150);
+    const free = (await state(page)).loop.region;
+    check('reload: a free loop is where the pointer was', near(free.start, timeOfX(z2, fx1), 1e-6) && near(free.end, timeOfX(z2, fx2), 1e-6), JSON.stringify(free));
+    await sleep(2500);
+    await page.reload();
+    await page.waitForFunction(() => window.__fabtice && window.__fabtice.store.getState().project !== null && window.__fabtice.store.getState().transport.engine === 'ready', null, { timeout: 30000 });
+    const back2 = await state(page);
+    check('reload: the free loop comes back to the last digit', JSON.stringify(back2.loop.region) === JSON.stringify(free), JSON.stringify(back2.loop.region));
+    check('no page errors (loops)', errors.length === 0, errors.join(' | '));
+    await context.close();
+  }
+
   // ------------------------------------------------------------ phone, 390 × 844, touch
   if (want('phone')) {
     const { page, context, errors } = await open({ width: 390, height: 844 }, { touch: true, dpr: 2 });
@@ -1112,8 +1356,24 @@ try {
     await touch('touchEnd', []);
     await sleep(200);
     const rg = (await state(page)).loop.region;
-    const gbar = (t) => Math.round(((t - g2.first) * g2.bpm) / 60 / g2.beats);
-    check('touch: dragging in the bars row selects whole bars', rg && gbar(rg.start) !== gbar(st.loop.region.start) && near(rg.end - rg.start, Math.round((rg.end - rg.start) / ((g2.beats * 60) / g2.bpm)) * ((g2.beats * 60) / g2.bpm), 1e-6), JSON.stringify(rg));
+    const eighthT = 60 / g2.bpm / 2;
+    const snapT = (t) => g2.first + Math.round((t - g2.first) / eighthT) * eighthT;
+    check(
+      'touch: dragging in the bars row selects a loop on the sub-grid (the finger\'s two ends, snapped to eighths)',
+      rg && near(rg.start, snapT(timeOfX(g2, g2.left + 60)), 1e-6) && near(rg.end, snapT(timeOfX(g2, g2.left + 60 + 160)), 1e-6) && JSON.stringify(rg) !== JSON.stringify(st.loop.region),
+      JSON.stringify(rg),
+    );
+    // A finger on the loop's end edge drags it by the same amount, snapped.
+    g2 = await geo(page);
+    const edgeX = g2.left + (rg.end - g2.t0) * g2.pps;
+    if (edgeX < g2.left + g2.width - 80) {
+      await touch('touchStart', [[edgeX, rowY]]);
+      for (let i = 1; i <= 4; i++) await touch('touchMove', [[edgeX + i * 10, rowY]]);
+      await touch('touchEnd', []);
+      await sleep(200);
+      const rg2 = (await state(page)).loop.region;
+      check('touch: a finger on the end edge moves it on the sub-grid', near(rg2.start, rg.start, 1e-9) && near(rg2.end, snapT(rg.end + 40 / g2.pps), 1e-6) && rg2.end > rg.end, JSON.stringify(rg2));
+    }
 
     // Pinch zooms around the fingers.
     g2 = await geo(page);

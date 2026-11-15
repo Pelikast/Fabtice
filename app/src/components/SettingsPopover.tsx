@@ -3,7 +3,9 @@ import { t } from '../i18n';
 import type { MinorNotation } from '../model/project';
 import { getRenderer } from '../render';
 import { useMainTools, useSeparationChoice } from '../separation/useChoice';
-import { openNewPiece, setFollow, setMinorNotation, togglePanel } from '../store/actions';
+import { openStandardsPanel } from '../standards/offer';
+import { closePanel, openNewPiece, setFollow, setMinorNotation, togglePanel } from '../store/actions';
+import { StandardsSettingsEntry } from './StandardsOffer';
 import { setFormants, setSeparationModel } from '../store/separationActions';
 import { useApp } from '../store/store';
 import { useFitPanel } from '../ui/useFitPanel';
@@ -94,6 +96,12 @@ function AdvancedSettings() {
             </select>
             {autoChoice && <small>{t('settings.toolAutoWhy', { name: autoChoice.model.name, reason: autoChoice.reason })}</small>}
           </label>
+          <StandardsSettingsEntry
+            onOpen={() => {
+              closePanel();
+              openStandardsPanel();
+            }}
+          />
           {getRenderer().supportsFormants && (
             <label className="option option-colonne">
               <span className="option-ligne">

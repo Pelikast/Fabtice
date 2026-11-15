@@ -12,6 +12,7 @@ import { getModelList } from '../separation/models';
 import { estimateWait, useSeparationChoice } from '../separation/useChoice';
 import { toggleImportStem } from '../store/separationActions';
 import { offeredStems, StemChips } from './SeparationPanel';
+import { StandardsCard } from './StandardsOffer';
 
 /**
  * « Nouveau morceau »: a link (Mac app only) or an audio file. Shown over the
@@ -178,6 +179,7 @@ function Choices({ open, desktop }: { open: boolean; desktop: boolean }) {
             </button>
           </div>
         )}
+        {open && <StandardsCard />}
         <ImportStems />
         <div className="pied">
           <span>{t('new.formats')}</span>
@@ -194,6 +196,7 @@ function Choices({ open, desktop }: { open: boolean; desktop: boolean }) {
         {t('new.chooseFileButton')}
       </button>
       {fileInput}
+      {open && <StandardsCard />}
       <ImportStems />
       <div className="pied">
         <span>{t('new.formats')}</span>

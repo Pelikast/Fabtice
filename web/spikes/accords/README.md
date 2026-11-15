@@ -218,6 +218,16 @@ de synthèse, un accord sur deux est faux. Ce qu'on apprend :
 - Les styles les plus durs : modal (voicings en quartes), swing rapide,
   valses ; les plus faciles : ballades, jazz traditionnel à trois accords.
 
+## Preuves de structure : reprises et grilles connues
+
+Les moyens 2 et 3 du programme (reprises de la grille, grille d'un standard retrouvée
+par le titre) et la fiabilité qui les réunit ont leur propre évaluation, sur le
+partage dev / contrôle `banc/partage.json` : `node recueils/telecharger.mjs` (une
+fois : les recueils, copies publiques figées, dans `data/recueils/`, jamais dans le
+dépôt), puis `node banc/build-structure.mjs && node dist/structure.mjs --fit`.
+Variantes pour `run.mjs` : `reprises`, `grille-connue`, `reprises-et-grille`.
+Résultats : `resultats/structure.md`.
+
 ## Réglages de difficulté
 
 Chaque morceau a ses réglages dans `corpus/charts.py` (`knobs`), expliqués en

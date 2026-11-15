@@ -181,6 +181,15 @@ export type PagePrintOrientation = 'portrait' | 'landscape';
 /** What a printing of the chart answers: done, or why not (the user closed the panel; the system refused). */
 export type ChartPrintResult = { ok: true } | { ok: false; reason: 'cancelled' | 'failed' };
 
+// ---------------------------------------------------------------- chart collections
+
+/** Why the Mac app could not give a page's text (`desktop/src/standards-fetch.js`). */
+export type StandardsFetchError = 'invalid-url' | 'host-not-allowed' | 'redirect' | 'http' | 'too-large' | 'timeout' | 'network';
+
+export type StandardsFetchResult =
+  | { ok: true; text: string; /** The address finally read (after allowed redirects). */ url: string; bytes: number }
+  | { ok: false; error: StandardsFetchError; status?: number; detail?: string };
+
 // ---------------------------------------------------------------- the bridge
 
 export interface DesktopBridge {
@@ -214,6 +223,12 @@ export interface DesktopBridge {
    * A Mac app that predates it lacks this method.
    */
   saveChartPdf?(options: { orientation: PagePrintOrientation; title: string }): Promise<ChartPrintResult>;
+  /**
+   * Fetches the text of a page of a chart collection (`app/src/standards/`): HTTPS GET only, the host must
+   * be one of a fixed list (iReal Pro's sites and GitHub's raw files), redirects only to such hosts, at most
+   * 25 MB, 60 s, no cookies. Answers with data, never rejects. A Mac app that predates it lacks this method.
+   */
+  standardsFetchText?(url: string): Promise<StandardsFetchResult>;
   /** Timings of the last import made from the interface (a Mac app that predates it lacks this method). */
   lastImportReport?(): Promise<LastImportReport>;
   /**

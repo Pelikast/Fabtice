@@ -436,6 +436,39 @@ try {
     check('loop: no click at the seam (second-difference peak/rms, pure sine 1.41)', r.seam < 4.5, `${r.seam.toFixed(2)}`);
   }
 
+  // ---- 3b. a loop cut between beats, in the preview: it turns on exactly its bounds (a loop that is not made of whole bars)
+  if (want('3b')) {
+    const r = await page.evaluate(async () => {
+      const e = T.eng();
+      // Bounds like the ones a sixteenth-note cut gives at 110 BPM (a sixteenth is 0.13636 s): bar 2 beat 2 to bar 3 beat 3 and three sixteenths.
+      const L0 = 2.18181818 + 0.54545454, L1 = 4.36363636 + 1.09090909 + 0.40909091;
+      const marks = [L0 + 0.06, L0 + 0.7, L1 - 0.5, L1 - 0.06];
+      await T.load([{ id: 'a', data: T.pulses(30, marks, 0.8, 2000) }]);
+      e.setLoop({ start: L0, end: L1 });
+      e.seek(L0 - 0.3);
+      const rec = await T.recorder();
+      rec.start();
+      await e.play();
+      const turns = 6;
+      const turn = L1 - L0;
+      const positions = [];
+      const c0 = T.clock();
+      while (T.clock() - c0 < turn * turns + 0.4) {
+        positions.push(e.getPosition());
+        await T.sleep(15);
+      }
+      e.pause();
+      const { data } = await rec.stop();
+      return { bursts: T.findBursts(data, 0.3), turn, per: marks.length, positions, L0, L1 };
+    });
+    const found = r.bursts.filter((x) => x > 48000 * 0.5);
+    let worst = 0;
+    for (let i = 0; i + r.per < found.length; i++) worst = Math.max(worst, Math.abs((found[i + r.per] - found[i]) / 48000 - r.turn));
+    check('loop between beats: every mark, the ones next to both bounds included, comes back exactly one turn later', found.length >= r.per * 4 && worst < 0.002, `${found.length} marks, worst ${(worst * 1000).toFixed(2)} ms from one turn (${r.turn.toFixed(4)} s)`);
+    const inLoop = r.positions.slice(r.positions.findIndex((p) => p >= r.L0));
+    check('loop between beats: the reported position stays between the bounds', inLoop.length > 100 && inLoop.every((p) => p >= r.L0 - 0.01 && p <= r.L1 + 0.01), `${Math.min(...inLoop).toFixed(4)} .. ${Math.max(...inLoop).toFixed(4)} for ${r.L0.toFixed(4)} .. ${r.L1.toFixed(4)}`);
+  }
+
   // ---- 4. transposition: semitones and cents move a measured fundamental by the expected ratio
   if (want('4')) {
     const cases = [[7, 0], [-5, 0], [12, 0], [-12, 0], [0, 40], [0, -50], [3, 25], [-2, -30]];
