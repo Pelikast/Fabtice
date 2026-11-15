@@ -411,19 +411,35 @@ vrai succès ». Ses mesures de séparation sont dans `CLAUDE.md` (« Essais du
 propriétaire ») et dans `app/src/separation/models.json`. Ses demandes, toutes
 inscrites dans `CLAUDE.md` :
 
-| Demande | Où c'est traité |
+| Demande | Ce qui a été fait (fusionné dans `retours-lot-3`, publié le 15 novembre) |
 |---|---|
-| Le clic droit ne fait rien dans l'app Mac (coller un lien) | branche `retours-grille` |
-| Le magnétisme doit aussi valoir pour les boucles (sous-grille, ou libre) | branche `retours-boucles` ; peut changer la forme gardée d'une boucle et la version du document |
-| « Appliquer » → « Appliquer meilleure qualité » | branche `retours-boucles` |
-| Fausse variation de tempo brève, puis grille décalée d'un temps (enregistrement de 1945) | branche `retours-tempo` (`app/src/analysis/**`) |
-| Deux accords dans une mesure : le second au milieu (temps 3) | branche `retours-grille` |
-| Imprimer la grille avec options, export PDF | branche `retours-grille` |
+| Le clic droit ne fait rien dans l'app Mac | menu Couper, Copier, Coller, Tout sélectionner dans les champs, Copier sur un texte sélectionné (`desktop/src/context-menu.js`) |
+| Le magnétisme doit aussi valoir pour les boucles | sélection et bords de boucle calés sur la sous-grille, libres sans magnétisme (`app/src/grid/loops.ts`) ; lecture « 2.2 à 4.3 (4e double) » (`grid/loopText.ts`) ; la boucle était déjà gardée en secondes : pas de nouvelle version du document |
+| « Appliquer » → « Appliquer meilleure qualité » | fait, sur deux lignes ; état « meilleure qualité appliquée » |
+| Fausse variation de tempo brève, puis grille décalée d'un temps | réparation des temps (`app/src/analysis/engine/repair.ts`) et une seule phase de mesure pour tout le morceau ; `ANALYSER_VERSION` 2 |
+| Deux accords dans une mesure : le second au milieu | chaque accord à la place de son temps (`app/src/chart/fit.ts`) ; « Place dans la mesure » dans l'éditeur d'accord |
+| Imprimer la grille avec options, export PDF | bouton « Imprimer » dans l'en-tête de la grille, fenêtre (portrait ou paysage, telle quelle ou sur une page), PDF écrit par le processus principal dans l'app Mac (`desktop/src/printing.js`) |
 | Accords : un sur deux faux | programme « accords », ci-dessous |
 
-Ces trois branches partent de `retours-lot-3` et y sont fusionnées par la
-session d'origine, qui publie ensuite sur `main`. L'export mp3 n'a pas encore
-été essayé par lui.
+À savoir sur ces corrections :
+
+- Avec le magnétisme, on ne sélectionne plus des mesures entières d'office :
+  on glisse d'une barre de mesure à une autre (ce sont des lignes de la
+  sous-grille). Quand la grille est corrigée ensuite, la boucle reste sur la
+  même musique ; seule sa lecture en mesures change.
+- L'ancienne impression (`window.print()`) gelait la fenêtre dans l'app
+  (constaté sur la version Linux d'essai) : c'est sans doute pourquoi le
+  propriétaire ne l'avait pas trouvée utilisable.
+- Sur une mesure étroite (téléphone), trois ou quatre accords passent sur
+  deux rangées plutôt que de devenir illisibles.
+- Une analyse déjà gardée n'est jamais refaite seule : « Analyser de
+  nouveau » (et « Revenir à l'analyse » d'abord si la grille a été corrigée
+  à la main). Limites de la réparation des temps : un point d'orgue d'exactement
+  deux ou trois temps sans premiers temps clairs peut être comblé ; un rubato
+  fort et rapide peut être mal compté ; non essayé sur son enregistrement de
+  1945 (inaccessible d'ici).
+- Non vérifiable ici : la vraie fenêtre d'impression de macOS, un vrai clic
+  droit sur un Mac. L'export mp3 n'a pas encore été essayé par lui.
 
 ## Programme « accords » (feu vert donné, à faire avant le lot 4)
 

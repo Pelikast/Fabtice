@@ -92,11 +92,12 @@ test('a right click in the link field offers Couper, Copier, Coller, Tout sélec
     await waitForMenus(app, 4);
     assert.deepEqual((await shown(app))[3], ['Copier'], 'on selected text: Copier alone');
 
-    // 4. Anywhere else: no menu.
+    // 4. Anywhere else: no menu. (Away from any text: on a Mac a right-click on a word selects it,
+    // and the menu of selected text is then the right answer.)
     await page.evaluate(() => window.getSelection().removeAllRanges());
-    await page.locator('.accueil h2').click({ button: 'right' });
+    await page.mouse.click(4, 4, { button: 'right' });
     await new Promise((r) => setTimeout(r, 500));
-    assert.equal((await shown(app)).length, 4, 'no menu on plain text without a selection');
+    assert.equal((await shown(app)).length, 4, 'no menu away from text and fields');
 
     // The interface's window made no noise (the diagnostic window's WebGPU probe does, so it is checked before).
     await assertClean(page, problems, 'context menu');
