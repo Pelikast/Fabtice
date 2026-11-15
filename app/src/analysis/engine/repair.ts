@@ -51,7 +51,7 @@ export interface RepairOptions {
   context: number;
   /** Of which at least this many must be in tempo (else: start or end of the piece, nothing is done). */
   contextMin: number;
-  /** A side is in tempo when the median |ln(interval / its median)| is at most this. */
+  /** A side is in tempo when every in-tempo interval is within this of their median (|ln|). */
   steady: number;
   /** The tempo after the passage is the tempo before it when |ln(after / before)| is at most this. */
   back: number;
@@ -80,13 +80,13 @@ export const REPAIR: RepairOptions = {
   extend: 2,
   context: 8,
   contextMin: 4,
-  steady: Math.log(1.08),
+  steady: Math.log(1.2),
   back: Math.log(1.2),
   maxBeats: 16,
-  fit: 0.3,
+  fit: 0.2,
   barFit: 0.3,
   gross: 0,
-  veto: 4,
+  veto: 1,
   bars: 4,
   maxShift: 2,
   regularize: true,
@@ -249,6 +249,8 @@ export function repairTempo(beats: readonly number[], m: number, downAt: Downbea
         if (k < 1 || k > o.maxBeats) continue; // a tempo that holds
         const misfit = Math.abs(span / p - k);
         if (misfit > o.fit) continue; // not a whole number of beats: a fermata, a real bend
+        // Moved ends only to correct a count (a passage whose count is right is refilled as found, or kept).
+        if (ext > 0 && k === e - s) continue;
         if (!pick || misfit < pick.misfit - 0.05) pick = { s, e, before, after, k, misfit };
       }
     }
