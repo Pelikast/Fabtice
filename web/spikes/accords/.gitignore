@@ -1,0 +1,5 @@
+# Re-created by the prepare scripts: audio, soundfont, models, datasets, network cache.
+data/
+dist/
+node_modules/
+.venv/

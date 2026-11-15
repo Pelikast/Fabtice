@@ -1,0 +1,1124 @@
+{
+ "id": "ballade-cuivres",
+ "title": "Ballade pour cuivres en ré bémol",
+ "standard": false,
+ "source": "synthese",
+ "style": "ballad",
+ "key": {
+  "tonic": 1,
+  "mode": "major",
+  "name": "Db major"
+ },
+ "meter": 4,
+ "bpm": 72,
+ "choruses": 2,
+ "tuningCents": 0.0,
+ "beats": [
+  0.3,
+  1.1323,
+  1.9646,
+  2.7967,
+  3.6288,
+  4.4607,
+  5.2923,
+  6.1237,
+  6.9548,
+  7.7857,
+  8.6163,
+  9.4468,
+  10.2774,
+  11.108,
+  11.9386,
+  12.7692,
+  13.5998,
+  14.4303,
+  15.2607,
+  16.0913,
+  16.922,
+  17.7529,
+  18.5843,
+  19.4158,
+  20.2477,
+  21.0798,
+  21.912,
+  22.7441,
+  23.5761,
+  24.408,
+  25.2398,
+  26.0716,
+  26.9034,
+  27.7351,
+  28.5668,
+  29.3984,
+  30.23,
+  31.0614,
+  31.8927,
+  32.7242,
+  33.5557,
+  34.3873,
+  35.2192,
+  36.0517,
+  36.8845,
+  37.718,
+  38.5519,
+  39.3866,
+  40.2218,
+  41.0579,
+  41.8947,
+  42.7322,
+  43.5705,
+  44.4095,
+  45.2493,
+  46.0896,
+  46.9305,
+  47.7721,
+  48.6145,
+  49.4575,
+  50.3015,
+  51.1463,
+  51.992,
+  52.8386,
+  53.6861,
+  54.5346,
+  55.3841,
+  56.2345,
+  57.086,
+  57.9386,
+  58.7924,
+  59.6474,
+  60.5037,
+  61.3608,
+  62.2188,
+  63.0774,
+  63.9363,
+  64.7954,
+  65.6543,
+  66.5131,
+  67.3721,
+  68.2309,
+  69.0895,
+  69.9479,
+  70.8061,
+  71.6638,
+  72.5212,
+  73.3783,
+  74.2352,
+  75.0921,
+  75.9487,
+  76.8054,
+  77.6621,
+  78.519,
+  79.3761,
+  80.2332,
+  81.0902,
+  81.9471,
+  82.8039,
+  83.6603,
+  84.5163,
+  85.3717,
+  86.2267,
+  87.081,
+  87.9344,
+  88.787,
+  89.6392,
+  90.4912,
+  91.3432,
+  92.1951,
+  93.047,
+  93.8992,
+  94.7514,
+  95.6036,
+  96.4555,
+  97.3072,
+  98.1587,
+  99.0098,
+  99.8606,
+  100.711,
+  101.5612,
+  102.4112,
+  103.2603,
+  104.1088,
+  104.9563,
+  105.8032,
+  106.6491,
+  107.4942
+ ],
+ "downbeat": 0,
+ "duration": 117.03,
+ "bars": [
+  {
+   "index": 0,
+   "chorus": 1,
+   "section": "A",
+   "start": 0.3,
+   "end": 3.6288,
+   "beats": [
+    0.3,
+    1.1323,
+    1.9646,
+    2.7967
+   ],
+   "chords": [
+    {
+     "beat": 1,
+     "symbol": "Dbmaj7(9)",
+     "root": 1,
+     "quality": "maj7",
+     "extensions": [
+      "9"
+     ],
+     "bass": null
+    }
+   ]
+  },
+  {
+   "index": 1,
+   "chorus": 1,
+   "section": "A",
+   "start": 3.6288,
+   "end": 6.9548,
+   "beats": [
+    3.6288,
+    4.4607,
+    5.2923,
+    6.1237
+   ],
+   "chords": [
+    {
+     "beat": 1,
+     "symbol": "Bbm7(9,11)",
+     "root": 10,
+     "quality": "min7",
+     "extensions": [
+      "9",
+      "11"
+     ],
+     "bass": null
+    }
+   ]
+  },
+  {
+   "index": 2,
+   "chorus": 1,
+   "section": "A",
+   "start": 6.9548,
+   "end": 10.2774,
+   "beats": [
+    6.9548,
+    7.7857,
+    8.6163,
+    9.4468
+   ],
+   "chords": [
+    {
+     "beat": 1,
+     "symbol": "Ebm7(9)",
+     "root": 3,
+     "quality": "min7",
+     "extensions": [
+      "9"
+     ],
+     "bass": null
+    },
+    {
+     "beat": 3,
+     "symbol": "Ab7",
+     "root": 8,
+     "quality": "7",
+     "extensions": [],
+     "bass": null
+    }
+   ]
+  },
+  {
+   "index": 3,
+   "chorus": 1,
+   "section": "A",
+   "start": 10.2774,
+   "end": 13.5998,
+   "beats": [
+    10.2774,
+    11.108,
+    11.9386,
+    12.7692
+   ],
+   "chords": [
+    {
+     "beat": 1,
+     "symbol": "Fm7",
+     "root": 5,
+     "quality": "min7",
+     "extensions": [],
+     "bass": null
+    },
+    {
+     "beat": 3,
+     "symbol": "Bb7(13)",
+     "root": 10,
+     "quality": "7",
+     "extensions": [
+      "13"
+     ],
+     "bass": null
+    }
+   ]
+  },
+  {
+   "index": 4,
+   "chorus": 1,
+   "section": "A",
+   "start": 13.5998,
+   "end": 16.922,
+   "beats": [
+    13.5998,
+    14.4303,
+    15.2607,
+    16.0913
+   ],
+   "chords": [
+    {
+     "beat": 1,
+     "symbol": "Ebm7(9,11)",
+     "root": 3,
+     "quality": "min7",
+     "extensions": [
+      "9",
+      "11"
+     ],
+     "bass": null
+    }
+   ]
+  },
+  {
+   "index": 5,
+   "chorus": 1,
+   "section": "A",
+   "start": 16.922,
+   "end": 20.2477,
+   "beats": [
+    16.922,
+    17.7529,
+    18.5843,
+    19.4158
+   ],
+   "chords": [
+    {
+     "beat": 1,
+     "symbol": "A7(9,13)",
+     "root": 9,
+     "quality": "7",
+     "extensions": [
+      "9",
+      "13"
+     ],
+     "bass": null
+    },
+    {
+     "beat": 3,
+     "symbol": "Ab7(13)",
+     "root": 8,
+     "quality": "7",
+     "extensions": [
+      "13"
+     ],
+     "bass": null
+    }
+   ]
+  },
+  {
+   "index": 6,
+   "chorus": 1,
+   "section": "A",
+   "start": 20.2477,
+   "end": 23.5761,
+   "beats": [
+    20.2477,
+    21.0798,
+    21.912,
+    22.7441
+   ],
+   "chords": [
+    {
+     "beat": 1,
+     "symbol": "Dbmaj7(9)",
+     "root": 1,
+     "quality": "maj7",
+     "extensions": [
+      "9"
+     ],
+     "bass": null
+    },
+    {
+     "beat": 3,
+     "symbol": "Bb7",
+     "root": 10,
+     "quality": "7",
+     "extensions": [],
+     "bass": null
+    }
+   ]
+  },
+  {
+   "index": 7,
+   "chorus": 1,
+   "section": "A",
+   "start": 23.5761,
+   "end": 26.9034,
+   "beats": [
+    23.5761,
+    24.408,
+    25.2398,
+    26.0716
+   ],
+   "chords": [
+    {
+     "beat": 1,
+     "symbol": "Ebm7",
+     "root": 3,
+     "quality": "min7",
+     "extensions": [],
+     "bass": null
+    },
+    {
+     "beat": 3,
+     "symbol": "Ab7(#11)",
+     "root": 8,
+     "quality": "7",
+     "extensions": [
+      "#11"
+     ],
+     "bass": null
+    }
+   ]
+  },
+  {
+   "index": 8,
+   "chorus": 1,
+   "section": "A",
+   "start": 26.9034,
+   "end": 30.23,
+   "beats": [
+    26.9034,
+    27.7351,
+    28.5668,
+    29.3984
+   ],
+   "chords": [
+    {
+     "beat": 1,
+     "symbol": "Gbmaj7",
+     "root": 6,
+     "quality": "maj7",
+     "extensions": [],
+     "bass": null
+    }
+   ]
+  },
+  {
+   "index": 9,
+   "chorus": 1,
+   "section": "A",
+   "start": 30.23,
+   "end": 33.5557,
+   "beats": [
+    30.23,
+    31.0614,
+    31.8927,
+    32.7242
+   ],
+   "chords": [
+    {
+     "beat": 1,
+     "symbol": "Gbm6(9)",
+     "root": 6,
+     "quality": "min6",
+     "extensions": [
+      "9"
+     ],
+     "bass": null
+    }
+   ]
+  },
+  {
+   "index": 10,
+   "chorus": 1,
+   "section": "A",
+   "start": 33.5557,
+   "end": 36.8845,
+   "beats": [
+    33.5557,
+    34.3873,
+    35.2192,
+    36.0517
+   ],
+   "chords": [
+    {
+     "beat": 1,
+     "symbol": "Fm7(9,11)",
+     "root": 5,
+     "quality": "min7",
+     "extensions": [
+      "9",
+      "11"
+     ],
+     "bass": null
+    }
+   ]
+  },
+  {
+   "index": 11,
+   "chorus": 1,
+   "section": "A",
+   "start": 36.8845,
+   "end": 40.2218,
+   "beats": [
+    36.8845,
+    37.718,
+    38.5519,
+    39.3866
+   ],
+   "chords": [
+    {
+     "beat": 1,
+     "symbol": "Bb7(b9)",
+     "root": 10,
+     "quality": "7",
+     "extensions": [
+      "b9"
+     ],
+     "bass": null
+    }
+   ]
+  },
+  {
+   "index": 12,
+   "chorus": 1,
+   "section": "A",
+   "start": 40.2218,
+   "end": 43.5705,
+   "beats": [
+    40.2218,
+    41.0579,
+    41.8947,
+    42.7322
+   ],
+   "chords": [
+    {
+     "beat": 1,
+     "symbol": "Ebm7",
+     "root": 3,
+     "quality": "min7",
+     "extensions": [],
+     "bass": null
+    }
+   ]
+  },
+  {
+   "index": 13,
+   "chorus": 1,
+   "section": "A",
+   "start": 43.5705,
+   "end": 46.9305,
+   "beats": [
+    43.5705,
+    44.4095,
+    45.2493,
+    46.0896
+   ],
+   "chords": [
+    {
+     "beat": 1,
+     "symbol": "Ab7(#11)",
+     "root": 8,
+     "quality": "7",
+     "extensions": [
+      "#11"
+     ],
+     "bass": null
+    }
+   ]
+  },
+  {
+   "index": 14,
+   "chorus": 1,
+   "section": "A",
+   "start": 46.9305,
+   "end": 50.3015,
+   "beats": [
+    46.9305,
+    47.7721,
+    48.6145,
+    49.4575
+   ],
+   "chords": [
+    {
+     "beat": 1,
+     "symbol": "Dbmaj7",
+     "root": 1,
+     "quality": "maj7",
+     "extensions": [],
+     "bass": null
+    }
+   ]
+  },
+  {
+   "index": 15,
+   "chorus": 1,
+   "section": "A",
+   "start": 50.3015,
+   "end": 53.6861,
+   "beats": [
+    50.3015,
+    51.1463,
+    51.992,
+    52.8386
+   ],
+   "chords": [
+    {
+     "beat": 1,
+     "symbol": "Ebm7(9,11)",
+     "root": 3,
+     "quality": "min7",
+     "extensions": [
+      "9",
+      "11"
+     ],
+     "bass": null
+    },
+    {
+     "beat": 3,
+     "symbol": "Ab7",
+     "root": 8,
+     "quality": "7",
+     "extensions": [],
+     "bass": null
+    }
+   ]
+  },
+  {
+   "index": 16,
+   "chorus": 2,
+   "section": "A",
+   "start": 53.6861,
+   "end": 57.086,
+   "beats": [
+    53.6861,
+    54.5346,
+    55.3841,
+    56.2345
+   ],
+   "chords": [
+    {
+     "beat": 1,
+     "symbol": "Dbmaj7(9)",
+     "root": 1,
+     "quality": "maj7",
+     "extensions": [
+      "9"
+     ],
+     "bass": null
+    }
+   ]
+  },
+  {
+   "index": 17,
+   "chorus": 2,
+   "section": "A",
+   "start": 57.086,
+   "end": 60.5037,
+   "beats": [
+    57.086,
+    57.9386,
+    58.7924,
+    59.6474
+   ],
+   "chords": [
+    {
+     "beat": 1,
+     "symbol": "Bbm7(9,11)",
+     "root": 10,
+     "quality": "min7",
+     "extensions": [
+      "9",
+      "11"
+     ],
+     "bass": null
+    }
+   ]
+  },
+  {
+   "index": 18,
+   "chorus": 2,
+   "section": "A",
+   "start": 60.5037,
+   "end": 63.9363,
+   "beats": [
+    60.5037,
+    61.3608,
+    62.2188,
+    63.0774
+   ],
+   "chords": [
+    {
+     "beat": 1,
+     "symbol": "Ebm7(9)",
+     "root": 3,
+     "quality": "min7",
+     "extensions": [
+      "9"
+     ],
+     "bass": null
+    },
+    {
+     "beat": 3,
+     "symbol": "Ab7",
+     "root": 8,
+     "quality": "7",
+     "extensions": [],
+     "bass": null
+    }
+   ]
+  },
+  {
+   "index": 19,
+   "chorus": 2,
+   "section": "A",
+   "start": 63.9363,
+   "end": 67.3721,
+   "beats": [
+    63.9363,
+    64.7954,
+    65.6543,
+    66.5131
+   ],
+   "chords": [
+    {
+     "beat": 1,
+     "symbol": "Fm7",
+     "root": 5,
+     "quality": "min7",
+     "extensions": [],
+     "bass": null
+    },
+    {
+     "beat": 3,
+     "symbol": "E7",
+     "root": 4,
+     "quality": "7",
+     "extensions": [],
+     "bass": null
+    }
+   ]
+  },
+  {
+   "index": 20,
+   "chorus": 2,
+   "section": "A",
+   "start": 67.3721,
+   "end": 70.8061,
+   "beats": [
+    67.3721,
+    68.2309,
+    69.0895,
+    69.9479
+   ],
+   "chords": [
+    {
+     "beat": 1,
+     "symbol": "Ebm7",
+     "root": 3,
+     "quality": "min7",
+     "extensions": [],
+     "bass": null
+    }
+   ]
+  },
+  {
+   "index": 21,
+   "chorus": 2,
+   "section": "A",
+   "start": 70.8061,
+   "end": 74.2352,
+   "beats": [
+    70.8061,
+    71.6638,
+    72.5212,
+    73.3783
+   ],
+   "chords": [
+    {
+     "beat": 1,
+     "symbol": "A7(#11)",
+     "root": 9,
+     "quality": "7",
+     "extensions": [
+      "#11"
+     ],
+     "bass": null
+    },
+    {
+     "beat": 3,
+     "symbol": "Ab7(9)",
+     "root": 8,
+     "quality": "7",
+     "extensions": [
+      "9"
+     ],
+     "bass": null
+    }
+   ]
+  },
+  {
+   "index": 22,
+   "chorus": 2,
+   "section": "A",
+   "start": 74.2352,
+   "end": 77.6621,
+   "beats": [
+    74.2352,
+    75.0921,
+    75.9487,
+    76.8054
+   ],
+   "chords": [
+    {
+     "beat": 1,
+     "symbol": "Dbmaj7(9)",
+     "root": 1,
+     "quality": "maj7",
+     "extensions": [
+      "9"
+     ],
+     "bass": null
+    },
+    {
+     "beat": 3,
+     "symbol": "Bb7(9)",
+     "root": 10,
+     "quality": "7",
+     "extensions": [
+      "9"
+     ],
+     "bass": null
+    }
+   ]
+  },
+  {
+   "index": 23,
+   "chorus": 2,
+   "section": "A",
+   "start": 77.6621,
+   "end": 81.0902,
+   "beats": [
+    77.6621,
+    78.519,
+    79.3761,
+    80.2332
+   ],
+   "chords": [
+    {
+     "beat": 1,
+     "symbol": "Ebm7(9)",
+     "root": 3,
+     "quality": "min7",
+     "extensions": [
+      "9"
+     ],
+     "bass": null
+    },
+    {
+     "beat": 3,
+     "symbol": "Ab7",
+     "root": 8,
+     "quality": "7",
+     "extensions": [],
+     "bass": null
+    }
+   ]
+  },
+  {
+   "index": 24,
+   "chorus": 2,
+   "section": "A",
+   "start": 81.0902,
+   "end": 84.5163,
+   "beats": [
+    81.0902,
+    81.9471,
+    82.8039,
+    83.6603
+   ],
+   "chords": [
+    {
+     "beat": 1,
+     "symbol": "Gb6(9)",
+     "root": 6,
+     "quality": "maj6",
+     "extensions": [
+      "9"
+     ],
+     "bass": null
+    }
+   ]
+  },
+  {
+   "index": 25,
+   "chorus": 2,
+   "section": "A",
+   "start": 84.5163,
+   "end": 87.9344,
+   "beats": [
+    84.5163,
+    85.3717,
+    86.2267,
+    87.081
+   ],
+   "chords": [
+    {
+     "beat": 1,
+     "symbol": "Gbm6",
+     "root": 6,
+     "quality": "min6",
+     "extensions": [],
+     "bass": null
+    }
+   ]
+  },
+  {
+   "index": 26,
+   "chorus": 2,
+   "section": "A",
+   "start": 87.9344,
+   "end": 91.3432,
+   "beats": [
+    87.9344,
+    88.787,
+    89.6392,
+    90.4912
+   ],
+   "chords": [
+    {
+     "beat": 1,
+     "symbol": "Fm7",
+     "root": 5,
+     "quality": "min7",
+     "extensions": [],
+     "bass": null
+    }
+   ]
+  },
+  {
+   "index": 27,
+   "chorus": 2,
+   "section": "A",
+   "start": 91.3432,
+   "end": 94.7514,
+   "beats": [
+    91.3432,
+    92.1951,
+    93.047,
+    93.8992
+   ],
+   "chords": [
+    {
+     "beat": 1,
+     "symbol": "Bb7(b9)",
+     "root": 10,
+     "quality": "7",
+     "extensions": [
+      "b9"
+     ],
+     "bass": null
+    }
+   ]
+  },
+  {
+   "index": 28,
+   "chorus": 2,
+   "section": "A",
+   "start": 94.7514,
+   "end": 98.1587,
+   "beats": [
+    94.7514,
+    95.6036,
+    96.4555,
+    97.3072
+   ],
+   "chords": [
+    {
+     "beat": 1,
+     "symbol": "Ebm7(11)",
+     "root": 3,
+     "quality": "min7",
+     "extensions": [
+      "11"
+     ],
+     "bass": null
+    }
+   ]
+  },
+  {
+   "index": 29,
+   "chorus": 2,
+   "section": "A",
+   "start": 98.1587,
+   "end": 101.5612,
+   "beats": [
+    98.1587,
+    99.0098,
+    99.8606,
+    100.711
+   ],
+   "chords": [
+    {
+     "beat": 1,
+     "symbol": "Ab7(#11)",
+     "root": 8,
+     "quality": "7",
+     "extensions": [
+      "#11"
+     ],
+     "bass": null
+    }
+   ]
+  },
+  {
+   "index": 30,
+   "chorus": 2,
+   "section": "A",
+   "start": 101.5612,
+   "end": 104.9563,
+   "beats": [
+    101.5612,
+    102.4112,
+    103.2603,
+    104.1088
+   ],
+   "chords": [
+    {
+     "beat": 1,
+     "symbol": "Dbmaj7",
+     "root": 1,
+     "quality": "maj7",
+     "extensions": [],
+     "bass": null
+    }
+   ]
+  },
+  {
+   "index": 31,
+   "chorus": 2,
+   "section": "A",
+   "start": 104.9563,
+   "end": 108.3382,
+   "beats": [
+    104.9563,
+    105.8032,
+    106.6491,
+    107.4942
+   ],
+   "chords": [
+    {
+     "beat": 1,
+     "symbol": "Ebm7(9)",
+     "root": 3,
+     "quality": "min7",
+     "extensions": [
+      "9"
+     ],
+     "bass": null
+    },
+    {
+     "beat": 3,
+     "symbol": "D7(#11)",
+     "root": 2,
+     "quality": "7",
+     "extensions": [
+      "#11"
+     ],
+     "bass": null
+    }
+   ]
+  }
+ ],
+ "sections": [
+  {
+   "label": "A",
+   "chorus": 1,
+   "firstBar": 0,
+   "lastBar": 15
+  },
+  {
+   "label": "A",
+   "chorus": 2,
+   "firstBar": 16,
+   "lastBar": 31
+  }
+ ],
+ "stems": [
+  "bass",
+  "drums",
+  "other",
+  "piano"
+ ],
+ "harmonyStems": [
+  "other",
+  "piano"
+ ],
+ "band": {
+  "drums": "brushes",
+  "bass": "two",
+  "other": "section",
+  "piano": "sparse"
+ },
+ "knobs": {
+  "lead_db": 0,
+  "tension": 0.35,
+  "variation": 0.3,
+  "drift": 0.03,
+  "accel": 0.0,
+  "bass_busy": 0.12,
+  "anticip": 0.25,
+  "pedal": 0.3,
+  "minor": false,
+  "cents": 0.0
+ },
+ "conditions": {
+  "propre": {
+   "mix": "propre/mix.flac",
+   "stems": {
+    "bass": "propre/bass.flac",
+    "drums": "propre/drums.flac",
+    "other": "propre/other.flac",
+    "piano": "propre/piano.flac"
+   },
+   "timeScale": 1.0
+  },
+  "disque": {
+   "mix": "disque/mix.flac",
+   "stems": {
+    "bass": "disque/bass.flac",
+    "drums": "disque/drums.flac",
+    "other": "disque/other.flac",
+    "piano": "disque/piano.flac"
+   },
+   "timeScale": 0.987043,
+   "settings": {
+    "lo": 159.6412,
+    "hi": 4629.9216,
+    "speed_cents": 22.5784,
+    "wow": 0.0026,
+    "wow_hz": 0.55,
+    "flutter": 0.0008,
+    "flutter_hz": 6.5,
+    "room": 0.339,
+    "drive": 2.3339,
+    "hiss_db": -34.4408,
+    "crackle": 9.5592,
+    "pops": 0.5336,
+    "strength": 0.5559
+   }
+  }
+ },
+ "soundfont": "GeneralUser GS 2.0.3"
+}
