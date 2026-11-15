@@ -85,7 +85,11 @@ async function workedOnPiece() {
   await settle();
   appStore.setState((s) => ({ tracks: s.tracks.map((tr, i) => (i === 1 ? { ...tr, volume: 0.5 } : tr)) }));
   await getKeeper().settled();
-  appStore.setState((s) => ({ loop: { region: { start: 1.25, end: 3.5 }, enabled: true }, corrections: { ...s.corrections, key: { tonic: 3, mode: 'major' } as never } }));
+  appStore.setState((s) => ({
+    loop: { region: { start: 1.25, end: 3.5 }, enabled: true },
+    // A manual tempo action (the bar menu), with the grid it replaced: saved and read back exactly.
+    corrections: { ...s.corrections, key: { tonic: 3, mode: 'major' } as never, tempoFixes: [{ time: 2, kind: 'continuity', previous: s.tempoMap }] },
+  }));
   saveCurrentLoop('Pont');
   setMetronomeVolume(0.42);
   setCountInBars(2);

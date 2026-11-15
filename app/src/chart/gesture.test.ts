@@ -116,4 +116,15 @@ describe('touch', () => {
   it('a hold does nothing for a mouse', () => {
     expect(play([down(onBar(5)), { type: 'hold', pointerId: 1 }]).state.kind).toBe('press');
   });
+
+  it('a finger kept on the same bar opens the bar menu and undoes the one-bar selection', () => {
+    const { effects, state } = play([down(onBar(5), true), { type: 'hold', pointerId: 1 }, { type: 'menu', pointerId: 1 }]);
+    expect(effects).toEqual([{ type: 'select', first: 5, last: 5 }, { type: 'unselect' }, { type: 'menu', bar: 5 }]);
+    expect(state).toBe(IDLE);
+  });
+
+  it('a finger that already drew a selection keeps it: no menu', () => {
+    const { effects } = play([down(onBar(5), true), { type: 'hold', pointerId: 1 }, move(6, 20, 0), { type: 'menu', pointerId: 1 }, up(1200)]);
+    expect(effects).toEqual([{ type: 'select', first: 5, last: 5 }, { type: 'select', first: 5, last: 6 }, { type: 'commit' }]);
+  });
 });
