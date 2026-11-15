@@ -1,7 +1,7 @@
 // The tempo hardening on its case set (`tempo.cases.ts`): level passages,
 // displaced runs and negatives, before (the beat repair of analyser version 3)
 // and now. The figures are printed and held by the checks below. The full set
-// runs with FABTICE_REPAIR_FULL=1; by default every third level case.
+// runs with FABTICE_REPAIR_FULL=1; by default a third of the level cases (a fixed, scattered third).
 
 import { describe, expect, it } from 'vitest';
 import { current, displacedCases, levelCases, negativeCases, previous, scoreTempo, truthOutcome, type TempoCase, type TempoScore } from './tempo.cases';
@@ -71,15 +71,16 @@ function run(cases: TempoCase[], key: (c: TempoCase) => string) {
 }
 
 describe('the tempo hardening on its case set', () => {
-  const level = levelCases().filter((_, i) => FULL || i % 3 === 0);
+  const level = levelCases().filter((_, i) => FULL || (i * 31 + 7) % 97 < 32);
   const byLevel = run(level, (c) => `${c.kind}, ${c.name.match(/for (\d+) bars/)![1]!.padStart(2)} bars`);
   const byEvidence = run(level, (c) => `${c.kind} | ${c.evidence}`);
   const displaced = displacedCases();
   const byShift = run(displaced, (c) => c.kind);
   const negatives = negativeCases();
+  const evidence = run(level, (c) => c.evidence);
 
   it('prints the level passages', () => {
-    const lines = [`${level.length} level cases${FULL ? ' (full set)' : ' (every third)'}`];
+    const lines = [`${level.length} level cases${FULL ? ' (full set)' : ' (a third)'}`];
     for (const [k, a] of [...byLevel.entries()].sort()) lines.push(line(k, a));
     for (const [k, a] of [...byEvidence.entries()].sort()) if (!k.startsWith('all')) lines.push(line(k, a));
     console.log(lines.join('\n'));
@@ -91,6 +92,30 @@ describe('the tempo hardening on its case set', () => {
     for (const [k, a] of [...byShift.entries()].sort()) lines.push(`${line(k, a)}  passage error ${(a.errBefore / a.n).toFixed(0)} → ${(a.errNow / a.n).toFixed(0)} ms`);
     console.log(lines.join('\n'));
     expect(displaced.length).toBeGreaterThan(100);
+  });
+
+  it('puts the level passages back when the downbeats keep the bars', () => {
+    for (const ev of ['sharp', 'lost']) console.log(line(`all, ${ev}`, evidence.get(ev)!));
+    const sharp = evidence.get('sharp')!;
+    expect(sharp.placedNow / sharp.n).toBeGreaterThan(0.98);
+    expect(sharp.downNow / sharp.downN).toBeGreaterThan(0.99);
+    expect(sharp.jumpsNow).toBeLessThan(0.15 * sharp.jumpsBefore);
+    expect(sharp.broken).toBeLessThan(0.01 * sharp.n);
+    for (const ev of ['weak', 'lost', 'none']) {
+      const a = evidence.get(ev)!;
+      expect(a.jumpsNow, ev).toBeLessThanOrEqual(a.jumpsBefore);
+      expect(a.fNow, ev).toBeGreaterThanOrEqual(a.fBefore);
+      expect(a.broken, ev).toBeLessThan(0.02 * a.n);
+    }
+  });
+
+  it('moves the displaced runs back', () => {
+    for (const split of ['all tune', 'all held']) {
+      const a = byShift.get(split)!;
+      expect(a.errNow, split).toBeLessThan(0.9 * a.errBefore);
+      expect(a.zigNow, split).toBeLessThan(a.zigBefore);
+      expect(a.broken, split).toBe(0);
+    }
   });
 
   it('moves nothing on the negatives', () => {

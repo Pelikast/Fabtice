@@ -832,7 +832,7 @@ scenarios.charts = async () => {
   check('charts: the title found, the chart accepted and used', right?.evidence?.knownChart?.title === 'Fixture Swing Tune', JSON.stringify(right?.evidence));
   check('charts: the collection is named', typeof right?.evidence?.knownChart?.collection === 'string', String(right?.evidence?.knownChart?.collection));
   check('charts: the bass line is listened to (band of the mix)', right?.evidence?.bass === 'band');
-  check('charts: analyser version 3', right?.version === '3', String(right?.version));
+  check('charts: analyser version 4', right?.version === '4', String(right?.version));
   await page.evaluate(() => window.__fabtice.actions.openPanel('analysis'));
   const line = await page.locator('[data-testid="analyse-ecoute"]').innerText({ timeout: 5000 }).catch(() => '');
   check('charts: the analysis panel says what was used', line.includes('Grille connue : Fixture Swing Tune (Fixture Book)'), line);
