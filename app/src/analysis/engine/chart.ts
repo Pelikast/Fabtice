@@ -19,7 +19,7 @@ import { buildSegments, decodeChords, type ChordSegment, type DecodeOptions } fr
 import { applyEvidence, type EvidenceSource } from './evidence';
 import type { Grid } from './grid';
 import { estimateKey, type KeyEstimate } from './key';
-import { fitKnownChart, type ChartCandidate, type ChartFit, type ChartOptions } from './knownChart';
+import { fitKnownChart, type ChartCandidate, type ChartFit, type ChartOptions, type ReferenceBeats } from './knownChart';
 import { bassSource, blendUnits, type BassCueOptions } from './listen';
 import { beatSegments, beatUnits, frameChroma, OPTIONS, type TonalHint } from './pipeline';
 import { reliability, reliabilityFeatures, RELIABILITY_DOUBT } from './reliability';
@@ -41,9 +41,10 @@ export interface BassListening {
 }
 
 export interface KnownCharts {
-  /** Charts whose title matches the piece's, best first; `collection`: the playlist it comes from, for the report. */
-  candidates: (ChartCandidate & { collection?: string | null })[];
-  references: StandardChart[];
+  /** Charts whose title matches the piece's, best first; `collectionName`: the collection it comes from, for the report. */
+  candidates: (ChartCandidate & { collectionName?: string | null })[];
+  /** Other tunes, for the fit check (`knownChart.ts`). */
+  references: readonly (StandardChart | ReferenceBeats)[];
 }
 
 export interface ChartSettings {
@@ -140,7 +141,7 @@ export function analyseChart(input: ChartInput): ChartRun {
       harmonyStems: input.harmony ? input.harmony.stems.filter((x) => x !== 'bass') : [],
       bass: bass ? input.bass!.from : null,
       formBars: rep?.formLength ?? null,
-      knownChart: accepted?.chart ? { title: accepted.chart.title, collection: input.known?.candidates.find((c) => c.chart === accepted.chart)?.collection ?? null } : null,
+      knownChart: accepted?.chart ? { title: accepted.chart.title, collection: input.known?.candidates.find((c) => c.chart === accepted.chart)?.collectionName ?? null } : null,
     },
     repeats: rep,
     fit,
