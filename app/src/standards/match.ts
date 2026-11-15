@@ -4,7 +4,7 @@
 // the titles of the charts are iReal's (« Girl From Ipanema, The », « 'Round
 // Midnight », « Aquarela Do Brasil (a.k.a. Brazil) »). A WRONG chart is worse
 // than none: the score of a match is in [0, 1] and nothing below the threshold
-// (0.85 unless asked otherwise) is returned.
+// (0.88 unless asked otherwise) is returned.
 //
 // Pure functions over an index built once (`buildTitleIndex`): a few thousand
 // titles, a lookup scores only the titles that share a word (or the first three
@@ -19,12 +19,12 @@
 //    common run of words, a word one letter off counting 0.9): 1 for the same
 //    words, a little less when only small words (« of », « by ») differ;
 //  - a title found whole inside a longer variant counts 0.9 (≤ 2 extra words)
-//    or 0.86 (≤ 4), but never for a title of one real word (« Misty », « Blue »):
+//    or 0.88 (≤ 4), but never for a title of one real word (« Misty », « Blue »):
 //    those must be the whole title;
 //  - a title is also known under its alias: the text in brackets of the chart
 //    (« Brazil », « Sugar Foot Stomp »), and a short table of translations
 //    (« Les feuilles mortes »); an alias counts 0.98 of the same match;
-//  - when the chart has a composer and the query names it, +0.02.
+//  - among equal scores, the chart whose composer the query names comes first.
 
 /** What goes in the index. `data` is whatever the caller wants back (a chart, a position in a playlist). */
 export interface TitleEntry<T = unknown> {
@@ -53,13 +53,13 @@ export interface TitleMatch<T = unknown> {
 }
 
 export interface FindOptions {
-  /** Nothing below this is returned. Default 0.85. */
+  /** Nothing below this is returned. Default 0.88. */
   threshold?: number;
   /** At most this many matches. Default 5. */
   max?: number;
 }
 
-export const DEFAULT_MATCH_THRESHOLD = 0.85;
+export const DEFAULT_MATCH_THRESHOLD = 0.88;
 
 // ---------------------------------------------------------------- normalising
 
@@ -234,6 +234,8 @@ function wordSim(a: string, b: string): number {
   if (a === b) return 1;
   const len = Math.max(a.length, b.length);
   if (len < 5) return 0;
+  // a slip of the pen rarely changes both of the first two letters: not worth the full comparison
+  if (a[0] !== b[0] && a[1] !== b[1]) return 0;
   const d = editDistance(a, b, 2);
   if (d === 1) return 0.9;
   if (d === 2 && len >= 9) return 0.85;
@@ -297,7 +299,7 @@ function scoreWords(q: readonly string[], t: readonly string[]): Scored | null {
   if (ts.length >= 2 || (tk.length >= 3 && ts.length >= 1 && ts[0]!.length >= 4)) {
     if (ts.length >= 2 && containsRun(qs, ts)) {
       const extra = qs.length - ts.length;
-      const score = extra <= 2 ? 0.9 : extra <= 4 ? 0.86 : 0;
+      const score = extra <= 2 ? 0.9 : extra <= 4 ? 0.88 : 0;
       if (score > 0 && (best === null || score > best.score)) best = { score, kind: 'contained' };
     }
   }
@@ -324,15 +326,24 @@ export interface TitleIndex<T = unknown> {
   readonly items: readonly Indexed<T>[];
   readonly byWord: ReadonlyMap<string, readonly number[]>;
   readonly byPrefix: ReadonlyMap<string, readonly number[]>;
+  /** Words of a name (articles aside) → [item, name] pairs: the whole-title lookup. */
+  readonly byName: ReadonlyMap<string, readonly (readonly [number, number])[]>;
 }
 
 const prefixOf = (w: string): string | null => (w.length >= 4 ? w.slice(0, 3) : null);
+
+/** « Girl From Ipanema, The » → « The Girl From Ipanema » (iReal puts the article last). */
+function articleFirst(title: string): string {
+  const m = /^(.*\S),\s*(The|A|An)$/i.exec(title.trim());
+  return m ? `${m[2]!} ${m[1]!}` : title;
+}
 
 /** Builds the index once for a list of titles (a few thousand: a few milliseconds). */
 export function buildTitleIndex<T>(entries: readonly TitleEntry<T>[]): TitleIndex<T> {
   const items: Indexed<T>[] = [];
   const byWord = new Map<string, number[]>();
   const byPrefix = new Map<string, number[]>();
+  const byName = new Map<string, [number, number][]>();
   const push = (map: Map<string, number[]>, key: string, i: number): void => {
     const list = map.get(key);
     if (!list) map.set(key, [i]);
@@ -340,7 +351,7 @@ export function buildTitleIndex<T>(entries: readonly TitleEntry<T>[]): TitleInde
   };
   for (const entry of entries) {
     const { main, aliases } = splitTitleBrackets(entry.title);
-    const mainWords = tokenize(main);
+    const mainWords = tokenize(articleFirst(main));
     if (mainWords.length === 0) continue;
     const names: Name[] = [{ words: mainWords, alias: null }];
     const titleKey = keyTokens(mainWords).join(' ');
@@ -348,7 +359,7 @@ export function buildTitleIndex<T>(entries: readonly TitleEntry<T>[]): TitleInde
     const seen = new Set<string>([titleKey]);
     for (const a of extra) {
       const { main: aMain } = splitTitleBrackets(a);
-      const words = tokenize(aMain);
+      const words = tokenize(articleFirst(aMain));
       const key = keyTokens(words).join(' ');
       if (words.length === 0 || seen.has(key)) continue;
       seen.add(key);
@@ -357,21 +368,30 @@ export function buildTitleIndex<T>(entries: readonly TitleEntry<T>[]): TitleInde
     const i = items.length;
     const composerWords = tokenize(entry.composer ?? '').filter((w) => w.length >= 4);
     items.push({ entry, names, titleKey, composerWords });
-    for (const n of names) {
+    names.forEach((n, k) => {
+      const whole = keyTokens(n.words).join(' ');
+      const at = byName.get(whole);
+      if (at) at.push([i, k]);
+      else byName.set(whole, [[i, k]]);
       const real = nonStop(keyTokens(n.words));
       for (const w of real.length > 0 ? real : n.words) {
         push(byWord, w, i);
         const p = prefixOf(w);
         if (p) push(byPrefix, p, i);
       }
-    }
+    });
   }
-  return { size: items.length, items, byWord, byPrefix };
+  return { size: items.length, items, byWord, byPrefix, byName };
+}
+
+interface Found<T> extends TitleMatch<T> {
+  order: number;
+  composerHit: boolean;
 }
 
 /**
  * Titles of the index that match `query`, best first, none below the threshold. Equal scores keep the
- * entries named by the query's composer first, then the order of the index.
+ * entries whose composer the query names first, then the order of the index.
  */
 export function findTitle<T>(index: TitleIndex<T>, query: string, options: FindOptions = {}): TitleMatch<T>[] {
   const threshold = options.threshold ?? DEFAULT_MATCH_THRESHOLD;
@@ -379,33 +399,59 @@ export function findTitle<T>(index: TitleIndex<T>, query: string, options: FindO
   const variants = queryVariants(query);
   if (variants.length === 0 || index.size === 0) return [];
   const queryWords = new Set(tokenize(query));
-  const best = new Map<number, TitleMatch<T> & { order: number }>();
+  const best = new Map<number, Found<T>>();
+  const record = (i: number, name: Name, s: Scored, variant: string): void => {
+    const item = index.items[i]!;
+    const score = name.alias === null ? s.score : s.score * 0.98;
+    const known = best.get(i);
+    if (!known || score > known.score) {
+      best.set(i, {
+        entry: item.entry,
+        score,
+        kind: s.kind,
+        titleKey: item.titleKey,
+        viaAlias: name.alias,
+        matched: variant,
+        order: i,
+        composerHit: item.composerWords.some((w) => queryWords.has(w)),
+      });
+    }
+  };
+  const seenVariants = new Set<string>();
   for (const variant of variants) {
     const q = tokenize(variant);
-    const qReal = nonStop(keyTokens(q));
-    const candidates = new Set<number>();
-    for (const w of qReal.length > 0 ? qReal : q) {
-      for (const i of index.byWord.get(w) ?? []) candidates.add(i);
-      const p = prefixOf(w);
-      if (p) for (const i of index.byPrefix.get(p) ?? []) candidates.add(i);
+    const key = q.join(' ');
+    if (seenVariants.has(key)) continue;
+    seenVariants.add(key);
+    // the whole title, as it stands: no need to look further for this variant
+    const whole = index.byName.get(keyTokens(q).join(' '));
+    if (whole) {
+      for (const [i, k] of whole) record(i, index.items[i]!.names[k]!, { score: 1, kind: 'exact' }, variant);
+      continue;
     }
-    for (const i of candidates) {
+    const qReal = nonStop(keyTokens(q));
+    const words = qReal.length > 0 ? qReal : q;
+    // candidates: titles that share words with the query (or the first three letters of one), at least half of them
+    const hits = new Map<number, number>();
+    for (const w of new Set(words)) {
+      const found = new Set<number>(index.byWord.get(w) ?? []);
+      const p = prefixOf(w);
+      if (p) for (const i of index.byPrefix.get(p) ?? []) found.add(i);
+      for (const i of found) hits.set(i, (hits.get(i) ?? 0) + 1);
+    }
+    const need = Math.max(1, Math.ceil(new Set(words).size / 2));
+    for (const [i, n] of hits) {
+      if (n < need) continue;
       const item = index.items[i]!;
       for (const name of item.names) {
         const s = scoreWords(q, name.words);
-        if (!s) continue;
-        let score = name.alias === null ? s.score : s.score * 0.98;
-        if (item.composerWords.some((w) => queryWords.has(w))) score = Math.min(1, score + 0.02);
-        const known = best.get(i);
-        if (!known || score > known.score) {
-          best.set(i, { entry: item.entry, score, kind: s.kind, titleKey: item.titleKey, viaAlias: name.alias, matched: variant, order: i });
-        }
+        if (s) record(i, name, s, variant);
       }
     }
   }
   return [...best.values()]
     .filter((m) => m.score >= threshold)
-    .sort((a, b) => b.score - a.score || a.order - b.order)
+    .sort((a, b) => b.score - a.score || Number(b.composerHit) - Number(a.composerHit) || a.order - b.order)
     .slice(0, max)
-    .map(({ order: _order, ...m }) => m);
+    .map(({ order: _order, composerHit: _hit, ...m }) => m);
 }

@@ -285,10 +285,10 @@ const ALTERATION = /^(b|#)(5|9|11|13)/;
 /** What a quality text (« 7b9 », « ^7#11 », « -7 », « h7 », « sus »…) means in the app's vocabulary. */
 export function iRealQualityMeaning(text: string): QualityMeaning {
   const exact = IREAL_TEXT_MEANING.get(text);
-  if (exact) return { quality: exact.quality, ext: [...exact.ext], approximate: false };
+  if (exact) return { quality: exact.quality, ext: sortExtensions([...exact.ext]), approximate: false };
   let s = text.replace(/ø/g, 'h').replace('6/9', '69');
   const exact2 = IREAL_TEXT_MEANING.get(s);
-  if (exact2) return { quality: exact2.quality, ext: [...exact2.ext], approximate: false };
+  if (exact2) return { quality: exact2.quality, ext: sortExtensions([...exact2.ext]), approximate: false };
 
   type Family = 'dom' | 'maj' | 'min' | 'mm' | 'dim' | 'hdim' | 'aug';
   let family: Family = 'dom';
@@ -424,6 +424,18 @@ export function chordFromIRealText(text: string): { chord: ChordSymbol; approxim
     chord: makeChord(pitchClassOf(root), q.quality, q.ext, bassNote ? pitchClassOf(bassNote) : null),
     approximate: q.approximate,
   };
+}
+
+/**
+ * The chord as the chord analysis would name it, to compare a chart with what is heard: iReal writes
+ * a half-diminished chord « m7♭5 » (`-7b5`) and an augmented seventh « 7♯5 »; the analysis calls them
+ * `hdim7` and `aug7`. Everything else is returned as it is. (The reader itself keeps what the chart
+ * says, so that a chart this app writes reads back identical.)
+ */
+export function asAnalysisChord(c: ChordSymbol): ChordSymbol {
+  if (c.quality === 'min7' && c.extensions.includes('b5')) return makeChord(c.root, 'hdim7', c.extensions.filter((e) => e !== 'b5'), c.bass);
+  if (c.quality === '7' && c.extensions.includes('#5') && !c.extensions.includes('alt')) return makeChord(c.root, 'aug7', c.extensions.filter((e) => e !== '#5'), c.bass);
+  return c;
 }
 
 // ---------------------------------------------------------------- the chart string: tokens
@@ -1006,7 +1018,18 @@ export function readIRealSong(raw: RawIRealSong): StandardChart {
         resolved.push({ meter, chords: [], alternates: [], simile: isX ? 'x' : 'r' });
         return;
       }
-      resolved.push({ meter, chords: src.chords.map((c) => ({ ...c })), alternates: src.alternates.map((a) => ({ ...a })), simile: isX ? 'x' : 'r' });
+      // alternate chords written in this bar (« (G-7)x (C7) ») are its own, on their cells; else the copy has the ones of the original
+      const own: ReadAlternate[] = [];
+      for (const a of bar.alts) {
+        const mapped = chordFromIRealText(a.text);
+        if (mapped) own.push({ beat: Math.min(a.cell, Math.max(0, meter.numerator - 1)), chord: mapped.chord, text: a.text, approximate: mapped.approximate });
+      }
+      resolved.push({
+        meter,
+        chords: src.chords.map((c) => ({ ...c })),
+        alternates: own.length > 0 ? own : src.alternates.map((a) => ({ ...a })),
+        simile: isX ? 'x' : 'r',
+      });
       const lastC = src.chords[src.chords.length - 1];
       if (lastC) lastChord = { text: lastC.text, chord: lastC.chord, approximate: lastC.approximate };
       return;
@@ -1076,6 +1099,7 @@ export function readIRealLink(link: string, firstIndex = 0): IRealPlaylist {
       skipped.push({ index: firstIndex + raw.index, title: raw.title, reason: e instanceof Error ? e.message : String(e) });
     }
   }
+  skipped.sort((a, b) => a.index - b.index);
   return { name: split.name, songs, skipped, linkCount: 1 };
 }
 
