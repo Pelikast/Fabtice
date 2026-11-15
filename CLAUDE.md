@@ -87,11 +87,16 @@ aucune technique de contournement des protections de YouTube.
         a des variations d'une reprise à l'autre (extensions, superstructures,
         substitutions tritoniques, parfois un accord qui change). Trouver
         l'équilibre.
-     3. **Grilles de standards connues** (le recueil d'environ 1 500 standards
-        de jazz des forums d'iReal Pro) : retrouvées par le titre, elles
-        servent de filet de sécurité en cas de doute important et entrent
-        dans le calcul de fiabilité. L'accord réellement joué dans
-        l'enregistrement reste le but : la grille connue ne le remplace pas.
+     3. **Grilles de standards connues** (les recueils les plus complets et
+        les plus téléchargés des forums d'iReal Pro : jazz, bossa nova et
+        brésilien…) : retrouvées par le titre, elles servent de filet de
+        sécurité en cas de doute important et entrent dans le calcul de
+        fiabilité. L'accord réellement joué dans l'enregistrement reste le
+        but : la grille connue ne le remplace pas. **Le dépôt ne contient pas
+        ces recueils** (même règle que pour les modèles) : l'app propose, dès
+        son ouverture, de les télécharger en un clic depuis leur emplacement
+        public, en expliquant en une phrase que cela améliore la détection
+        des accords des standards, et les garde sur l'appareil.
      4. **Autres modèles d'accords** : chercher s'il en existe de meilleurs ;
         les proposer comme choix dans les réglages pour qu'il les essaie.
 5. **Grille d'accords façon Real Book** : édition, transposition, affichage

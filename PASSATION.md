@@ -1,4 +1,4 @@
-# Passation — état du projet au 14 novembre 2026, lots 1 à 3 livrés
+# Passation — état du projet au 15 novembre 2026 : lots 1 à 3 publiés, retours du lot 3 et programme « accords » en cours
 
 Ce document sert à reprendre le projet dans une nouvelle session sans relire
 l'historique. `CLAUDE.md` (cahier des charges, décisions, mesures) et
@@ -24,7 +24,20 @@ déjà rencontrés et le plan.
   les « Releases » GitHub. Netlify ne se déploie que sur son clic, en fin de
   lot (voir `CLAUDE.md`, Conventions).
 - **Un lot ne commence que sur son feu vert explicite.** Les lots 1 à 3 sont
-  livrés (il n'a encore essayé que le lot 1) ; le lot 4 attend son accord.
+  publiés et essayés par lui sur ses deux Mac. Il a donné son feu vert, dans
+  cet ordre : corrections de ses retours, programme « accords », lot 4.
+- **Nuit du 14 au 15 novembre** : il a demandé qu'on ne lui pose plus de
+  question jusqu'à son réveil (« prends le reste des décisions tout seul ») et
+  qu'une version publiée l'attende le matin pour ses deux Mac. Les décisions
+  prises seules sont à lui rendre compte, clairement, dans le compte rendu.
+- **Deux sessions travaillent** : la session d'origine (corrections des
+  retours, fabrication sur les Mac de GitHub, publication) et une session
+  neuve (programme « accords », puis lot 4). Règles entre elles : la session
+  neuve ne pousse jamais sur `main` et ne lance pas la fabrication Mac (un
+  lancement annule celui qui est en cours) ; quand une branche est finie et
+  vérifiée chez elle, elle prévient la session d'origine, qui lance la
+  fabrication et publie. C'est à la session d'origine que le propriétaire a
+  donné l'accord de publier cette nuit.
 - **Publier demande son accord à chaque fois** : l'environnement refuse un
   push sur `main` tant qu'il ne l'a pas confirmé. Lui poser la question
   (publier ou non) quand la branche est verte sur les Mac de GitHub.
@@ -390,6 +403,72 @@ Limites connues :
 - La vraie fenêtre d'enregistrement de macOS n'a pas pu être essayée ici.
 - Les 29 Mo du calcul graphique d'ONNX Runtime s'ajoutent à l'app (chargés
   seulement pour une séparation).
+
+## Retours du propriétaire sur le lot 3 (14 novembre) et corrections
+
+Il a essayé la version publiée sur le Mac Intel et sur le M1 : « globalement un
+vrai succès ». Ses mesures de séparation sont dans `CLAUDE.md` (« Essais du
+propriétaire ») et dans `app/src/separation/models.json`. Ses demandes, toutes
+inscrites dans `CLAUDE.md` :
+
+| Demande | Où c'est traité |
+|---|---|
+| Le clic droit ne fait rien dans l'app Mac (coller un lien) | branche `retours-grille` |
+| Le magnétisme doit aussi valoir pour les boucles (sous-grille, ou libre) | branche `retours-boucles` ; peut changer la forme gardée d'une boucle et la version du document |
+| « Appliquer » → « Appliquer meilleure qualité » | branche `retours-boucles` |
+| Fausse variation de tempo brève, puis grille décalée d'un temps (enregistrement de 1945) | branche `retours-tempo` (`app/src/analysis/**`) |
+| Deux accords dans une mesure : le second au milieu (temps 3) | branche `retours-grille` |
+| Imprimer la grille avec options, export PDF | branche `retours-grille` |
+| Accords : un sur deux faux | programme « accords », ci-dessous |
+
+Ces trois branches partent de `retours-lot-3` et y sont fusionnées par la
+session d'origine, qui publie ensuite sur `main`. L'export mp3 n'a pas encore
+été essayé par lui.
+
+## Programme « accords » (feu vert donné, à faire avant le lot 4)
+
+Le but et les quatre moyens retenus sont dans `CLAUDE.md` (périmètre, point 4),
+avec les nuances du propriétaire : les lire avant tout. Ce qui est décidé :
+
+- **Mesurer avant de changer.** Il n'existe pas encore de banc de mesure sur
+  de vrais enregistrements : le prototype ne mesurait que des morceaux
+  synthétiques. Premier travail : un banc reproductible dans
+  `web/spikes/accords/` (morceaux à réponse connue, les plus réalistes
+  possible, y compris un son « vieux disque » : mono, bande étroite, bruit),
+  la mesure du pipeline actuel, puis chaque moyen mesuré seul et combiné. Les
+  enregistrements du propriétaire ne sont pas accessibles d'ici (pas d'accès
+  à YouTube, et aucun contournement).
+- **Instruments séparés** : après une séparation, les accords se recalculent
+  sans batterie ; la voix est écartée sauf si elle porte l'harmonie ; les
+  pistes qui portent l'harmonie sont choisies morceau par morceau ; la basse
+  est un indice fort de la fondamentale, pas une règle.
+- **Reprises** : indice souple, jamais une recopie.
+- **Recueils iReal Pro** : pas dans le dépôt. L'app propose à l'ouverture de
+  les télécharger en un clic, avec une phrase d'explication. Dans l'app Mac
+  c'est le processus principal qui télécharge (une page ne peut pas lire un
+  autre site) ; la version web proposera au moins l'import d'un fichier. Les
+  adresses vont dans une liste distante, comme celle des modèles, pour pouvoir
+  les corriger sans nouvelle version. La grille retrouvée par le titre (les
+  titres venus d'un lien sont bruités) s'aligne sur les mesures et la
+  tonalité, sert d'a priori et entre dans la fiabilité ; elle ne remplace pas
+  ce qui est entendu.
+- **Autres modèles** : chercher (Hugging Face, GitHub), vérifier licence,
+  taille et conversion, mesurer sur le banc ; ceux qui valent mieux sont
+  proposés dans les réglages avancés, comme les modèles de séparation.
+- Toute correction faite à la main par l'utilisateur reste intouchable.
+- La branche `retours-tempo` modifie `app/src/analysis/**` : partir de
+  `retours-lot-3` une fois cette branche fusionnée (ou de `main` après la
+  publication) avant de toucher à ce dossier.
+
+## Lot 4 (feu vert donné, après le programme « accords »)
+
+Métronome avancé (métriques composées, temps forts et faibles par métrique,
+décompte avant la boucle, accélération progressive), repères (boucles et
+sections nommées, sauvegardées), réglages, projets `.fabtice` (ouvrir un projet
+existant au lancement, en créer un), version web hors ligne (PWA), finitions.
+À savoir : la forme d'une boucle a pu changer avec `retours-boucles` (les
+repères s'appuient dessus) ; le document a pu changer de version ; les 29 Mo
+du calcul graphique et les outils téléchargés comptent pour le hors-ligne.
 
 ## Points ouverts
 
