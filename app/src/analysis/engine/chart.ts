@@ -124,7 +124,13 @@ export function analyseChart(input: ChartInput): ChartRun {
     fit = fitKnownChart(units, grid.numbers, grid.beatsPerBar, key, input.known.candidates, s.chart, input.known.references);
     if (fit.accepted) {
       sources.push(fit.source);
-      if (!input.fixedKey && fit.key) key = { best: { tonic: fit.key.tonic, minor: fit.key.mode === 'minor' }, ranked: key.ranked };
+      if (!input.fixedKey && fit.key) {
+        // An accepted chart is strong evidence for the key (it passed its z-score tests): 0.9.
+        const tonic = fit.key.tonic;
+        const minor = fit.key.mode === 'minor';
+        const same = key.ranked.find((k) => k.tonic === tonic && k.minor === minor);
+        key = { best: { tonic, minor, p: Math.max(0.9, same?.p ?? 0) }, ranked: [{ tonic, minor, p: Math.max(0.9, same?.p ?? 0) }, ...key.ranked.filter((k) => k !== same)] };
+      }
     }
   }
   if (sources.length) units = applyEvidence(units, sources);

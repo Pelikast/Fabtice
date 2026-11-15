@@ -217,12 +217,23 @@ export function bassSource(
  */
 export const HARMONY_THRESHOLD = 2.4;
 
+/** Least share of the candidates' energy (level² × activity) a part needs to be heard at all. */
+export const MIN_SHARE = 0.05;
+
+/** Parts that are never harmony candidates: the bass (listened to for the root) and the drums. */
+const NOT_HARMONY = new Set(['bass', 'drums', 'kick', 'snare', 'hihat', 'toms', 'cymbals']);
+
 export function harmonyScore(f: StemFeatures): number {
   return f.polyphony - 4 * f.noChord;
 }
 
 export function selectHarmony(features: Readonly<Record<string, StemFeatures>>, threshold = HARMONY_THRESHOLD): string[] {
-  const cands = Object.entries(features).filter(([name, f]) => name !== 'bass' && name !== 'drums' && f.activity > 0.05);
+  const all = Object.entries(features).filter(([name]) => !NOT_HARMONY.has(name));
+  // A real separation also gives parts the band does not have: nearly silent, but the network
+  // still hears « chords » in what leaks into them. Only parts with a share of the sound count.
+  const energy = (f: StemFeatures) => f.level * f.level * f.activity;
+  const total = all.reduce((n, [, f]) => n + energy(f), 0);
+  const cands = all.filter(([, f]) => f.activity > 0.05 && total > 0 && energy(f) / total >= MIN_SHARE);
   if (!cands.length) return [];
   const kept = cands.filter(([, f]) => harmonyScore(f) >= threshold).map(([n]) => n);
   if (kept.length) return kept.sort();

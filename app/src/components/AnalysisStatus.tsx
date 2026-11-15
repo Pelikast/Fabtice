@@ -6,7 +6,9 @@
 import { useCallback, useEffect, useRef, useState, type Ref } from 'react';
 import { getAnalyzer, type AnalysisModelInfo } from '../analysis';
 import { useAnalysisProgress } from '../analysis/progress';
+import { evidenceText } from '../analysis/evidenceText';
 import { cancelAnalysis, runAnalysis } from '../analysis/runner';
+import { analysisEvidence } from '../analysis/types';
 import { formatNumber, t } from '../i18n';
 import { closePanel, openPanel, togglePanel } from '../store/actions';
 import { selectAnalysisStatus } from '../store/chartSelectors';
@@ -149,6 +151,7 @@ function useModels(): AnalysisModelInfo[] {
 export function AnalysisPanel({ ref }: { ref: Ref<HTMLDivElement> }) {
   const status = useApp(selectAnalysisStatus);
   const run = useApp((s) => s.analysisRun);
+  const used = useApp((s) => (s.analysis ? evidenceText(analysisEvidence(s.analysis)) : ''));
   const fitRef = useFitPanel(ref);
   return (
     <div ref={fitRef} className="fenetre panneau-analyse" role="dialog" aria-label={t('analysis.title')}>
@@ -166,6 +169,11 @@ export function AnalysisPanel({ ref }: { ref: Ref<HTMLDivElement> }) {
           <p className="panneau-note">
             {run.status === 'error' ? t(`analysis.error.${run.code}`) : status === 'done' ? t('analysis.doneText') : t('analysis.noneText')}
           </p>
+          {status === 'done' && used && (
+            <p className="panneau-note" data-testid="analyse-ecoute">
+              {used}
+            </p>
+          )}
           <button
             className="bouton-cadre"
             onClick={() => {
