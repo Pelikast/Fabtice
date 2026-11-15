@@ -85,6 +85,15 @@ aucune technique de contournement des protections de YouTube.
      passage brutal et bref (par exemple de 120 à 60 sur quatre mesures, puis
      retour à 120) n'est jamais cru ; une petite tolérance reste pour les
      mouvements légers ou progressifs.
+   - **Correction du tempo à la main** (décision du propriétaire) : en cas de
+     bosse de tempo non désirée, un clic droit sur la mesure à partir de
+     laquelle cela pose problème propose deux choix. « Corriger un changement
+     de tempo indésirable » : réanalyser à partir de cette mesure en disant à
+     l'analyse que le gros écart détecté n'est pas pertinent (la plupart du
+     temps, le tempo ne doit pas changer). « Réanalyser le tempo à partir de
+     cette mesure » : relancer une analyse vierge à partir de cette mesure,
+     sans rien signaler. Cela permet de résoudre à la main les rares erreurs
+     de détection.
    - **Attente** : toute étape longue montre un pourcentage qui avance
      régulièrement, pas quelques paliers.
    - **Accords, à améliorer en priorité** (décisions du propriétaire après ses
