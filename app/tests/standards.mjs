@@ -143,49 +143,45 @@ try {
     const offer = page.locator('[data-testid="standards-offre"]');
     const sentence = (await offer.innerText()).replace(/\s+/g, ' ');
     check('the offer shows the sentence in French', sentence.includes('Télécharger les grilles des standards de jazz ? Cela améliore la détection des accords des standards.'));
-    const rows = await rowTexts(page, '[data-testid="standards-offre"]');
+    check('the card is compact: no checkbox, no list of collections', (await offer.locator('input[type="checkbox"]').count()) === 0 && (await offer.locator('.recueil').count()) === 0);
+    check('« Télécharger », « Plus tard », « Ne plus proposer » and one discreet link to choose the collections', (await offer.getByRole('button', { name: 'Télécharger' }).count()) === 1 && (await offer.getByRole('button', { name: 'Plus tard' }).count()) === 1 && (await offer.getByRole('button', { name: 'Ne plus proposer' }).count()) === 1 && (await offer.getByRole('button', { name: 'Choisir les recueils…' }).count()) === 1);
+    const state0 = await page.evaluate(() => ({ open: window.__fabtice.store.getState().ui.newPieceOpen }));
+    check('the opening dialog is open and the import choices are still there', state0.open && (await page.getByRole('button', { name: 'Choisir un fichier audio' }).count()) === 1);
+    check('no horizontal overflow (desktop)', await noOverflow(page));
+    await shot(page, '1-offre-bureau');
+
+    // The detail, in the window: list, hosts, web note, « ne redistribue pas »
+    await offer.getByRole('button', { name: 'Choisir les recueils…' }).click();
+    await page.waitForSelector('[data-testid="standards-fenetre"]');
+    const win = page.locator('[data-testid="standards-fenetre"]');
+    const rows = await rowTexts(page, '[data-testid="standards-fenetre"]');
     note(`rows: ${JSON.stringify(rows)}`);
     check('five recommended collections, each with its name, count and source host', rows.length === 5 && rows[0].startsWith('Jazz 1460') && rows[0].includes('20 grilles') && rows[0].includes('GitHub'), `${rows.length} rows`);
     check('web: the collections that cannot be downloaded directly are said plainly', rows.some((r) => r.startsWith('Brésil 220') && r.includes('à importer depuis un fichier')) && rows.some((r) => r.startsWith('Dixieland') && r.includes('à importer depuis un fichier')));
-    const ticked = await offer.locator('input[type="checkbox"]').evaluateAll((els) => els.map((e) => [e.checked, e.disabled]));
+    const ticked = await win.locator('input[type="checkbox"]').evaluateAll((els) => els.map((e) => [e.checked, e.disabled]));
     check('the downloadable recommended ones are ticked, the others disabled', JSON.stringify(ticked) === JSON.stringify([[true, false], [false, true], [true, false], [true, false], [false, true]]), JSON.stringify(ticked));
-    check('the web note explains why', (await offer.innerText()).includes('Dans la version web'));
-    check('« Plus tard » and « Ne plus proposer » are offered', (await offer.getByRole('button', { name: 'Plus tard' }).count()) === 1 && (await offer.getByRole('button', { name: 'Ne plus proposer' }).count()) === 1);
-    const state0 = await page.evaluate(() => ({ open: window.__fabtice.store.getState().ui.newPieceOpen }));
-    check('the opening dialog is open and the import choices are still there', state0.open && (await page.getByRole('button', { name: 'Choisir un fichier audio' }).count()) === 1);
-    await shot(page, '1-offre-bureau');
-    check('no horizontal overflow (desktop)', await noOverflow(page));
+    const winText = await win.innerText();
+    check('the web note and the « ne redistribue pas » line are in the window', winText.includes('Dans la version web') && winText.includes('ne redistribue pas') && winText.includes('Importer un fichier…'));
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(() => !document.querySelector('[data-testid="standards-fenetre"]'));
 
-    // The download
-    await page.locator('[data-testid="standards-telecharger"]').click();
+    // The download: one calm line, then one result line
+    await offer.getByRole('button', { name: 'Télécharger' }).click();
     await page.waitForSelector('[data-testid="standards-resultat"]', { timeout: 20000 });
     const result = (await page.locator('[data-testid="standards-resultat"]').innerText()).replace(/\s+/g, ' ');
     note(`result: ${result}`);
-    check('honest result: tunes kept (jazz 21 + blues 20)', result.includes('41 grilles gardées sur cet appareil.'), result.slice(0, 80));
-    check('a login page is named plainly as not found', result.includes('Latin 50 : introuvable pour l’instant.'));
-    check('the collections the web cannot download are named, with the file import', result.includes('Brésil 220 : à importer depuis un fichier.') && result.includes('Importer un fichier…') && result.includes('exportée depuis iReal Pro'));
+    check('one result line: tunes kept (jazz 21 + blues 20)', result.includes('41 grilles gardées sur cet appareil.'), result.slice(0, 80));
+    check('some collections need a file: one short line points to the settings', result.includes('Réglages avancés → Grilles des standards') && !result.includes('Latin 50') && !result.includes('Importer un fichier'), result);
     check('no page of an irealpro.com site was requested from the web app', !seen.some((s) => /irealpro|irealb/.test(s)), seen.join(', '));
     check('only the ticked collections were requested', seen.filter((s) => s.startsWith('raw.githubusercontent.com') && !/collections\.json|models\.json/.test(s)).length === 3, seen.join(', '));
     const kept = await records(page);
     check('the library is kept in its own IndexedDB database', kept.length === 2 && kept.some((r) => r.id === 'jazz-1460' && r.tunes === 21) && kept.some((r) => r.id === 'blues-50' && r.tunes === 20), JSON.stringify(kept));
     await shot(page, '2-resultat-bureau');
-
-    // The file import: the Brazilian playlist exported from iReal Pro
-    const file = path.join(work, 'Brazilian 220.html');
-    fs.writeFileSync(file, playlistFile(tunes(20, 'Brazilian Tune'), 'Brazilian 220'));
-    await page.locator('[data-testid="standards-fichier"]').setInputFiles(file);
-    await page.waitForSelector('.standards-note', { timeout: 10000 });
-    check('the file import says how many grids it added', (await page.locator('.standards-note').innerText()).includes('20 grilles ajoutées depuis le fichier.'));
-    const afterImport = await records(page);
-    check('the file is kept under the collection it is', afterImport.some((r) => r.id === 'brazilian-220' && r.tunes === 20 && r.source === 'file:Brazilian 220.html'), JSON.stringify(afterImport));
-    const bad = path.join(work, 'login.html');
-    fs.writeFileSync(bad, LOGIN_PAGE);
-    await page.locator('[data-testid="standards-fichier"]').setInputFiles(bad);
-    await page.waitForFunction(() => document.querySelector('.standards-note')?.textContent?.includes('aucune grille'), null, { timeout: 10000 });
-    check('a page that holds no chart is refused plainly', true);
     await page.getByRole('button', { name: 'Terminer' }).click();
     await page.waitForFunction(() => !document.querySelector('[data-testid="standards-offre"]'));
-    check('once something is kept, the offer goes away', true);
+    check('once something is kept, the card is gone from this window', true);
+    check('no page errors', errors.length === 0, errors.join(' | '));
+    await page.close();
     check('no page errors', errors.length === 0, errors.join(' | '));
     await page.close();
 
@@ -199,7 +195,7 @@ try {
       return { top: list[0] ? { title: list[0].chart.title, id: list[0].collectionId, bars: list[0].chart.bars.length, score: list[0].score } : null, total: st.total, persistent: st.persistent, ids: st.collections.map((c) => c.id) };
     });
     check('the charts are found again after the reload, by a noisy video title', found.top?.title === 'Autumn Leaves' && found.top.id === 'jazz-1460' && found.top.bars > 0, JSON.stringify(found));
-    check('three collections, 61 tunes, persistent', found.total === 61 && found.persistent && found.ids.length === 3, JSON.stringify(found));
+    check('two collections, 41 tunes, persistent', found.total === 41 && found.persistent && found.ids.length === 2, JSON.stringify(found));
 
     check('no page errors after the reload', errors2.length === 0, errors2.join(' | '));
     await context.close();
@@ -228,6 +224,18 @@ try {
     await page.waitForSelector('[data-testid="standards-gardees"]');
     const keptRows = await rowTexts(page, '[data-testid="standards-gardees"]');
     check('the window lists what is kept, with counts', keptRows.length === 2 && keptRows.some((r) => r.startsWith('Jazz 1460') && r.includes('21 grilles')), JSON.stringify(keptRows));
+    const file = path.join(work, 'Brazilian 220.html');
+    fs.writeFileSync(file, playlistFile(tunes(20, 'Brazilian Tune'), 'Brazilian 220'));
+    await page.locator('[data-testid="standards-fenetre"] [data-testid="standards-fichier"]').setInputFiles(file);
+    await page.waitForSelector('.standards-note', { timeout: 10000 });
+    check('the file import says how many grids it added', (await page.locator('.standards-note').innerText()).includes('20 grilles ajoutées depuis le fichier.'));
+    const afterImport = await records(page);
+    check('the file is kept under the collection it is', afterImport.some((r) => r.id === 'brazilian-220' && r.tunes === 20 && r.source === 'file:Brazilian 220.html'), JSON.stringify(afterImport));
+    const bad = path.join(work, 'login.html');
+    fs.writeFileSync(bad, LOGIN_PAGE);
+    await page.locator('[data-testid="standards-fenetre"] [data-testid="standards-fichier"]').setInputFiles(bad);
+    await page.waitForFunction(() => document.querySelector('.standards-note')?.textContent?.includes('aucune grille'), null, { timeout: 10000 });
+    check('a page that holds no chart is refused plainly', true);
     await shot(page, '4-fenetre-gardees');
     await page.getByRole('button', { name: 'Retirer toutes les grilles' }).click();
     await page.getByRole('button', { name: 'Oui, les retirer' }).click();
@@ -271,7 +279,7 @@ try {
     await page.locator('[data-testid="standards-telecharger"]').click();
     await page.waitForSelector('[data-testid="standards-encours"]');
     const running = (await page.locator('[data-testid="standards-encours"]').innerText()).replace(/\s+/g, ' ');
-    check('while downloading: the title of the step, a percentage and each collection with its state', running.includes('Téléchargement des grilles…') && /\d+ %/.test(running) && running.includes('téléchargement depuis GitHub…') && running.includes('en attente'), running);
+    check('while downloading: a single calm line with a percentage', running.includes('Téléchargement des grilles…') && /\d+ %/.test(running) && !running.includes('en attente'), running);
     await shot(page, '5-telechargement');
     await page.getByRole('button', { name: 'Annuler' }).click();
     await page.waitForSelector('[data-testid="standards-resultat"]', { timeout: 10000 });
@@ -316,6 +324,29 @@ try {
     await shot(page, '7-resultat-telephone');
     check('phone: result without horizontal overflow', await noOverflow(page));
     check('no page errors (phone)', errors.length === 0, errors.join(' | '));
+    await context.close();
+  }
+  // ------------------------------------------------------------ 7. the card never pushes the import out of view
+  for (const [w, h] of [[1280, 800], [960, 640], [390, 844]]) {
+    resetPages();
+    const { context } = await persistentContext({ width: w, height: h });
+    const { page } = await openPage(context);
+    await waitOffer(page);
+    await sleep(400);
+    const m = await page.evaluate(() => {
+      const box = (sel) => {
+        const r = document.querySelector(sel)?.getBoundingClientRect();
+        return r ? { top: r.top, bottom: r.bottom } : null;
+      };
+      const dlg = document.querySelector('.voile.ouverte .accueil');
+      return { vh: window.innerHeight, scrolls: dlg.scrollHeight > dlg.clientHeight, importBtn: box('.accueil .plein'), stems: box('.stems-choix'), offer: box('[data-testid="standards-offre"]') };
+    });
+    note(`${w}x${h}: ${JSON.stringify(m)}`);
+    check(`${w}x${h}: the import button is in view`, m.importBtn && m.importBtn.top >= 0 && m.importBtn.bottom <= m.vh);
+    check(`${w}x${h}: the instruments come before the offer`, m.stems && m.offer && m.stems.top < m.offer.top);
+    if (w >= 960 && h >= 800) check(`${w}x${h}: the instruments are in view`, m.stems.bottom <= m.vh, `bottom ${m.stems.bottom}`);
+    check(`${w}x${h}: no horizontal overflow`, await noOverflow(page));
+    await shot(page, `8-ouverture-${w}x${h}`);
     await context.close();
   }
 } finally {
