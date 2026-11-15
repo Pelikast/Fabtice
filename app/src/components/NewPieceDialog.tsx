@@ -179,8 +179,8 @@ function Choices({ open, desktop }: { open: boolean; desktop: boolean }) {
             </button>
           </div>
         )}
-        {open && <StandardsCard />}
         <ImportStems />
+        {open && <StandardsCard />}
         <div className="pied">
           <span>{t('new.formats')}</span>
           <span>{t('new.dropHint')}</span>
@@ -196,8 +196,8 @@ function Choices({ open, desktop }: { open: boolean; desktop: boolean }) {
         {t('new.chooseFileButton')}
       </button>
       {fileInput}
-      {open && <StandardsCard />}
       <ImportStems />
+      {open && <StandardsCard />}
       <div className="pied">
         <span>{t('new.formats')}</span>
         <span>{t('new.dropHint')}</span>

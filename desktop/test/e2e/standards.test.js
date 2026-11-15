@@ -101,22 +101,28 @@ test('the Mac app downloads the chart collections itself: bridge rules, then the
     // ---------------------------------------------------------------- the offer in the interface
     await page.waitForSelector('[data-testid="standards-offre"]', { timeout: 30000 });
     // The remote list was read through the bridge (the sizes are the shrunk ones of the fake list).
-    await page.waitForFunction(() => document.querySelector('[data-testid="standards-offre"]')?.textContent?.includes('20 grilles'), null, { timeout: 15000 });
-    const rows = await page.locator('[data-testid="standards-offre"] .recueil').evaluateAll((els) => els.map((e) => e.innerText.replace(/\s+/g, ' ').trim()));
+    // The card is compact; the detail (list, hosts) is in the window « Choisir les recueils… ».
+    assert.equal(await page.locator('[data-testid="standards-offre"] input[type="checkbox"]').count(), 0, 'no checkbox in the card');
+    await page.getByRole('button', { name: 'Choisir les recueils…' }).click();
+    await page.waitForSelector('[data-testid="standards-fenetre"]');
+    await page.waitForFunction(() => document.querySelector('[data-testid="standards-fenetre"]')?.textContent?.includes('20 grilles'), null, { timeout: 15000 });
+    const rows = await page.locator('[data-testid="standards-fenetre"] .recueil').evaluateAll((els) => els.map((e) => e.innerText.replace(/\s+/g, ' ').trim()));
     assert.equal(rows.length, 5);
     assert.ok(rows[0].startsWith('Jazz 1460') && rows[0].includes('depuis irealpro.com'), rows[0]);
     assert.ok(rows.every((r) => !r.includes('à importer depuis un fichier')), 'in the Mac app every collection can be downloaded directly');
-    const ticked = await page.locator('[data-testid="standards-offre"] input[type="checkbox"]').evaluateAll((els) => els.map((e) => e.checked));
+    const ticked = await page.locator('[data-testid="standards-fenetre"] input[type="checkbox"]').evaluateAll((els) => els.map((e) => e.checked));
     assert.deepEqual(ticked, [true, true, true, true, true]);
-    assert.ok(!(await page.locator('[data-testid="standards-offre"]').innerText()).includes('Dans la version web'), 'the web note is not shown in the app');
+    assert.ok(!(await page.locator('[data-testid="standards-fenetre"]').innerText()).includes('Dans la version web'), 'the web note is not shown in the app');
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(() => !document.querySelector('[data-testid="standards-fenetre"]'));
 
     await page.locator('[data-testid="standards-telecharger"]').click();
     await page.waitForSelector('[data-testid="standards-resultat"]', { timeout: 30000 });
     const result = (await page.locator('[data-testid="standards-resultat"]').innerText()).replace(/\s+/g, ' ');
     // Jazz 21 + Latin 20 + Blues 20 (official page) + Brazilian 20 (attached file) = 81; Dixieland: a login page.
     assert.ok(result.includes('81 grilles gardées sur cet appareil.'), result);
-    assert.ok(result.includes('Dixieland et jazz traditionnel : introuvable pour l’instant.'), result);
-    assert.ok(result.includes('Importer un fichier…'), result);
+    assert.ok(result.includes('Réglages avancés → Grilles des standards'), result);
+    assert.ok(!result.includes('Dixieland'), 'one short line, the detail is in the settings');
     assert.ok(!result.includes('Brésil 220 :'), 'Brazilian was found through its forum attachment');
 
     // The shared official page was fetched once for the three collections it holds.

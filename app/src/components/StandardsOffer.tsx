@@ -18,6 +18,7 @@ import {
   forgetStandards,
   importStandards,
   offerVisible,
+  openStandardsPanel,
   postponeOffer,
   startStandardsDownload,
   tickedCollections,
@@ -112,7 +113,7 @@ function FileImport({ showWhere }: { showWhere: boolean }) {
   );
 }
 
-function Running() {
+function Running({ compact = false }: { compact?: boolean }) {
   const progress = useStandards((s) => (s.run.kind === 'running' ? s.run.progress : null));
   if (!progress) return null;
   return (
@@ -124,7 +125,7 @@ function Running() {
       <div className="jauge" style={{ '--avance': progress.fraction } as CSSProperties}>
         <span />
       </div>
-      <ul className="recueils recueils-etat">
+      {!compact && <ul className="recueils recueils-etat">
         {progress.rows.map((r) => (
           <li key={r.id} className="recueil" data-state={r.state}>
             <span className="recueil-nom">{r.name}</span>
@@ -137,18 +138,24 @@ function Running() {
             </span>
           </li>
         ))}
-      </ul>
-      <div className="import-actions">
-        <button className="bouton-cadre bouton-standards" onClick={cancelStandardsDownload}>
+      </ul>}
+      {compact ? (
+        <button className="lien discret" onClick={cancelStandardsDownload}>
           {t('standards.cancel')}
         </button>
-      </div>
+      ) : (
+        <div className="import-actions">
+          <button className="bouton-cadre bouton-standards" onClick={cancelStandardsDownload}>
+            {t('standards.cancel')}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
 
 /** The honest result: what is kept, what could not be had (named plainly), and the file import as the alternative. */
-function Result() {
+function Result({ compact = false }: { compact?: boolean }) {
   const run = useStandards((s) => s.run);
   const doneRef = useRef<HTMLButtonElement>(null);
   useEffect(() => doneRef.current?.focus({ preventScroll: true }), []);
@@ -167,7 +174,8 @@ function Result() {
             : t('standards.resultNone')}
       </p>
       {!status.persistent && status.total > 0 && <p className="stems-note">{t('standards.memoryOnly')}</p>}
-      {failed.length + fileOnly.length > 0 && (
+      {compact && failed.length + fileOnly.length > 0 && <p className="stems-note">{t('standards.seeSettings')}</p>}
+      {!compact && failed.length + fileOnly.length > 0 && (
         <>
           <p className="stems-note">{t('standards.failedLead')}</p>
           <ul className="standards-echecs">
@@ -208,31 +216,34 @@ function Actions({ children }: { children?: React.ReactNode }) {
   );
 }
 
-/** The card of the opening dialog. Renders nothing when there is nothing to propose or show. */
+/** The card of the opening dialog: compact (one sentence, one button); the detail is in the settings window. */
 export function StandardsCard() {
   const visible = useStandards((s) => offerVisible(s));
   const kind = useStandards((s) => s.run.kind);
   if (!visible) return null;
   return (
-    <section className="standards" aria-labelledby="standards-titre" data-testid="standards-offre">
-      <h3 id="standards-titre">{t('standards.title')}</h3>
+    <section className="standards standards-compact" aria-label={t('standards.title')} data-testid="standards-offre">
       {kind === 'running' ? (
-        <Running />
+        <Running compact />
       ) : kind === 'done' ? (
-        <Result />
+        <Result compact />
       ) : (
         <>
           <p className="standards-phrase">{t('standards.offer')}</p>
-          <Collections locked={false} />
-          <p className="stems-note">{t('standards.keptOnDevice')}</p>
-          <Actions>
+          <div className="standards-actions">
+            <button className="bouton-cadre bouton-standards" data-testid="standards-telecharger" onClick={() => void startStandardsDownload()}>
+              {t('standards.download')}
+            </button>
             <button className="lien discret" onClick={postponeOffer}>
               {t('standards.later')}
             </button>
             <button className="lien discret" onClick={declineOffer}>
               {t('standards.never')}
             </button>
-          </Actions>
+          </div>
+          <button className="lien discret recueils-plus" data-testid="standards-choisir" onClick={openStandardsPanel}>
+            {t('standards.choose')}
+          </button>
         </>
       )}
     </section>

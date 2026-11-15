@@ -608,6 +608,8 @@ export const fr = {
   'standards.failedNotFound': '{name} : introuvable pour l’instant.',
   'standards.failedFile': '{name} : à importer depuis un fichier.',
   'standards.failedLead': 'Quelques recueils n’ont pas pu être téléchargés. Vous pouvez en importer un fichier.',
+  'standards.choose': 'Choisir les recueils…',
+  'standards.seeSettings': 'Pour les autres, voir Réglages avancés → Grilles des standards.',
   'standards.done': 'Terminer',
   'standards.settingsEntry': 'Grilles des standards',
   'standards.settingsNone': 'Aucune grille sur cet appareil',
