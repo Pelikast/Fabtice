@@ -112,6 +112,8 @@ def build(piece, sf2):
     rng = np.random.default_rng(piece["seed"])
     knobs = dict(KNOBS)
     knobs.update(piece.get("knobs", {}))
+    if piece["style"] == "trad" and "accel" not in piece.get("knobs", {}):
+        knobs["accel"] = 0.04  # bands of the 1920s-40s often speed up over a take
     if "cents" not in piece.get("knobs", {}):
         r2 = np.random.default_rng(piece["seed"] + 1000)
         knobs["cents"] = float(np.round(r2.choice([-1, 1]) * r2.uniform(12, 45), 1)) if r2.random() < 0.4 else 0.0

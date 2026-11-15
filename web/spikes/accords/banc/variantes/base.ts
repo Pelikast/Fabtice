@@ -14,11 +14,13 @@ const base: Variant = async (input, ctx) => {
   const hint = input.truthGrid ?? null;
   let grid;
   let meterScores: MeterScore[] = [];
+  let repairs: ReturnType<typeof gridFromActivations>['repairs'] = [];
   if (hint) grid = gridFromHint(hint.times, hint.downbeat, hint.beatsPerBar);
   else {
     const r = gridFromActivations(outputs.act);
     grid = r.grid;
     meterScores = r.meterScores;
+    repairs = r.repairs;
   }
   const chart = chartFromGrid(outputs.frames, outputs.timeScale, grid, null);
   const result = toAnalysisResult({
@@ -30,6 +32,7 @@ const base: Variant = async (input, ctx) => {
     keyIsHint: false,
     tuning: outputs.tuning,
     segments: chart.segments,
+    repairs,
     duration,
     models: modelsFor('light').map((m) => m.id),
   });

@@ -30,7 +30,7 @@ import numpy as np
 
 from harmony import Chord, available_tensions, chord_scale
 
-KNOBS = dict(lead_db=2.0, tension=0.35, variation=0.25, drift=0.01, accel=0.0, bass_busy=0.25,
+KNOBS = dict(lead_db=2.0, tension=0.35, variation=0.25, drift=0.01, accel=0.0, bass_busy=0.12,
              anticip=0.25, pedal=0.3, minor=False, cents=0.0)
 
 # General MIDI programs (0-based) and registers.

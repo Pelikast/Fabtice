@@ -1258,7 +1258,7 @@
   "variation": 0.3,
   "drift": 0.03,
   "accel": 0.0,
-  "bass_busy": 0.25,
+  "bass_busy": 0.12,
   "anticip": 0.25,
   "pedal": 0.3,
   "minor": false,
