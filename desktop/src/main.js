@@ -4,7 +4,7 @@ const path = require('node:path');
 const os = require('node:os');
 const fsp = require('node:fs/promises');
 const fs = require('node:fs');
-const { app, BrowserWindow, ipcMain, net, clipboard, session, protocol, dialog, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, net, clipboard, session, protocol, dialog, shell, powerMonitor } = require('electron');
 const { YtDlpManager } = require('./ytdlp-manager');
 const { extractAudio } = require('./extract');
 const { parseVideoId } = require('./video-id');
@@ -19,6 +19,8 @@ const { installContextMenu } = require('./context-menu');
 const printing = require('./printing');
 const { electronFetch, fetchStandardsText } = require('./standards-fetch');
 const { createOpenFiles, projectPathsIn } = require('./open-files');
+const { createAudioJournal, sourceFromUrl } = require('./audio-journal');
+const { installPowerEvents } = require('./power-events');
 
 // The interface is built by app/ (npm run build:desktop) into desktop/ui/.
 const UI_DIR = path.join(__dirname, '..', 'ui');
@@ -394,6 +396,12 @@ if (!app.requestSingleInstanceLock()) {
     updateCheck = manager.checkForUpdate().catch((e) => ({ error: e.message }));
     removeStaleTempDirs();
     registerIpc();
+    // The audio journal (Aide → Diagnostic…) and the Mac's sleeps and wakes, forwarded to the pages, which
+    // then give the audio output back to the system: see audio-journal.js and power-events.js.
+    const audioJournal = createAudioJournal({ dir: app.getPath('userData'), redact });
+    void audioJournal.load();
+    audioJournal.registerIpc(handle, { sourceOf: (url) => sourceFromUrl(url, fabticeProtocol) });
+    installPowerEvents({ powerMonitor, app, journal: audioJournal, send: (payload) => send('fabtice:power', payload) });
     trace('protocol, menu and IPC set up');
     const openFirstWindow = () => {
       if (fs.existsSync(path.join(UI_DIR, 'index.html'))) {
