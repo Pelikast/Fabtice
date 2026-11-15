@@ -137,4 +137,66 @@ async function fetchStandardsText(value, options) {
   }
 }
 
-module.exports = { fetchStandardsText, checkUrl, ALLOWED_HOSTS, MAX_BYTES, MAX_REDIRECTS, ERRORS, TEST_ORIGIN_ENV };
+/**
+ * A `fetch`-shaped function over Electron's `net.request`, for what `fetchStandardsText` needs: no
+ * cookies, no credentials, and redirects NOT followed (a 3xx comes back as a response with its
+ * `location`, so that the caller checks the next host itself). Electron's own `net.fetch` cannot do
+ * that: with `redirect: 'manual'` it cancels the request at the first redirect.
+ *
+ * @param {{ request: (options: object) => any }} net Electron's `net` module
+ * @returns {typeof fetch}
+ */
+function electronFetch(net) {
+  return (url, init = {}) =>
+    new Promise((resolve, reject) => {
+      const signal = init.signal;
+      if (signal && signal.aborted) return reject(new DOMException('aborted', 'AbortError'));
+      const request = net.request({ url: String(url), method: 'GET', redirect: 'manual', credentials: 'omit', useSessionCookies: false });
+      for (const [name, value] of Object.entries(init.headers || {})) request.setHeader(name, value);
+      const onAbort = () => {
+        request.abort();
+        reject(new DOMException('aborted', 'AbortError'));
+      };
+      if (signal) signal.addEventListener('abort', onAbort, { once: true });
+      const done = () => signal && signal.removeEventListener('abort', onAbort);
+      const toHeaders = (raw) => {
+        const headers = new Headers();
+        for (const [name, value] of Object.entries(raw || {})) {
+          for (const v of Array.isArray(value) ? value : [value]) headers.append(name, String(v));
+        }
+        return headers;
+      };
+      request.on('redirect', (statusCode, _method, redirectUrl, responseHeaders) => {
+        const headers = toHeaders(responseHeaders);
+        headers.set('location', redirectUrl);
+        request.abort(); // the caller decides whether to follow it
+        done();
+        resolve(new Response(null, { status: statusCode >= 300 && statusCode < 400 ? statusCode : 302, headers }));
+      });
+      request.on('response', (res) => {
+        const body = new ReadableStream({
+          start(controller) {
+            res.on('data', (chunk) => controller.enqueue(new Uint8Array(chunk)));
+            res.on('end', () => {
+              done();
+              controller.close();
+            });
+            res.on('error', (e) => controller.error(e));
+            res.on('aborted', () => controller.error(new Error('aborted')));
+          },
+          cancel() {
+            request.abort();
+          },
+        });
+        const status = res.statusCode >= 200 && res.statusCode <= 599 ? res.statusCode : 502;
+        resolve(new Response(status === 204 || status === 205 || status === 304 ? null : body, { status, headers: toHeaders(res.headers) }));
+      });
+      request.on('error', (e) => {
+        done();
+        reject(e);
+      });
+      request.end();
+    });
+}
+
+module.exports = { electronFetch, fetchStandardsText, checkUrl, ALLOWED_HOSTS, MAX_BYTES, MAX_REDIRECTS, ERRORS, TEST_ORIGIN_ENV };

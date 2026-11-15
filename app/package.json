@@ -25,6 +25,7 @@
     "test:export-memory": "node tests/export-memory.mjs",
     "test:analysis": "node tests/analysis.mjs",
     "test:separation": "node tests/separation.mjs",
+    "test:standards": "node tests/standards.mjs",
     "test:render": "node tests/render.mjs",
     "test:separation-real": "node tests/separation-real.mjs",
     "test:separation-prototype": "node tests/separation-prototype.mjs",

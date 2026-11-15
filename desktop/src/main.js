@@ -17,7 +17,7 @@ const { validateIRealLink } = require('./ireal-link');
 const { installDownloads } = require('./downloads');
 const { installContextMenu } = require('./context-menu');
 const printing = require('./printing');
-const { fetchStandardsText } = require('./standards-fetch');
+const { electronFetch, fetchStandardsText } = require('./standards-fetch');
 
 // The interface is built by app/ (npm run build:desktop) into desktop/ui/.
 const UI_DIR = path.join(__dirname, '..', 'ui');
@@ -290,7 +290,7 @@ function registerIpc() {
   // the main process does the GET, on a fixed list of hosts, with a size cap (standards-fetch.js).
   handle('fabtice:standards-fetch', async (event, url) => {
     if (!event.senderFrame.url.startsWith(`${fabticeProtocol.SCHEME}://${fabticeProtocol.HOST_APP}/`)) throw new Error('unexpected sender');
-    return fetchStandardsText(url, { fetchImpl: (u, opts) => net.fetch(u, opts) });
+    return fetchStandardsText(url, { fetchImpl: electronFetch(net) });
   });
 
   handle('fabtice:copy', async (_e, text) => {
