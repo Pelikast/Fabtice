@@ -23,7 +23,15 @@ aucune technique de contournement des protections de YouTube.
 ## Périmètre v1
 
 1. **Import** : lien YouTube (app Mac), fichiers mp3, wav, aiff, m4a, flac.
-   Au lancement : ouvrir un projet existant (format `.fabtice`) ou en créer un.
+   Au lancement : ouvrir un projet existant (format `.fab`), ouvrir un projet
+   récent, ou en créer un.
+   - **Projets `.fab`** (décisions du propriétaire) : un projet s'enregistre
+     et se recharge en un fichier `.fab`. L'audio y est en FLAC (sans perte)
+     plutôt qu'en WAV, pour prendre moins de place ; le FLAC est à employer
+     autant que possible pour tout ce que l'app garde sur l'appareil. Le
+     projet contient les pistes séparées ; s'il y a eu plusieurs séparations
+     avec plusieurs outils, **toutes** y sont, pour passer de l'une à l'autre
+     dans les réglages sans rien recalculer.
 2. **Séparation des instruments**, au choix à l'import ou plus tard : voix,
    batterie, basse, guitare, piano, vents, autres ; puis détail optionnel
    (kick, caisse claire, charleston, toms, cymbales ; saxophone…). Le modèle
@@ -60,9 +68,10 @@ aucune technique de contournement des protections de YouTube.
      la prévisualisation. Un bouton « Appliquer meilleure qualité » recalcule
      ensuite les pistes avec le meilleur moteur (Rubber Band R3 « finer », trop
      lourd pour le direct), derrière un écran d'attente ; le lecteur ne fait
-     alors plus que lire ce rendu, gardé en mémoire et jamais sauvegardé (à la
-     réouverture il est à refaire). Tout nouveau changement repasse en
-     prévisualisation jusqu'à la prochaine application.
+     alors plus que lire ce rendu. Le dernier rendu est gardé avec le projet,
+     un seul à la fois : une nouvelle application écrase la précédente, jamais
+     l'original. Tout nouveau changement repasse en prévisualisation jusqu'à
+     la prochaine application.
      La conservation du timbre (formants) n'est proposée que dans ce rendu
      appliqué : elle ne donne pas un bon résultat avec le moteur léger.
    - Le contexte audio est fixé à 48 kHz, quel que soit le réglage de la
@@ -72,7 +81,12 @@ aucune technique de contournement des protections de YouTube.
    l'harmonie jazz. Tout est corrigeable à la main : premier temps, métrique,
    tempo doublé ou divisé, tonalité, chaque accord.
    - **Tempo** : une variation brutale et brève qui revient au tempo d'avant
-     n'est pas crue ; un nouveau tempo qui dure est un vrai changement.
+     n'est pas crue ; un nouveau tempo qui dure est un vrai changement. Un
+     passage brutal et bref (par exemple de 120 à 60 sur quatre mesures, puis
+     retour à 120) n'est jamais cru ; une petite tolérance reste pour les
+     mouvements légers ou progressifs.
+   - **Attente** : toute étape longue montre un pourcentage qui avance
+     régulièrement, pas quelques paliers.
    - **Accords, à améliorer en priorité** (décisions du propriétaire après ses
      essais du lot 3 : environ un accord sur deux était faux). Quatre moyens,
      tous retenus, qui se combinent dans un même calcul de fiabilité :
@@ -108,6 +122,8 @@ aucune technique de contournement des protections de YouTube.
      son temps, comme dans le Real Book. Le second est donc au milieu de la
      mesure (troisième temps), sauf s'il est détecté sur le deuxième ou le
      quatrième temps.
+   - **Une seule taille pour tous les accords** de la grille : une mesure à
+     deux accords ne s'écrit pas plus petit que les autres.
    - **Impression** depuis l'affichage Grille d'accords, avec les choix
      habituels (portrait ou paysage, pleine page) et l'export en PDF.
    - **Deux affichages** se partagent la zone centrale, la barre du haut et
@@ -184,6 +200,22 @@ Relevés réels, sur ses deux Mac, avec la version publiée le 14 novembre 2026.
   fiables. C'est le point à améliorer en priorité dans l'analyse.
 - **Lecteur, boucle, tonalité, tempo, import par lien** : fonctionnent sur les
   deux Mac.
+
+Essais du 15 novembre 2026, sur le Mac Intel, avec la version publiée ce
+jour-là :
+
+- **Modèle d'accords détaillé** (Tsumugi-Chords) : jugé « vraiment meilleur,
+  résultat très satisfaisant ».
+- **Séparation d'un long morceau** (745 s) avec HTDemucs 6 sources sur la
+  carte graphique : 948 s, soit 1,27 fois sa durée (7,4 s par tranche).
+- **Tempo** : sur un autre morceau que la veille, encore quelques bosses
+  brutales sur la courbe (tempo lu à la moitié de sa valeur pendant un
+  moment), et tout décalé à partir de là, la première partie étant bonne.
+- **Grille** : certaines mesures à deux accords écrites beaucoup plus petit
+  que les autres, sans raison apparente.
+- **Blocage du son du Mac** : l'app étant ouverte depuis un moment sans rien
+  faire, la lecture ne partait plus, et le lecteur du Finder non plus ; il a
+  fallu redémarrer le Mac. Jamais arrivé avant l'installation de Fabtice.
 
 ## Conventions
 
