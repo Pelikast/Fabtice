@@ -43,6 +43,23 @@ export function report(r: Result): string {
       L.push(`| ${gl} | ${cl} | ${x.pieces} | ${pc(x.beat.fondamentale)} | ${pc(x.beat.famille)} | ${pc(x.beat.couleur)} | ${pc(x.beat.complet)} | ${pc(x.beat.basse)} | ${pc(x.missing)} | ${pc(x.extra)} | ${g === 'truth' ? '(vraie)' : pc(x.beatF)} | ${g === 'truth' ? '(vraie)' : pc(x.downbeats)} | ${pc(x.key)} |`);
     }
   }
+  if (r.groups.split && Object.keys(r.groups.split).length) {
+    L.push('');
+    L.push('Développement (réglages faits dessus) et morceaux mis de côté (jamais regardés pour régler), voir `banc/partage.json` :');
+    L.push('');
+    L.push('| Grille | Partie | Son | Morceaux | Fondamentale | Couleur | Basse | Accords manqués | Accords en trop | Tonalité | Erreurs signalées |');
+    L.push('|---|---|---|---|---|---|---|---|---|---|---|');
+    for (const [g, gl] of GRIDS) {
+      for (const [sp, sl] of [['dev', 'développement'], ['test', 'mis de côté']] as const) {
+        for (const [c, cl] of CONDITIONS) {
+          const e = r.groups.split[`${g}|${sp}|${c}`];
+          if (!e) continue;
+          const x = e.rates;
+          L.push(`| ${gl} | ${sl} | ${cl} | ${x.pieces} | ${pc(x.beat.fondamentale)} | ${pc(x.beat.couleur)} | ${pc(x.beat.basse)} | ${pc(x.missing)} | ${pc(x.extra)} | ${pc(x.key)} | ${pc(x.errorsFlagged)} |`);
+        }
+      }
+    }
+  }
   L.push('');
   L.push('Même mesure pondérée par la durée (échantillons toutes les 50 ms) :');
   L.push('');

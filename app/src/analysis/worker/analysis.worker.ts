@@ -14,9 +14,10 @@ import { ensureModels, missingModels } from '../models/download';
 import { openModelStore } from '../models/store';
 import { AnalysisError, type AnalysisErrorCode, type AnalysisStep, type GridHint } from '../types';
 import { BEAT_MODEL_ID, MODEL_REGISTRY, modelsFor } from '../models';
-import { chartFromGrid, gridFromActivations, gridFromHint, runNetworks, type NetworkOutputs, type Sessions, type StepControl } from '../engine/pipeline';
+import { resultFromOutputs } from '../engine/analyse';
+import type { KnownCharts } from '../engine/chart';
+import { runNetworks, type NetworkOutputs, type Sessions, type StepControl } from '../engine/pipeline';
 import { resampleRatioAsync } from '../engine/resample';
-import { toAnalysisResult, type ResultInput } from '../engine/result';
 import type { OrtLike, SessionLike } from '../engine/session';
 import type { Key } from '../../model/harmony';
 import type { AnalyseRequestMessage, DecodeRequestMessage, FromWorker, ToWorker } from './protocol';
@@ -81,36 +82,9 @@ async function createSession(bytes: ArrayBuffer): Promise<ort.InferenceSession> 
 
 const asSession = (s: ort.InferenceSession) => s as unknown as SessionLike;
 
-function tonalHint(key: Key | null) {
-  return key ? { tonic: key.tonic, minor: key.mode === 'minor' } : null;
-}
-
 /** Grid, key and chords on the networks' outputs. Cheap. */
-function decode(outputs: NetworkOutputs, grid: GridHint | null, key: Key | null, base: Pick<ResultInput, 'duration' | 'models'>) {
-  let g;
-  let meterScores: ResultInput['meterScores'] = [];
-  let repairs: ResultInput['repairs'] = [];
-  if (grid) g = gridFromHint(grid.times, grid.downbeat, grid.meter.numerator);
-  else {
-    const r = gridFromActivations(outputs.act);
-    g = r.grid;
-    meterScores = r.meterScores;
-    repairs = r.repairs;
-  }
-  if (g.beats.length < 2) throw new AnalysisError('no-music', 'no beats found');
-  const chart = chartFromGrid(outputs.frames, outputs.timeScale, g, tonalHint(key));
-  return toAnalysisResult({
-    grid: g,
-    downbeat: grid ? grid.downbeat : undefined,
-    meterScores,
-    gridIsHint: !!grid,
-    key: chart.key,
-    keyIsHint: !!key,
-    tuning: outputs.tuning,
-    segments: chart.segments,
-    repairs,
-    ...base,
-  });
+function decode(outputs: NetworkOutputs, grid: GridHint | null, key: Key | null, known: KnownCharts | null, base: { duration: number; models: string[] }) {
+  return resultFromOutputs({ outputs, grid, key, known, ...base });
 }
 
 /** The piece at 22.05 kHz (Beat This!) and 44.1 kHz (CREMA); the 48 kHz mono copy is dropped on the way. */
@@ -189,7 +163,7 @@ async function analyse(msg: AnalyseRequestMessage): Promise<void> {
     ctl.step('finish');
     ctl.check();
     await yieldNow();
-    const result = decode(outputs, msg.grid, msg.key, { duration: msg.duration, models: modelIds });
+    const result = decode(outputs, msg.grid, msg.key, msg.known, { duration: msg.duration, models: modelIds });
     post({ type: 'result', result, outputs, models: modelIds });
   } finally {
     await Promise.all(sessions.splice(0).map((s) => s.release().catch(() => {})));
@@ -199,7 +173,7 @@ async function analyse(msg: AnalyseRequestMessage): Promise<void> {
 async function decodeOnly(msg: DecodeRequestMessage): Promise<void> {
   const ctl = control();
   ctl.step('finish');
-  const result = decode(msg.outputs, msg.grid, msg.key, { duration: msg.duration, models: msg.models });
+  const result = decode(msg.outputs, msg.grid, msg.key, msg.known, { duration: msg.duration, models: msg.models });
   post({ type: 'result', result, outputs: null, models: msg.models });
 }
 

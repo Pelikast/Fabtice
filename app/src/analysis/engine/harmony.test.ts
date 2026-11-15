@@ -212,7 +212,7 @@ describe('mapping to the app\'s model', () => {
   it('maps an analysis to the result of the model', () => {
     const r = toAnalysisResult(base());
     expect(r.version).toBe(ANALYSIS_RESULT_VERSION);
-    expect(r.analyser).toEqual({ id: 'fabtice', version: '2', models: ['beat-this-logmel', 'beat-this-small0', 'crema-chords'] });
+    expect(r.analyser).toEqual({ id: 'fabtice', version: '3', models: ['beat-this-logmel', 'beat-this-small0', 'crema-chords'] });
     expect(r.analysedAt).toBe('2026-11-14T10:00:00.000Z');
     expect(r.duration).toBe(12);
     expect(r.beats).toEqual({ times: grid.beats, downbeat: 0, meter: { numerator: 4, denominator: 4 }, meterConfidence: 0.91 });

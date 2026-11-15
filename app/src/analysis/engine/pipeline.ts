@@ -11,9 +11,12 @@
 // ported: the default never uses them.
 
 import { AnalysisError, type AnalysisStep } from '../types';
+import { bassBand } from './bassband';
+import { bassAudio } from './bassline';
+import type { BassListening, HarmonyListening } from './chart';
 import { beatLogits, downProbAt, logMel, postMinimal, type BeatActivations } from './beats';
-import { cremaFrames, poolSegments, type ChordFrames } from './chords';
-import { buildSegments, decodeChords, type ChordSegment } from './decode';
+import { cremaFrames, poolSegments, type ChordFrames, type PooledUnit } from './chords';
+import { buildSegments, decodeChords, type ChordSegment, type DecodeOptions } from './decode';
 import { makeGrid, renumber, type Grid } from './grid';
 import { estimateKey, type KeyEstimate } from './key';
 import { inferMeter, type MeterScore } from './meter';
@@ -53,6 +56,19 @@ export interface NetworkOutputs {
   frames: ChordFrames;
   /** Tuning correction stretched the audio by this factor (original time × timeScale = model time). */
   timeScale: number;
+  /** What else the chord analysis listens to (`chart.ts`): absent in outputs kept from before. */
+  listening?: Listening;
+}
+
+/** The harmony parts of a separation and the bass line (see `chart.ts`). */
+export interface Listening {
+  harmony: HarmonyListening | null;
+  bass: BassListening | null;
+}
+
+/** The bass register of the mix at the bass estimate's rate (no separation). */
+export function bandBass(audio44: Float32Array): BassListening {
+  return { low: bassAudio(bassBand(audio44, 44100), 44100), from: 'band' };
 }
 
 /** Beat stage: log-mel graph, then the beat network. */
@@ -113,7 +129,7 @@ export function gridFromHint(times: readonly number[], downbeat: number, beatsPe
   return makeGrid(times, renumber(times, beatsPerBar, downbeat), beatsPerBar);
 }
 
-function beatSegments(beats: readonly number[]): [number, number][] {
+export function beatSegments(beats: readonly number[]): [number, number][] {
   return beats.map((t, i) => [t, beats[i + 1] ?? t + (i > 0 ? t - beats[i - 1]! : 0.5)] as [number, number]);
 }
 
@@ -127,23 +143,47 @@ export interface Chart {
   segments: ChordSegment[];
 }
 
-/** Chords on the grid, key estimate and chart. Cheap: also re-run after a grid correction. */
-export function chartFromGrid(frames: ChordFrames, timeScale: number, grid: Grid, fixedKey: TonalHint | null = null): Chart {
-  const segs = beatSegments(grid.beats);
-  const units = poolSegments(frames, segs, timeScale);
-  const prior = { priorOn: OPTIONS.harmonyPrior };
+/** The chord network's evidence pooled over each beat of the grid. */
+export function beatUnits(frames: ChordFrames, timeScale: number, grid: Grid): PooledUnit[] {
+  return poolSegments(frames, beatSegments(grid.beats), timeScale);
+}
+
+/** Sum of the pitch-class output over every frame: what the key profile is matched against. */
+export function frameChroma(frames: ChordFrames): number[] {
+  const chroma = new Array<number>(12).fill(0);
+  for (let f = 0; f < frames.T; f++) for (let k = 0; k < 12; k++) chroma[k]! += frames.pitch[f * 12 + k]!;
+  return chroma;
+}
+
+/**
+ * Key estimate and chart from per-beat evidence. The entry point for evidence
+ * adjusted between pooling and decoding (other listenings, structural priors):
+ * `units` must be one per beat of `grid`.
+ */
+export function chartFromUnits(
+  units: readonly PooledUnit[],
+  grid: Grid,
+  chroma: readonly number[],
+  fixedKey: TonalHint | null = null,
+  decode: Partial<DecodeOptions> = {},
+): Chart {
+  const prior = { ...decode, priorOn: OPTIONS.harmonyPrior };
   let key: Chart['key'];
   if (fixedKey) key = { best: { tonic: fixedKey.tonic, minor: fixedKey.minor }, ranked: [] };
   else {
     const first = decodeChords(units, grid.numbers, grid.beatsPerBar, null, { ...prior, kappa: 0 });
     const chordSegs = first.path.map((c, i) => ({ chord: c, dur: units[i]!.t1 - units[i]!.t0 }));
-    const chroma = new Array<number>(12).fill(0);
-    for (let f = 0; f < frames.T; f++) for (let k = 0; k < 12; k++) chroma[k]! += frames.pitch[f * 12 + k]!;
     key = estimateKey(chroma, chordSegs);
   }
   const dec = decodeChords(units, grid.numbers, grid.beatsPerBar, key.best, prior);
-  const times = grid.beats.concat([segs[segs.length - 1]?.[1] ?? 0]);
+  const last = units[units.length - 1];
+  const times = grid.beats.concat([last ? last.t1 : 0]);
   return { key, segments: buildSegments(units, times, dec.path, dec.post) };
+}
+
+/** Chords on the grid, key estimate and chart. Cheap: also re-run after a grid correction. */
+export function chartFromGrid(frames: ChordFrames, timeScale: number, grid: Grid, fixedKey: TonalHint | null = null): Chart {
+  return chartFromUnits(beatUnits(frames, timeScale, grid), grid, frameChroma(frames), fixedKey);
 }
 
 /** Everything the networks do, with the steps announced to `ctl`. */
@@ -158,5 +198,7 @@ export async function runNetworks(ort: OrtLike, sessions: Sessions, audio22: Flo
   const act = await beatStage(ort, sessions, audio22, ctl);
   ctl.step('chords');
   const { frames, timeScale } = await chordStage(ort, sessions, audio44, tuning, ctl);
-  return { tuning, act, frames, timeScale };
+  ctl.check();
+  const bass = bandBass(audio44);
+  return { tuning, act, frames, timeScale, listening: { harmony: null, bass } };
 }
