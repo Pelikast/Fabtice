@@ -104,12 +104,19 @@ export const mix: Variant = async (input, ctx) => {
   const cr = net.outputs.frames;
   const ts = net.outputs.timeScale;
   const other = onGrid(m, cr.T, cr.fps, ts);
+  // Optional second model: MODELE2 with weight MIX_W2 (CREMA then weighs 1 - MIX_W - MIX_W2).
+  const m2 = process.env.MODELE2 ? readModel(process.env.MODELE2, input.mixPath) : null;
+  if (process.env.MODELE2 && !m2) throw new Error(`${process.env.MODELE2}: no output for ${input.id}`);
+  const w2 = m2 ? Number(process.env.MIX_W2 ?? 0) : 0;
+  const other2 = m2 ? onGrid(m2, cr.T, cr.fps, ts) : null;
   const probs = new Float32Array(cr.T * N_CHORDS);
   for (let f = 0; f < cr.T; f++) {
     let s = 0;
     for (let c = 0; c < N_CHORDS; c++) {
       const i = f * N_CHORDS + c;
-      const v = Math.exp((1 - w) * Math.log(cr.probs[i]! + 1e-4) + w * Math.log(other[i]! + 1e-4));
+      let lv = (1 - w - w2) * Math.log(cr.probs[i]! + 1e-4) + w * Math.log(other[i]! + 1e-4);
+      if (other2) lv += w2 * Math.log(other2[i]! + 1e-4);
+      const v = Math.exp(lv);
       probs[i] = v;
       s += v;
     }

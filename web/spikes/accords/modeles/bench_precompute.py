@@ -83,6 +83,7 @@ def main() -> None:
     ap.add_argument("--subset", action="store_true")
     ap.add_argument("--threads", type=int, default=2)
     ap.add_argument("--only")
+    ap.add_argument("--conditions", help="e.g. disque,reel-disque")
     a = ap.parse_args()
     items = corpus()
     if a.subset:
@@ -90,7 +91,8 @@ def main() -> None:
     if a.only:
         keep = set(a.only.split(","))
         items = [x for x in items if x["id"] in keep]
-    jobs = [(x, c, p) for x in items for c, p in x["conditions"].items()]
+    conds = set(a.conditions.split(",")) if a.conditions else None
+    jobs = [(x, c, p) for x in items for c, p in x["conditions"].items() if not conds or c in conds]
     for model in a.models.split(","):
         d = DATA / "modeles" / model
         d.mkdir(parents=True, exist_ok=True)
