@@ -925,7 +925,9 @@ scenarios.fin = async () => {
   note(`fine model, first use (68 MB downloaded): analysis ${mt.seconds.toFixed(1)} s for ${(await page.evaluate(() => window.__fabtice.store.getState().project.duration)).toFixed(1)} s of music; whole run ${total.toFixed(1)} s`);
   note(`fine model: browser memory ${memory.before.toFixed(0)} MB before, peak ${memory.peak.toFixed(0)} MB (all browser processes, resident)`);
   check('fine: no task over 200 ms on the main thread', mt.longestTask < 200, `${mt.longestTask.toFixed(0)} ms`);
-  check('fine: no console error', errors.length === 0, errors.join(' | '));
+  // Opening the advanced settings probes the graphics chip for the separation tool: Chromium then says it has none (not a fault).
+  const realErrors = errors.filter((e) => !/No available adapters/i.test(e));
+  check('fine: no console error', realErrors.length === 0, realErrors.join(' | '));
 
   // Second use: the weights are kept; the analysis time alone.
   {
