@@ -5,8 +5,8 @@
 
    The chart is drawn as the desktop's: a bar is 206 units wide, a chord 30
    units high, and the unit is a 206th of the width of a bar on the page. So the
-   same drawing fits every paper, in both orientations, and the size step each
-   bar's chords need (`data-taille-p`, chart/fit.ts) is the same everywhere.
+   same drawing fits every paper, in both orientations, and the one size step the
+   chart's chords need (`data-taille-p`, chart/fit.ts) is the same for every bar.
 
    What the dialog chooses (chart/print.ts) is on the root element:
      data-impression="portrait" | "paysage"     (@page is written by print.ts)
@@ -76,6 +76,8 @@
   .feuille .case[data-rangs-p="2"] { --rangs: 2; }
   .feuille .case[data-rangs]:not([data-rangs-p]) { --rangs: 1; }
   .case[data-rangs-p="2"] .accord-case { min-height: 0; }
+  /* The push back from the end bar line is the paper's too (units of 1/206 of a bar, as --pg and --pd). */
+  .feuille .case .accord-case[data-debut] { left: calc(var(--debut) * (100% - var(--pg) - var(--pd)) + var(--pg) - 5px + var(--pousse-p, 0) * var(--u)); }
   .feuille .case .numero { font-size: 8pt; }
   .feuille .case .section { font-size: 10pt; line-height: 13pt; }
   .case .numero { color: var(--encre-douce); }

@@ -1,40 +1,52 @@
-// Gives each bar of the chart the size its chords need so that none touches
-// the next one or leaves the bar (`fit.ts` decides, here the screen is
-// measured). The result is two attributes on the bar's cell, which the style
-// sheets turn into a font size:
-//   - `data-taille` and `data-rangs`: the step and the number of rows on screen
-//     (absent: normal size, one row), for the bar as wide as it is now;
-//   - `data-taille-p` and `data-rangs-p`: the same on paper, for the bar as the
-//     printed chart draws it (`PRINT_GEOMETRY`: the page scales the same drawing to its width).
+// Gives the chart ONE size for its chords and, where a bar needs it, two rows
+// and a push back from the end bar line (`fit.ts` decides, here the screen is
+// measured). The result is attributes the style sheets turn into sizes:
+//   - `data-taille` on every bar (absent: normal size): the same step everywhere;
+//     `data-rangs` on the bars that need two rows;
+//   - `--pousse` on a chord (px): how far a chord is moved from its beat
+//     (a late one is pushed back to stay inside its bar);
+//   - `data-taille-p`, `data-rangs-p`, `--pousse-p`: the same for paper, for the
+//     bars as the printed chart draws them (`PRINT_GEOMETRY`: the page scales the
+//     same drawing to its width, `--pousse-p` is in units of 1/206 of a bar).
 // Done before the first paint, again when the sheet changes width, when the
 // fonts arrive, and whenever the chords change.
 
 import { useEffect, useLayoutEffect, type RefObject } from 'react';
-import { fitLayout, PRINT_GEOMETRY, type FitChord } from './fit';
+import { fitChart, PRINT_GEOMETRY, type ChartBar, type FitChord } from './fit';
 
 function px(value: string): number {
   const n = parseFloat(value);
   return Number.isFinite(n) ? n : 0;
 }
 
-/** Re-fits every bar of `root` that has chords. Exported for the tests of the page. */
+/** Re-fits the whole chart in `root`: one size for every bar. Exported for the tests of the page. */
 export function fitChords(root: HTMLElement): void {
   const cells = [...root.querySelectorAll<HTMLElement>('.case[data-temps]')];
-  // Everything is measured at the normal size.
+  // Everything is measured at the normal size, unpushed.
   for (const cell of cells) {
     for (const name of ['data-taille', 'data-taille-p', 'data-rangs', 'data-rangs-p']) cell.removeAttribute(name);
+    for (const button of cell.querySelectorAll<HTMLElement>('.accord-case[data-debut]')) {
+      button.style.removeProperty('--pousse');
+      button.style.removeProperty('--pousse-p');
+    }
   }
-  const measured = cells.map((cell) => {
+  const screen: ChartBar[] = [];
+  const paper: ChartBar[] = [];
+  const buttons: HTMLElement[][] = [];
+  for (const cell of cells) {
     const style = getComputedStyle(cell);
     const beats = Number(cell.dataset.temps) || 4;
     const base = px(style.fontSize);
     const chords: FitChord[] = [];
+    const mine: HTMLElement[] = [];
     for (const button of cell.querySelectorAll<HTMLElement>('.accord-case[data-debut]')) {
       const symbol = button.querySelector<HTMLElement>('.ch');
       if (!symbol || base <= 0) continue;
       chords.push({ frac: Number(button.dataset.debut) / beats, em: symbol.getBoundingClientRect().width / base });
+      mine.push(button);
     }
-    return {
+    buttons.push(mine);
+    screen.push({
       chords,
       geometry: {
         width: cell.clientWidth,
@@ -43,17 +55,23 @@ export function fitChords(root: HTMLElement): void {
         base,
         room: cell.clientHeight - px(style.getPropertyValue('--haut')),
       },
-    };
-  });
+    });
+    paper.push({ chords, geometry: PRINT_GEOMETRY });
+  }
+  const onScreen = fitChart(screen.map((b) => (b.geometry.width > 0 ? b : { ...b, chords: [] })));
+  const onPaper = fitChart(paper);
   cells.forEach((cell, i) => {
-    const { chords, geometry } = measured[i]!;
-    if (!chords.length || geometry.width <= 0) return;
-    const screen = fitLayout(chords, geometry);
-    const paper = fitLayout(chords, PRINT_GEOMETRY);
-    if (screen.step > 0) cell.dataset.taille = String(screen.step);
-    if (screen.rows === 2) cell.dataset.rangs = '2';
-    if (paper.step > 0) cell.dataset.tailleP = String(paper.step);
-    if (paper.rows === 2) cell.dataset.rangsP = '2';
+    if (!screen[i]!.chords.length) return;
+    if (onScreen.step > 0) cell.dataset.taille = String(onScreen.step);
+    if (onScreen.bars[i]!.rows === 2) cell.dataset.rangs = '2';
+    if (onPaper.step > 0) cell.dataset.tailleP = String(onPaper.step);
+    if (onPaper.bars[i]!.rows === 2) cell.dataset.rangsP = '2';
+    buttons[i]!.forEach((button, k) => {
+      const a = onScreen.bars[i]!.push[k]!;
+      const b = onPaper.bars[i]!.push[k]!;
+      if (Math.abs(a) > 0.01) button.style.setProperty('--pousse', `${a.toFixed(2)}px`);
+      if (Math.abs(b) > 0.01) button.style.setProperty('--pousse-p', b.toFixed(2));
+    });
   });
 }
 
