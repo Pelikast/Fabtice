@@ -357,12 +357,13 @@ function ImportErrorView({ status }: { status: Extract<ImportStatus, { kind: 'er
  */
 function RecentProjects({ open }: { open: boolean }) {
   const [list, setList] = useState<RecentProject[]>([]);
+  const [all, setAll] = useState(false);
   useEffect(() => {
     const bridge = getDesktopBridge();
     if (!open || !bridge?.recentProjects) return;
     let live = true;
     bridge.recentProjects().then(
-      (l) => live && setList(l.slice(0, RECENT_SHOWN)),
+      (l) => live && setList(l.slice(0, RECENT_MAX)),
       () => live && setList([]),
     );
     return () => {
@@ -370,11 +371,11 @@ function RecentProjects({ open }: { open: boolean }) {
     };
   }, [open]);
   if (list.length === 0) return null;
+  const shown = all ? list : list.slice(0, RECENT_SHOWN);
   return (
-    <section className="projets-recents" aria-labelledby="recents-titre" data-testid="projets-recents">
-      <h3 id="recents-titre">{t('new.recentTitle')}</h3>
+    <section className="projets-recents" aria-label={t('new.recentTitle')} data-testid="projets-recents">
       <ul>
-        {list.map((p) => (
+        {shown.map((p) => (
           <li key={p.token}>
             <button className="lien" onClick={() => void getDesktopBridge()?.openRecentProject?.(p.token)}>
               {p.name.replace(/\.fab$/i, '')}
@@ -383,8 +384,15 @@ function RecentProjects({ open }: { open: boolean }) {
           </li>
         ))}
       </ul>
+      {list.length > RECENT_SHOWN && (
+        <button className="lien discret" data-testid="recents-tous" aria-expanded={all} onClick={() => setAll((v) => !v)}>
+          {all ? t('new.recentFewer') : t('new.recentAll', { n: list.length })}
+        </button>
+      )}
     </section>
   );
 }
 
-const RECENT_SHOWN = 5;
+/** Three recent projects are shown, most recent first; « voir tous » unfolds the rest. */
+const RECENT_SHOWN = 3;
+const RECENT_MAX = 5;
