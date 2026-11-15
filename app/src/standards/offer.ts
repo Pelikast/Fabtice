@@ -2,7 +2,7 @@
 // entry): what is on the device, which collections are ticked, the download in progress and its
 // result, and the two ways of not being asked again (« Plus tard » for this visit, « Ne plus
 // proposer » kept on the device). A small store of its own: this is device data, not project data,
-// and nothing here goes into a `.fabtice` document.
+// and nothing here goes into a `.fab` document.
 
 import { useStore } from 'zustand';
 import { createStore } from 'zustand/vanilla';

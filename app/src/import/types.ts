@@ -25,7 +25,7 @@ export type ImportPhase =
   | 'preparing'
   /** Launch: the piece kept on the device is being opened again (not an import). */
   | 'restoring'
-  /** Lot 4: a `.fabtice` project file is being opened (`project/open.ts`). */
+  /** Lot 4: a `.fab` project file is being opened (`project/open.ts`). */
   | 'opening';
 
 /** What the launch is doing while a kept piece is opened again (`phase: 'restoring'`). */
@@ -92,9 +92,9 @@ export type ImportErrorCode =
   | 'not-available'
   /** The tracks could not be handed to the audio engine. */
   | 'prepare-failed'
-  /** Lot 4, `.fabtice` file: cut short or damaged. */
+  /** Lot 4, `.fab` file: cut short or damaged. */
   | 'project-damaged'
-  /** Lot 4, `.fabtice` file: written by a later version of Fabtice. */
+  /** Lot 4, `.fab` file: written by a later version of Fabtice. */
   | 'project-too-recent'
   /** Lot 4: chosen as a project, but not a Fabtice project file. */
   | 'project-not-project'

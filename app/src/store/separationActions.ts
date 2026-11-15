@@ -76,15 +76,26 @@ export function stemName(stem: StemId): string {
   return t(`stem.${stem}`);
 }
 
+/** What a new separation did to the others: ids of the tracks it replaced (same tool), and of those it set aside. */
+export interface SeparationChange {
+  /** Audio ids of the separation made with the same tool before: gone (memory and device). */
+  replaced: string[];
+  /** Audio ids of the separation that was current and is now one of the others (kept on the device). */
+  setAside: string[];
+}
+
 /**
  * Puts a finished separation in place: the instrument tracks replace the
  * whole piece (which waits aside, with its mix), in the order of the
- * mockup. A previous separation's instruments are dropped from memory (the
- * runner deletes them from the device). Resolves once the engine plays them.
+ * mockup. Version 5: the separation that was current is kept among the
+ * others (unless it was made with the same tool: a tool run again replaces
+ * its own), and an other made with the same tool is replaced. The caller
+ * (`separation/runner.ts`) drops from memory and deletes from the device what
+ * the returned change says. Resolves once the engine plays the new tracks.
  */
-export async function applySeparation(summary: SeparationSummary, parts: readonly SeparatedTrackInput[]): Promise<void> {
+export async function applySeparation(summary: SeparationSummary, parts: readonly SeparatedTrackInput[]): Promise<SeparationChange> {
   const s = get();
-  if (!s.project) return;
+  if (!s.project) return { replaced: [], setAside: [] };
   const order: StemId[] = ['vocals', 'drums', 'kick', 'snare', 'hihat', 'toms', 'cymbals', 'bass', 'guitar', 'piano', 'winds', 'saxophone', 'brass', 'other'];
   const sorted = [...parts].sort((a, b) => order.indexOf(a.stem) - order.indexOf(b.stem));
   const instruments: Track[] = sorted.map((p, i) => ({
@@ -98,11 +109,54 @@ export async function applySeparation(summary: SeparationSummary, parts: readonl
     stem: p.stem,
   }));
   const whole = wholeTracks(s);
-  const previous = [...s.tracks, ...s.separation.aside].filter((tr) => tr.audio.origin === 'separated');
+  const current = instrumentTracks(s);
+  const sameTool = (r: SeparationSummary) => r.modelId === summary.modelId;
+  const replaced: Track[] = s.separation.others.filter((o) => sameTool(o.result)).flatMap((o) => o.tracks);
+  let others = s.separation.others.filter((o) => !sameTool(o.result));
+  let setAside: Track[] = [];
+  if (s.separation.result && current.length) {
+    if (sameTool(s.separation.result)) replaced.push(...current);
+    else {
+      others = [{ result: s.separation.result, tracks: current }, ...others];
+      setAside = current;
+    }
+  }
   const shown = s.tracks;
-  set({ tracks: instruments, separation: { result: summary, showing: 'instruments', aside: whole } });
+  set({ tracks: instruments, separation: { result: summary, showing: 'instruments', aside: whole, others } });
   await swapEngineTracks(shown, instruments);
-  for (const tr of previous) dropAudio(tr.audio.id);
+  for (const tr of replaced) dropAudio(tr.audio.id);
+  return { replaced: replaced.map((tr) => tr.audio.id), setAside: setAside.map((tr) => tr.audio.id) };
+}
+
+/**
+ * Version 5: another kept separation becomes the current one, instantly (its
+ * samples must be registered first: `separation/runner.ts#chooseSeparation`
+ * reads them from the device). The current one joins the others with its mix;
+ * whether the whole piece or the instruments were shown, the chosen
+ * instruments are shown. Returns the audio ids of the separation set aside.
+ */
+export async function switchSeparation(resultId: string): Promise<string[]> {
+  const s = get();
+  const chosen = s.separation.others.find((o) => o.result.id === resultId);
+  if (!chosen) return [];
+  const whole = wholeTracks(s);
+  const current = instrumentTracks(s);
+  const rest = s.separation.others.filter((o) => o !== chosen);
+  const others = s.separation.result && current.length ? [{ result: s.separation.result, tracks: current }, ...rest] : rest;
+  const shown = s.tracks;
+  set({ tracks: chosen.tracks, separation: { result: chosen.result, showing: 'instruments', aside: whole, others } });
+  await swapEngineTracks(shown, chosen.tracks);
+  return current.map((tr) => tr.audio.id);
+}
+
+/** Version 5: forgets one of the other separations; returns its audio ids (the caller deletes them from the device). */
+export function dropOtherSeparation(resultId: string): string[] {
+  const s = get();
+  const gone = s.separation.others.find((o) => o.result.id === resultId);
+  if (!gone) return [];
+  set({ separation: { ...s.separation, others: s.separation.others.filter((o) => o !== gone) } });
+  for (const tr of gone.tracks) dropAudio(tr.audio.id);
+  return gone.tracks.map((tr) => tr.audio.id);
 }
 
 /** The whole-piece set, wherever it is. */
@@ -145,7 +199,8 @@ export async function dropSeparation(): Promise<string[]> {
   await showWholePiece();
   const s = get();
   const gone = instrumentTracks(s).map((tr) => tr.audio.id);
-  set({ separation: emptySeparation() });
+  // The other separations stay: one of them can be chosen.
+  set({ separation: { ...emptySeparation(), others: s.separation.others } });
   for (const id of gone) dropAudio(id);
   return gone;
 }

@@ -11,9 +11,17 @@
 //             (`AudioEngine.setRenderedTracks`), which plays it as it is while
 //             the key and tempo stay the same; the transport says so quietly.
 // Any change of key, tempo, formants or tracks makes the render stale: it is
-// dropped at once (memory), the engine is back on the preview, and
-// « Appliquer » is offered again. Nothing of it is saved: a relaunch starts
-// in preview.
+// dropped from memory at once, the engine is back on the preview, and
+// « Appliquer » is offered again.
+//
+// Kept with the piece (owner's decision of 15 November, document version 5):
+// the LAST applied render is written on the device next to the separated
+// instruments (`AppState.keptRender`, its samples as 16-bit blocks) and goes
+// into the `.fab` file. One at a time: a new « Appliquer » replaces it, never
+// the original nor the separations. Whenever the live key, tempo, formants
+// and tracks are its target again (the piece reopened, or the settings set
+// back), it is read back and heard as it is (`reviveKeptRender`), within the
+// same memory budget as a new render.
 //
 // Memory: the rendered audio is held here (16-bit, shared with the engine),
 // one copy per shown track at the played tempo; it is the only place it
@@ -22,7 +30,9 @@
 import { getEngine } from '../audio';
 import type { PcmAudio } from '../audio/pcm';
 import { getAudio } from '../audio/registry';
-import { sameTarget, type RenderErrorCode, type RenderStatus, type RenderTarget } from '../model/render';
+import { sameTarget, type KeptRender, type RenderErrorCode, type RenderStatus, type RenderTarget } from '../model/render';
+import { getKeeper, getProjectStorage } from '../storage';
+import { newId } from '../util/id';
 import { appStore, type AppState } from '../store/store';
 import { appliedFits } from './budget';
 import { getRenderer } from './index';
@@ -166,6 +176,7 @@ export async function applyRender(): Promise<void> {
     rendered = out;
     setApplyProgress(1);
     setRender({ status: 'applied', target });
+    void keepRender(target, tracks.map((tr) => tr.id), out);
   } catch (e) {
     if (job !== mine) return;
     const code = e instanceof RenderError ? e.code : 'failed';
@@ -212,8 +223,137 @@ export function startRenderWatch(): () => void {
   });
 }
 
+/** Version 5: when the live settings come back to the kept render's target, it is heard again. Returns the unsubscribe function. */
+export function startKeptRenderWatch(): () => void {
+  return appStore.subscribe((s, prev) => {
+    if (!s.keptRender || s.render.status !== 'none') return;
+    // Only once the engine has the tracks (a piece being opened is not ready yet).
+    if (s.transport.engine !== 'ready' && s.transport.engine !== 'playing') return;
+    if (
+      s.playback === prev.playback &&
+      s.tracks === prev.tracks &&
+      s.keptRender === prev.keptRender &&
+      s.settings.advanced.formants === prev.settings.advanced.formants &&
+      s.render === prev.render &&
+      s.transport.engine === prev.transport.engine
+    ) {
+      return;
+    }
+    if (sameTarget(s.keptRender.target, currentTarget(s))) void reviveKeptRender();
+  });
+}
+
 /** The applied audio of a track, when the render in place matches the current state (the export reuses it). */
 export function appliedAudioFor(s: AppState, trackId: string): PcmAudio | null {
   if (selectApplyState(s) !== 'applied') return null;
   return rendered?.get(trackId) ?? null;
+}
+
+// ---------------------------------------------------------------- the render kept with the piece (version 5)
+
+/** The samples of the kept render, by track id: in memory while applied, else on the device. */
+export function keptRenderAudio(): Map<string, PcmAudio> | null {
+  return rendered;
+}
+
+/**
+ * Keeps the render just applied with the piece: in the document (`keptRender`)
+ * and, for a piece kept on the device, its samples next to it; the previous
+ * kept render's samples are deleted once the new ones are written.
+ */
+async function keepRender(target: RenderTarget, trackIds: readonly string[], out: Map<string, PcmAudio>): Promise<void> {
+  const s = appStore.getState();
+  const project = s.project;
+  if (!project) return;
+  const stamp = newId();
+  const kept: KeptRender = {
+    target,
+    renderedAt: new Date().toISOString(),
+    tracks: trackIds.map((trackId, i) => {
+      const pcm = out.get(trackId)!;
+      return { trackId, audioId: `${stamp}-rendu-${i}`, frames: pcm.frames, channels: pcm.channelCount };
+    }),
+  };
+  const previous = s.keptRender;
+  const keeper = getKeeper();
+  await keeper.settled();
+  if (appStore.getState().project?.id !== project.id) return;
+  if (keeper.attachedProject === project.id) {
+    const storage = getProjectStorage();
+    try {
+      for (const t of kept.tracks) await storage.saveTrackAudio(t.audioId, out.get(t.trackId)!);
+    } catch {
+      // Not kept on the device: it plays now, and will be offered again after a relaunch.
+      await storage.deleteTrackAudio(kept.tracks.map((t) => t.audioId)).catch(() => {});
+      return;
+    }
+    if (previous) void storage.deleteTrackAudio(previous.tracks.map((t) => t.audioId)).catch(() => {});
+  }
+  if (appStore.getState().project?.id !== project.id) return;
+  appStore.setState({ keptRender: kept });
+}
+
+let reviving: Promise<boolean> | null = null;
+
+/**
+ * Hears the kept render again when the live settings are its target: read
+ * back from `source` (an opened `.fab` file) or the device, within the memory
+ * budget of a new render. Does nothing otherwise; never rejects. One attempt
+ * at a time: a call made meanwhile waits for it, then tries in turn.
+ */
+export async function reviveKeptRender(source?: ReadonlyMap<string, PcmAudio>): Promise<boolean> {
+  while (reviving) await reviving;
+  const attempt = reviveOnce(source);
+  reviving = attempt;
+  try {
+    return await attempt;
+  } finally {
+    if (reviving === attempt) reviving = null;
+  }
+}
+
+async function reviveOnce(source?: ReadonlyMap<string, PcmAudio>): Promise<boolean> {
+  const s = appStore.getState();
+  const kept = s.keptRender;
+  if (!kept || s.render.status !== 'none' || isOriginal(s) || !sameTarget(kept.target, currentTarget(s))) return false;
+  const projectId = s.project?.id;
+  try {
+    const sources = s.tracks.map((tr) => getAudio(tr.audio.id));
+    if (sources.some((a) => !a) || !appliedFits(sources as PcmAudio[], kept.target.tempoRatio)) return false;
+    const out = new Map<string, PcmAudio>();
+    for (const t of kept.tracks) {
+      const pcm = source?.get(t.audioId) ?? (await getProjectStorage().loadTrackAudio(t.audioId));
+      if (!pcm) return false;
+      out.set(t.trackId, pcm);
+    }
+    const now = appStore.getState();
+    if (now.project?.id !== projectId || now.render.status !== 'none' || !sameTarget(kept.target, currentTarget(now))) return false;
+    await getEngine().setRenderedTracks({
+      semitones: kept.target.semitones,
+      cents: kept.target.cents,
+      tempoRatio: kept.target.tempoRatio,
+      tracks: now.tracks.map((tr) => ({ id: tr.id, pcm: out.get(tr.id)! })),
+    });
+    rendered = out;
+    setRender({ status: 'applied', target: kept.target });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** « Libérer » the kept render (« Place sur cet appareil »): forgotten, memory and device; the original stays. */
+export async function forgetKeptRender(): Promise<void> {
+  const kept = appStore.getState().keptRender;
+  if (!kept) return;
+  if (appStore.getState().render.status === 'applied') {
+    dropRendered();
+    setRender({ status: 'none' });
+  }
+  appStore.setState({ keptRender: null });
+  try {
+    await getProjectStorage().deleteTrackAudio(kept.tracks.map((t) => t.audioId));
+  } catch {
+    // swept at the next launch
+  }
 }

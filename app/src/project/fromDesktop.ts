@@ -1,4 +1,4 @@
-// Mac app: `.fabtice` files opened from the Finder (double-click, « Ouvrir
+// Mac app: `.fab` files opened from the Finder (double-click, « Ouvrir
 // avec »). The page asks for those that came before it was ready, then is
 // told of the next ones; each is read by ranges through the bridge.
 

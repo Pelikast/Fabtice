@@ -44,12 +44,12 @@ function saveName(name) {
 function saveDialogOptions(filename, folder) {
   const name = saveName(filename);
   // A project (lot 4): its own title, and the panel keeps the extension that lets the app open it again.
-  if (path.extname(name).toLowerCase() === '.fabtice') {
+  if (path.extname(name).toLowerCase() === '.fab') {
     return {
       title: 'Enregistrer le projet',
       buttonLabel: 'Enregistrer',
       defaultPath: path.join(folder, name),
-      filters: [{ name: 'Projet Fabtice', extensions: ['fabtice'] }],
+      filters: [{ name: 'Projet Fabtice', extensions: ['fab'] }],
     };
   }
   return {
@@ -61,9 +61,9 @@ function saveDialogOptions(filename, folder) {
 
 /**
  * @param {import('electron').Session} electronSession
- * @param {{ downloadsDir: () => string }} options
+ * @param {{ downloadsDir: () => string, onSaved?: (savedPath: string) => void }} options
  */
-function installDownloads(electronSession, { downloadsDir }) {
+function installDownloads(electronSession, { downloadsDir, onSaved }) {
   let lastFolder = null;
   electronSession.on('will-download', (_event, item) => {
     item.setSaveDialogOptions(saveDialogOptions(item.getFilename(), lastFolder || downloadsDir()));
@@ -71,6 +71,8 @@ function installDownloads(electronSession, { downloadsDir }) {
       if (state !== 'completed') return;
       const saved = item.getSavePath();
       if (saved) lastFolder = path.dirname(saved);
+      // A project saved goes in the recent list (projects.js).
+      if (saved && onSaved) onSaved(saved);
     });
   });
 }

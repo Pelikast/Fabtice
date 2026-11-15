@@ -1,5 +1,8 @@
-// The « Appliquer » render (lot 3), as the interface sees it. Never saved:
-// the applied files are temporary and do not survive a relaunch.
+// The « Appliquer » render (lot 3), as the interface sees it. Since the
+// owner's decision of 15 November (document version 5), the LAST applied
+// render is kept with the piece (`KeptRender`, its samples on the device and
+// in the `.fab` file): one at a time, a new « Appliquer » replaces it, never
+// the original nor the separations.
 //
 // Two qualities (CLAUDE.md, « Deux qualités de rendu »): every change of key
 // or tempo is heard at once with the light engine (preview). « Appliquer »
@@ -29,4 +32,17 @@ export type RenderStatus =
 
 export function sameTarget(a: RenderTarget, b: RenderTarget): boolean {
   return a.semitones === b.semitones && a.cents === b.cents && a.tempoRatio === b.tempoRatio && a.formants === b.formants && a.audioKey === b.audioKey;
+}
+
+/**
+ * The last applied render, kept with the piece (version 5). It is heard again
+ * (reopened, or the key and tempo set back) only when the live settings are
+ * its `target` again; otherwise it waits, and « Appliquer » is offered.
+ */
+export interface KeptRender {
+  target: RenderTarget;
+  /** ISO date of the render. */
+  renderedAt: string;
+  /** One rendered audio per track of `target.audioKey`, in the same order. */
+  tracks: { trackId: string; audioId: string; frames: number; channels: number }[];
 }

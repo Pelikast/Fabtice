@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { startAutoAnalysis } from '../analysis/runner';
-import { startRenderWatch } from '../render/controller';
+import { startKeptRenderWatch, startRenderWatch } from '../render/controller';
 import { startAutoSeparation } from '../separation/runner';
 import { t } from '../i18n';
 import { useStandards } from '../standards/offer';
@@ -32,6 +32,8 @@ export function App() {
   // Lot 3: the separation asked in the new-piece dialog starts once the piece can play; a stale « Appliquer » render is dropped.
   useEffect(() => startAutoSeparation(), []);
   useEffect(() => startRenderWatch(), []);
+  // Version 5: the render kept with the piece is heard again when the key and tempo are its own again.
+  useEffect(() => startKeptRenderWatch(), []);
   return (
     <>
       <div className="app" data-vue={mode} inert={inert}>

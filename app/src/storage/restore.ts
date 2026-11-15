@@ -34,7 +34,7 @@ import type { ProjectDocument } from '../model/document';
 import { decodeAudioBytes } from '../import/decode';
 import { ImportError, type RestoreStep } from '../import/types';
 import { t } from '../i18n';
-import { emptySeparation } from '../model/separation';
+import { allSeparatedTracks, emptySeparation } from '../model/separation';
 import type { Track } from '../model/project';
 import { closeProject, openNewPiece, restoreProject, setDialogNotice, setImportStatus, setReopenOffer } from '../store/actions';
 import { toProjectDocument } from '../store/document';
@@ -211,7 +211,11 @@ async function attempt(deps: ReturnType<typeof resolve>, doc: ProjectDocument): 
       if (whole) void storage.saveCurrent(whole).catch(() => {});
     }
     // Left-overs (a separation cut short, instruments no longer referenced): swept quietly, never awaited.
-    const keep = new Set([...opened.tracks, ...opened.separation.aside].filter((tr) => tr.audio.origin === 'separated').map((tr) => tr.audio.id));
+    // Version 5: the other separations and the kept render are on the device too, and must stay.
+    const keep = new Set([
+      ...allSeparatedTracks(opened.separation, opened.tracks).map((tr) => tr.audio.id),
+      ...(opened.keptRender?.tracks.map((tr) => tr.audioId) ?? []),
+    ]);
     void storage.pruneTrackAudio(keep).catch(() => {});
     return 'restored';
   } catch (e) {
@@ -233,7 +237,8 @@ async function attempt(deps: ReturnType<typeof resolve>, doc: ProjectDocument): 
 export function wholePieceOf(doc: ProjectDocument): ProjectDocument {
   if (doc.separation.result === null) return doc;
   const whole = doc.separation.showing === 'whole' ? doc.tracks : doc.separation.aside;
-  return { ...doc, tracks: whole, separation: emptySeparation() };
+  // The other separations (version 5) are on the device on their own: they stay, one can still be chosen.
+  return { ...doc, tracks: whole, separation: { ...emptySeparation(), others: doc.separation.others } };
 }
 
 /** Reads the kept document within its limit; `unreadable` says why when it cannot be read. */

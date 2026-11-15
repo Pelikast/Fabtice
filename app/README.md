@@ -37,7 +37,7 @@ le stockage.
 | `npm run test:export-memory` | après `build`, au premier plan : la mémoire de l'export de sept pistes de cinq minutes (archive de WAV, de MP3, mélange en WAV, FLAC et MP3), chiffres affichés |
 | `npm run test:metronome` | après `build` (lot 4) : le panneau du métronome (volume, décompte, mesure et regroupement, temps forts et faibles, accélération), ce qui arrive au moteur factice (piste de clics, volume, plan, décompte au moment de Lecture), le palier et le décompte affichés, le panneau dans la fenêtre à 1280 × 800, 960 × 640 et 390 × 844, puis les réglages retrouvés après rechargement (profil persistant). `FABTICE_METRONOME_OUT` pour les captures |
 | `npm run test:markers` | après `build` (lot 4) : boucles gardées (garder, rappeler, renommer, ordonner, supprimer), sections (les lettres de la grille : listées, bouclées, ajoutées, renommées, supprimées, les mêmes dans la grille d'accords), la rangée « Repères » de la règle (clic), le clavier, le téléphone, puis tout retrouvé après rechargement (profil persistant). `FABTICE_MARKERS_OUT` pour les captures |
-| `npm run test:project-file` | après `build` (lot 4) : les projets `.fabtice` avec des tailles réelles et des profils persistants : un WAV d'une minute importé (vrai moteur), séparé (séparateur factice : de vrais instruments 16 bits), corrigé, avec boucle nommée, métronome et transposition, enregistré avec puis sans les instruments (fichier téléchargé et vérifié : nom, signature, taille annoncée = taille réelle, 57 Mo) ; ouvert dans un autre profil par « Ouvrir un projet Fabtice » (tout revient, instruments à l'échantillon près, pas de nouvelle analyse), rechargé (gardé sur l'appareil) ; copie abîmée, fichier audio choisi comme projet ; projet déposé sur la fenêtre ; la fenêtre « Nouveau morceau » et les réglages (avancés dépliés) à 1280 × 800 et 390 × 844. Captures dans `FABTICE_PROJECT_OUT` |
+| `npm run test:project-file` | après `build` (lot 4) : les projets `.fab` avec des tailles réelles et des profils persistants : un WAV d'une minute importé (vrai moteur), séparé avec deux outils (séparateur factice : de vrais instruments 16 bits), un mixage dans chacun, corrigé, boucle nommée, métronome, transposition, « Appliquer » (rendu factice) ; enregistré avec le **vrai libFLAC** (fichier téléchargé et vérifié : nom, signature, dossiers, tout en FLAC, plus petit que les blocs 16 bits) ; ouvert dans un autre profil (tout revient, instruments à l'échantillon près, rendu entendu tel quel, pas de nouvelle analyse), « Écouter » l'autre séparation (à l'échantillon près, son mixage), rechargé ; copie abîmée, fichier audio choisi comme projet ; projet déposé sur la fenêtre ; mesure du magasin de l'appareil (six instruments de quatre minutes ; `FABTICE_PROJECT_LONG=1` : douze aussi) ; « Nouveau morceau », « Séparations gardées » et les réglages à 1280 × 800 et 390 × 844. Captures dans `FABTICE_PROJECT_OUT` |
 | `npm run test:offline` | après `build` (lot 4) : la version web hors ligne dans Chromium, profil persistant, **vrai moteur** : le service worker s'installe (adresse `?horsligne&debug`), garde les petits fichiers de l'app mais pas les gros WebAssembly d'ONNX Runtime ; un morceau de 5 Mo importé ; réseau coupé (`setOffline`), rechargement : l'app s'ouvre, `crossOriginIsolated` est vrai, le morceau gardé revient et **joue** ; un gros fichier demandé en ligne est gardé et resservi hors ligne avec les en-têtes d'isolation ; la maquette voisine n'est pas touchée ; en ligne, une nouvelle page sur le serveur est celle qu'on voit au chargement suivant ; manifeste et icônes. Captures dans `FABTICE_OFFLINE_OUT` |
 | `npm run test:chart` | après `build` : la grille d'accords comparée à la maquette (même balisage des accords, mêmes tailles, sections, boucle, mesure en cours, instruments, états vide et « analyse en cours », téléphone), puis les gestes (clic, glisser, suivi), l'éditeur d'accord (toujours entier et dans la fenêtre, à 1280 × 800 et 960 × 640), tous les panneaux flottants (Tempo, analyse, réglages, Exporter, accord fin, tonalité : dans la fenêtre, au-dessus du transport, dernier bouton cliquable, à 1280 × 800, 1024 × 700 et 960 × 640 ; `ui/useFitPanel.ts` leur donne une hauteur maximale et un défilement propre quand la fenêtre est trop basse), la tonalité, les sections, le clavier, l'autosauvegarde (rechargement d'un morceau gardé), le toucher réel sur téléphone (390 × 844) et l'impression (feuille de style d'impression, PDF A4 et Letter lus avec `pdftotext`, sauts de page) ; panneaux de corrections et d'accordage ; captures de l'app, de la maquette et des pages imprimées dans `FABTICE_CHART_OUT` (`pdftotext`, `pdfinfo` et `pdftoppm` de poppler sont nécessaires pour la partie impression) |
 
@@ -143,7 +143,7 @@ src/
   platform/           l'app Mac vue depuis la page (window.fabtice)
   storage/            projet courant sur l'appareil : contrat, IndexedDB, gardien
                       (autosauvegarde), réouverture au lancement
-  project/            fichiers de projet `.fabtice` (lot 4) : conteneur ZIP lu et écrit
+  project/            fichiers de projet `.fab` (lot 4) : conteneur ZIP lu et écrit
                       par tranches (zip.ts), format (fileFormat.ts, FORMAT.md),
                       « Enregistrer le projet » (save.ts), ouverture (open.ts, choose.ts),
                       fichiers ouverts depuis le Finder (fromDesktop.ts)
@@ -285,7 +285,7 @@ un remplaçant factice branché sur l'écran, écrans de la séparation, de
 | Pistes jouées | `AppState.tracks` (inchangé) | toujours les pistes **affichées et jouées** : le morceau entier, ou les instruments séparés. Une piste séparée porte `stem` (`model/separation.ts#StemId` : `vocals`, `drums`, `bass`, `guitar`, `piano`, `winds`, `other`, et les parties détaillées `kick`, `snare`, `hihat`, `toms`, `cymbals`, `saxophone`, `brass`) et `audio.origin: 'separated'` ; sa couleur vient de `STEM_ROLE` (les teintes de `DESIGN.md`, une partie détaillée prend celle de sa famille) |
 | Séparation | `AppState.separation`, `model/separation.ts#SeparationState` | `result` (dernière séparation finie : identifiant, outil et son SHA-256, carte graphique ou processeur, repli, parties données, parties gardées, dates, durée du calcul, durée du morceau ; `null` = jamais séparé ou place libérée), `showing` (`whole` ou `instruments`), `aside` : **l'autre jeu de pistes, avec son mixage**. C'est ce qui permet « Revenir au morceau entier » et « Revoir les instruments » sans rien recalculer : les deux jeux s'échangent. Invariants (vérifiés à la lecture) : sans résultat, le morceau entier est affiché et rien n'est de côté ; avec un résultat, un des deux jeux est le morceau entier, l'autre les instruments |
 | Séparation en cours | `AppState.separationRun` (non gardé) | `idle`, `running` (outil, étape `download`/`prepare`/`separate`/`finish`, carte graphique ou processeur, `fellBack`), `error` (code). Fraction, temps restant et octets téléchargés : `separation/progress.ts` (petit magasin à part, comme l'analyse) |
-| Rendu « Appliquer » | `AppState.render`, `model/render.ts` (non gardé) | `none`, `rendering`, `applied`, `error`, chacun avec la cible (`RenderTarget` : demi-tons, cents, tempo, formants, pistes) ; un rendu dont la cible n'est plus celle de l'état est périmé. Ce que l'écran montre : `render/controller.ts#selectApplyState` (`original`, `preview`, `rendering`, `applied`). Les fichiers rendus ne sont **jamais gardés** |
+| Rendu « Appliquer » | `AppState.render`, `model/render.ts` | `none`, `rendering`, `applied`, `error`, chacun avec la cible (`RenderTarget` : demi-tons, cents, tempo, formants, pistes) ; un rendu dont la cible n'est plus celle de l'état est périmé. Ce que l'écran montre : `render/controller.ts#selectApplyState` (`original`, `preview`, `rendering`, `applied`). Depuis le document version 5, le **dernier** rendu est gardé avec le morceau (`AppState.keptRender` : voir « Le dernier rendu « Appliquer », gardé avec le morceau ») |
 | Préférences d'export | `AppState.exportPrefs`, `model/audioExport.ts` | quoi (`mix`, `tracks`), durée (`whole`, `loop`), format (`wav`, `mp3`, `flac`) ; gardées avec le morceau |
 | Réglages avancés | `AppState.settings.advanced`, `model/project.ts#AdvancedSettings` | outil de séparation (`auto` ou l'identifiant d'un outil de la liste) et « Conserver le timbre » (formants). **Par appareil** (`localStorage`, `store/preferences.ts`), pas par morceau : le bon outil dépend de la machine, le timbre est une habitude |
 | Choix de la fenêtre « Nouveau morceau » | `AppState.ui.importStems` | les instruments cochés (aucun par défaut) ; la séparation démarre seule quand le morceau importé peut jouer, puis la liste est vidée |
@@ -1107,72 +1107,148 @@ fabriquer une grille.
   390 × 844, puis réglages et repères retrouvés après rechargement dans un profil
   persistant. Captures dans `FABTICE_METRONOME_OUT` et `FABTICE_MARKERS_OUT`.
 
-### Lot 4 : projets `.fabtice`, version web hors ligne, réglages
+### Lot 4 : projets `.fab`, version web hors ligne, réglages
 
-#### Projets `.fabtice` (`src/project/`)
+#### Projets `.fab` (`src/project/`) — décisions du propriétaire du 15 novembre
 
 Le format est décrit dans `src/project/FORMAT.md` : une archive ZIP sans
 compression, signée par son entrée `mimetype`, avec un manifeste versionné
-(`formatVersion` 1), le document du projet (version 4, **même lecteur et mêmes
+(`formatVersion` 2), le document du projet (version 5, **même lecteur et mêmes
 migrations** que la copie gardée sur l'appareil), le fichier importé octet pour
-octet et, au choix, les instruments séparés en WAV 16 bits. Le document du
-projet n'a pas changé de forme ni de version.
+octet, **toutes les séparations** (une par outil) et **le rendu « meilleure
+qualité » gardé**, ces pistes en **FLAC 16 bits sans perte**.
 
 - **Enregistrer** : « Exporter » → « Enregistrer le projet… » (première entrée
   du menu ; sur téléphone, dans le menu « ⋯ »). Une petite fenêtre de la
-  famille de « Exporter le son » : une phrase, « Avec les instruments
-  séparés » (seulement si le morceau est séparé, cochée par défaut, avec ce
-  qu'ils ajoutent), la taille exacte du fichier, « Préparer le fichier », puis
-  le lien « Enregistrer « titre.fabtice » » : un téléchargement dans un
-  navigateur, la fenêtre d'enregistrement de macOS dans l'app Mac (titre
-  « Enregistrer le projet », filtre `.fabtice` : `desktop/src/downloads.js`).
-  Le document vient de l'état, le fichier d'origine de l'appareil (là où le
-  gardien l'a écrit), les instruments de la mémoire ; rien n'est réencodé. Le
-  morceau de démonstration ne s'enregistre pas ; un morceau pas encore gardé
-  non plus (phrase calme, « Réessayer »).
+  famille de « Exporter le son » : une phrase, ce qui part dans le fichier (les
+  séparations par outil, le rendu), « Préparer le fichier » avec un pourcentage
+  qui avance (l'encodage FLAC est la partie longue : libFLAC, l'encodeur de
+  l'export, dans des workers, trois pistes à la fois au plus), puis la taille et
+  le lien « Enregistrer « titre.fab » » : un téléchargement dans un navigateur,
+  la fenêtre d'enregistrement de macOS dans l'app Mac (titre « Enregistrer le
+  projet », filtre `.fab` : `desktop/src/downloads.js`). Plus de case « avec
+  les instruments » : le projet les contient toujours. Les pistes qui ne sont
+  pas en mémoire (les autres séparations, un rendu qu'on n'écoute pas) sont lues
+  sur l'appareil à leur tour. Le morceau de démonstration ne s'enregistre pas ;
+  un morceau pas encore gardé non plus (phrase calme, « Réessayer »).
 - **Ouvrir** : la fenêtre « Nouveau morceau » garde son bouton principal en
   premier ; dessous, une ligne discrète « Déjà un projet enregistré ? ouvrir un
-  projet Fabtice » (le sélecteur de fichier est créé à la demande, hors de la
-  fenêtre : celle-ci n'a toujours qu'un champ de fichier, l'audio). Un fichier
-  `.fabtice` déposé sur la fenêtre s'ouvre aussi (reconnu à son extension ou à
-  sa signature) ; tout autre fichier est importé comme avant. App Mac : double-clic
-  dans le Finder et « Ouvrir avec » (ci-dessous).
+  projet Fabtice », et dans l'app Mac les **projets récents** (quelques lignes).
+  Un fichier `.fab` déposé sur la fenêtre s'ouvre aussi (reconnu à son extension
+  ou à sa signature). App Mac : double-clic dans le Finder, « Ouvrir avec »,
+  Fichier → Ouvrir un projet récent, le Dock.
 - **Ouvrir remplace le morceau comme un import** (`open.ts`), dans la même
-  file que les imports (un seul à la fois, `import/controller.ts#exclusive`),
-  avec « Ouverture de « titre »… » et ses étapes (lecture du fichier,
-  préparation du son, instruments, mise en place). Tout est **lu et vérifié
-  avant** de toucher au morceau ouvert : manifeste, document, CRC de chaque
-  son, décodage de l'original. Un fichier abîmé, trop récent ou qui n'est pas
-  un projet s'arrête sur une phrase calme ; le morceau ouvert et celui gardé
-  restent tels quels. Puis `restoreProject` (mêmes identifiants : grille,
-  tonalité, corrections à la main, accords, boucles et repères, métronome,
-  affichage, instruments), sans relancer l'analyse (elle ne part que pour un
-  morceau qui n'en a pas) ni la séparation (les instruments cochés pour un
-  import sont oubliés). Enfin le projet devient le morceau gardé
-  (`keeper.keepNewProject`) et ses instruments sont écrits à côté, comme après
-  une séparation. Un instrument abîmé dans le fichier : le morceau s'ouvre
-  entier, avec une phrase.
-- **Un seul morceau gardé sur l'appareil** (décision du lot 4) : pas de liste
-  « Morceaux récents ». Le stockage est bâti autour d'un projet courant
-  (`replaceCurrent`, réouverture, « Rouvrir / Oublier ») et les instruments
-  pèsent des centaines de Mo : plusieurs morceaux gardés demanderaient de
-  reprendre le gardien, la réouverture et la gestion du quota, ce qui n'est ni
-  petit ni sûr. Les fichiers `.fabtice` jouent ce rôle : on en garde autant
-  qu'on veut, où l'on veut.
+  file que les imports (`import/controller.ts#exclusive`), avec « Ouverture de
+  « titre »… » et ses étapes. **Avant** de toucher au morceau ouvert : manifeste,
+  document, **CRC de toutes les entrées** (le fichier est lu une fois par
+  tranches), décodage de l'original et des instruments de la séparation
+  écoutée. Un fichier abîmé, trop récent ou qui n'est pas un projet s'arrête sur
+  une phrase calme ; le morceau ouvert et celui gardé restent tels quels. Puis
+  `restoreProject` (mêmes identifiants), sans relancer l'analyse ni la
+  séparation. Le morceau joue dès cet instant ; ensuite, en arrière-plan, il
+  devient le morceau gardé : instruments écrits à côté, puis chaque autre
+  séparation décodée, écrite et lâchée (une à la fois : la mémoire), puis le
+  rendu gardé, entendu aussitôt si la tonalité et le tempo sont les siens.
+- **Décodeur FLAC à nous** (`audio/flac/decode.ts`, TypeScript) : le binaire
+  libFLAC de l'export contient bien un décodeur, mais le piloter demande de
+  passer des fonctions JavaScript à WebAssembly (`addFunction`) et de copier
+  chaque trame hors de sa mémoire ; celui-ci, court, lit tout ce que libFLAC
+  écrit (constant, brut, fixe, LPC, bits perdus, deux codages de Rice et leurs
+  échappements, toutes les décorrélations stéréo), par tranches, directement
+  dans les blocs 16 bits. Exact à l'échantillon (tests contre libFLAC à
+  plusieurs niveaux) ; environ 340 fois le temps réel sur un cœur de cette
+  machine (0,16 s par minute stéréo).
+- **Un seul morceau gardé sur l'appareil** : pas plusieurs morceaux dans
+  IndexedDB (le stockage est bâti autour d'un projet courant et les
+  instruments pèsent des centaines de Mo) ; les fichiers `.fab` et la liste des
+  projets récents de l'app Mac jouent ce rôle.
 
-#### App Mac : double-clic et « Ouvrir avec »
+#### FLAC sur l'appareil ? Mesuré, non retenu
 
-`desktop/package.json` déclare l'extension (`fileAssociations` : « Projet
-Fabtice », `application/x-fabtice`, rôle Éditeur). macOS signale le fichier par
-`open-file` (écouté avant `ready`, l'app pouvant être lancée pour lui) ;
-`desktop/src/open-files.js` ne garde qu'un chemin absolu vers un fichier
-ordinaire en `.fabtice` de moins de 4 Go, sous un jeton aléatoire. La page
-demande au démarrage ceux qui attendent (`pendingProjects`), après la
-réouverture du morceau gardé, puis reçoit les suivants (`onOpenProject`) ; elle
-lit chaque fichier **par plages** avec son jeton (`readProjectFile`, 16 Mo au
-plus par appel) et le libère ensuite. Aucun autre fichier du disque n'est
-lisible par ce chemin. Types dans `platform/desktopBridge.ts` (méthodes
-facultatives : une app plus ancienne ne les a pas).
+Le propriétaire souhaite du FLAC « autant que possible ». Mesures (Node, un
+cœur, signal musical synthétique ; puis IndexedDB dans Chromium avec profil
+persistant), pour six instruments stéréo :
+
+| Morceau | Blocs 16 bits (appareil) | FLAC (`.fab`) | Encodage FLAC | Décodage FLAC (vérification comprise) | Relecture des blocs (IndexedDB, Chromium) |
+|---|---|---|---|---|---|
+| 4 min | 277 Mo | 162 Mo (58 %) | 8,3 s | 5,6 s | 0,8 à 1,1 s (écriture 1,0 s) |
+| 12 min | 830 Mo | 477 Mo (58 %) | 26,9 s | 19,7 s | 3,4 s (écriture 3,9 s ; `FABTICE_PROJECT_LONG=1`) |
+
+Garder les instruments en FLAC sur l'appareil ferait gagner 42 % de place mais
+ajouterait près d'une demi-minute de calcul après chaque séparation d'un long
+morceau, et surtout 6 à 20 s à **chaque** réouverture au lieu d'une seconde
+(contre 1 à 3,4 s pour les blocs ; chiffres de cette machine, plus lents sur le Mac Intel). La réouverture
+rapide compte plus : **l'appareil garde les blocs 16 bits** ; le FLAC sert au
+fichier `.fab`, qu'on copie et qu'on envoie. Mémoire : l'encodage tient les
+fichiers FLAC déjà faits (des `Blob`, que le navigateur peut garder sur
+disque) ; le décodage écrit directement dans les blocs finaux, sans copie
+Float32. Rien de ce qu'un utilisateur garde n'a changé de forme : pas de
+migration du magasin.
+
+#### Plusieurs séparations, une par outil (document version 5)
+
+- `separation.others` : les autres séparations, chacune avec son résumé et ses
+  pistes **avec leur mixage** (muet, solo, volume : chaque séparation garde le
+  sien). La séparation écoutée reste `separation.result` et ses pistes comme
+  avant ; « Revenir au morceau entier » marche toujours.
+- Séparer avec un autre outil garde la séparation écoutée parmi les autres ;
+  refaire une séparation **avec le même outil remplace la sienne**
+  (`store/separationActions.ts#applySeparation` rend ce qui est remplacé et ce
+  qui est mis de côté ; `separation/runner.ts` efface et lâche en conséquence).
+- Les autres séparations **ne sont pas en mémoire** : leurs échantillons sont
+  sur l'appareil (et dans le `.fab`). Les choisir (`chooseSeparation`) les relit
+  (une fraction de seconde : 0,3 s mesuré dans Chromium pour quatre pistes
+  d'une minute) et échange les jeux sans rien recalculer ; un morceau qui n'est
+  pas gardé sur l'appareil les garde en mémoire. Une séparation illisible est
+  oubliée avec une phrase.
+- Où : le panneau des instruments (sous les pistes) liste « Séparations
+  gardées » quand il y en a plus d'une (« Écouter », « Libérer », taille, durée
+  du calcul) ; les réglages avancés ont « Séparation écoutée » ; « Place sur cet
+  appareil » montre chacune avec sa taille et « Libérer ».
+- La réouverture au lancement garde sur l'appareil les autres séparations et
+  le rendu (`pruneTrackAudio` les connaît) ; migration 4 → 5 : aucune autre
+  séparation, aucun rendu gardé.
+
+#### Le dernier rendu « Appliquer », gardé avec le morceau
+
+- `AppState.keptRender` (document version 5, dans `documentChanged`) : la cible
+  (demi-tons, cents, tempo, formants, pistes), la date, et une piste rendue par
+  piste écoutée, ses échantillons sur l'appareil (blocs 16 bits) et dans le
+  `.fab` (FLAC). **Un seul** : un nouvel « Appliquer » le remplace (le précédent
+  est effacé une fois le nouveau écrit), jamais l'original ni les séparations.
+- Périmé dès que la tonalité, le tempo, les formants ou les pistes changent
+  (la mémoire est rendue comme avant) ; dès qu'ils redeviennent les siens (le
+  morceau rouvert, ou les réglages remis), il est relu et **entendu tel quel**
+  (`render/controller.ts#reviveKeptRender`, `startKeptRenderWatch`), dans le même
+  budget de mémoire qu'un nouveau rendu (`render/budget.ts`) : sinon il attend
+  et « Appliquer » est proposé.
+- « Libérer » dans « Place sur cet appareil » l'oublie.
+
+#### App Mac : double-clic, « Ouvrir avec », projets récents
+
+`desktop/package.json` déclare l'extension (`fileAssociations` : `fab`,
+« Projet Fabtice », `application/x-fabtice`, rôle Éditeur). macOS signale le
+fichier par `open-file` (écouté avant `ready`, l'app pouvant être lancée pour
+lui). Tout le reste est dans `desktop/src/projects.js` (main.js n'en garde que
+trois points d'accroche) : `open-files.js` ne garde qu'un chemin absolu vers
+un fichier ordinaire en `.fab` de moins de 4 Go, sous un jeton aléatoire ; la
+page demande ceux qui attendent (`pendingProjects`), reçoit les suivants
+(`onOpenProject`), lit chaque fichier **par plages** (`readProjectFile`) et le
+libère. `recent-projects.js` retient les huit derniers projets ouverts ou
+enregistrés (fichier `recent-projects.json` du dossier de données ; les
+fichiers disparus sont retirés) et les donne à macOS (`app.addRecentDocument` :
+menu Fichier → Ouvrir un projet récent, le Dock ; un choix revient en
+`open-file`). La page reçoit le nom et le dossier (« ~ » pour le dossier
+personnel) et ouvre par un jeton valable pour cette liste seulement
+(`recentProjects`, `openRecentProject`) ; un projet choisi dans le sélecteur de
+la page y entre aussi (`rememberProjectFile`, chemin lu par le preload avec
+`webUtils`, jamais donné à la page).
+
+**Web** : pas de liste de projets récents. Seul Chromium sait garder un accès à
+un fichier (API File System Access, avec une question de permission à chaque
+réouverture) ; Safari et Firefox ne le savent pas. Le minimum honnête : le
+morceau gardé sur l'appareil (« Rouvrir ») et le sélecteur de fichiers du
+système, qui se souvient du dernier dossier.
 
 #### Version web hors ligne (`src/pwa/`)
 
@@ -1234,18 +1310,26 @@ ferait doublon.
 
 #### Vérifications
 
-- `npm test` : `project/fileFormat.test.ts` (aller-retour, archive lisible par
-  tout outil, sans instruments, document plus ancien migré, trop récent, abîmé
-  ou coupé n'importe où, autre fichier, et un fichier de **319 Mo** écrit puis
-  relu par tranches avec la mémoire de pointe mesurée), `project/projectFile.test.ts`
-  (par le magasin : tout revient et est gardé, sans instruments, fichier abîmé
-  sans effet, instrument abîmé, démonstration et morceau pas gardé),
-  `settings/deviceUsage.test.ts` (tailles, « Libérer », où s'inscrit le service
-  worker).
-- `npm run test:project-file`, `npm run test:offline` (Chromium, ci-dessus).
-- App Mac : `test/unit/open-files.test.js`, `test/e2e/project-file.test.js`
-  (enregistrer dans l'app, ouvrir dans une app neuve comme le Finder le fait,
-  relance, copie abîmée, pas de service worker).
+- `npm test` : `audio/flac/decode.test.ts` (contre libFLAC à trois niveaux,
+  tranches de toutes tailles, mono, silence, 44,1 kHz, coupé, codes de Rice
+  quelle que soit leur fin dans le cache de 32 bits, vitesse),
+  `project/fileFormat.test.ts` (aller-retour : document, original octet pour
+  octet, deux séparations et le rendu à l'échantillon près en FLAC ; dossiers
+  de l'archive ; jamais séparé ; document plus ancien migré ; trop récent ;
+  abîmé ou coupé n'importe où, trouvé par la vérification avant tout
+  remplacement ; et la mesure de quatre minutes à six instruments,
+  `FABTICE_FAB_LONG=1` pour douze), `project/projectFile.test.ts` (par le
+  magasin : deux outils gardés et échangés sans calcul avec leur mixage, même
+  outil qui remplace le sien, une séparation libérée seule, rendu périmé puis
+  réentendu puis remplacé, tout revient d'un `.fab` et est gardé, fichier
+  abîmé sans effet, démonstration et morceau pas gardé),
+  `settings/deviceUsage.test.ts`.
+- `npm run test:project-file` (Chromium, vrai libFLAC dans ses workers),
+  `npm run test:offline`.
+- App Mac : `test/unit/open-files.test.js`, `test/unit/recent-projects.test.js`,
+  `test/e2e/project-file.test.js` (enregistrer dans l'app, le projet en tête des
+  récents, ouvrir dans une app neuve comme le Finder le fait, relance, rouvrir
+  depuis « Projets récents », copie abîmée, pas de service worker).
 
 ## Contrats pour la suite
 
@@ -2091,7 +2175,7 @@ qui envoie ces en-têtes, pas par `file://`.
 
 ### Stockage du projet — `src/storage/`
 
-Un seul projet à la fois (lot 1 ; confirmé au lot 4, les fichiers `.fabtice` servent à en garder d'autres) : le document du projet courant
+Un seul projet à la fois (lot 1 ; confirmé au lot 4, les fichiers `.fab` servent à en garder d'autres) : le document du projet courant
 (`ProjectDocument`, `model/document.ts`, produit par
 `store/document.ts#toProjectDocument`), les **octets audio d'origine** (le mp3,
 le m4a… tel qu'importé) et, depuis le lot 3, les **instruments séparés** en 16
