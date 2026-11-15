@@ -286,6 +286,14 @@ if (process.argv[1]?.endsWith('temps.mjs') && opt.net) {
   const all = (g: FoundGrid) => barTempi(g.times, g.downbeat, g.beatsPerBar).map((x) => x.toFixed(0)).join(' ');
   console.log(`bar tempi v4   ${all(before)}\nbar tempi now  ${all(asGrid({ grid: r.grid, meterScores: [], repairs: [] }))}\nbar tempi true ${barTempi(tr.times, tr.downbeat, tr.meter).map((x) => x.toFixed(0)).join(' ')}`);
   for (const j of jumpCauses(tr, before)) console.log(`jump v4 ${j.at.toFixed(2)} ${j.cause} ${j.tempi.map((x) => x.toFixed(0)).join('→')}`);
+  if (process.env.SHOWALL) {
+    const old = METHODS.old!(act);
+    const rep = (r: { repairs: { start: number; end: number; found: number; placed: number; cause: string }[] }) => r.repairs.map((x) => `${x.cause} ${x.start.toFixed(2)}–${x.end.toFixed(2)} ${x.found}→${x.placed}`).join(', ');
+    console.log(`repairs old ${rep(gridFromBeats(postMinimal(act).beats, (t) => downProbAt(act, t), REPAIR, null, null, [3, 4], null))}`);
+    console.log(`repairs v4  ${rep(gridFromBeats(postMinimal(act).beats, (t) => downProbAt(act, t), REPAIR, BARS, DISPLACED, [3, 4], null))}`);
+    console.log(`peaks      ${postMinimal(act).beats.filter((x) => x > 3 && x < 13).map((x) => x.toFixed(2)).join(' ')}`);
+    console.log(`beats old  ${old.times.map((x) => x.toFixed(2)).join(' ')}\nbeats v4   ${before.times.map((x) => x.toFixed(2)).join(' ')}\nbeats true ${tr.times.map((x) => x.toFixed(2)).join(' ')}`);
+  }
   for (const p of r.repairs.filter((x) => x.cause === 'steady')) {
     const show = (a: readonly number[]) => a.filter((x) => x >= p.start - 0.01 && x <= p.end + 0.01).map((x) => x.toFixed(2)).join(' ');
     const tempi = (g: FoundGrid) => barTempi(g.times, g.downbeat, g.beatsPerBar, [p.start - 8, p.end + 8]).map((x) => x.toFixed(0)).join(' ');

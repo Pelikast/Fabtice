@@ -127,8 +127,10 @@ export function briefPassages(
     // Away from that level (by one step or two).
     if (near(L[k]!, before)) continue;
     for (let j = k + 1; j <= Math.min(L.length - o.support, k + o.brief - 1); j++) {
-      // Back abruptly too: a rubato comes back by degrees.
-      if (near(L[j]!, L[j - 1]!) || !L.slice(j, j + o.support).every((x, i) => near(x, before) && (i === 0 || regular(j + i)))) continue;
+      // Back abruptly too: a rubato comes back by degrees. After a departure of twice the threshold or more
+      // (far beyond a rubato), a way back in two steps is abrupt enough.
+      const far = Math.abs(Math.log(L[k]! / before)) >= 2 * o.jump && j >= k + 2 && !near(L[j]!, L[j - 2]!);
+      if ((near(L[j]!, L[j - 1]!) && !far) || !L.slice(j, j + o.support).every((x, i) => near(x, before) && (i === 0 || regular(j + i)))) continue;
       // A new tempo held evenly for `plateau` bars or more is a tempo that lasts.
       const inside = L.slice(k, j);
       if (inside.length >= o.plateau && inside.every((x) => near(x, median(inside)))) break;
