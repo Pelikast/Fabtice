@@ -50,7 +50,10 @@ aucune technique de contournement des protections de YouTube.
      triples-croches) et se combine avec un bouton « Triolets » (croches +
      triolets = triolets de croches, doubles + triolets = sextolets…).
    - **Magnétisme** : la tête de lecture se cale sur la sous-grille active, ou
-     se place librement quand il est désactivé.
+     se place librement quand il est désactivé. Les boucles suivent le même
+     réglage : leurs deux bouts (et le bord qu'on déplace) se calent sur la
+     sous-grille active, ou sont libres ; une boucle n'est pas limitée aux
+     mesures entières.
    - **Zoom** horizontal et vertical par deux curseurs, et bouton « Auto » qui
      ajuste les pistes à la fenêtre sans débordement.
    - **Réglage** : suivre ou non la tête de lecture pendant la lecture.

@@ -126,14 +126,17 @@ La grille des pistes a deux niveaux : les barres de mesure, nettes
 s'efface d'elle-même quand ses traits seraient à moins de 5 px l'un de l'autre.
 
 La boucle se lit à deux endroits : une bande de laiton pleine dans la règle des
-mesures, un voile de laiton sur les pistes. La tête de lecture est un filet
+mesures, un voile de laiton sur les pistes. Elle commence et finit sur la
+sous-grille (ou librement, magnétisme éteint), pas forcément sur une barre de
+mesure. La tête de lecture est un filet
 braise coiffé d'un petit triangle.
 
 Une piste coupée reste en place, sa forme d'onde tombe à 22 % d'opacité.
 
 **Grille d'accords** : quatre mesures par ligne, barres de mesure à l'encre,
 lettres de section encadrées, double barre aux changements de section. La
-boucle est un voile de laiton sur les mesures concernées ; la mesure en cours
+boucle est un voile de laiton sur les mesures concernées (une mesure bouclée en
+partie n'est voilée que pour cette partie) ; la mesure en cours
 se remplit d'un filet braise.
 
 **Partition (v2)** : cet affichage n'est pas dans l'interface de la v1. Son

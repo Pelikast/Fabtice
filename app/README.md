@@ -89,7 +89,9 @@ src/
   model/              types des données (projet, pistes, carte de tempo, document,
                       harmonie, résultat d'analyse, corrections à la main)
   grid/               calculs de grille, purs et testés : temps <-> mesures,
-                      traits de mesure et de sous-grille, magnétisme, boucles,
+                      traits de mesure et de sous-grille, magnétisme, boucles
+                      (loops.ts : sélection et bords calés sur la sous-grille ou
+                      libres ; loopText.ts : leur lecture « 2.2 à 4.3 (4e double) »),
                       clics du métronome, formats d'affichage, « Battre le tempo »,
                       carte de tempo à partir de temps analysés, corrections
                       (× 2, ÷ 2, premier temps), courbe de tempo par mesure
@@ -178,7 +180,9 @@ tests/                vérifications dans Chromium (smoke.mjs, timeline.mjs, imp
   temps (levée)**, le premier segment et la première métrique se prolongent :
   la mesure d'indice −1 s'affiche « 0 », la −2 « −1 », etc. (numéro affiché =
   indice + 1).
-- `LoopState` (zone et marche/arrêt), `PlaybackSettings` (demi-tons −12…+12,
+- `LoopState` (zone et marche/arrêt ; la zone est un intervalle de **secondes
+  source**, pas des mesures : voir « Boucles qui ne sont pas des mesures
+  entières » plus bas), `PlaybackSettings` (demi-tons −12…+12,
   cents −50…+50, tempo en rapport 0,25…2, métronome), `ViewSettings`
   (affichage, échelle en pixels par seconde, hauteur de piste, Auto,
   sous-grille 1/2/4/8, triolets, magnétisme, suivi, instrument de la grille), `AppSettings` (notation
@@ -565,6 +569,15 @@ graphique. Les temps varient du simple au double selon la charge de la machine
 
 ##### Rendu hors ligne et « Appliquer » — `src/render/`
 
+**Nom à l'écran.** Le bouton se lit « Appliquer meilleure qualité » (deux lignes
+dans le bouton ; textes `apply.*` de `i18n/fr.ts`), l'état appliqué
+« meilleure qualité appliquée » et l'écran d'attente « Meilleure qualité » :
+« Appliquer » seul ne disait pas ce que le bouton fait. Le nom du code et des
+tests (`appliquer`, `applique`, `apply*`) n'a pas changé. Sur téléphone le
+bouton fait 92 px de large au plus (police 11 px) pour que Tonalité et Tempo
+gardent la place de leurs deux boutons ; `tests/separation.mjs` vérifie que le
+transport tient à 1280×800, 960×640 et 390×844. Jamais en braise.
+
 **Fait** (rendu réel, lecteur du rendu, mémoire, écran). Rubber Band R3
 « finer » rend les pistes hors ligne dans des workers, le moteur joue le rendu
 tel quel, et tout se vérifie par des mesures : `npm test` (Node, vrai wasm),
@@ -788,7 +801,7 @@ jamais la braise. Vérifié à 1280 × 800 et 390 × 844 (captures de `test:rend
 | Fichier | Rôle |
 |---|---|
 | `types.ts` | le contrat : `AudioEncoder.encode(PcmAudio, { onProgress, signal })` → `Blob` (lecture par blocs, jamais une copie Float32 entière), `ExportPlan` (format, plage, tonalité, tempo, formants, fichiers et leurs pistes avec leur gain, archive), `ExportError` (`cancelled`, `nothing`, `encoder-missing`, `memory`, `failed`) |
-| `plan.ts` | ce qu'on fabrique, pur et testé : **le mélange tel qu'on l'entend** (muet, solo et volumes compris) en un fichier, ou **les pistes séparément, chacune à son plein niveau** (muet, solo et volume ignorés : une piste séparée est une matière première ; on coche celles qu'on veut) en une archive ; le morceau entier ou la boucle ; noms de fichiers lisibles (« Blues du dimanche – Basse – boucle (+2 demi-tons, tempo 80 %).wav ») |
+| `plan.ts` | ce qu'on fabrique, pur et testé : **le mélange tel qu'on l'entend** (muet, solo et volumes compris) en un fichier, ou **les pistes séparément, chacune à son plein niveau** (muet, solo et volume ignorés : une piste séparée est une matière première ; on coche celles qu'on veut) en une archive ; le morceau entier ou la boucle ; noms de fichiers lisibles (« Blues du dimanche – Basse – boucle 2.2 à 4.3 (4e double) (+2 demi-tons, tempo 80 %).wav » ; pour une boucle de mesures entières « boucle 5–8 ») |
 | `run.ts` | rend chaque piste par le rendu hors ligne (ou reprend le rendu appliqué s'il correspond, ou copie la plage telle quelle à la tonalité et au tempo d'origine), mélange dans un seul accumulateur (une piste rendue à la fois en mémoire), baisse le tout uniformément si le mélange dépasse la pleine échelle (jamais d'écrêtage), encode, met en archive |
 | `encoders.ts`, `wav.ts` | le registre des encodeurs (`registerEncoder` ; WAV, MP3 et FLAC y sont inscrits) ; WAV 16 bits, écrit directement depuis les blocs 16 bits, le `Blob` construit par groupes de 4 Mo |
 | `encoders/` | MP3 et FLAC : `workerEncoder.ts` (côté page : un worker par fichier, les blocs 16 bits partent un à un, au plus trois en vol, annulation = `terminate()`), `encode.worker.ts` (côté worker : charge l'encodeur au premier fichier de son format, convertit un bloc en Float32, encode, renvoie les morceaux), `protocol.ts`, `settings.ts` (la qualité, une seule), `id3.ts` (titre), `mp3Info.ts` (trame « Info »), `assets.ts` (adresse du `.wasm` du MP3), `LICENSE-*.txt` |
@@ -1087,7 +1100,7 @@ Chromium (`npm run test:chart`).
 | clic sur une mesure (hors accord) | `seek()` au début de la mesure |
 | clic sur un accord, ou sur la zone d'accord d'une mesure vide ou en répétition | ouvre l'éditeur d'accord ; la tête de lecture ne bouge pas |
 | clic sur la lettre d'une section | ouvre l'éditeur sur le champ de la section |
-| glisser à la souris sur des mesures (dans les deux sens, d'une ligne à l'autre ; on peut commencer sur un accord) | sélection en direct : `setLoopRegion(loopFromBars(…))` ; au relâchement `enterLoop()` ; la feuille défile seule quand on approche son bord haut ou bas |
+| glisser à la souris sur des mesures (dans les deux sens, d'une ligne à l'autre ; on peut commencer sur un accord) | sélection **de mesures entières** en direct : `setLoopRegion(loopFromBars(…))` ; au relâchement `enterLoop()` ; la feuille défile seule quand on approche son bord haut ou bas |
 | doigt : un tapotement | comme le clic (mesure : tête de lecture ; accord : éditeur) |
 | doigt : glisser | fait défiler la feuille (le navigateur) ; rien n'est sélectionné |
 | doigt : **appui long (0,42 s) puis glisser** | sélectionne : l'appui long prend la mesure sous le doigt (le voile de laiton dit que c'est pris), glisser prolonge, lever termine (`enterLoop()`) |
@@ -1182,7 +1195,8 @@ d'une mesure sans accord) ; la boucle d'animation ne passe jamais par React
 **Ce qui manque** : pas d'annulation d'une série de corrections (seulement
 « Revenir à l'analyse » mesure par mesure et `resetChordCorrections`) ; pas de
 copie d'une mesure ni de plusieurs mesures à la fois ; pas de poignées pour
-ajuster les bords de la boucle sur la grille (la frise des pistes les a) ; pas
+ajuster les bords de la boucle (la frise des pistes les a ; la grille d'accords
+garde sa sélection par mesures entières) ; pas
 d'en-tête ni de numéro de page à l'impression ; une mesure de trois accords ou
 plus se corrige accord par accord (onglets) mais ne se découpe pas davantage.
 
@@ -1194,6 +1208,8 @@ plus se corrige accord par accord (onglets) mais ne se découpe pas davantage.
   hauteurs à la colonne des en-têtes (`components/RulerHeads.tsx`) comme à la
   frise, si bien que rien ne bouge quand une analyse se termine et que le rang
   apparaît.
+- **Boucles** : voir « Boucles qui ne sont pas des mesures entières » (frise du
+  temps, plus bas).
 - **Temps analysés** : `barLines`, `subGridLines`, `snapTime`, `loopFromBars`,
   `barsOfRange`, `metronomeClicks` donnent les bonnes lignes sur une carte
   variable ; `test:timeline` le vérifie sur `?demo` (lignes de mesure sur les
@@ -1538,8 +1554,8 @@ voie, gain limité à 8) ; la courbe d'affichage est une puissance 0,8.
 | Geste | Effet |
 |---|---|
 | clic (sans glisser) sur une voie ou dans la rangée Mesures | `seek()`, calé par `snapTime()` si le magnétisme est actif |
-| glisser à la souris sur une voie ou dans Mesures | sélection de mesures entières, `setLoopRegion(loopFromBars(...))` en direct ; au relâchement, `enterLoop()` amène la tête de lecture au début de la boucle si elle était en dehors |
-| glisser un bord de la boucle (règle ou voie) | ajuste la boucle mesure par mesure (au moins une mesure) ; même `enterLoop()` au relâchement |
+| glisser à la souris sur une voie ou dans Mesures | sélection d'un passage, `setLoopRegion(loopFromDrag(...))` en direct, **calée sur la sous-grille active** (pas choisi + Triolets) quand le magnétisme est actif, **libre** sinon ; au relâchement, `enterLoop()` amène la tête de lecture au début de la boucle si elle était en dehors |
+| glisser un bord de la boucle (règle ou voie) | le bord suit le pointeur depuis l'endroit où on l'a pris (il ne saute pas), calé sur la sous-grille ou libre comme ci-dessus ; la boucle garde au moins 0,1 s ; même `enterLoop()` au relâchement |
 | glisser dans la rangée Tempo | fait défiler (comme le doigt) |
 | molette horizontale, balayage au pavé tactile | défilement horizontal |
 | Maj + molette | défilement horizontal |
@@ -1552,6 +1568,74 @@ voie, gain limité à 8) ; la courbe d'affichage est une puissance 0,8.
 La molette verticale reste au défileur vertical des pistes. Le zoom par les
 curseurs, la molette ou le pincement garde en place la tête de lecture si elle
 est visible, sinon le milieu de la vue.
+
+#### Boucles qui ne sont pas des mesures entières (`grid/loops.ts`, `grid/loopText.ts`)
+
+Le magnétisme qui cale la tête de lecture cale aussi la boucle. **Magnétisme actif
+(par défaut)** : les deux bouts d'une sélection, et le bord qu'on déplace,
+vont à la ligne la plus proche de la **sous-grille active** (pas choisi combiné
+au bouton « Triolets », barres de mesure comprises : ce sont des lignes de la
+sous-grille). **Magnétisme éteint** : les bouts sont exactement où est le
+pointeur. Souris et doigt, dans les voies comme dans la rangée Mesures. Un
+simple clic reste un déplacement de la tête, sans toucher à la boucle. Pour
+boucler des mesures entières il suffit de glisser d'une barre à l'autre.
+
+**Forme gardée.** Rien n'a changé : la boucle était déjà un intervalle de
+**secondes source** (`LoopState.region`), jamais des numéros de mesure. Le
+document reste en version 3, sans migration ; une boucle gardée par une version
+précédente (toujours en mesures entières) se relit à l'identique, une boucle
+coupée entre deux temps se relit à l'échantillon près
+(`documentFormat.test.ts`, `restore.test.ts`, `test:timeline` section `loops`
+après un vrai rechargement).
+
+**Quand on corrige la grille** (premier temps, tempo × 2 ou ÷ 2, temps par
+mesure, retour à l'analyse), la boucle **reste sur la musique** : mêmes
+secondes, comme les accords et les sections. Seule sa lecture en mesures
+change : « 5–8 » devient « 4.4 à 8.4 » si le premier temps avance
+d’un temps, et redevient « 5–8 » si on le remet (`store/lot2.test.ts`). C'est
+ce qui surprend le moins : le passage qu'on travaille est toujours le même
+morceau de son.
+
+**Longueur minimale.** `MIN_LOOP_SECONDS` = 0,1 s (le moteur ignore ce qui est
+sous 2048 échantillons, 43 ms). Un glisser qui revient à son point de départ
+laisse une boucle d'un pas de sous-grille (ou plus : de quoi atteindre 0,1 s),
+du côté où allait le pointeur ; magnétisme éteint, 0,1 s. Une boucle qui touche
+la fin du morceau grandit de l'autre côté.
+
+**Lecture** (`formatLoop`, utilisée par le transport, la fenêtre d'export et les
+noms de fichiers) :
+
+| Boucle | Lecture |
+|---|---|
+| mesures entières | « 5–8 » (« 5 » pour une seule), comme avant |
+| du temps 2 de la mesure 2 au temps 3 de la mesure 4 | « 2.2 à 4.3 » |
+| … jusqu'à la 4e double-croche du temps 3 | « 2.2 à 4.3 (4e double) » |
+| … jusqu'au 3e triolet du temps 3 | « 2.2 à 4.3 (3e triolet) » |
+| du « et » (croche en contretemps) du temps 2 | « 2.2 (2e croche) » |
+| à la main, entre deux lignes | « ≈2.2 (2e double) à ≈4.3 » (« ≈ » et la double-croche la plus proche) |
+
+Un point est une **ligne**, pas une case : « 2.2 à 4.3 » joue jusqu'au début du
+temps 3 de la mesure 4. « 4e double » est la quatrième double-croche **du
+temps** (de 1 à 4), « 2e croche » la croche du contretemps, « 2e triolet » le
+deuxième des trois ; « triple », « sextolet » et « douzième de temps » de même
+pour 8, 6 et 12 divisions. Le nom est celui de la division la plus large qui
+tombe juste (0,5 % de temps de tolérance), si bien qu'il ne change pas quand on
+change la sous-grille. Dans le transport, une lecture qui n'est pas en mesures
+entières passe sous la position (hors de la mise en page, elle ne déplace
+rien) ; l'infobulle donne la phrase entière (« de la mesure 2, temps 2, à la
+mesure 4, temps 3, 4e double »). Le transport entier (donc cette lecture) est
+masqué sous 1040 px de large, comme avant.
+
+**Partout ailleurs.** Moteur : les bornes sont arrondies à l'échantillon, fondu
+de 20 ms au repli au plus au quart de la boucle (`tests/engine.mjs` section 3b :
+chaque repère revient exactement un tour plus tard). Règle : la bande et le
+voile suivent les bornes ; le numéro d'une mesure est à l'encre quand une partie
+de la mesure est bouclée, son trait quand la boucle l'atteint. Grille d'accords :
+une mesure bouclée en partie est voilée pour cette partie seulement (classes
+`dans-boucle partielle`, `--boucle-de` et `--boucle-a`, fractions de la largeur
+de la mesure en temps) ; la sélection à la souris de la grille reste en mesures
+entières. Export : plage exacte à l'échantillon, et le nom du fichier porte la
+lecture de la boucle (« … – boucle 2.2 à 4.3 (4e double) »).
 
 **Auto** (`view.auto`) : tant qu'il est actif, la frise ajuste le morceau à la
 largeur et les pistes à la hauteur sans débordement (`fitToView()`, bornes de
@@ -1576,7 +1660,7 @@ de même (mesures 1, 5, 9… à une sur quatre). La sous-grille disparaît sous 
 `data-pps`, `data-peaks` (`ready` quand toutes les crêtes sont calculées) et
 `data-flush` (nombre de redessins, coût total et pire coût en ms).
 `npm run test:timeline` (après `build`) lance les vérifications dans Chromium
-(`TIMELINE_ONLY=desktop|chords|stress|phone` pour une seule partie ;
+(`TIMELINE_ONLY=desktop|chords|stress|loops|phone` pour une seule partie ;
 `FABTICE_TIMELINE_OUT` pour le dossier des captures).
 
 ## Saisie et correction de la grille
