@@ -3,7 +3,7 @@
 // `toAnalysisResult` (same « doubtful », same symbols).
 
 import type { Chart } from '../../../../app/src/analysis/engine/pipeline';
-import { gridFromActivations, gridFromHint } from '../../../../app/src/analysis/engine/pipeline';
+import { beatSegments, gridFromActivations, gridFromHint } from '../../../../app/src/analysis/engine/pipeline';
 import type { Grid } from '../../../../app/src/analysis/engine/grid';
 import type { MeterScore } from '../../../../app/src/analysis/engine/meter';
 import { toAnalysisResult } from '../../../../app/src/analysis/engine/result';
@@ -26,6 +26,9 @@ export async function prepare(input: VariantInput, ctx: VariantContext): Promise
   const r = gridFromActivations(net.outputs.act);
   return { net, grid: r.grid, meterScores: r.meterScores, repairs: r.repairs };
 }
+
+/** The beats of a grid as [start, end) segments, as the pipeline pools them. */
+export const segmentsOf = (grid: Grid) => beatSegments(grid.beats);
 
 export function output(input: VariantInput, p: Prepared, chart: Chart): VariantOutput {
   const result = toAnalysisResult({

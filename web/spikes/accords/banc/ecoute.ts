@@ -9,6 +9,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import * as ort from 'onnxruntime-web';
 import { bassBand } from '../../../../app/src/analysis/engine/bassband';
+import { BASS_SR, bassAudio } from '../../../../app/src/analysis/engine/bassline';
 import type { ChordFrames } from '../../../../app/src/analysis/engine/chords';
 import { chordStage } from '../../../../app/src/analysis/engine/pipeline';
 import { mixToMono, resampleRatioAsync } from '../../../../app/src/analysis/engine/resample';
@@ -98,4 +99,22 @@ export async function listen(spec: ListenSpec, tuning: TuningEstimate): Promise<
   const parts = [frames.probs, frames.pitch, frames.bass, rms];
   writeFileSync(`${file}.bin`, Buffer.concat(parts.map((p) => Buffer.from(p.buffer, p.byteOffset, p.byteLength))));
   return { frames, timeScale, rms };
+}
+
+/** The audio of `spec` at the bass estimate's rate (`bassline.ts`), cached. */
+export async function lowAudio(spec: ListenSpec): Promise<Float32Array> {
+  const dir = join(DATA, 'cache');
+  mkdirSync(dir, { recursive: true });
+  const key = createHash('sha256')
+    .update(JSON.stringify({ v: VERSION, low: BASS_SR, f: spec.paths.map(hashOf), g: spec.gains ?? null, t: spec.transform ?? null }))
+    .digest('hex')
+    .slice(0, 24);
+  const file = join(dir, `ecoute-grave-${key}.f32`);
+  if (existsSync(file)) {
+    const b = readFileSync(file);
+    return new Float32Array(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength));
+  }
+  const low = bassAudio(await audio44(spec), 44100);
+  writeFileSync(file, Buffer.from(low.buffer, low.byteOffset, low.byteLength));
+  return low;
 }

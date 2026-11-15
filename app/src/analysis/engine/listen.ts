@@ -4,7 +4,8 @@
 // mix. This file decides, piece by piece and from the audio only, which parts
 // carry the harmony, and pools the evidence. Pure.
 
-import { N_CHORDS, NO_CHORD, chordRoot, type ChordFrames, type PooledUnit } from './chords';
+import type { BassBeat } from './bassline';
+import { N_CHORDS, NO_CHORD, chordPcs, chordRoot, type ChordFrames, type PooledUnit } from './chords';
 
 /** What the selector reads from one part. */
 export interface StemFeatures {
@@ -89,6 +90,77 @@ export function stemFeatures(
     agreement: n ? agreement / n : 0,
     rootAgreement: n ? rootAgree / n : 0,
   };
+}
+
+/** Two listenings of the same beats pooled log-linearly: `mixWeight` of `a`, the rest of `b`. */
+export function blendUnits(a: readonly PooledUnit[], b: readonly PooledUnit[], mixWeight: number): PooledUnit[] {
+  const wa = mixWeight;
+  const wb = 1 - wa;
+  return a.map((u, i) => {
+    const v = b[i];
+    if (!v) return u;
+    const logp = new Float64Array(N_CHORDS);
+    for (let c = 0; c < N_CHORDS; c++) logp[c] = wa * u.logp[c]! + wb * v.logp[c]!;
+    return {
+      ...u,
+      logp,
+      pitch: Float64Array.from(u.pitch, (x, k) => wa * x + wb * v.pitch[k]!),
+      bass: Float64Array.from(u.bass, (x, k) => wa * x + wb * v.bass[k]!),
+    };
+  });
+}
+
+export interface BassCueOptions {
+  /** Weight of the cue in nats per beat at full strength (the decoder then multiplies emissions by gamma = 3). */
+  weight: number;
+  /** Share credited when the bass plays another chord tone than the root (third, fifth: walking, inversions). */
+  tones: number;
+  /** Floor of the bass evidence: the bass may play none of the chord's notes (approach notes, pedals). */
+  floor: number;
+  /** Strength of the cue on beat 1, on the middle beat of an even bar, and on the other beats. */
+  positions: readonly [number, number, number];
+}
+
+/**
+ * Measured on the dev half of the bench (separated bass, harmonic summation):
+ * the bass note of beat 1 is the root 9 times out of 10, of the other beats
+ * only a third of the time (walking: thirds, fifths, approach notes), hence
+ * the positions. Weight and tone credit chosen on the dev half.
+ */
+export const BASS_CUE: BassCueOptions = { weight: 4, tones: 0.4, floor: 0.08, positions: [1, 0.3, 0.1] };
+
+/**
+ * The bass as soft evidence for the root, added to the per-beat evidence (new
+ * units). A beat where no bass note is clearly heard (`strength` low) counts
+ * little; the bass may also play the third or the fifth (credited), or
+ * nothing of the chord (the floor): a cue, not a rule.
+ */
+export function applyBassCue(
+  units: readonly PooledUnit[],
+  bass: readonly BassBeat[],
+  numbers: readonly number[],
+  beatsPerBar: number,
+  options: Partial<BassCueOptions> = {},
+): PooledUnit[] {
+  const o = { ...BASS_CUE, ...options };
+  const tones: number[][] = [];
+  for (let c = 0; c < NO_CHORD; c++) tones.push(chordPcs(c));
+  return units.map((u, i) => {
+    const b = bass[i];
+    if (!b) return u;
+    const q = Float64Array.from(b.pcs, (v) => b.strength * v + (1 - b.strength) / 12);
+    const nb = numbers[i] ?? 0;
+    const pos = nb === 1 ? o.positions[0] : beatsPerBar % 2 === 0 && nb === beatsPerBar / 2 + 1 ? o.positions[1] : o.positions[2];
+    const w = o.weight * pos;
+    const logp = Float64Array.from(u.logp);
+    for (let c = 0; c < NO_CHORD; c++) {
+      const t = tones[c]!;
+      let s = q[t[0]!]!;
+      for (let k = 1; k < t.length; k++) s += o.tones * q[t[k]!]!;
+      logp[c]! += w * Math.log(o.floor + s);
+    }
+    return { ...u, logp };
+  });
 }
 
 /**

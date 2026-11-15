@@ -113,7 +113,7 @@ export function gridFromHint(times: readonly number[], downbeat: number, beatsPe
   return makeGrid(times, renumber(times, beatsPerBar, downbeat), beatsPerBar);
 }
 
-function beatSegments(beats: readonly number[]): [number, number][] {
+export function beatSegments(beats: readonly number[]): [number, number][] {
   return beats.map((t, i) => [t, beats[i + 1] ?? t + (i > 0 ? t - beats[i - 1]! : 0.5)] as [number, number]);
 }
 
