@@ -15,16 +15,19 @@
 // So: the downbeat peaks are chained into bars of a steady length (each bar
 // within `step` of the bars before it; a missed downbeat is a bar of twice the
 // length; a fermata, a free passage or an abrupt tempo change breaks the
-// chain, and nothing is done there). The metre is the number of beats most
-// bars hold. A bar of the chain whose beat count is not the metre (2 in 4/4:
-// half tempo; 8: double; 3 or 5: a lost or an extra beat; off-beats) is
-// re-gridded: the found beats that fall on its evenly divided beat positions
-// are kept as they are (the network's timing), the others dropped, the
-// missing positions placed between the kept ones. The bar's own downbeats are
-// kept, so the phase is continuous with what is before AND after the passage,
-// whatever its length. A bar that holds the right count is never touched
-// (rubato, swing, a held note inside the bar). Pure; thresholds measured
-// (app/README.md « Réparation des temps »).
+// chain, and nothing is done there: a real tempo change changes the bar
+// length). The metre is the one most bars hold exactly, as regular beats. A
+// bar of the chain whose beat count is not the metre (2 in 4/4: half tempo; 8:
+// double; 6: 3 for 2; 3 or 5: a lost or an extra beat) is re-gridded: the
+// found beats that fall on its evenly divided beat positions are kept as they
+// are (the network's timing), the others dropped, the missing positions placed
+// between the kept ones. The bar's own downbeats are kept, so the phase is
+// continuous with what is before AND after the passage, whatever its length.
+// A passage at 2/3 or 3/2 (or 4/3, 3/4) must also come back to the metre. A
+// bar that holds the right count is never touched (rubato, swing, a held note
+// inside the bar), nor one whose beats are regular at its own level (the
+// downbeats are wrong there, or it is a fermata). Pure; thresholds measured
+// (app/README.md « Temps menés par les premiers temps »).
 
 import type { RepairedPassage } from '../types';
 import { pickPeaks } from './beats';
