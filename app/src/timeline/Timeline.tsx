@@ -16,7 +16,7 @@
 
 import { useEffect, useLayoutEffect, useRef, type CSSProperties, type RefObject } from 'react';
 import { t } from '../i18n';
-import { selectHasChords } from '../store/chartSelectors';
+import { selectHasChords, selectHasMarkers } from '../store/chartSelectors';
 import { useApp } from '../store/store';
 import { TimelineController } from './controller';
 import { rulerRows } from './layout';
@@ -34,18 +34,21 @@ export function Timeline({ scroller }: TimelineProps) {
     return s.tracks.map((tr) => `${tr.id}:${tr.role}:${(anySolo ? !tr.solo : tr.mute) ? 1 : 0}`).join(',');
   });
   const hasChords = useApp(selectHasChords);
+  const hasMarkers = useApp(selectHasMarkers);
   const root = useRef<HTMLDivElement>(null);
   const controller = useRef<TimelineController | null>(null);
   const hasChordsNow = useRef(hasChords);
   hasChordsNow.current = hasChords;
-  const rows = rulerRows({ hasChords });
+  const hasMarkersNow = useRef(hasMarkers);
+  hasMarkersNow.current = hasMarkers;
+  const rows = rulerRows({ hasChords, hasMarkers });
   const lanes = lanesKey ? lanesKey.split(',').map((entry) => entry.split(':') as [string, string, string]) : [];
 
   useLayoutEffect(() => {
     // A parent's ref is not attached yet when a child's layout effect runs: fall back on the DOM.
     const scrolling = scroller.current ?? root.current?.closest<HTMLElement>('.travail') ?? null;
     if (!root.current || !scrolling) return;
-    const c = new TimelineController(root.current, scrolling, hasChordsNow.current);
+    const c = new TimelineController(root.current, scrolling, hasChordsNow.current, hasMarkersNow.current);
     controller.current = c;
     return () => {
       c.dispose();
@@ -55,8 +58,8 @@ export function Timeline({ scroller }: TimelineProps) {
 
   // The chords row appeared or went away (an analysis finished, a first chord typed): the rows are in the DOM now.
   useLayoutEffect(() => {
-    controller.current?.rowsChanged(hasChords);
-  }, [hasChords]);
+    controller.current?.rowsChanged(hasChords, hasMarkers);
+  }, [hasChords, hasMarkers]);
 
   // Lanes added, removed or re-ordered.
   const ids = lanes.map((l) => l[0]).join(',');
@@ -70,6 +73,7 @@ export function Timeline({ scroller }: TimelineProps) {
         {rows.map((r) => (
           <div key={r.id} className={`frise-rang ${r.id}`} style={{ height: r.height }}>
             {r.id === 'accords' && <div className="frise-accords" aria-hidden="true" />}
+            {r.id === 'reperes' && <div className="frise-reperes" role="group" aria-label={t('markers.rowLabel')} />}
             {r.id === 'mesures' && <div className="frise-bande" hidden />}
           </div>
         ))}

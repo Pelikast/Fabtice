@@ -11,11 +11,13 @@ import { appStore, useApp } from '../store/store';
 
 export function ApplyControl() {
   const state = useApp(selectApplyState);
+  // Lot 4: an applied render is made for one tempo; while the loop accelerates, the steps are heard in preview quality.
+  const accelerating = useApp((s) => s.metronome.acceleration.enabled && s.loop.enabled && s.loop.region !== null);
   if (state === 'original') return null;
   if (state === 'applied') {
     return (
-      <span className="applique" data-testid="applique" title={t('apply.buttonTitle')}>
-        {t('apply.applied')}
+      <span className="applique" data-testid="applique" title={accelerating ? t('accel.quality') : t('apply.buttonTitle')}>
+        {accelerating ? t('apply.appliedAtTarget') : t('apply.applied')}
       </span>
     );
   }

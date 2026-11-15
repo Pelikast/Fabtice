@@ -1,7 +1,7 @@
 // Keeps the engine in step with the store: settings flow store -> engine,
 // engine state flows engine -> store. Called once at start-up (`main.tsx`).
 
-import { metronomeClicks } from '../grid/lines';
+import { accelerationSteps, metronomeClickTrack } from '../grid/metronome';
 import type { AppState, AppStore } from '../store/store';
 import type { AudioEngine } from './AudioEngine';
 
@@ -18,8 +18,14 @@ export function connectEngine(store: AppStore, engine: AudioEngine): () => void 
     if (!prev || s.playback.tempoRatio !== prev.playback.tempoRatio) engine.setTempoRatio(s.playback.tempoRatio);
     if (!prev || s.playback.metronome !== prev.playback.metronome) engine.setMetronome(s.playback.metronome);
     if (!prev || s.loop !== prev.loop) engine.setLoop(s.loop.enabled ? s.loop.region : null);
-    if (!prev || s.tempoMap !== prev.tempoMap || s.project?.duration !== prev.project?.duration) {
-      engine.setClickTrack(metronomeClicks(s.tempoMap, 0, s.project?.duration ?? 0));
+    if (!prev || s.tempoMap !== prev.tempoMap || s.project?.duration !== prev.project?.duration || s.metronome.patterns !== prev.metronome.patterns) {
+      engine.setClickTrack(metronomeClickTrack(s.tempoMap, 0, s.project?.duration ?? 0, s.metronome.patterns));
+    }
+    if (!prev || s.metronome.volume !== prev.metronome.volume) engine.setMetronomeVolume(s.metronome.volume);
+    // Lot 4: the acceleration plan, as tempo factors per step (the engine acts on it only while the loop is on).
+    if (!prev || s.metronome.acceleration !== prev.metronome.acceleration) {
+      const a = s.metronome.acceleration;
+      engine.setAcceleration(a.enabled ? { factors: Float64Array.from(accelerationSteps(a), (p) => p / 100), every: a.everyRepeats } : null);
     }
     if (!prev || s.tracks !== prev.tracks) {
       for (const tr of s.tracks) {

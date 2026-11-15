@@ -5,7 +5,9 @@
 //
 // Layers, from the bottom (see `timeline.css`):
 //   ruler    : DOM row backgrounds, the loop band (DOM), the chord labels (DOM,
-//              `chordLayer.ts`, only when the piece has chords), one canvas with
+//              `chordLayer.ts`, only when the piece has chords), the markers
+//              (DOM buttons, `markerLayer.ts`, lot 4, only when the piece has
+//              sections or named loops), one canvas with
 //              the tempo curve, bar lines and numbers, the playhead (DOM)
 //   lanes    : one grid canvas under all lanes (bar lines, sub-grid), one
 //              waveform canvas per lane (dimmed with CSS opacity), the loop
@@ -43,6 +45,11 @@ import {
 import { chordMarkup } from './chordMarkup';
 import { ChordLayer } from './chordLayer';
 import { placeChordRow, ROW_SIZES_PX, rowChords, type RowChord } from './chordRow';
+import { MarkerLayer, placeMarkers, type MarkerSpan } from './markerLayer';
+import { recallLoop, recallSection } from '../store/markerActions';
+import { sectionRanges } from '../markers/markers';
+import { formatLoop } from '../grid/loopText';
+import { t } from '../i18n';
 import { drawGrid, drawRuler, drawWave, readColors, type Colors } from './drawing';
 import { RULER_ROW_HEIGHT, TRACKS_FOOT, rulerHeight, rulerRows } from './layout';
 import { getPeaks, onPeaksChange } from './peakCache';
@@ -53,7 +60,8 @@ const RULER = 4;
 const LOOP = 8;
 const BAR = 16;
 const CHORDS = 32;
-const ALL = GRID | WAVES | RULER | LOOP | BAR | CHORDS;
+const MARKERS = 64;
+const ALL = GRID | WAVES | RULER | LOOP | BAR | CHORDS | MARKERS;
 
 const MAX_DPR = 3;
 const AUTOSCROLL_ZONE_PX = 32;
@@ -110,6 +118,10 @@ export class TimelineController {
   private lastBars: unknown = null;
   private lastContext: unknown = null;
 
+  // The markers row (lot 4: sections and named loops; only when the piece has one).
+  private hasMarkers: boolean;
+  private markerLayer: MarkerLayer | null = null;
+
   private s: AppState = appStore.getState();
   private alive = true;
   private dirty = ALL;
@@ -146,9 +158,10 @@ export class TimelineController {
   private phoneScale: number | null = null;
   private userZoomed = false;
 
-  constructor(root: HTMLElement, scroller: HTMLElement, hasChords = false) {
+  constructor(root: HTMLElement, scroller: HTMLElement, hasChords = false, hasMarkers = false) {
     this.root = root;
     this.hasChords = hasChords;
+    this.hasMarkers = hasMarkers;
     this.scroller = scroller;
     const q = <T extends HTMLElement>(sel: string): T => {
       const el = root.querySelector<T>(sel);
@@ -171,6 +184,7 @@ export class TimelineController {
     this.reducedMotion = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     this.attachChordLayer();
+    this.attachMarkerLayer();
     this.lanesChanged();
     this.bindStore();
     this.bindPointer();
@@ -188,8 +202,9 @@ export class TimelineController {
     if (fonts) {
       const onFonts = () => {
         this.chordLayer?.forgetWidths();
+        this.markerLayer?.forgetWidths();
         this.chordDataStale = true;
-        this.invalidate(RULER | CHORDS);
+        this.invalidate(RULER | CHORDS | MARKERS);
       };
       void fonts.ready.then(onFonts);
       fonts.addEventListener('loadingdone', onFonts);
@@ -217,10 +232,19 @@ export class TimelineController {
    * just rendered them, so both columns have the new heights. The view (`t0`,
    * `pps`) stays where it is; Auto fits the lanes to what is left.
    */
-  rowsChanged(hasChords: boolean): void {
-    if (hasChords === this.hasChords && (this.chordLayer?.host.isConnected ?? false) === hasChords) return;
+  rowsChanged(hasChords: boolean, hasMarkers = this.hasMarkers): void {
+    if (
+      hasChords === this.hasChords &&
+      (this.chordLayer?.host.isConnected ?? false) === hasChords &&
+      hasMarkers === this.hasMarkers &&
+      (this.markerLayer?.host.isConnected ?? false) === hasMarkers
+    ) {
+      return;
+    }
     this.hasChords = hasChords;
+    this.hasMarkers = hasMarkers;
     this.attachChordLayer();
+    this.attachMarkerLayer();
     this.chordDataStale = true;
     this.dirty |= ALL;
     if (this.viewW > 0) this.resize();
@@ -231,6 +255,38 @@ export class TimelineController {
     if (host === (this.chordLayer?.host ?? null)) return;
     this.chordLayer?.clear();
     this.chordLayer = host ? new ChordLayer(host) : null;
+  }
+
+  private attachMarkerLayer(): void {
+    const host = this.hasMarkers ? this.ruler.querySelector<HTMLElement>('.frise-reperes') : null;
+    if (host === (this.markerLayer?.host ?? null)) return;
+    this.markerLayer?.render([]);
+    this.markerLayer = host
+      ? new MarkerLayer(host, (kind, ref) => {
+          if (kind === 'section') recallSection(Number(ref));
+          else recallLoop(ref);
+        })
+      : null;
+  }
+
+  /** Places the sections and named loops in view (lot 4). */
+  private drawMarkers(): void {
+    const layer = this.markerLayer;
+    if (!layer || !this.hasMarkers) return;
+    const s = this.s;
+    const region = s.loop.enabled ? s.loop.region : null;
+    const same = (a: number, b: number) => Math.abs(a - b) < 1e-6;
+    const spans: MarkerSpan[] = [];
+    for (const r of sectionRanges(s.tempoMap, s.corrections.sections, this.duration)) {
+      const bars = formatLoop(s.tempoMap, r).text;
+      spans.push({ kind: 'section', ref: String(r.bar), text: r.label, title: t('markers.sectionTitle', { label: r.label, bars }), start: r.start, end: r.end, current: region !== null && same(region.start, r.start) && same(region.end, r.end) });
+    }
+    for (const l of s.markers.loops) {
+      const bars = formatLoop(s.tempoMap, l.region).text;
+      spans.push({ kind: 'loop', ref: l.id, text: l.name, title: t('markers.loopTitle', { name: l.name, bars }), start: l.region.start, end: l.region.end, current: region !== null && same(region.start, l.region.start) && same(region.end, l.region.end) });
+    }
+    layer.render(placeMarkers(spans, this.t0, this.pps, this.viewW, (text, kind) => layer.measure(text, kind)));
+    this.root.dataset.markers = String(layer.count);
   }
 
   /** The lane elements changed (tracks added, removed, reordered): collect them again. */
@@ -314,8 +370,9 @@ export class TimelineController {
     }
     if (d & WAVES) this.drawWaves();
     if (d & (RULER | CHORDS)) this.chordStride = this.drawChords();
+    if (d & (RULER | MARKERS)) this.drawMarkers();
     if (d & RULER) {
-      const rows = rulerRows({ hasChords: this.hasChords });
+      const rows = rulerRows({ hasChords: this.hasChords, hasMarkers: this.hasMarkers });
       const h = rows.reduce((sum, r) => sum + r.height, 0);
       this.sizeCanvas(this.rulerCanvas, this.rulerCtx, w, h);
       drawRuler(this.rulerCtx, {
@@ -567,7 +624,8 @@ export class TimelineController {
         this.applyPhoneScale();
       }
       this.watchChords(s);
-      if (s.loop !== prev.loop) this.invalidate(RULER | LOOP);
+      if (s.loop !== prev.loop) this.invalidate(RULER | LOOP | MARKERS);
+      if (s.markers !== prev.markers || s.corrections.sections !== prev.corrections.sections || s.tempoMap !== prev.tempoMap) this.invalidate(MARKERS);
       if (s.view.subdivision !== prev.view.subdivision || s.view.triplets !== prev.view.triplets) this.invalidate(GRID);
       if (s.view.pxPerSecond !== prev.view.pxPerSecond) this.scaleFromStore(s.view.pxPerSecond);
       if (s.view.trackHeight !== prev.view.trackHeight) this.invalidate(ALL);
@@ -647,7 +705,7 @@ export class TimelineController {
       viewW: this.viewW,
       viewH: this.viewH,
       trackCount: s.tracks.length,
-      rulerHeight: rulerHeight(rulerRows({ hasChords: this.hasChords })),
+      rulerHeight: rulerHeight(rulerRows({ hasChords: this.hasChords, hasMarkers: this.hasMarkers })),
       foot: TRACKS_FOOT,
     });
     if (!fitted) return;

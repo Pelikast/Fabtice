@@ -103,6 +103,11 @@ export function selectHasChords(s: AppState): boolean {
   return selectChords(s).length > 0;
 }
 
+/** Lot 4: the piece has a section or a named loop (the ruler then shows its « Repères » row). */
+export function selectHasMarkers(s: AppState): boolean {
+  return s.corrections.sections.length > 0 || s.markers.loops.length > 0;
+}
+
 const barsMemo = memoN((chords: ChartChord[], map: AppState['tempoMap'], sections: AppState['corrections']['sections'], duration: number) =>
   chartBars({ map, chords, sections, duration }),
 );

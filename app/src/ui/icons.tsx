@@ -99,6 +99,25 @@ export function CloseIcon() {
   );
 }
 
+/** Lot 4: a bookmark, for « Repères ». */
+export function MarkerIcon() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M6 3.5h8v13l-4-3.2-4 3.2z" />
+    </svg>
+  );
+}
+
+/** Lot 4: three small sliders, for the metronome's settings. */
+export function SlidersIcon() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true">
+      <path d="M5 3.5v13M10 3.5v13M15 3.5v13" />
+      <path d="M3.2 12h3.6M8.2 7h3.6M13.2 10.5h3.6" strokeWidth="2.2" />
+    </svg>
+  );
+}
+
 /** A printer, in the same line as the other icons: the quiet « Imprimer » of the chart. */
 export function PrinterIcon() {
   return (

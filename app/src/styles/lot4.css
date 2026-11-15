@@ -1,0 +1,288 @@
+/* Lot 4: the metronome panel (from « Clic »), the markers panel (beside the
+   loop), the markers row of the ruler. Same paper, ink and brass as the rest
+   (DESIGN.md): no new colour, the ember stays on play and the playhead. */
+
+:root { --rang-reperes: 22px; }
+
+/* ---------- Clic and its settings button ---------- */
+
+.clic { display: flex; align-items: stretch; }
+.clic .metronome { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.clic-reglages {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  margin-left: -1px;
+  border: 1px solid var(--trait);
+  border-radius: 0 var(--rayon) var(--rayon) 0;
+  background: var(--papier);
+  color: var(--encre-douce);
+  transition: background var(--vite) var(--courbe), color var(--vite) var(--courbe), border-color var(--vite) var(--courbe);
+}
+.clic-reglages svg { width: 18px; height: 18px; }
+.clic-reglages:hover:not(:disabled), .clic-reglages[aria-expanded="true"] { background: var(--papier-fonce); color: var(--encre); }
+.clic-reglages:disabled { color: var(--encre-pale); }
+
+/* ---------- Panels ---------- */
+
+/* Both panels are placed against the transport bar itself (their anchors are not positioned): above its top edge. */
+.panneau-metronome {
+  right: 14px;
+  bottom: calc(100% + 8px);
+  width: 340px;
+  padding: 12px 14px 14px;
+  text-align: left;
+}
+.panneau-reperes {
+  left: 50%;
+  bottom: calc(100% + 8px);
+  width: 340px;
+  margin-left: -170px;
+  padding: 12px 14px 14px;
+  text-align: left;
+}
+.metro-tete { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.metro-tete h2 { margin: 0; }
+.metro-tete .lien { min-height: 32px; font-size: 13.5px; }
+.metro-ligne { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 40px; }
+.metro-ligne > span { font-size: 14px; font-weight: 500; color: var(--encre); }
+.metro-ligne input[type="range"] { flex: 1; max-width: 170px; height: 32px; }
+.metro-ligne select {
+  height: 36px;
+  min-width: 84px;
+  padding: 0 8px;
+  border: 1px solid var(--trait);
+  border-radius: var(--rayon);
+  background: #fff;
+  color: var(--encre);
+  font-family: var(--titre);
+  font-size: 16px;
+  font-weight: 520;
+}
+.metro-bloc { padding-top: 8px; margin-top: 4px; border-top: 1px solid var(--trait-fin); }
+.metro-bloc .panneau-note { margin: 6px 2px 6px; }
+.metro-nom {
+  display: block;
+  margin: 2px 0 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--encre-douce);
+}
+/* A row of choices (count-in, grouping): ink when chosen, like `.duo`. */
+.metro-choix { display: flex; flex-wrap: wrap; border: 1px solid var(--trait); border-radius: var(--rayon); overflow: hidden; }
+.metro-choix button {
+  flex: 1 0 auto;
+  min-height: 38px;
+  padding: 0 10px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--encre-douce);
+  font-variant-numeric: tabular-nums;
+  transition: background var(--vite) var(--courbe), color var(--vite) var(--courbe);
+}
+.metro-choix button + button { border-left: 1px solid var(--trait-fin); }
+.metro-choix button:hover { background: var(--papier-fonce); color: var(--encre); }
+.metro-choix button[aria-pressed="true"] { background: var(--encre); color: var(--papier-clair); }
+.metro-ligne .metro-choix { flex: none; }
+
+/* Strong and weak beats: one button per beat; the level reads as the weight of a dot (and in words for screen readers). */
+.temps-rangee { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0 8px; }
+.temps-bouton {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 46px;
+  border: 1px solid var(--trait);
+  border-radius: var(--rayon);
+  background: var(--papier);
+  color: var(--encre);
+  transition: background var(--vite) var(--courbe), border-color var(--vite) var(--courbe);
+}
+.temps-bouton.groupe { margin-left: 8px; }
+.temps-bouton:hover { border-color: var(--encre-pale); background: var(--papier-fonce); }
+.temps-numero { font-size: 11px; font-weight: 600; color: var(--encre-douce); font-variant-numeric: tabular-nums; }
+.temps-force { display: grid; place-items: center; width: 20px; height: 20px; font-family: var(--titre); font-size: 20px; line-height: 1; }
+.temps-bouton.accent { background: var(--encre); border-color: var(--encre); color: var(--papier-clair); }
+.temps-bouton.accent .temps-numero { color: var(--papier-clair); }
+.temps-bouton.normal .temps-force::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: currentColor; }
+.temps-bouton.soft .temps-force::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: var(--encre-douce); }
+.temps-bouton.silent { border-style: dashed; color: var(--encre-pale); }
+.temps-bouton .temps-force { font-size: 0; }
+.temps-bouton.accent .temps-force::before { content: ">"; font-size: 18px; font-weight: 600; }
+
+/* Acceleration: four small steppers on two columns, then the step heard. */
+.accel-grille { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; margin: 8px 0 4px; }
+.accel-reglage .metro-nom { margin-bottom: 4px; }
+.accel-reglage .saisie { justify-content: space-between; }
+.accel-reglage .saisie button { width: 36px; height: 38px; }
+.accel-reglage .saisie button:disabled { color: var(--encre-pale); background: none; }
+.accel-reglage strong {
+  flex: 1;
+  text-align: center;
+  font-family: var(--titre);
+  font-size: 16px;
+  font-weight: 520;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.accel-etat {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 6px;
+  padding: 8px 10px;
+  border-radius: var(--rayon);
+  background: var(--laiton-voile);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--encre);
+  font-variant-numeric: tabular-nums;
+}
+.accel-etat .lien { min-height: 32px; font-size: 13.5px; }
+.panneau-metronome .avance-corps .option-ligne { min-height: 40px; }
+
+/* Count-in, read in the transport while the position waits. */
+.decompte {
+  position: absolute;
+  left: 0;
+  bottom: 100%;
+  margin-bottom: 2px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--encre);
+  white-space: nowrap;
+}
+
+/* ---------- Markers ---------- */
+
+.reperes-ancre { display: flex; }
+.reperes-bouton { position: relative; }
+.reperes-bouton[aria-expanded="true"] { background: var(--papier-fonce); color: var(--encre); }
+/* A small brass dot: there are markers to recall. */
+.reperes-nombre { position: absolute; top: 7px; right: 7px; width: 6px; height: 6px; border-radius: 50%; background: var(--laiton); }
+.reperes-groupe { padding-top: 8px; margin-top: 6px; border-top: 1px solid var(--trait-fin); }
+.reperes-groupe:first-of-type { border-top: 0; margin-top: 0; padding-top: 0; }
+.reperes-groupe .bouton-cadre { margin: 2px 0 6px; }
+.reperes-groupe .panneau-note { margin: 4px 2px 6px; }
+.reperes-liste { list-style: none; margin: 4px 0 6px; padding: 0; max-height: 220px; overflow-y: auto; }
+.reperes-liste li + li { border-top: 1px solid var(--trait-fin); }
+.repere-rappel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 40px;
+  padding: 0 8px;
+  border-radius: var(--rayon);
+  text-align: left;
+  transition: background var(--vite) var(--courbe);
+}
+.repere-rappel:hover { background: var(--papier-fonce); }
+.repere-rappel[aria-current="true"] { background: var(--laiton-voile); box-shadow: inset 2px 0 0 var(--laiton); }
+.repere-nom { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14.5px; font-weight: 500; color: var(--encre); }
+.repere-mesures { flex: none; font-size: 12.5px; color: var(--encre-douce); font-variant-numeric: tabular-nums; }
+/* A section letter is boxed, as in the chart. */
+.repere-section {
+  flex: none;
+  min-width: 26px;
+  padding: 1px 6px;
+  border: 1.5px solid var(--encre);
+  border-radius: 3px;
+  font-family: var(--titre);
+  font-size: 15px;
+  font-weight: 600;
+  text-align: center;
+  color: var(--encre);
+}
+.repere-section + .repere-mesures { flex: 1; }
+.repere-edition { display: flex; align-items: center; gap: 4px; padding: 4px 0; }
+.repere-champ {
+  flex: 1;
+  min-width: 0;
+  height: 38px;
+  padding: 0 8px;
+  border: 1px solid var(--trait);
+  border-radius: var(--rayon);
+  background: #fff;
+  color: var(--encre);
+  font-size: 14.5px;
+}
+.repere-edition .petit {
+  width: 36px;
+  height: 38px;
+  border-radius: var(--rayon);
+  font-size: 17px;
+  color: var(--encre-douce);
+}
+.repere-edition .petit:hover:not(:disabled) { background: var(--papier-fonce); color: var(--encre); }
+.repere-edition .petit:disabled { color: var(--encre-pale); }
+.reperes-ajout { min-height: 36px; font-size: 13.5px; }
+
+/* The ruler's markers row: sections boxed on their bar line, named loops as a short name over a brass thread. */
+.rang-tete.reperes { height: var(--rang-reperes); }
+.frise-rang.reperes { background: var(--papier); }
+.frise-reperes { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.frise-repere {
+  position: absolute;
+  top: 2px;
+  left: 0;
+  height: 18px;
+  padding: 0 5px;
+  pointer-events: auto;
+  white-space: nowrap;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 16px;
+  color: var(--encre-douce);
+  border-radius: 3px;
+  transition: background var(--vite) var(--courbe), color var(--vite) var(--courbe);
+}
+.frise-repere.section {
+  border: 1.25px solid var(--encre);
+  font-family: var(--titre);
+  font-size: 12.5px;
+  color: var(--encre);
+  background: var(--papier-clair);
+}
+.frise-repere.loop { padding-left: 7px; }
+/* the thread under a named loop spans it */
+.frise-repere.loop::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -2px;
+  width: var(--fil, 0px);
+  height: 2px;
+  background: var(--laiton);
+  opacity: 0.55;
+}
+.frise-repere.loop::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 2px;
+  bottom: -2px;
+  width: 1.5px;
+  background: var(--laiton);
+}
+.frise-repere.compact { width: 10px; padding: 0; }
+.frise-repere:hover, .frise-repere:focus-visible { background: var(--papier-fonce); color: var(--encre); }
+.frise-repere.courant { color: var(--encre); }
+.frise-repere.courant.loop::after { opacity: 1; }
+.frise-repere.frise-jauge { visibility: hidden; pointer-events: none; width: max-content; }
+
+@media (max-width: 760px) {
+  .clic-reglages { width: 40px; }
+  .panneau-metronome, .panneau-reperes {
+    left: 10px;
+    right: 10px;
+    width: auto;
+    margin-left: 0;
+  }
+  .commandes { gap: 16px; }
+}
