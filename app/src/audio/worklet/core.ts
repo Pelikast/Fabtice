@@ -440,7 +440,17 @@ export class PlayerCore {
       this.accelStep++;
       this.accelPasses = 0;
       this.applyRate();
+      // At the wrap the new step starts at once, without the usual smoothing: the clicks of the new pass are
+      // scheduled at the rate their beats are fed at (a ramp there would put the first ones a few ms late).
+      if (!this.aLive) this.rate = this.rateTarget;
     }
+  }
+
+  /** The tempo the next pass of the loop is fed at: the next step's when this wrap ends the step, else `rate`. */
+  private rateAfterWrap(rate: number): number {
+    const a = this.accel;
+    if (!a || !this.loop.enabled || this.accelPasses + 1 < a.every || this.accelStep >= a.factors.length - 1) return rate;
+    return Math.max(0.1, Math.min(4, this.rateBase * a.factors[this.accelStep + 1]!));
   }
 
   /** Count-in clicks not heard yet (0 when there is no count-in). */
@@ -980,7 +990,8 @@ export class PlayerCore {
         if (loopActive && c0 + span >= L.end) {
           const k = (L.end - c0) / rate; // output frames before the wrap
           this.scanBeats(c0, L.end, 0, rate);
-          this.scanBeats(L.start, L.start + (c0 + span - L.end), k, rate);
+          // the next pass may start a new acceleration step: its beats are fed (and so heard) at that tempo
+          this.scanBeats(L.start, L.start + (c0 + span - L.end), k, this.rateAfterWrap(rate));
         } else this.scanBeats(c0, c0 + span, 0, rate);
       } else {
         // the rendered audio has no latency: a beat is heard when the read position reaches it
