@@ -126,6 +126,14 @@ fenêtres de 30 s) :
 lecture des accords, avec l'étape A inchangée par-dessus. CREMA reste le
 modèle par défaut (léger, téléphone). Ne pas intégrer Jiang, BTC ni ChordMini.
 
+**Fait (branche `accords-modele-app`)** : intégré dans l'app comme choix
+« Modèle d'accords » des réglages avancés (voir `app/README.md`, « Modèle
+d'accords détaillé, au choix »). Le banc mesure l'app elle-même avec la
+variante `app-fin` : mêmes chiffres que `modele-a` ci-dessus. Dans Chromium ici
+(4 fils, machine chargée), le morceau de démonstration (37,6 s, 2 fenêtres)
+prend 70 à 75 s, environ 30 s par fenêtre ; mémoire de tout le navigateur au
+pic : 2,8 à 3,3 Go (1,36 Go au repos).
+
 ### Plan d'intégration (ce qui existe déjà dans `modeles/`)
 
 1. **Fichiers** — fait : `build_graph.py` refait le graphe sans poids à
@@ -136,13 +144,13 @@ modèle par défaut (léger, téléphone). Ne pas intégrer Jiang, BTC ni ChordM
    les poids de l'auteur à la liste des modèles (`models.ts`, adresse figée,
    67 647 992 octets, SHA-256 `6b62daef…0ee0a`, licence CC BY-NC 4.0 affichée).
 2. **Entrées** — fait, en TypeScript pur avec tests
-   (`ts/tsumugi-features.ts`, `ts/tsumugi-features.test.ts`) : rééchantillonnage
+   (désormais dans l’app : `app/src/analysis/engine/tsumugiFeatures.ts` et son test) : rééchantillonnage
    48 kHz → 25,6 kHz stéréo, plan des fenêtres de 30 s (20 s gardées),
    descripteurs de temps (11) et de tonalité (25), recollage des sorties.
    Vérifié contre le code Python de l'auteur sur deux fichiers (descripteurs
    identiques à 10⁻⁶ près), et de bout en bout : rééchantillonneur TS → modèle
    → mêmes accords que la chaîne Python (99,97 % et 100 % des images).
-3. **Exécution** — fait : `ts/tsumugi-run.ts` (la boucle des fenêtres sur une
+3. **Exécution** — fait, et désormais dans l’app : `app/src/analysis/engine/tsumugi.ts` (la boucle des fenêtres sur une
    session onnxruntime-web créée avec `externalData`), essayée dans
    onnxruntime-web WASM : 100 % des images identiques à Python. À faire :
    l'appeler dans le worker d'analyse, avec la progression par fenêtre.

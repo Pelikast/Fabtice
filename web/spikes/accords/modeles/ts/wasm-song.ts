@@ -12,8 +12,42 @@ import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { resampleTo25600 } from './tsumugi-features.ts';
-import { runTsumugi, type TsumugiInfo } from './tsumugi-run.ts';
+import { resampleTo25600 } from '../../../../../app/src/analysis/engine/tsumugiFeatures.ts';
+import {
+  BEAT_FEATURES,
+  KEY_FEATURES,
+  WINDOW_FRAMES,
+  WINDOW_SAMPLES,
+  beatFeatures,
+  keyFeatures,
+  stitch,
+  windowPlan,
+  windowWave,
+  type KeySpan,
+} from '../../../../../app/src/analysis/engine/tsumugiFeatures.ts';
+
+// The window loop of app/src/analysis/engine/tsumugi.ts#runTsumugi (that file imports
+// without extensions, which Node's type stripping cannot load): the same steps.
+interface TsumugiInfo {
+  beats: readonly number[];
+  downbeats: readonly number[];
+  keys: readonly KeySpan[];
+}
+async function runTsumugi(Tensor: any, session: any, left: Float32Array, right: Float32Array, info: TsumugiInfo | null, onWindow: () => void) {
+  const { frames, windows } = windowPlan(left.length);
+  const detail = new Float32Array(frames * 745);
+  for (const w of windows) {
+    const start = w.start / 25;
+    const r = await session.run({
+      wave: new Tensor('float32', windowWave(left, right, w), [1, 2, WINDOW_SAMPLES]),
+      beats: new Tensor('float32', info ? beatFeatures(info.beats, info.downbeats, start) : new Float32Array(WINDOW_FRAMES * BEAT_FEATURES), [1, WINDOW_FRAMES, BEAT_FEATURES]),
+      keys: new Tensor('float32', info ? keyFeatures(info.keys, start) : new Float32Array(WINDOW_FRAMES * KEY_FEATURES), [1, WINDOW_FRAMES, KEY_FEATURES]),
+    });
+    stitch(detail, r.detail.data as Float32Array, w, 745);
+    onWindow();
+  }
+  return { frames, detail };
+}
 
 const here = dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);

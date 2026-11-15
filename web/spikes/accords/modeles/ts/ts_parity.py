@@ -1,5 +1,5 @@
 """End-to-end parity of the TypeScript input side: run the Tsumugi ONNX graph on the audio
-resampled by tsumugi-features.ts (dump-resampled.ts) and on the audio of the Python pipeline
+resampled by app/src/analysis/engine/tsumugiFeatures.ts (dump-resampled.ts) and on the audio of the Python pipeline
 (ffmpeg's resampler), both with the author's beat / key features, and compare the outputs.
 
     python ts/ts_parity.py satin:disque gs-01-jazz1-200-b:reel

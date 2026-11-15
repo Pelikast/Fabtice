@@ -6,7 +6,7 @@
 
 import { execFileSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
-import { resampleTo25600 } from './tsumugi-features.ts';
+import { resampleTo25600 } from '../../../../../app/src/analysis/engine/tsumugiFeatures.ts';
 
 const [inPath, outPath] = process.argv.slice(2) as [string, string];
 const raw = execFileSync('ffmpeg', ['-v', 'error', '-i', inPath, '-f', 'f32le', '-ac', '2', '-ar', '48000', '-'], { maxBuffer: 2 ** 31 });

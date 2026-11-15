@@ -218,6 +218,36 @@ de synthèse, un accord sur deux est faux. Ce qu'on apprend :
 - Les styles les plus durs : modal (voicings en quartes), swing rapide,
   valses ; les plus faciles : ballades, jazz traditionnel à trois accords.
 
+## Le modèle d'accords détaillé (`app-fin`)
+
+L'app propose, dans les réglages avancés, un second modèle d'accords,
+Tsumugi-Chords (recherche et mesures complètes : `modeles/RECHERCHE.md`). La
+variante `app-fin` passe par les mêmes fonctions que le worker de l'app
+(`engine/tsumugi.ts#tsumugiChordFrames`, puis `resultFromOutputs`) avec les
+sorties du modèle gardées par `modeles/bench_precompute.py` (calculées avec les
+temps et la tonalité que l'app détecte). Le modèle étant lent, il n'a tourné que
+sur un sous-ensemble fixé (`modeles/corpus_list.py`, 14 morceaux de synthèse et
+8 prises GuitarSet, moitié développement, moitié contrôle) :
+
+```sh
+sh modeles/bench_runs.sh tsumugi app-fin subset      # puis subset-controle
+```
+
+Couleur par temps, grille détectée (entre parenthèses : les morceaux de contrôle
+seuls) :
+
+| Son | `app` (CREMA) | `app-fin` (Tsumugi-Chords) |
+|---|---|---|
+| synthèse, son propre (14) | 67 % (67 %) | **88 %** (89 %) |
+| synthèse, vieux disque (14) | 55 % (52 %) | **79 %** (83 %) |
+| GuitarSet, réel (8) | 84 % (79 %) | 79 % (75 %) |
+| GuitarSet, façon vieux disque (8) | 77 % (89 %) | **86 %** (85 %) |
+
+Il corrige surtout le II-V (fondamentale à la quinte : 7–10 % des temps →
+2–4 %), les changements à mi-mesure (manqués : 40–54 % → 15–28 %), les
+septièmes, la basse (63–86 % → 86–95 %) et « complet » (34 → 65 % en son propre).
+Il perd 4 à 5 points sur la guitare seule et propre de GuitarSet.
+
 ## Preuves de structure : reprises et grilles connues
 
 Les moyens 2 et 3 du programme (reprises de la grille, grille d'un standard retrouvée

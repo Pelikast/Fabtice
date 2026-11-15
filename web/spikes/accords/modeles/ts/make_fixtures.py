@@ -1,4 +1,4 @@
-"""Reference values for the TypeScript port (tsumugi-features.ts), computed with the author's
+"""Reference values for the TypeScript port (app/src/analysis/engine/tsumugiFeatures.ts), computed with the author's
 own Python functions (tsumugi_chords.note_chords), on the app-detected beats and key of bench
 files. Written to ../out/ts-fixtures/<id>.<condition>.json (not committed: derived from the
 corpus).
