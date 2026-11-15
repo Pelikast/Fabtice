@@ -71,6 +71,29 @@ aucune technique de contournement des protections de YouTube.
    fiables ; extensions proposées comme suggestions), en tenant compte de
    l'harmonie jazz. Tout est corrigeable à la main : premier temps, métrique,
    tempo doublé ou divisé, tonalité, chaque accord.
+   - **Tempo** : une variation brutale et brève qui revient au tempo d'avant
+     n'est pas crue ; un nouveau tempo qui dure est un vrai changement.
+   - **Accords, à améliorer en priorité** (décisions du propriétaire après ses
+     essais du lot 3 : environ un accord sur deux était faux). Quatre moyens,
+     tous retenus, qui se combinent dans un même calcul de fiabilité :
+     1. **Écouter les instruments séparés** : relancer l'analyse des accords
+        après une séparation, sans la batterie et sans la voix — sauf quand
+        ce sont des voix harmonisées qui font les accords (style Four
+        Freshmen). S'appuyer sur les instruments qui font l'harmonie, à
+        trouver morceau par morceau (souvent piano ou guitare, parfois
+        cuivres ou chœurs). La basse donne surtout la fondamentale, mais pas
+        toujours : elle joue parfois autre chose, il faut en tenir compte.
+     2. **Profiter des reprises** de la grille, sans recopier bêtement : il y
+        a des variations d'une reprise à l'autre (extensions, superstructures,
+        substitutions tritoniques, parfois un accord qui change). Trouver
+        l'équilibre.
+     3. **Grilles de standards connues** (le recueil d'environ 1 500 standards
+        de jazz des forums d'iReal Pro) : retrouvées par le titre, elles
+        servent de filet de sécurité en cas de doute important et entrent
+        dans le calcul de fiabilité. L'accord réellement joué dans
+        l'enregistrement reste le but : la grille connue ne le remplace pas.
+     4. **Autres modèles d'accords** : chercher s'il en existe de meilleurs ;
+        les proposer comme choix dans les réglages pour qu'il les essaie.
 5. **Grille d'accords façon Real Book** : édition, transposition, affichage
    pour instruments en Si♭ et Mi♭, impression, export iReal Pro. Notation des
    chartes de jazz : triangle pour l'accord majeur 7, altérations serrées
