@@ -3,6 +3,7 @@ import { runAnalysis } from '../analysis/runner';
 import { formatClock } from '../grid/format';
 import { addTap, tapTempo } from '../grid/tapTempo';
 import { isBeatGrid } from '../grid/corrections';
+import { feltUnits } from '../grid/metronome';
 import { BPM_MAX, BPM_MIN, NUMERATOR_MAX, NUMERATOR_MIN, firstDownbeat, nominalBpm } from '../grid/tempoMap';
 import { decimalSeparator, formatNumber, t } from '../i18n';
 import { closePanel, setManualGrid } from '../store/actions';
@@ -41,7 +42,9 @@ export function GridPanel({ ref }: { ref: Ref<HTMLDivElement> }) {
   const hasAnalysis = useApp((s) => s.analysis !== null);
   const canDouble = useApp((s) => gridCorrectionsAvailable(s).double);
   const canHalve = useApp((s) => gridCorrectionsAvailable(s).halve);
-  const bpm = nominalBpm(map, duration);
+  // Shown and typed per felt beat (the dotted quarter in 6/8); the grid counts denominator units (lot 4).
+  const felt = feltUnits(map.meters[0]!.meter);
+  const bpm = nominalBpm(map, duration) / felt;
   const numerator = map.meters[0]!.meter.numerator;
   const downbeat = firstDownbeat(map);
   const known = isTempoKnown(map);
@@ -54,14 +57,14 @@ export function GridPanel({ ref }: { ref: Ref<HTMLDivElement> }) {
   const commit = () => {
     const n = parseBpm(draft);
     if (n === null || Math.abs(n - bpm) < 0.05) setDraft(formatNumber(bpm, 1));
-    else setManualGrid({ bpm: n });
+    else setManualGrid({ bpm: n * felt });
   };
-  const step = (d: 1 | -1) => setManualGrid({ bpm: Math.round(bpm) + d });
+  const step = (d: 1 | -1) => setManualGrid({ bpm: (Math.round(bpm) + d) * felt });
   const tap = () => {
     const next = addTap(taps, performance.now());
     setTaps(next);
     const tapped = tapTempo(next);
-    if (tapped !== null) setManualGrid({ bpm: tapped });
+    if (tapped !== null) setManualGrid({ bpm: tapped * felt });
   };
 
   const origin = t(`grid.origin.${map.origin}`);
@@ -74,7 +77,7 @@ export function GridPanel({ ref }: { ref: Ref<HTMLDivElement> }) {
       <div className="panneau-ligne">
         <span>
           {t('grid.bpm')}
-          <small>{beats ? t('grid.bpmVaries') : t('grid.bpmUnit')}</small>
+          <small>{beats ? t('grid.bpmVaries') : t(felt === 3 ? 'grid.bpmUnitDotted' : 'grid.bpmUnit')}</small>
         </span>
         <span className="saisie">
           <button aria-label={t('grid.slower')} onClick={() => step(-1)} disabled={bpm <= BPM_MIN}>

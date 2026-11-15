@@ -19,7 +19,10 @@ import {
   engineTrackShape,
   type AudioEngine,
   type RenderedSet,
+  type AccelerationSchedule,
   type ClickTrack,
+  type MetronomeStatus,
+  type PlayOptions,
   type EngineError,
   type EngineEvents,
   type EngineState,
@@ -93,6 +96,9 @@ export class WorkletEngine implements AudioEngine {
   private metronome = false;
   private clickFrames = new Float64Array(0);
   private clickAccents = new Uint8Array(0);
+  private metronomeVolume = 0.5;
+  private acceleration: AccelerationSchedule | null = null;
+  private readonly metroStatus: MetronomeStatus = { countInLeft: 0, accelerationStep: -1 };
 
   /** Paused position (seconds); authoritative whenever the engine is not playing. */
   private pos = 0;
@@ -222,7 +228,7 @@ export class WorkletEngine implements AudioEngine {
 
   // ---------------------------------------------------------------- transport
 
-  async play(): Promise<void> {
+  async play(options?: PlayOptions): Promise<void> {
     if (this.state !== 'ready' || !this.ctx || !this.node) return;
     const ctx = this.ctx;
     const token = ++this.startToken;
@@ -244,7 +250,9 @@ export class WorkletEngine implements AudioEngine {
     if (this.pos >= this.duration - 1e-3) this.pos = 0;
     this.lastPos = this.pos;
     this.post({ type: 'seek', frame: Math.round(this.pos * this.sampleRate) });
-    this.post({ type: 'play' });
+    const ci = options?.countIn;
+    const sr = this.sampleRate;
+    this.post({ type: 'play', countIn: ci && ci.offsets.length > 0 ? { offsets: ci.offsets.map((o) => o * sr), levels: Uint8Array.from(ci.levels) } : null });
     this.seekHold = null;
     this.setState('playing');
   }
@@ -337,6 +345,45 @@ export class WorkletEngine implements AudioEngine {
   setMetronome(enabled: boolean): void {
     this.metronome = enabled;
     this.post({ type: 'metronome', enabled });
+  }
+
+  setMetronomeVolume(volume: number): void {
+    this.metronomeVolume = Math.min(1, Math.max(0, Number.isFinite(volume) ? volume : 0.5));
+    this.post({ type: 'metronome-volume', volume: this.metronomeVolume });
+  }
+
+  setAcceleration(schedule: AccelerationSchedule | null): void {
+    this.acceleration = schedule && schedule.factors.length > 0 ? { factors: Float64Array.from(schedule.factors), every: schedule.every } : null;
+    this.postAcceleration();
+  }
+
+  restartAcceleration(): void {
+    this.post({ type: 'acceleration-restart' });
+  }
+
+  getMetronomeStatus(): MetronomeStatus {
+    const st = this.metroStatus;
+    st.countInLeft = 0;
+    st.accelerationStep = -1;
+    if (!this.views) return st;
+    const { i32, f64 } = this.views;
+    for (let k = 0; k < 4; k++) {
+      const s1 = Atomics.load(i32, 0);
+      if (s1 & 1) continue;
+      const left = f64[3]!;
+      const step = f64[4]!;
+      if (Atomics.load(i32, 0) === s1) {
+        st.countInLeft = this.state === 'playing' ? left : 0;
+        st.accelerationStep = step;
+        break;
+      }
+    }
+    return st;
+  }
+
+  private postAcceleration(): void {
+    const a = this.acceleration;
+    this.post({ type: 'acceleration', factors: a ? a.factors : null, every: a?.every ?? 1 });
   }
 
   setClickTrack(clicks: ClickTrack): void {
@@ -527,8 +574,10 @@ export class WorkletEngine implements AudioEngine {
     // the settings made before the node existed
     this.post({ type: 'params', rate: this.ratio, semitones: this.semitones + this.cents / 100 });
     this.post({ type: 'metronome', enabled: this.metronome });
+    this.post({ type: 'metronome-volume', volume: this.metronomeVolume });
     this.postClicks();
     this.postLoop();
+    this.postAcceleration();
   }
 
   private post(m: ToWorklet): void {

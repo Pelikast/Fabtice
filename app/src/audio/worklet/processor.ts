@@ -98,8 +98,17 @@ class FabticePlayer extends AudioWorkletProcessor {
       case 'metronome':
         c.setMetronome(m.enabled);
         break;
+      case 'metronome-volume':
+        c.setMetronomeVolume(m.volume);
+        break;
+      case 'acceleration':
+        c.setAcceleration(m.factors ? { factors: m.factors, every: m.every } : null);
+        break;
+      case 'acceleration-restart':
+        c.restartAcceleration();
+        break;
       case 'play':
-        c.play();
+        c.play(m.countIn ?? null);
         break;
       case 'pause':
         c.pause();
@@ -120,6 +129,8 @@ class FabticePlayer extends AudioWorkletProcessor {
     f64[0] = c.heardPos();
     f64[1] = currentFrame;
     f64[2] = c.heardRate;
+    f64[3] = c.countInLeft();
+    f64[4] = c.accelerating ? c.accelStep : -1;
     Atomics.store(i32, 1, c.playing ? FLAG_PLAYING : 0);
     Atomics.store(i32, 0, this.seq); // even: consistent
   }

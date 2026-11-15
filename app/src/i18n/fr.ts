@@ -40,6 +40,7 @@ export const fr = {
   'grid.title': 'Tempo et mesures',
   'grid.bpm': 'Tempo du morceau',
   'grid.bpmUnit': 'à la noire',
+  'grid.bpmUnitDotted': 'à la noire pointée',
   'grid.slower': 'Plus lent',
   'grid.faster': 'Plus rapide',
   'grid.tap': 'Battre le tempo',

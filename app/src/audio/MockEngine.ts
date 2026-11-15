@@ -10,7 +10,10 @@ import {
   engineTrackShape,
   type AudioEngine,
   type RenderedSet,
+  type AccelerationSchedule,
   type ClickTrack,
+  type MetronomeStatus,
+  type PlayOptions,
   type EngineError,
   type EngineEvents,
   type EngineState,
@@ -42,6 +45,12 @@ export interface MockEngineSnapshot {
   tempoRatio: number;
   metronome: boolean;
   clicks: number;
+  /** Lot 4: click gain, acceleration given (factors, passes per step) and the step heard. */
+  metronomeVolume: number;
+  acceleration: { factors: number[]; every: number } | null;
+  accelerationStep: number;
+  /** Count-in of the last `play()` (offsets in source seconds), null when none. */
+  lastCountIn: number[] | null;
   /** The « Appliquer » audio received (null when none) and whether it is the one heard. */
   rendered: { tracks: string[]; semitones: number; cents: number; tempoRatio: number; inUse: boolean } | null;
 }
@@ -65,6 +74,14 @@ export class MockEngine implements AudioEngine {
   private metronome = false;
   private clicks: ClickTrack = { times: new Float64Array(0), accents: new Uint8Array(0) };
   private endTimer: unknown = null;
+  private metronomeVolume = 0.5;
+  private acceleration: AccelerationSchedule | null = null;
+  private accelStep = 0;
+  private accelPasses = 0;
+  /** Count-in in progress: the clock times (ms) its clicks sound at; the music starts at `anchorTime`. */
+  private countInAt: number[] = [];
+  private lastCountIn: number[] | null = null;
+  private readonly metroStatus: MetronomeStatus = { countInLeft: 0, accelerationStep: -1 };
   private rendered: RenderedSet | null = null;
   private disposed = false;
   private listeners: Listeners = { state: new Set(), ended: new Set(), error: new Set() };
@@ -123,10 +140,20 @@ export class MockEngine implements AudioEngine {
     return this.duration;
   }
 
-  async play(): Promise<void> {
+  async play(options?: PlayOptions): Promise<void> {
     if (this.state !== 'ready') return;
     if (this.anchorPos >= this.duration) this.anchorPos = 0;
     this.anchorTime = this.clock.now();
+    const ci = options?.countIn;
+    this.countInAt = [];
+    this.lastCountIn = ci && ci.offsets.length > 0 ? [...ci.offsets] : null;
+    if (ci && ci.offsets.length > 0) {
+      // the position waits at the start while the count-in clicks
+      const r = this.effectiveRatio();
+      const lead = Math.max(...ci.offsets) / r;
+      this.anchorTime += lead * 1000;
+      this.countInAt = [...ci.offsets].map((o) => this.anchorTime - (o / r) * 1000);
+    }
     this.playing = true;
     this.setState('playing');
     this.scheduleEnd();
@@ -146,18 +173,76 @@ export class MockEngine implements AudioEngine {
 
   getPosition(): Seconds {
     if (!this.playing) return this.anchorPos;
-    const raw = this.anchorPos + ((this.clock.now() - this.anchorTime) / 1000) * this.ratio;
+    const now = this.clock.now();
+    if (now < this.anchorTime) return this.anchorPos; // count-in
+    const raw = this.anchorPos + ((now - this.anchorTime) / 1000) * this.effectiveRatio();
     const loop = this.loop;
     if (loop && this.anchorPos < loop.end && raw >= loop.end) {
       const len = loop.end - loop.start;
+      if (this.acceleration) {
+        // one pass at a time: each wrap may start the next step, at its own tempo
+        const over = raw - loop.end;
+        const at = now - (over / this.effectiveRatio()) * 1000;
+        this.notePass();
+        this.anchorPos = loop.start;
+        this.anchorTime = at;
+        return this.getPosition();
+      }
       return loop.start + ((raw - loop.end) % len);
     }
     return Math.min(raw, this.duration);
   }
 
+  setMetronomeVolume(volume: number): void {
+    this.metronomeVolume = Math.min(1, Math.max(0, volume));
+  }
+
+  setAcceleration(schedule: AccelerationSchedule | null): void {
+    this.rebase();
+    this.acceleration = schedule && schedule.factors.length > 0 ? { factors: Float64Array.from(schedule.factors), every: schedule.every } : null;
+    this.accelStep = 0;
+    this.accelPasses = 0;
+    if (this.playing) this.scheduleEnd();
+  }
+
+  restartAcceleration(): void {
+    this.rebase();
+    this.accelStep = 0;
+    this.accelPasses = 0;
+  }
+
+  getMetronomeStatus(): MetronomeStatus {
+    const st = this.metroStatus;
+    const now = this.clock.now();
+    st.countInLeft = this.playing ? this.countInAt.filter((t) => t >= now).length : 0;
+    st.accelerationStep = this.acceleration && this.loop ? this.accelStep : -1;
+    return st;
+  }
+
+  private effectiveRatio(): number {
+    const a = this.acceleration;
+    if (!a || !this.loop) return this.ratio;
+    return this.ratio * a.factors[Math.min(this.accelStep, a.factors.length - 1)]!;
+  }
+
+  private notePass(): void {
+    const a = this.acceleration;
+    if (!a) return;
+    this.accelPasses++;
+    if (this.accelPasses >= a.every && this.accelStep < a.factors.length - 1) {
+      this.accelStep++;
+      this.accelPasses = 0;
+    }
+  }
+
   setLoop(region: TimeRange | null): void {
     this.rebase();
-    this.loop = region && region.end > region.start ? { start: region.start, end: region.end } : null;
+    const next = region && region.end > region.start ? { start: region.start, end: region.end } : null;
+    if (next?.start !== this.loop?.start || next?.end !== this.loop?.end) {
+      this.accelStep = 0;
+      this.accelPasses = 0;
+    }
+    this.loop = next;
     if (this.playing) this.scheduleEnd();
   }
 
@@ -230,6 +315,10 @@ export class MockEngine implements AudioEngine {
       tempoRatio: this.ratio,
       metronome: this.metronome,
       clicks: this.clicks.times.length,
+      metronomeVolume: this.metronomeVolume,
+      acceleration: this.acceleration ? { factors: [...this.acceleration.factors], every: this.acceleration.every } : null,
+      accelerationStep: this.getMetronomeStatus().accelerationStep,
+      lastCountIn: this.lastCountIn,
       rendered: this.rendered
         ? {
             tracks: this.rendered.tracks.map((t) => t.id),
@@ -261,7 +350,7 @@ export class MockEngine implements AudioEngine {
 
   /** Moves the anchor to now, so a change of rate or loop applies from here. */
   private rebase(): void {
-    if (!this.playing) return;
+    if (!this.playing || this.clock.now() < this.anchorTime) return;
     this.anchorPos = this.getPosition();
     this.anchorTime = this.clock.now();
   }
@@ -282,7 +371,7 @@ export class MockEngine implements AudioEngine {
     this.cancelEnd();
     const pos = this.getPosition();
     if (this.loop && pos < this.loop.end) return;
-    const ms = ((this.duration - pos) / this.ratio) * 1000;
+    const ms = ((this.duration - pos) / this.effectiveRatio()) * 1000 + Math.max(0, this.anchorTime - this.clock.now());
     this.endTimer = this.clock.setTimer(() => {
       this.endTimer = null;
       if (!this.playing) return;

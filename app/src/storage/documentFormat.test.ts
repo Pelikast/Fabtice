@@ -3,6 +3,7 @@ import { demoSwingResult } from '../analysis/fromDemoSwing';
 import { tempoMapFromBeats } from '../grid/beats';
 import { chord } from '../harmony/chord';
 import { emptyCorrections } from '../model/corrections';
+import { PROJECT_DOCUMENT_VERSION } from '../model/document';
 import { sampleDocument } from '../test/sampleDocument';
 import { readDocument, type Migrations } from './documentFormat';
 import { StorageError } from './ProjectStorage';
@@ -32,7 +33,7 @@ describe('reading a stored document', () => {
   });
 
   it('ignores a version written by a newer app (null, not an error)', () => {
-    expect(readDocument(json({ ...sampleDocument(), version: 4 }))).toBeNull();
+    expect(readDocument(json({ ...sampleDocument(), version: PROJECT_DOCUMENT_VERSION + 1 }))).toBeNull();
     expect(readDocument(json({ ...sampleDocument(), version: 99, anything: 'else' }))).toBeNull();
   });
 
@@ -86,7 +87,7 @@ describe('version 2 (lot 2): analysis and corrections', () => {
   it('a lot 1 document opens as « not analysed yet », its grid kept as entered', () => {
     const doc = readDocument(lot1Document())!;
     // Migrated all the way (1 -> 2 -> 3).
-    expect(doc.version).toBe(3);
+    expect(doc.version).toBe(PROJECT_DOCUMENT_VERSION);
     expect(doc.analysis).toBeNull();
     expect(doc.corrections).toEqual(emptyCorrections());
     expect(doc.view.instrument).toBe('ut');

@@ -24,6 +24,8 @@ import type { RenderStatus } from '../model/render';
 import { emptySeparation, type SeparationBackend, type SeparationState, type StemId } from '../model/separation';
 import type { SeparationErrorCode, SeparationStep } from '../separation/types';
 import { emptyCorrections, type Corrections } from '../model/corrections';
+import { emptyMarkers, type Markers } from '../model/markers';
+import { defaultMetronome, type MetronomeSettings } from '../model/metronome';
 import {
   DEFAULT_ADVANCED,
   type AppSettings,
@@ -49,7 +51,7 @@ export interface ReopenOffer {
 }
 
 /** Small floating panels; only one is open at a time. */
-export type PanelId = 'none' | 'settings' | 'grid' | 'tuning' | 'export' | 'analysis' | 'separation';
+export type PanelId = 'none' | 'settings' | 'grid' | 'tuning' | 'export' | 'analysis' | 'separation' | 'metronome' | 'markers';
 
 /**
  * The analysis of the open piece, as the interface shows it (never saved).
@@ -145,6 +147,10 @@ export interface AppState {
   render: RenderStatus;
   /** Last choices of « Exporter le son » (saved with the piece). */
   exportPrefs: ExportPreferences;
+  /** Lot 4: the metronome beyond on/off (volume, count-in, patterns, acceleration), saved with the piece. */
+  metronome: MetronomeSettings;
+  /** Lot 4: named loops (repères), saved with the piece. Sections are `corrections.sections`. */
+  markers: Markers;
   loop: LoopState;
   playback: PlaybackSettings;
   view: ViewSettings;
@@ -182,6 +188,8 @@ export function initialState(): AppState {
     separationRun: { status: 'idle' },
     render: { status: 'none' },
     exportPrefs: defaultExportPreferences(),
+    metronome: defaultMetronome(),
+    markers: emptyMarkers(),
     loop: { region: null, enabled: false },
     playback: { ...DEFAULT_PLAYBACK },
     view: defaultView(),

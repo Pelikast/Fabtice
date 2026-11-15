@@ -75,12 +75,53 @@ export interface TrackMix {
   volume: number;
 }
 
-/** Beat times for the metronome, from `grid/lines.ts#metronomeClicks`. */
+/** Beat times for the metronome, from `grid/metronome.ts#metronomeClickTrack` (lot 4) or `grid/lines.ts#metronomeClicks`. */
 export interface ClickTrack {
   /** Source times of the clicks, ascending. */
   times: Float64Array;
-  /** 1 for an accented click (first beat of a bar), 0 otherwise. Same length as `times`. */
+  /**
+   * Sound of each click, same length as `times`: 1 accented, 0 normal, 2 soft
+   * (lot 4; lot 1 used only 0 and 1). A silent beat simply has no click.
+   */
   accents: Uint8Array;
+}
+
+/**
+ * « Décompte » (lot 4): clicks played alone before playback starts. The
+ * start position is heard exactly where the count-in puts it: one beat after
+ * the last click when the offsets are beats.
+ */
+export interface CountInClicks {
+  /** Source seconds BEFORE the start position, one per click. The engine plays them at the live tempo (divided by the tempo ratio, acceleration included). */
+  offsets: Float64Array;
+  /** Same codes as `ClickTrack.accents`. */
+  levels: Uint8Array;
+}
+
+export interface PlayOptions {
+  /** Clicks before the start (lot 4); ignored when already playing. */
+  countIn?: CountInClicks | null;
+}
+
+/**
+ * Progressive acceleration of the loop (lot 4). While the loop is on, the
+ * tempo heard is the live tempo (`setTempoRatio`) times `factors[step]`;
+ * every `every` passes of the loop the next step starts, at the wrap; the
+ * last one stays. Steps start again from 0 when the plan is given, when the
+ * loop changes (or is switched on or off) and on `restartAcceleration()`.
+ * Not when playback pauses and resumes.
+ */
+export interface AccelerationSchedule {
+  factors: Float64Array;
+  every: number;
+}
+
+/** What the metronome is doing, read every animation frame (cheap, no allocation). */
+export interface MetronomeStatus {
+  /** Count-in clicks still to be heard (0 when none). The position waits at the start meanwhile. */
+  countInLeft: number;
+  /** Current step of the acceleration, or −1 when none acts (no plan, or the loop is off). */
+  accelerationStep: number;
 }
 
 /**
@@ -146,9 +187,11 @@ export interface AudioEngine {
   /**
    * Starts or resumes playback. Must be called from a user gesture the first
    * time (the AudioContext is created or resumed inside). At the end of the
-   * material it restarts from 0. No-op unless `ready`.
+   * material it restarts from 0. No-op unless `ready`. With `countIn` (lot 4),
+   * its clicks are heard first: the state is `playing` and the position waits
+   * at the start until the music comes in.
    */
-  play(): Promise<void>;
+  play(options?: PlayOptions): Promise<void>;
 
   /** Pauses with a short fade; the position stays where it was heard. */
   pause(): void;
@@ -181,8 +224,20 @@ export interface AudioEngine {
   /** Metronome on/off. Clicks are not time-stretched: they sound at the played tempo. */
   setMetronome(enabled: boolean): void;
 
-  /** Where the metronome clicks, in source time; replaced whenever the tempo map changes. */
+  /** Where the metronome clicks, in source time; replaced whenever the tempo map or the accent patterns change. */
   setClickTrack(clicks: ClickTrack): void;
+
+  /** Gain of the click sounds, 0…1 (lot 4; 0.5 until set). The count-in uses it too. */
+  setMetronomeVolume(volume: number): void;
+
+  /** Progressive acceleration of the loop (lot 4), or null for none. */
+  setAcceleration(schedule: AccelerationSchedule | null): void;
+
+  /** « Recommencer »: the acceleration goes back to its first step. */
+  restartAcceleration(): void;
+
+  /** Count-in and acceleration, as heard now. The object may be reused between calls. */
+  getMetronomeStatus(): MetronomeStatus;
 
   /**
    * « Appliquer » (lot 3): hands the engine audio rendered offline for the

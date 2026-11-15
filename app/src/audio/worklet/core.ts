@@ -18,7 +18,22 @@
 //   - Heard position = cursor - (a * rate + b) - limiter delay, from the
 //     stretcher delay model L(rate) = a + b / rate.
 //   - Metronome clicks are placed in the OUTPUT domain (not stretched), at
-//     the output frame where the beat's source frame will be heard.
+//     the output frame where the beat's source frame will be heard. Three
+//     sounds: accent (1), normal (0), soft (2); a silent beat has no click.
+//
+// Count-in (lot 4). `play(countIn)` first plays clicks alone: the tracks are
+// not fed until `countStartAt`, chosen so that the start position is heard
+// exactly where the count-in says (the stretchers' latency, or none on the
+// rendered audio, is taken into account); the count-in clicks are placed
+// relative to that frame, in output frames at the live tempo. The heard
+// position stays at the start meanwhile.
+//
+// Progressive acceleration (lot 4). With a plan (`setAcceleration`: tempo
+// factors and passes per step) and the loop on, the tempo target is the live
+// tempo times the factor of the current step; each wrap of the loop on the
+// path mostly heard counts a pass, and after `every` passes the next step
+// starts, right at the wrap (on the input side: it is heard at the heard
+// wrap). The last step stays.
 //
 // « Appliquer » (rendered audio). A second way to make the same output: the
 // tracks rendered offline at the played speed (`setRendered`) are read as they
@@ -124,8 +139,10 @@ function makeClick(sr: number, freq: number, amp: number): Float32Array {
 /** Crossfade between the preview and the rendered audio, seconds. */
 export const XFADE_S = 0.015;
 
-const METRONOME_VOLUME = 0.5;
+/** Default gain of the click sounds (`setMetronomeVolume`). */
+export const METRONOME_VOLUME = 0.5;
 const MAX_PENDING_CLICKS = 256;
+const MAX_COUNT_IN = 64;
 
 // ---------------------------------------------------------------- core
 
@@ -225,10 +242,29 @@ export class PlayerCore {
   };
   private readonly clickN: Float32Array;
   private readonly clickA: Float32Array;
+  private readonly clickS: Float32Array;
+  private metroVol = METRONOME_VOLUME;
   private readonly clickF = new Float64Array(MAX_PENDING_CLICKS);
   private readonly clickAcc = new Uint8Array(MAX_PENDING_CLICKS);
   private clickCount = 0;
   outFrame = 0;
+
+  // ----- count-in (lot 4)
+  /** Clicks alone are playing; the tracks are fed from `countStartAt` (an output frame) on. */
+  counting = false;
+  private countStartAt = 0;
+  private readonly cinF = new Float64Array(MAX_COUNT_IN);
+  private readonly cinL = new Uint8Array(MAX_COUNT_IN);
+  private cinCount = 0;
+
+  // ----- progressive acceleration (lot 4)
+  /** The live tempo the user set; `rateTarget` is it times the step's factor while a plan runs. */
+  private rateBase = 1;
+  private accel: { factors: Float64Array; every: number } | null = null;
+  /** Current step (0 = the start) and passes of the loop heard since it began. */
+  accelStep = 0;
+  private accelPasses = 0;
+  private loopWas = { enabled: false, start: 0, end: 0 };
 
   private inL = new Float32Array(1024);
   private inR = new Float32Array(1024);
@@ -255,6 +291,7 @@ export class PlayerCore {
     this.xfade = Math.round(XFADE_S * sampleRate);
     this.clickN = makeClick(sampleRate, 1000, 0.8);
     this.clickA = makeClick(sampleRate, 1600, 1.0);
+    this.clickS = makeClick(sampleRate, 1000, 0.32);
     this.limiter = new Limiter(sampleRate);
     this.stat = { quanta: 0, busySum: 0, busyN: 0, busyMax: 0, over: 0, budget: (N / sampleRate) * 1000 };
   }
@@ -289,6 +326,8 @@ export class PlayerCore {
     this.frozen = -1;
     this.pendingSeek = -1;
     this.clickCount = 0;
+    this.counting = false;
+    this.cinCount = 0;
     this.limiter.reset();
     this.cur = null;
     this.apos = 0;
@@ -331,6 +370,13 @@ export class PlayerCore {
     }
     this.wrapOut = -1;
     this.metro.resync = true;
+    // a new loop (or the loop switched on or off) starts the acceleration again
+    if (L.enabled !== this.loopWas.enabled || start !== this.loopWas.start || end !== this.loopWas.end) {
+      this.loopWas = { enabled: L.enabled, start, end };
+      this.accelStep = 0;
+      this.accelPasses = 0;
+      if (this.accel) this.applyRate();
+    }
   }
 
   setClicks(frames: Float64Array, accents: Uint8Array): void {
@@ -345,14 +391,79 @@ export class PlayerCore {
     if (!enabled) this.clickCount = 0;
   }
 
+  /** Gain of the click sounds, 0…1 (count-in included). */
+  setMetronomeVolume(v: number): void {
+    this.metroVol = Math.max(0, Math.min(1, Number.isFinite(v) ? v : METRONOME_VOLUME));
+  }
+
   setRate(r: number): void {
-    this.rateTarget = Math.max(0.1, Math.min(4, r));
+    this.rateBase = Math.max(0.1, Math.min(4, r));
+    this.applyRate();
+  }
+
+  /**
+   * Progressive acceleration: `factors` are the tempo factors of the steps
+   * (of the live tempo), `every` the passes of the loop per step; null stops
+   * it. Starts again from the first step.
+   */
+  setAcceleration(plan: { factors: Float64Array; every: number } | null): void {
+    const had = this.accel !== null;
+    this.accel = plan && plan.factors.length > 0 ? { factors: Float64Array.from(plan.factors), every: Math.max(1, Math.round(plan.every)) } : null;
+    this.accelStep = 0;
+    this.accelPasses = 0;
+    if (had || this.accel) this.applyRate();
+  }
+
+  restartAcceleration(): void {
+    this.accelStep = 0;
+    this.accelPasses = 0;
+    if (this.accel) this.applyRate();
+  }
+
+  /** True while a plan acts on the tempo (a plan and the loop on). */
+  get accelerating(): boolean {
+    return this.accel !== null && this.loop.enabled;
+  }
+
+  private applyRate(): void {
+    const a = this.accel;
+    const f = a && this.loop.enabled ? a.factors[Math.min(this.accelStep, a.factors.length - 1)]! : 1;
+    this.rateTarget = Math.max(0.1, Math.min(4, this.rateBase * f));
+  }
+
+  /** One pass of the loop was heard (a wrap on the path mostly heard): maybe the next step. */
+  private notePass(): void {
+    const a = this.accel;
+    if (!a || !this.loop.enabled) return;
+    this.accelPasses++;
+    if (this.accelPasses >= a.every && this.accelStep < a.factors.length - 1) {
+      this.accelStep++;
+      this.accelPasses = 0;
+      this.applyRate();
+    }
+  }
+
+  /** Count-in clicks not heard yet (0 when there is no count-in). */
+  countInLeft(): number {
+    let n = 0;
+    for (let k = 0; k < this.cinCount; k++) if (this.cinF[k]! >= this.outFrame) n++;
+    return n;
   }
 
   // ----- transport
 
-  play(): void {
+  /**
+   * Starts or resumes. `countIn` (lot 4): click offsets in SOURCE frames
+   * before the start position and their levels; they are played first, at
+   * the live tempo, and the start position is heard one beat after the last
+   * one. Ignored while already playing.
+   */
+  play(countIn?: { offsets: Float64Array; levels: Uint8Array } | null): void {
     if (this.playing && this.mgTarget === 1) return;
+    if (countIn && countIn.offsets.length > 0 && !this.playing && this.tracks.length > 0) {
+      this.startCountIn(countIn);
+      return;
+    }
     this.ended = false;
     if (!this.playing) {
       this.mg = this.immediate ? 1 : 0;
@@ -370,6 +481,73 @@ export class PlayerCore {
     this.mgTarget = 1;
     this.fadeAction = FADE_NONE;
     this.frozen = -1;
+  }
+
+  private startCountIn(ci: { offsets: Float64Array; levels: Uint8Array }): void {
+    this.ended = false;
+    this.rate = this.rateTarget; // nothing is audible: no smoothing
+    this.path = this.wantedPath();
+    this.settleRoute();
+    const rate = this.rate;
+    const lat = this.path === 1 ? 0 : this.latencyOut(rate);
+    let lead = 0;
+    const n = Math.min(ci.offsets.length, MAX_COUNT_IN);
+    for (let i = 0; i < n; i++) lead = Math.max(lead, ci.offsets[i]! / rate);
+    this.countStartAt = this.outFrame + Math.max(1, Math.ceil((lead - lat) / N)) * N;
+    const heardAt = this.countStartAt + lat;
+    this.cinCount = 0;
+    for (let i = 0; i < n; i++) {
+      this.cinF[this.cinCount] = Math.round(heardAt - ci.offsets[i]! / rate);
+      this.cinL[this.cinCount] = ci.levels[i] ?? 0;
+      this.cinCount++;
+    }
+    this.counting = true;
+    this.playing = true;
+    this.mg = 1;
+    this.mgTarget = 1;
+    this.fadeAction = FADE_NONE;
+    this.frozen = -1;
+    this.pendingSeek = -1;
+    this.clickCount = 0;
+    this.metro.resync = true;
+    this.limiter.reset();
+  }
+
+  /** The count-in is over: the tracks start being fed from the start position (no fade: their gains ramp up). */
+  private beginFeeding(): void {
+    this.counting = false;
+    this.path = this.wantedPath();
+    this.settleRoute();
+    this.apos = this.ip + this.acc;
+    this.wrapOutA = -1;
+    this.primeAll();
+    this.startPos = this.ip + this.acc;
+    this.sinceStart = 0;
+    this.wrapOut = -1;
+  }
+
+  /** Adds the pending count-in clicks of this quantum to the mix. */
+  private mixCountIn(mixL: Float32Array, mixR: Float32Array): void {
+    const base = this.outFrame;
+    const vol = this.metroVol;
+    for (let k = this.cinCount - 1; k >= 0; k--) {
+      const f = this.cinF[k]!;
+      const lv = this.cinL[k]!;
+      const buf = lv === 1 ? this.clickA : lv === 2 ? this.clickS : this.clickN;
+      if (f + buf.length <= base) {
+        this.cinCount--;
+        this.cinF[k] = this.cinF[this.cinCount]!;
+        this.cinL[k] = this.cinL[this.cinCount]!;
+        continue;
+      }
+      const start = Math.max(0, f - base);
+      const end = Math.min(N, f + buf.length - base);
+      for (let i = start; i < end; i++) {
+        const v = buf[base + i - f]! * vol;
+        mixL[i] = mixL[i]! + v;
+        mixR[i] = mixR[i]! + v;
+      }
+    }
   }
 
   // ----- « Appliquer »: the rendered set and the route
@@ -398,6 +576,7 @@ export class PlayerCore {
 
   /** Source frames per output frame of what is mostly heard: the live tempo, or the rendered audio's own while it is. */
   get heardRate(): number {
+    if (this.counting) return 0; // the heard position waits at the start
     return this.mixApplied >= 0.5 ? this.readRatio : this.rate;
   }
 
@@ -569,7 +748,7 @@ export class PlayerCore {
       for (let i = lo; i < fr.length && fr[i]! < b; i++) {
         if (this.clickCount >= MAX_PENDING_CLICKS) return;
         this.clickF[this.clickCount] = Math.round(this.outFrame + at + (fr[i]! - a) / rate);
-        this.clickAcc[this.clickCount] = M.accents[i] === 1 ? 1 : 0;
+        this.clickAcc[this.clickCount] = M.accents[i]! <= 2 ? M.accents[i]! : 0;
         this.clickCount++;
       }
     };
@@ -581,6 +760,15 @@ export class PlayerCore {
 
   pause(): void {
     if (!this.playing) return;
+    if (this.counting) {
+      // nothing of the piece was heard: stop at once, at the start
+      this.counting = false;
+      this.cinCount = 0;
+      this.playing = false;
+      this.mg = 0;
+      this.mgTarget = 0;
+      return;
+    }
     this.frozen = this.heardPos();
     this.pendingSeek = -1;
     this.mgTarget = 0;
@@ -589,6 +777,17 @@ export class PlayerCore {
 
   seek(frame: number): void {
     frame = Math.max(0, Math.round(frame));
+    if (this.counting) {
+      // a seek during the count-in: no more count-in, playback starts from there
+      this.counting = false;
+      this.cinCount = 0;
+      this.playing = false;
+      this.mg = 0;
+      this.mgTarget = 0;
+      this.applySeek(frame);
+      this.play();
+      return;
+    }
     if (this.playing && this.fadeAction === FADE_PAUSE) {
       this.frozen = frame; // pausing: the pause simply ends at the new place
       return;
@@ -637,7 +836,7 @@ export class PlayerCore {
 
   /** Source position of what is currently audible, in frames. */
   heardPos(): number {
-    if (!this.playing) return this.ip;
+    if (!this.playing || this.counting) return this.ip;
     if (this.frozen >= 0) return this.frozen;
     if (this.pendingSeek >= 0) return this.pendingSeek;
     // The rendered audio has no latency: only the limiter's delay lies between the cursor and the ear.
@@ -724,7 +923,7 @@ export class PlayerCore {
       const i = (fr[M.bi]! - srcA) / rate;
       if (this.clickCount < MAX_PENDING_CLICKS) {
         this.clickF[this.clickCount] = Math.round(this.outFrame + outStart + i + lat);
-        this.clickAcc[this.clickCount] = M.accents[M.bi] === 1 ? 1 : 0;
+        this.clickAcc[this.clickCount] = M.accents[M.bi]! <= 2 ? M.accents[M.bi]! : 0;
         this.clickCount++;
       }
       M.bi++;
@@ -738,6 +937,13 @@ export class PlayerCore {
     const sr = this.sr;
     outL.fill(0);
     outR.fill(0);
+    if (this.counting) {
+      if (this.outFrame >= this.countStartAt) this.beginFeeding();
+      else {
+        this.renderCountIn(outL, outR, t0);
+        return;
+      }
+    }
     this.updateRoute();
     this.syncScanner();
     if (!this.playing || this.tracks.length === 0) {
@@ -879,7 +1085,8 @@ export class PlayerCore {
       const base = this.outFrame;
       for (let k = this.clickCount - 1; k >= 0; k--) {
         const f = this.clickF[k]!;
-        const buf = this.clickAcc[k] ? this.clickA : this.clickN;
+        const lv = this.clickAcc[k]!;
+        const buf = lv === 1 ? this.clickA : lv === 2 ? this.clickS : this.clickN;
         if (f + buf.length <= base) {
           // drop it: move the last pending click into its place
           this.clickCount--;
@@ -890,12 +1097,14 @@ export class PlayerCore {
         const start = Math.max(0, f - base);
         const end = Math.min(N, f + buf.length - base);
         for (let i = start; i < end; i++) {
-          const v = buf[base + i - f]! * METRONOME_VOLUME;
+          const v = buf[base + i - f]! * this.metroVol;
           mixL[i] = mixL[i]! + v;
           mixR[i] = mixR[i]! + v;
         }
       }
     }
+
+    if (this.cinCount > 0) this.mixCountIn(mixL, mixR);
 
     // master fade, then the safety limiter, then out
     let mg = this.mg;
@@ -918,6 +1127,7 @@ export class PlayerCore {
       if (loopActive && nip >= L.end) {
         nip -= L.len;
         this.wrapOut = this.outFrame - N + (L.end - (ip + accBefore)) / rate;
+        if (this.scanPath === 0) this.notePass();
       }
       this.ip = nip;
     }
@@ -927,6 +1137,7 @@ export class PlayerCore {
       if (loopActiveA && na >= L.end) {
         na -= L.len;
         this.wrapOutA = this.outFrame - N + (L.end - a0) / ar;
+        if (this.scanPath === 1) this.notePass();
       }
       this.apos = na;
     }
@@ -972,6 +1183,20 @@ export class PlayerCore {
       this.limiter.reset();
     }
     this.noteStats(t0, busy, active);
+  }
+
+  /** A quantum of the count-in: its clicks alone, through the limiter like everything else. */
+  private renderCountIn(outL: Float32Array, outR: Float32Array, t0: number): void {
+    const mixL = this.mixL;
+    const mixR = this.mixR;
+    mixL.fill(0);
+    mixR.fill(0);
+    this.mixCountIn(mixL, mixR);
+    this.limiter.process(mixL, mixR, N);
+    outL.set(mixL);
+    outR.set(mixR);
+    this.outFrame += N;
+    this.noteStats(t0, false);
   }
 
   /** The cursor of the route the player is on (what the loop checks compare with the loop end). */

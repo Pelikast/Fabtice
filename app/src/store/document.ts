@@ -2,6 +2,8 @@
 
 import { defaultExportPreferences } from '../model/audioExport';
 import { emptyCorrections } from '../model/corrections';
+import { emptyMarkers } from '../model/markers';
+import { defaultMetronome } from '../model/metronome';
 import { emptySeparation } from '../model/separation';
 import { PROJECT_DOCUMENT_VERSION, type ProjectDocument } from '../model/document';
 import type { AppState } from './store';
@@ -22,6 +24,8 @@ export function toProjectDocument(s: AppState, now = new Date()): ProjectDocumen
     corrections: s.corrections,
     separation: s.separation,
     exportPrefs: s.exportPrefs,
+    metronome: s.metronome,
+    markers: s.markers,
     savedAt: now.toISOString(),
   };
 }
@@ -48,6 +52,8 @@ export function fromProjectDocument(doc: ProjectDocument, current: AppState): Pa
     exportPrefs: { ...defaultExportPreferences(), ...doc.exportPrefs },
     separationRun: { status: 'idle' },
     render: { status: 'none' },
+    metronome: { ...defaultMetronome(), ...doc.metronome, acceleration: { ...defaultMetronome().acceleration, ...doc.metronome?.acceleration } },
+    markers: doc.markers ?? emptyMarkers(),
   };
 }
 
@@ -55,14 +61,15 @@ export function fromProjectDocument(doc: ProjectDocument, current: AppState): Pa
  * True when what the document is made of changed between two states. The
  * autosave (`storage/keeper.ts`) must use this list: `analysis` and
  * `corrections` are part of the document since version 2, `separation` and
- * `exportPrefs` since version 3. `view.mode` is not, nor the run states
+ * `exportPrefs` since version 3, `metronome` and `markers` since version 4.
+ * `view.mode` is not, nor the run states
  * (`analysisRun`, `separationRun`, `render`), which are never saved.
  */
 export function documentChanged(a: AppState, b: AppState): boolean {
   if (
     a.project !== b.project || a.tracks !== b.tracks || a.tempoMap !== b.tempoMap || a.loop !== b.loop ||
     a.playback !== b.playback || a.analysis !== b.analysis || a.corrections !== b.corrections ||
-    a.separation !== b.separation || a.exportPrefs !== b.exportPrefs
+    a.separation !== b.separation || a.exportPrefs !== b.exportPrefs || a.metronome !== b.metronome || a.markers !== b.markers
   ) {
     return true;
   }
