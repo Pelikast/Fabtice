@@ -82,6 +82,8 @@ async function fromShell(path) {
 
 async function navigation(request) {
   const network = fetch(request).then((r) => (r.ok ? r : Promise.reject(new Error(`status ${r.status}`))));
+  // A failure that comes after the time-out is no news worth reporting.
+  network.catch(() => {});
   const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), NAVIGATION_TIMEOUT_MS));
   try {
     // Not kept: the page kept is this version's own, which names the files this version keeps. A newer page
