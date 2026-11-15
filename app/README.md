@@ -1171,13 +1171,13 @@ persistant), pour six instruments stéréo :
 
 | Morceau | Blocs 16 bits (appareil) | FLAC (`.fab`) | Encodage FLAC | Décodage FLAC (vérification comprise) | Relecture des blocs (IndexedDB, Chromium) |
 |---|---|---|---|---|---|
-| 4 min | 277 Mo | 162 Mo (58 %) | 8,3 s | 5,6 s | 0,8 s (écriture 1,0 s) |
-| 12 min | 830 Mo | 477 Mo (58 %) | 26,9 s | 19,7 s | non mesuré ici (`FABTICE_PROJECT_LONG=1`) |
+| 4 min | 277 Mo | 162 Mo (58 %) | 8,3 s | 5,6 s | 0,8 à 1,1 s (écriture 1,0 s) |
+| 12 min | 830 Mo | 477 Mo (58 %) | 26,9 s | 19,7 s | 3,4 s (écriture 3,9 s ; `FABTICE_PROJECT_LONG=1`) |
 
 Garder les instruments en FLAC sur l'appareil ferait gagner 42 % de place mais
 ajouterait près d'une demi-minute de calcul après chaque séparation d'un long
 morceau, et surtout 6 à 20 s à **chaque** réouverture au lieu d'une seconde
-(chiffres d'un cœur de cette machine ; plus sur le Mac Intel). La réouverture
+(contre 1 à 3,4 s pour les blocs ; chiffres de cette machine, plus lents sur le Mac Intel). La réouverture
 rapide compte plus : **l'appareil garde les blocs 16 bits** ; le FLAC sert au
 fichier `.fab`, qu'on copie et qu'on envoie. Mémoire : l'encodage tient les
 fichiers FLAC déjà faits (des `Blob`, que le navigateur peut garder sur
