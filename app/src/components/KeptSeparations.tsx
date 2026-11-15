@@ -73,7 +73,7 @@ export function KeptSeparations() {
                   </button>
                 )}
                 <button className="lien discret" data-testid="liberer-separation" disabled={busy !== null || running} onClick={() => setAsking(r.result.id)}>
-                  {t('separation.free')}
+                  {t('storage.free')}
                 </button>
               </span>
             )}
