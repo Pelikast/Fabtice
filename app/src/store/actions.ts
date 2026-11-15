@@ -115,6 +115,7 @@ export async function openProject(input: NewProjectInput): Promise<void> {
     separation: emptySeparation(),
     separationRun: { status: 'idle' },
     render: { status: 'none' },
+    keptRender: null,
     exportPrefs: defaultExportPreferences(),
     // Lot 4: no markers yet; the click's volume and the count-in are habits, kept from the piece before.
     metronome: { ...defaultMetronome(), volume: s.metronome.volume, countInBars: s.metronome.countInBars },
@@ -194,6 +195,7 @@ export function closeProject(): void {
     separation: emptySeparation(),
     separationRun: { status: 'idle' },
     render: { status: 'none' },
+    keptRender: null,
     markers: emptyMarkers(),
   });
 }

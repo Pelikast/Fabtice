@@ -725,6 +725,7 @@ export const fr = {
   'import.error.project-damaged': 'Ce projet n’a pas pu être ouvert : le fichier est incomplet ou abîmé (une copie ou un téléchargement interrompu, peut-être). Le morceau que vous aviez reste tel quel.',
   'import.error.project-too-recent': 'Ce projet a été enregistré par une version plus récente de Fabtice. Mettez Fabtice à jour pour l’ouvrir. Le morceau que vous aviez reste tel quel.',
   'import.error.project-not-project': 'Ce fichier n’est pas un projet Fabtice. Pour un fichier audio, choisissez « Choisir un fichier audio ».',
+  'separation.otherLost': 'Cette séparation n’a pas pu être relue sur cet appareil : elle est oubliée. Vous pouvez séparer de nouveau avec cet outil.',
   'project.instrumentsLost': 'Les instruments séparés de ce projet n’ont pas pu être lus : le morceau s’ouvre entier. Vous pouvez séparer de nouveau.',
   'new.openProject': 'ouvrir un projet Fabtice',
   'new.openProjectLead': 'Déjà un projet enregistré ?',

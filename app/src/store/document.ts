@@ -26,6 +26,7 @@ export function toProjectDocument(s: AppState, now = new Date()): ProjectDocumen
     exportPrefs: s.exportPrefs,
     metronome: s.metronome,
     markers: s.markers,
+    keptRender: s.keptRender,
     savedAt: now.toISOString(),
   };
 }
@@ -48,7 +49,8 @@ export function fromProjectDocument(doc: ProjectDocument, current: AppState): Pa
     analysis: doc.analysis ?? null,
     corrections: { ...emptyCorrections(), ...doc.corrections },
     analysisRun: { status: 'idle' },
-    separation: doc.separation ?? emptySeparation(),
+    separation: { ...emptySeparation(), ...doc.separation },
+    keptRender: doc.keptRender ?? null,
     exportPrefs: { ...defaultExportPreferences(), ...doc.exportPrefs },
     separationRun: { status: 'idle' },
     render: { status: 'none' },
@@ -61,7 +63,8 @@ export function fromProjectDocument(doc: ProjectDocument, current: AppState): Pa
  * True when what the document is made of changed between two states. The
  * autosave (`storage/keeper.ts`) must use this list: `analysis` and
  * `corrections` are part of the document since version 2, `separation` and
- * `exportPrefs` since version 3, `metronome` and `markers` since version 4.
+ * `exportPrefs` since version 3, `metronome` and `markers` since version 4,
+ * `keptRender` since version 5 (`separation.others` is part of `separation`).
  * `view.mode` is not, nor the run states
  * (`analysisRun`, `separationRun`, `render`), which are never saved.
  */
@@ -69,7 +72,7 @@ export function documentChanged(a: AppState, b: AppState): boolean {
   if (
     a.project !== b.project || a.tracks !== b.tracks || a.tempoMap !== b.tempoMap || a.loop !== b.loop ||
     a.playback !== b.playback || a.analysis !== b.analysis || a.corrections !== b.corrections ||
-    a.separation !== b.separation || a.exportPrefs !== b.exportPrefs || a.metronome !== b.metronome || a.markers !== b.markers
+    a.separation !== b.separation || a.exportPrefs !== b.exportPrefs || a.metronome !== b.metronome || a.markers !== b.markers || a.keptRender !== b.keptRender
   ) {
     return true;
   }

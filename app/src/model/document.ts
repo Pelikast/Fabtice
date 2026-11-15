@@ -16,6 +16,9 @@
 //      progressive acceleration: `model/metronome.ts`) and `markers` (named
 //      loops: `model/markers.ts`; sections stay the chart's letters in
 //      `corrections.sections`). Meters may now be 2 to 12 beats over 4 or 8.
+//   5  + `separation.others` (every separation kept, one per tool, each with
+//      its tracks and mix; their samples on the device, not in memory) and
+//      `keptRender` (the last « Appliquer » render, kept with the piece).
 
 import type { AnalysisResult } from './analysis';
 import type { ExportPreferences } from './audioExport';
@@ -24,9 +27,10 @@ import type { Markers } from './markers';
 import type { MetronomeSettings } from './metronome';
 import type { AppSettings, LoopState, PlaybackSettings, Project, Track, ViewSettings } from './project';
 import type { SeparationState } from './separation';
+import type { KeptRender } from './render';
 import type { TempoMap } from './tempoMap';
 
-export const PROJECT_DOCUMENT_VERSION = 4;
+export const PROJECT_DOCUMENT_VERSION = 5;
 
 export interface ProjectDocument {
   /** Format version, bumped on incompatible changes. */
@@ -52,6 +56,8 @@ export interface ProjectDocument {
   metronome: MetronomeSettings;
   /** Named loops (repères); the sections are `corrections.sections`. */
   markers: Markers;
+  /** The last « Appliquer » render kept with the piece (version 5), or null. */
+  keptRender: KeptRender | null;
   /** ISO date of the last save. */
   savedAt: string;
 }
