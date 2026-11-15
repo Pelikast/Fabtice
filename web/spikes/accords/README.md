@@ -258,6 +258,11 @@ dépôt), puis `node banc/build-structure.mjs && node dist/structure.mjs --fit`.
 Variantes pour `run.mjs` : `reprises`, `grille-connue`, `reprises-et-grille`.
 Résultats : `resultats/structure.md`.
 
+## Instruments séparés, avec la vraie séparation
+
+Avec des instruments idéaux, écouter les parties porteuses de l'harmonie fait gagner 6 points au vieux disque. Avec la vraie séparation de l'app, presque rien ne reste : HTDemucs fait perdre des points, BS-RoFormer SW (celui du Mac M1) n'en fait gagner que 2 (73 → 75 %, sur 4 morceaux seulement). La basse séparée d'un vieux disque est trop faible pour servir, et les voix harmonisées sont rangées dans « autres ».
+Rien n'est donc branché dans l'app. Détail, coût et ce qu'il faudrait mesurer de plus : `resultats/separation-reelle/bs-roformer.md` (séparation : `banc/separer.ts --tool bs-roformer-sw`, morceaux courts : `banc/corpus-court.py`).
+
 ## Réglages de difficulté
 
 Chaque morceau a ses réglages dans `corpus/charts.py` (`knobs`), expliqués en
