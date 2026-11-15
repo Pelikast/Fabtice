@@ -240,10 +240,10 @@ export function StandardsCard() {
             <button className="lien discret" onClick={declineOffer}>
               {t('standards.never')}
             </button>
+            <button className="lien discret" data-testid="standards-choisir" onClick={openStandardsPanel}>
+              {t('standards.choose')}
+            </button>
           </div>
-          <button className="lien discret recueils-plus" data-testid="standards-choisir" onClick={openStandardsPanel}>
-            {t('standards.choose')}
-          </button>
         </>
       )}
     </section>

@@ -750,6 +750,8 @@ export const fr = {
   'new.openProject': 'ouvrir un projet Fabtice',
   'new.openProjectLead': 'Déjà un projet enregistré ?',
   'new.recentTitle': 'Projets récents',
+  'new.recentAll': 'voir tous ({n})',
+  'new.recentFewer': 'voir moins',
   'export.saveProject': 'Enregistrer le projet…',
   'export.saveProjectNote': 'un fichier .fab',
   'export.saveProjectDemo': 'pas pour la démonstration',
