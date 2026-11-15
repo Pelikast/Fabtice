@@ -41,7 +41,7 @@ export interface Case {
 // ---------------------------------------------------------------- base sequences (the truth)
 
 /** Beats from a tempo function of time (BPM), `pickup` beats before the first downbeat. */
-function fromTempo(seconds: number, bpm: (t: number) => number, m: number, pickup = 1, t0 = 0.4): Truth {
+export function fromTempo(seconds: number, bpm: (t: number) => number, m: number, pickup = 1, t0 = 0.4): Truth {
   const beats: number[] = [];
   let t = t0;
   while (t < seconds) {
@@ -52,7 +52,7 @@ function fromTempo(seconds: number, bpm: (t: number) => number, m: number, picku
 }
 
 /** A truth whose intervals are multiplied by `stretch[i]` (fermatas, a free introduction). */
-function stretched(base: Truth, stretch: (i: number, d: number) => number): Truth {
+export function stretched(base: Truth, stretch: (i: number, d: number) => number): Truth {
   const beats = [base.beats[0]!];
   for (let i = 1; i < base.beats.length; i++) beats.push(beats[i - 1]! + stretch(i - 1, base.beats[i]! - base.beats[i - 1]!));
   return { ...base, beats };
@@ -108,7 +108,7 @@ export function baseSequences(): Base[] {
 // ---------------------------------------------------------------- the network's view
 
 /** Interpolated time of a fractional beat index of the truth (extrapolated beyond its ends). */
-function timeAt(beats: readonly number[], u: number): number {
+export function timeAt(beats: readonly number[], u: number): number {
   const n = beats.length;
   if (u <= 0) return beats[0]! + u * (beats[1]! - beats[0]!);
   if (u >= n - 1) return beats[n - 1]! + (u - n + 1) * (beats[n - 1]! - beats[n - 2]!);
@@ -116,7 +116,7 @@ function timeAt(beats: readonly number[], u: number): number {
   return beats[i]! + (u - i) * (beats[i + 1]! - beats[i]!);
 }
 
-function gauss(r: () => number): number {
+export function gauss(r: () => number): number {
   return Math.sqrt(-2 * Math.log(1 - r())) * Math.cos(2 * Math.PI * r());
 }
 
@@ -127,7 +127,7 @@ function gauss(r: () => number): number {
  * failure's span), the output is noise. Profiles measured on the demo piece:
  * the network gives ≥ 0.99 on its downbeats and ≤ 0.006 elsewhere (sharp).
  */
-function downbeatOutput(truth: Truth, evidence: Evidence, seed: number, confused: [number, number] | null): DownbeatAt | null {
+export function downbeatOutput(truth: Truth, evidence: Evidence, seed: number, confused: [number, number] | null): DownbeatAt | null {
   if (evidence === 'none') return null;
   const r = rng(seed);
   const level = truth.beats.map((t, i) => {
@@ -168,7 +168,7 @@ export interface Failure {
 }
 
 /** The network follows another rate (`rate` detected beats per true beat) over `span` true beats, from phase `offset`. */
-function burst(name: string, span: number, rate: number, offset = 0): Failure {
+export function burst(name: string, span: number, rate: number, offset = 0): Failure {
   return {
     name,
     span,

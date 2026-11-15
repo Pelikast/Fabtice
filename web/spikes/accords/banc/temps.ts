@@ -9,8 +9,9 @@
 //   node dist/temps.mjs [--methods app,none] [--only id1,id2] [--conditions propre,disque]
 //                       [--runs] [--fixture <file.json> --fixture-ids id.condition,…]
 //
-// `--fixture` writes the network outputs (logits rounded to 0.01) and the true
-// grid of the listed pieces, for the app's tests (`repair.bench.test.ts`).
+// `--fixture` writes the network outputs (logits in tenths, signed bytes in
+// base64) and the true grid of the listed pieces, for the app's tests
+// (`app/src/analysis/engine/tempo.bench.test.ts`).
 
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -18,6 +19,7 @@ import type { BeatActivations } from '../../../../app/src/analysis/engine/beats'
 import { gridFromActivations, gridFromBeats } from '../../../../app/src/analysis/engine/pipeline';
 import { downProbAt, pickPeaks, postMinimal } from '../../../../app/src/analysis/engine/beats';
 import { REPAIR } from '../../../../app/src/analysis/engine/repair';
+import { DISPLACED } from '../../../../app/src/analysis/engine/displaced';
 import { BARS, barChains, downbeatPeaks, repairByBars } from '../../../../app/src/analysis/engine/bars';
 import { firstDownbeat } from '../../../../app/src/analysis/engine/grid';
 import { networks } from './networks';
@@ -60,10 +62,11 @@ export const METHODS: Record<string, Method> = {
         (t) => downProbAt(act, t),
         { ...REPAIR, ...JSON.parse(process.env.REPAIR_OPTS ?? '{}') },
         { ...BARS, ...JSON.parse(process.env.BARS_OPTS ?? '{}') },
+        process.env.DISPLACED_OPTS === 'off' ? null : { ...DISPLACED, ...JSON.parse(process.env.DISPLACED_OPTS ?? '{}') },
       ),
     ),
   /** The app before the bar-led repair (the beat repair alone). */
-  old: (act) => asGrid(gridFromBeats(postMinimal(act).beats, (t) => downProbAt(act, t), REPAIR, null)),
+  old: (act) => asGrid(gridFromBeats(postMinimal(act).beats, (t) => downProbAt(act, t), REPAIR, null, null)),
   /** The prototype's beat-only DBN, then the app's metre and phase (no repair). */
   dbn: (act) => asGrid(gridFromBeats(dbnDecode(act, { beatsPerBar: 1, minBpm: 40, maxBpm: 300, lambda: LAMBDA }).beats, (t) => downProbAt(act, t), null)),
   /** The prototype's joint beat and bar DBN (3 or 4 beats). */
@@ -231,8 +234,14 @@ if (process.argv[1]?.endsWith('temps.mjs')) {
       }
       console.log(`${t.id.padEnd(24)} ${condition.padEnd(11)} truth n ${truth.times.length} J ${scoreGrid(truth, { times: truth.times, downbeat: truth.downbeat, beatsPerBar: truth.meter }).jumps} | ${cells.join(' | ')}`);
       if (fixtureIds?.has(`${t.id}.${condition}`)) {
-        const r2 = (a: Float32Array) => Array.from(a, (x) => Math.round(x * 100) / 100);
-        fixture[`${t.id}.${condition}`] = { beat: r2(act.beat), down: r2(act.down), truth: { times: truth.times.map((x) => Math.round(x * 1000) / 1000), downbeat: truth.downbeat, meter: truth.meter } };
+        // Logits in tenths, as signed bytes (−12.7 … 12.7), base64: what the grid needs, small enough to commit.
+        const pack = (a: Float32Array) => Buffer.from(Int8Array.from(a, (x) => Math.max(-127, Math.min(127, Math.round(x * 10)))).buffer).toString('base64');
+        fixture[`${t.id}.${condition}`] = {
+          split: inList(t.id, partage.dev) ? 'dev' : 'test',
+          beat: pack(act.beat),
+          down: pack(act.down),
+          truth: { times: truth.times.map((x) => Math.round(x * 1000) / 1000), downbeat: truth.downbeat, meter: truth.meter },
+        };
       }
     }
   }

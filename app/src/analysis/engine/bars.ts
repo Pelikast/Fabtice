@@ -35,7 +35,9 @@ export interface BarOptions {
   step: number;
   /** The same for a bar of twice the length (a missed downbeat): tighter, three bars of a faster tempo must not pass for two. */
   step2: number;
-  /** Longest first bar of a chain, in median found beat intervals. */
+  /** Longest first bar of a chain, in found beat intervals (their upper quartile). */
+  maxBarLength: number;
+  /** Most found beats a chain's bars may hold (median): twice the largest metre (downbeats every other bar). */
   maxBarBeats: number;
   /** Bars a chain needs to be used. */
   minBars: number;
@@ -51,8 +53,10 @@ export interface BarOptions {
   minRight: number;
   /** …and at least this share of them (else the whole chain is at another level: left to the user). */
   minRightShare: number;
-  /** Longest passage (bars) at a ratio other than half or double that is re-gridded (when the metre comes back after it). */
-  maxOddBars: number;
+  /** Re-grid a run that reaches the end of its chain (inside the piece). */
+  openEnds: boolean;
+  /** Seconds: a chain end this close to the first or last beat is the end of the piece. */
+  edge: number;
   /** Fastest tempo (BPM) the re-gridding may produce. */
   maxBpm: number;
   /** A gap between two chains is refilled when their bar lengths agree within this (|ln|)… */
@@ -70,15 +74,17 @@ export interface BarOptions {
 export const BARS: BarOptions = {
   step: Math.log(1.15),
   step2: Math.log(1.08),
-  maxBarBeats: 4.6,
+  maxBarLength: 4.6,
+  maxBarBeats: 8,
   minBars: 4,
   snap: 0.25,
   downSnap: 0.35,
-  minFound: 0.5,
+  minFound: 0.3,
   minDown: 0.5,
   minRight: 3,
   minRightShare: 0.1,
-  maxOddBars: 8,
+  openEnds: false,
+  edge: 4,
   maxBpm: 260,
   gapBack: Math.log(1.1),
   maxGapBars: 16,
@@ -129,12 +135,15 @@ export interface ChainBar {
  * from each unused peak: the next downbeat is the peak nearest one bar
  * length ahead (within `step`), else two bar lengths ahead (a missed
  * downbeat); the bar length follows the chain (mean of its last two bars).
- * A chain starts with a bar of at most `maxBarBeats` found beats. Peaks are first moved onto the nearest found beat when one is
+ * A chain whose bars hold more than `maxBarBeats` found beats is dropped. Peaks are first moved onto the nearest found beat when one is
  * within a quarter of a beat (the beat peaks are the finer timing).
  */
 export function barChains(peaks: readonly number[], beats: readonly number[], o: BarOptions = BARS): ChainBar[][] {
   if (peaks.length < o.minBars + 1) return [];
-  const local = beats.length > 1 ? median(beats.slice(1).map((t, i) => t - beats[i]!)) : 0.5;
+  const iv = beats.slice(1).map((t, i) => t - beats[i]!).sort((a, b) => a - b);
+  const local = iv.length ? median(iv) : 0.5;
+  // The longer found intervals (upper quartile): the beat even where the network doubled most of the piece.
+  const upper = iv.length ? iv[Math.floor(0.75 * (iv.length - 1))]! : 0.5;
   // Each peak onto the nearest found beat when one is near; two peaks for one downbeat (a split peak) become one.
   const moved = peaks.map((t) => {
     const j = nearestIndex(beats, t);
@@ -163,7 +172,7 @@ export function barChains(peaks: readonly number[], beats: readonly number[], o:
     for (let k = s + 1; k < at.length && k <= s + 4; k++) {
       const len = at[k]! - at[s]!;
       // A bar holds a few beats of the piece's usual beat: never a multiple of bars.
-      if (len <= 0 || len > o.maxBarBeats * local) continue;
+      if (len <= 0 || len > o.maxBarLength * upper) continue;
       const chain: ChainBar[] = [{ t0: at[s]!, t1: at[k]!, n: 1 }];
       const lens = [len];
       let cur = k;
@@ -189,6 +198,14 @@ export function barChains(peaks: readonly number[], beats: readonly number[], o:
         chain.push({ t0: at[cur]!, t1: at[next]!, n });
         lens.push((at[next]! - at[cur]!) / n);
         cur = next;
+      }
+      // A bar holds a few beats: a chain whose bars hold more than `maxBarBeats` found beats is a multiple of bars.
+      const held = median(chain.map((b) => beatsIn(beats, b.t0, b.t1).length / b.n));
+      if (held > o.maxBarBeats) continue;
+      // The shortest bar that makes a chain: a chain of two-bar bars outlasts the one-bar chain in rubato, it must not win.
+      if (chain.length >= o.minBars) {
+        best = chain;
+        break;
       }
       if (!best || chain.length > best.length) best = chain;
     }
@@ -284,44 +301,6 @@ type Counted = { bar: ChainBar; idx: number[]; chain: number };
 const perBar = (c: Counted) => c.idx.length / c.bar.n;
 
 /**
- * How well a bar's found beats sit on `count` evenly divided positions:
- * share of positions with a found beat within `snap` of a beat, minus share
- * of found beats on no position. 1: every position taken, nothing else.
- */
-export function positionFit(found: readonly number[], t0: number, t1: number, count: number, snap: number): number {
-  const step = (t1 - t0) / count;
-  const hit = new Set<number>();
-  let off = 0;
-  for (const t of found) {
-    const j = Math.round((t - t0) / step);
-    if (j >= 0 && j <= count && Math.abs(t - (t0 + j * step)) <= snap * step) hit.add(j % count === 0 && j > 0 ? -1 : j);
-    else off++;
-  }
-  hit.delete(-1);
-  return hit.size / count - off / Math.max(1, found.length);
-}
-
-/**
- * The metre: among the candidates, the one whose evenly divided bars the found
- * beats fit best (`positionFit`, summed over the bars); ties go to `fallback`.
- * A bar at half tempo fits 4 (half the positions) and not 3; a bar missing
- * one beat of 4 fits 4 better than 3.
- */
-export function chainMeter(beats: readonly number[], counts: readonly Counted[], candidates: readonly number[], fallback: number, snap: number): number {
-  const score = (m: number) => counts.reduce((s, c) => s + positionFit(c.idx.map((i) => beats[i]!), c.bar.t0, c.bar.t1, c.bar.n * m, snap), 0);
-  let best = fallback;
-  let bs = score(best);
-  for (const m of candidates) {
-    const v = score(m);
-    if (v > bs + 1e-9) {
-      best = m;
-      bs = v;
-    }
-  }
-  return best;
-}
-
-/**
  * The found beats of a bar are at the bar's own level and regular: their
  * median interval is within `level` of the bar divided by `count`, and no
  * interval is more than `irregular` away from that median. Such a bar whose
@@ -334,6 +313,27 @@ export function regularAtLevel(found: readonly number[], t0: number, t1: number,
   const p = median(d);
   if (Math.abs(Math.log(p / ((t1 - t0) / count))) > o.level) return false;
   return d.every((x) => Math.abs(Math.log(x / p)) <= o.irregular);
+}
+
+/**
+ * The metre: among the candidates, the one most bars hold exactly, as m
+ * regular beats (`regularAtLevel`); ties go to `fallback`. Bars at another
+ * level (half tempo, 3 for 2) or with a lost beat say nothing: a 4/4 bar
+ * missing one beat is not a 3/4 bar, six beats at 3 for 2 are not two 3/4 bars.
+ */
+export function chainMeter(beats: readonly number[], counts: readonly Counted[], candidates: readonly number[], fallback: number, o: BarOptions = BARS): number {
+  const score = (m: number) =>
+    counts.filter((c) => c.idx.length === c.bar.n * m && regularAtLevel(c.idx.map((i) => beats[i]!), c.bar.t0, c.bar.t1, c.bar.n * m, o)).length;
+  let best = fallback;
+  let bs = score(best);
+  for (const m of candidates) {
+    const v = score(m);
+    if (v > bs) {
+      best = m;
+      bs = v;
+    }
+  }
+  return best;
 }
 
 /**
@@ -351,7 +351,7 @@ export function repairByBars(beats: readonly number[], downAt: DownbeatAt, candi
   chains.forEach((c, chain) => {
     for (const bar of c) counts.push({ bar, idx: beatsIn(beats, bar.t0, bar.t1), chain });
   });
-  const m = chainMeter(beats, counts, candidates, fallback, o.snap);
+  const m = chainMeter(beats, counts, candidates, fallback, o);
   const replace: { t0: number; t1: number; inner: number[]; found: number }[] = [];
   /** The chains that hold the metre, with their bar unit (1, or 2 when their downbeats come every other bar). */
   const holding: { chain: ChainBar[]; scale: number }[] = [];
@@ -393,8 +393,13 @@ export function repairByBars(beats: readonly number[], downAt: DownbeatAt, candi
       while (j + 1 < kinds.length && kinds[j + 1]!.kind === 'fix') j++;
       const run = kinds.slice(i, j + 1);
       const odd = run.some((k) => k.ratio !== null && !HALF_DOUBLE.has(k.ratio));
-      const back = i > 0 && kinds[i - 1]!.kind === 'right' && j + 1 < kinds.length && kinds[j + 1]!.kind === 'right';
-      if (!odd || (back && run.length <= o.maxOddBars)) {
+      // It comes back: the metre on both sides, or the start or the end of the piece on one side.
+      const startsPiece = i === 0 && bars[0]!.bar.t0 <= beats[0]! + o.edge;
+      const endsPiece = j === kinds.length - 1 && bars[j]!.bar.t1 >= beats[beats.length - 1]! - o.edge;
+      const back = (startsPiece || (i > 0 && kinds[i - 1]!.kind === 'right')) && (endsPiece || (j + 1 < kinds.length && kinds[j + 1]!.kind === 'right')) && !(startsPiece && endsPiece);
+      // A run that reaches the end of its chain may go on past it, where nothing would be re-gridded.
+      const open = (i === 0 && bars[0]!.bar.t0 > beats[0]! + o.edge) || (j === kinds.length - 1 && bars[j]!.bar.t1 < beats[beats.length - 1]! - o.edge);
+      if ((!odd || back) && !(open && !o.openEnds)) {
         for (let q = i; q <= j; q++) {
           const { bar, idx } = bars[q]!;
           // The bar's downbeat is a found beat (moved onto one) or a placed one.

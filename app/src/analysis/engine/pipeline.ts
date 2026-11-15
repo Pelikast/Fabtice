@@ -21,6 +21,7 @@ import { makeGrid, renumber, type Grid } from './grid';
 import { estimateKey, type KeyEstimate } from './key';
 import { inferMeter, type MeterScore } from './meter';
 import { BARS, repairByBars, type BarOptions } from './bars';
+import { DISPLACED, smoothDisplaced, type DisplacedOptions } from './displaced';
 import { REPAIR, bestPhase, repairBeats, type DownbeatAt, type RepairOptions, type RepairedPassage } from './repair';
 import { resampleRatio } from './resample';
 import { type OrtLike, type RunControl, type SessionLike } from './session';
@@ -36,6 +37,8 @@ export const OPTIONS = {
   repair: true,
   /** Re-grid the bars of the network's downbeats that hold another number of beats (`bars.ts`). */
   bars: true,
+  /** Move back runs of beats the network placed early or late and that come back (`displaced.ts`). */
+  displaced: true,
 };
 
 /** Shortest piece analysed, in seconds: below it there is nothing to find. */
@@ -115,6 +118,7 @@ export function gridFromBeats(
   downAt: DownbeatAt | null,
   repair: RepairOptions | null = OPTIONS.repair ? REPAIR : null,
   bars: BarOptions | null = OPTIONS.bars ? BARS : null,
+  displaced: DisplacedOptions | null = OPTIONS.displaced ? DISPLACED : null,
 ): GridFromBeats {
   const flat = () => 0.5;
   const probs = (beats: readonly number[]) => beats.map((t) => (downAt ?? flat)(t));
@@ -123,8 +127,9 @@ export function gridFromBeats(
   const start = led ? led.beats : found;
   const m0 = led?.meter ?? first.beatsPerBar;
   const fixed = repair ? repairBeats(start, m0, downAt, repair) : { beats: start.slice(), repairs: [] };
-  const beats = fixed.beats;
-  const repairs = [...(led?.repairs ?? []), ...fixed.repairs].sort((a, b) => a.start - b.start);
+  const moved = displaced ? smoothDisplaced(fixed.beats, displaced) : { beats: fixed.beats, repairs: [] };
+  const beats = moved.beats;
+  const repairs = [...(led?.repairs ?? []), ...fixed.repairs, ...moved.repairs].sort((a, b) => a.start - b.start);
   const dp = probs(beats);
   const m = inferMeter(dp, { candidates: OPTIONS.meterCandidates });
   const numbers = beats.length >= 4 ? renumber(beats, m.beatsPerBar, bestPhase(dp, m.beatsPerBar)) : m.numbers;
