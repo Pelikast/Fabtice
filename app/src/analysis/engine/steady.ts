@@ -58,6 +58,8 @@ export interface SteadyOptions {
    * when the downbeats heard over the whole piece agree with it better.
    */
   count: 'bars' | 'beats';
+  /** Without downbeats heard, a part of a bar where no whole number fits (tests: what the net would need them for). */
+  free: boolean;
 }
 
 export const STEADY: SteadyOptions = {
@@ -70,6 +72,7 @@ export const STEADY: SteadyOptions = {
   pad: 2,
   snap: 0.12,
   count: 'beats',
+  free: false,
 };
 
 export interface SteadyResult {
@@ -189,13 +192,13 @@ function onePass(beats: readonly number[], downbeat: number, m: number, o: Stead
   const none = { beats: beats.slice(), downbeat, phases: [downbeat], repairs: [] };
   if (!passages.length) return none;
   const L = lengths(downs);
-  const choices: Option[][] = [];
+  const choices: (Option | null)[][] = [];
   let lastEnd = -1;
   for (const p of passages) {
     // Every span (widened into the bars around by up to `pad` bars) and every count near the supports' tempo:
     // whole bars, or (`count: 'beats'`) whole beats. Kept when the new bars make no abrupt step with the bars
     // around; the best of each kind is the one that lands on the most found beats, then the smoothest.
-    type Way = { a: number; b: number; inner: number[]; step: number; hits: number; whole: boolean };
+    type Way = { a: number; b: number; inner: number[]; step: number; hits: number; whole: boolean; heard: number };
     const ways: Way[] = [];
     for (let pad = 0; pad <= o.pad; pad++) {
       const a = p.from - pad; // first bar of the span
@@ -221,7 +224,7 @@ function onePass(beats: readonly number[], downbeat: number, m: number, o: Stead
           if (i < head.length + N && i + 2 * m > head.length) step = Math.max(step, Math.abs(Math.log((around[i + 2 * m]! - around[i + m]!) / (around[i + m]! - around[i]!))));
         }
         // Most new beats on heard beats, or the net would invent a pulse.
-        if (step < o.jump && hits >= o.heard * (N - 1)) ways.push({ a, b, inner, step, hits, whole: N % m === 0 });
+        if (step < o.jump && hits >= o.heard * (N - 1)) ways.push({ a, b, inner, step, hits, whole: N % m === 0, heard: found.length });
       };
       for (const N of counts) {
         for (const ramp of [false, true]) {
@@ -274,14 +277,19 @@ function onePass(beats: readonly number[], downbeat: number, m: number, o: Stead
     const most = Math.max(-1, ...ways.map((w) => w.hits));
     const options: Option[] = [];
     let end = lastEnd;
-    for (const whole of [true, false]) {
-      const best = ways.filter((w) => w.whole === whole && w.hits >= most - SLACK).sort((x, y) => y.hits - x.hits || x.step - y.step)[0];
+    for (const whole of o.count === 'beats' ? [true, false] : [true]) {
+      // A part of a bar changes the bar phase on one side: only where the downbeats heard can choose it (below),
+      // or, without them, keeping the number of beats heard (no whole number of bars fits).
+      const kind = ways.filter((w) => w.whole === whole && (whole || downAt || o.free || (!options.length && w.inner.length === w.heard)));
+      const best = kind.filter((w) => w.hits >= most - SLACK).sort((x, y) => y.hits - x.hits || x.step - y.step)[0];
       if (!best) continue;
       options.push({ i0: idx[best.a]!, i1: idx[best.b + 1]!, inner: best.inner });
       end = Math.max(end, best.b + 1);
     }
     if (!options.length) continue; // left as found
-    choices.push(options);
+    // No whole number of bars fits: left as found unless the downbeats heard choose the part of a bar (below).
+    if (downAt && options.length === 1 && (options[0]!.inner.length + 1) % m) choices.push([null, options[0]!]);
+    else choices.push(options);
     lastEnd = end;
   }
   if (!choices.length) return none;
@@ -292,7 +300,7 @@ function onePass(beats: readonly number[], downbeat: number, m: number, o: Stead
     let i = 0;
     choices.forEach((options, c) => {
       const r = options[pick[c]!]!;
-      if (r.i0 < i) return; // overlaps the passage before (options of different widths)
+      if (!r || r.i0 < i) return; // overlaps the passage before (options of different widths)
       while (i <= r.i0) out.push(beats[i++]!);
       out.push(...r.inner);
       repairs.push({ start: beats[r.i0]!, end: beats[r.i1]!, found: r.i1 - r.i0 - 1, placed: r.inner.length, cause: 'steady' });
@@ -318,7 +326,7 @@ function onePass(beats: readonly number[], downbeat: number, m: number, o: Stead
           if (mask & (1 << k)) trial[c] = 1;
         });
         const s = score(build(trial));
-        if (s > current + 1e-9) {
+        if (s > current + PREFER) {
           current = s;
           trial.forEach((v, c) => (pick[c] = v));
         }
@@ -328,7 +336,7 @@ function onePass(beats: readonly number[], downbeat: number, m: number, o: Stead
         const trial = pick.slice();
         trial[c] = 1;
         const s = score(build(trial));
-        if (s > current + 1e-9) {
+        if (s > current + PREFER) {
           current = s;
           pick[c] = 1;
         }
@@ -343,6 +351,9 @@ function onePass(beats: readonly number[], downbeat: number, m: number, o: Stead
   if (best.score < heard - AGAINST) return none;
   return { ...r, downbeat: best.d, phases: [best.d] };
 }
+
+/** How much better (nats, the downbeat output's log-likelihood over the piece) a part of a bar must fit it. */
+const PREFER = 1;
 
 /** How much worse (nats, the downbeat output's log-likelihood over the piece) the re-gridded bars may fit it. */
 const AGAINST = 15;
