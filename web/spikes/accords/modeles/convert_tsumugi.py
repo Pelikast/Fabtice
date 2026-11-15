@@ -2,6 +2,7 @@
 against the original PyTorch model.
 
     python convert_tsumugi.py cache/tsumugi-chords.onnx
+    python convert_tsumugi.py cache/tsumugi-chords.nofold.onnx --no-fold   # for external_weights.py
 
 The only change to the network is how its constant-Q front end is computed: the original
 takes torch.stft of each octave and multiplies the one-sided spectrum by the FFT of the CQT
@@ -122,7 +123,7 @@ def wrapper(net):
     return Wrap().eval()
 
 
-def main(out: str, audio: str | None = None, info_path: str | None = None) -> None:
+def main(out: str, fold: bool = True, audio: str | None = None, info_path: str | None = None) -> None:
     import onnx
     import onnxruntime as ort
     import torch
@@ -156,7 +157,7 @@ def main(out: str, audio: str | None = None, info_path: str | None = None) -> No
         print(f"patched torch vs original  {nm:9s} max |diff| {np.abs(r - p).max():.2e}")
     Path(out).parent.mkdir(parents=True, exist_ok=True)
     torch.onnx.export(w, inputs, out, input_names=["wave", "beats", "keys"], output_names=names, opset_version=17,
-                      dynamo=False, do_constant_folding=True)
+                      dynamo=False, do_constant_folding=fold)
     m = onnx.load(out)
     onnx.checker.check_model(m)
     ops = sorted({nd.op_type for nd in m.graph.node})
@@ -174,4 +175,6 @@ def main(out: str, audio: str | None = None, info_path: str | None = None) -> No
 
 
 if __name__ == "__main__":
-    main(*sys.argv[1:])
+    # --no-fold keeps every weight exactly as in the original file (needed by external_weights.py)
+    args = [x for x in sys.argv[1:] if x != "--no-fold"]
+    main(args[0], "--no-fold" not in sys.argv, *args[1:])
