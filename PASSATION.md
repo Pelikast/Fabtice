@@ -460,6 +460,44 @@ avec les nuances du propriétaire : les lire avant tout. Ce qui est décidé :
   `retours-lot-3` une fois cette branche fusionnée (ou de `main` après la
   publication) avant de toucher à ce dossier.
 
+### Avancement du programme « accords » (branche `accords`)
+
+Tenu à jour à chaque étape fusionnée. Sous-branches : `accords-banc`,
+`accords-modeles`, `accords-recueils`, `accords-recueils-app` (fusionnées),
+`accords-ecoute` et `accords-structure` (en cours).
+
+- **Banc de mesure** (`web/spikes/accords/`, voir son `README.md`) : 25
+  morceaux de jazz fabriqués (son propre et « vieux disque », instruments
+  séparés, reprises réharmonisées) et 24 prises réelles de guitare (GuitarSet,
+  CC BY 4.0). Rien d'audio dans le dépôt : `./preparer.sh` refabrique tout.
+  Chiffre de départ (fondamentale et couleur justes, par temps) : 57 % en son
+  propre, **49 % en vieux disque**, 70 % et 64 % sur la guitare réelle. La
+  grille de mesures n'y est pour rien (un point de mieux avec la vraie
+  grille). Erreurs dominantes : confusion ii–V (Dm7 lu G7), deuxième accord
+  d'une mesure manqué deux fois sur trois, septièmes simplifiées, tonalité
+  prise à la dominante. Aucun enregistrement de jazz ancien annoté n'est
+  téléchargeable d'ici (JAAH : audio commercial).
+- **Recueils iReal Pro** (`app/src/standards/`, `app/README.md` « Grilles de
+  standards ») : lecteur du format (Jazz 1460 lu en entier), recherche par
+  titre bruité, transposition, liste distante `collections.json`,
+  téléchargement en un clic (processus principal dans l'app Mac, appel du pont
+  `standardsFetchText` limité à une liste d'hôtes), bibliothèque gardée dans
+  IndexedDB (`fabtice-standards`), proposition dans « Nouveau morceau » et
+  dans Réglages avancés, import d'un fichier. **Les adresses officielles
+  (irealpro.com, forum) n'ont pas pu être vérifiées d'ici** (hôtes bloqués) :
+  elles sont marquées `verified: false` ; des copies publiques sur GitHub
+  (jazz 1460, latin, blues, pop, country) servent de secours et fonctionnent.
+  Brésil 220, Dixieland et jazz manouche n'ont pas de copie : import d'un
+  fichier. À faire valider par le propriétaire : garder ou non ces copies
+  tenues par des tiers.
+- **Autres modèles** (`web/spikes/accords/modeles/RECHERCHE.md`) : candidat
+  sérieux, Tsumugi-Chords (poids CC BY-NC, 68 Mo, lent, 2 Go de mémoire) ;
+  mesure sur le banc en cours.
+- **En cours** : accords sur les instruments séparés, indice de basse et
+  décodage réglé pour le jazz, relance après une séparation
+  (`accords-ecoute`) ; reprises et grille connue comme indices souples
+  (`accords-structure`).
+
 ## Lot 4 (feu vert donné, après le programme « accords »)
 
 Métronome avancé (métriques composées, temps forts et faibles par métrique,
