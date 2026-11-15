@@ -3,8 +3,10 @@
 // same way): the mix, the bass line read on the mix's 40–300 Hz band, the
 // repeats of the form, the known chart found by the title (when the playlists
 // are in $BANC_DATA/recueils/), « doubtful » from the reliability model.
-// With BANC_TIGES=ideales|reelles, also the separated parts, as the app does
-// once a piece has been separated.
+// With BANC_TIGES=ideales|htdemucs|roformer, also the separated parts (BANC_HARMONIE=selection:
+// the harmony parts chosen by `selectHarmony`, remixed with the bass; sans-batterie: the mix
+// minus the separated drums; aucune), and the bass cue from the separated bass (BANC_BASSE=tige,
+// or bande: the mix's band as without separation).
 
 import type { KnownCharts } from '../../../../../app/src/analysis/engine/chart';
 import { resultFromOutputs } from '../../../../../app/src/analysis/engine/analyse';
@@ -14,8 +16,9 @@ import { chartsForAnalysis } from '../../../../../app/src/standards/forAnalysis'
 import { MemoryCollectionStore } from '../../../../../app/src/standards/libraryStore';
 import { DATA } from '../paths';
 import { modelsFor } from '../../../../../app/src/analysis/models';
-import { lowAudio } from '../ecoute';
-import { harmonyOf, stemsOf } from '../ecoute-variante';
+import { listen, lowAudio } from '../ecoute';
+import type { HarmonyListening } from '../../../../../app/src/analysis/engine/chart';
+import { harmonyOf, stemsOf, type StemSource } from '../ecoute-variante';
 import type { Variant } from '../types';
 
 let store: MemoryCollectionStore | null = null;
@@ -46,10 +49,18 @@ export async function knownFor(title: string): Promise<KnownCharts | null> {
 const app: Variant = async (input, ctx) => {
   const net = await ctx.networks(input.mixPath);
   const o = net.outputs;
-  const which = process.env.BANC_TIGES as 'ideales' | 'reelles' | undefined;
+  const which = process.env.BANC_TIGES as StemSource | undefined;
   const stems = which ? stemsOf(input, which) : {};
-  const harmony = which ? await harmonyOf(input, o, stems) : null;
-  const bass = stems.bass
+  const mode = process.env.BANC_HARMONIE ?? 'selection';
+  let harmony: HarmonyListening | null = null;
+  if (which && mode === 'selection') harmony = await harmonyOf(input, o, stems);
+  if (which && mode === 'sans-batterie' && stems.drums) {
+    // Everything but the drums: the mix minus the separated drums (no selector, no trust in the labels).
+    const l = await listen({ paths: [input.mixPath, stems.drums], gains: [1, -1] }, o.tuning);
+    harmony = { frames: l.frames, timeScale: l.timeScale, stems: [] };
+  }
+  const bassFrom = process.env.BANC_BASSE ?? 'tige';
+  const bass = stems.bass && bassFrom === 'tige'
     ? { low: await lowAudio({ paths: [stems.bass] }), from: 'stem' as const }
     : { low: await lowAudio({ paths: [input.mixPath], transform: 'bass' }), from: 'band' as const };
   const h = input.truthGrid;

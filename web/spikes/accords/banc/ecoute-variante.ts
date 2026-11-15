@@ -28,15 +28,19 @@ export interface ListeningConfig {
   /** Where the bass line is read: the separated bass, the 40–300 Hz band of the mix, the stem when there is one else the band. */
   bass: 'aucune' | 'tige' | 'bande' | 'auto';
   bassOptions?: Partial<BassCueOptions>;
-  stems?: 'ideales' | 'reelles';
+  stems?: StemSource;
   decode?: Partial<DecodeOptions>;
 }
 
 const ALL: StemName[] = ['drums', 'bass', 'piano', 'guitar', 'other', 'vocals'];
 
-export function stemsOf(input: VariantInput, which: 'ideales' | 'reelles'): Partial<Record<StemName, string>> {
+/** Ideal stems (rendered apart), or what one of the app's separation tools gives (`reelles` = HTDemucs). */
+export type StemSource = 'ideales' | 'reelles' | 'htdemucs' | 'roformer';
+
+export function stemsOf(input: VariantInput, which: StemSource): Partial<Record<StemName, string>> {
   if (which === 'ideales') return input.stemPaths;
-  const dir = join(DATA, 'separes', 'htdemucs-6s', input.id, input.condition);
+  const tool = which === 'roformer' ? 'bs-roformer-sw' : 'htdemucs-6s';
+  const dir = join(DATA, 'separes', tool, input.id, input.condition);
   if (!ALL.every((s) => existsSync(join(dir, `${s}.flac`)))) return {};
   return Object.fromEntries(ALL.map((s) => [s, join(dir, `${s}.flac`)]));
 }
