@@ -1,4 +1,4 @@
-// « Ouvrir un projet… »: the system's file picker for a `.fabtice` file. The
+// « Ouvrir un projet… »: the system's file picker for a `.fab` file. The
 // field is made on the spot, outside the dialog (which keeps one file field,
 // for audio), and removed once the picker answers; the click that calls this
 // is the user's gesture.

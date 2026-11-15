@@ -1,14 +1,14 @@
-// « Enregistrer le projet » (lot 4): one `.fabtice` file holding the whole
-// project. One choice, only when the piece is separated: « Avec les
-// instruments séparés » (on by default), with what it adds to the size. Then
-// the file is prepared and handed over as a link (the user's click saves it:
-// a download in a browser, the save panel of macOS in the Mac app), in the
-// family of « Exporter le son ».
+// « Enregistrer le projet » (lot 4): one `.fab` file holding the whole
+// project, with every separation and the kept render (owner's decision: no
+// choice to make). The dialog says what goes in, prepares the file (the FLAC
+// encoding takes a moment, with a steady percentage), then hands it over as a
+// link (the user's click saves it: a download in a browser, the save panel of
+// macOS in the Mac app), in the family of « Exporter le son ».
 
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { deliverable, type Delivered } from '../export/audio/deliver';
 import { t } from '../i18n';
-import { buildProjectFile, plannedSizes, ProjectSaveError, saveRefusal } from '../project/save';
+import { buildProjectFile, projectContents, ProjectSaveError, saveRefusal } from '../project/save';
 import { formatSize } from '../separation/useChoice';
 import { closeSaveProject } from '../store/exportActions';
 import { useApp } from '../store/store';
@@ -23,9 +23,7 @@ export function SaveProjectDialog() {
 }
 
 function SaveProjectBox() {
-  const separated = useApp((s) => s.separation.result !== null);
-  const [withInstruments, setWithInstruments] = useState(true);
-  const [sizes, setSizes] = useState<{ whole: number; withInstruments: number | null } | null>(null);
+  const contents = useApp(useShallowContents);
   const [phase, setPhase] = useState<Phase>(() => {
     const refusal = saveRefusal();
     return refusal ? { kind: 'error', code: refusal } : { kind: 'choose' };
@@ -35,31 +33,16 @@ function SaveProjectBox() {
   useEffect(() => goRef.current?.focus({ preventScroll: true }), []);
   useEffect(() => () => abortRef.current?.abort(), []);
   useEffect(() => () => (phase.kind === 'ready' ? phase.file.release() : undefined), [phase]);
-  useEffect(() => {
-    let live = true;
-    if (saveRefusal()) return;
-    plannedSizes().then(
-      (s) => live && setSizes(s),
-      () => live && setSizes(null),
-    );
-    return () => {
-      live = false;
-    };
-  }, []);
-
   const close = () => {
     abortRef.current?.abort();
     closeSaveProject();
   };
-  const withThem = separated && withInstruments && sizes?.withInstruments !== null;
-  const size = sizes ? (withThem && sizes.withInstruments !== null ? sizes.withInstruments : sizes.whole) : null;
   const run = async () => {
     const abort = new AbortController();
     abortRef.current = abort;
     setPhase({ kind: 'working', fraction: 0 });
     try {
       const out = await buildProjectFile({
-        withInstruments: separated && withInstruments,
         signal: abort.signal,
         onProgress: (fraction) => setPhase((p) => (p.kind === 'working' && Math.round(fraction * 100) !== Math.round(p.fraction * 100) ? { kind: 'working', fraction } : p)),
       });
@@ -95,18 +78,15 @@ function SaveProjectBox() {
         {phase.kind === 'choose' && (
           <>
             <p>{t('saveProject.lead')}</p>
-            {separated && sizes?.withInstruments !== null && (
-              <label className="option option-colonne projet-instruments">
-                <span className="option-ligne">
-                  <input type="checkbox" checked={withInstruments} data-testid="avec-instruments" onChange={(e) => setWithInstruments(e.target.checked)} />
-                  <span>{t('saveProject.instruments')}</span>
-                </span>
-                {sizes && sizes.withInstruments !== null && <small>{t('saveProject.instrumentsNote', { size: formatSize(sizes.withInstruments - sizes.whole) })}</small>}
-              </label>
+            {contents.separations.length > 0 && (
+              <p className="export-resume" data-testid="contenu-projet">
+                {contents.separations.length === 1
+                  ? t('saveProject.separations.one', { tools: contents.separations[0]! })
+                  : t('saveProject.separations.other', { n: contents.separations.length, tools: contents.separations.join(', ') })}{' '}
+                {contents.render && t('saveProject.render')}
+              </p>
             )}
-            <p className="export-resume" data-testid="taille-projet">
-              {size !== null ? t('saveProject.size', { size: formatSize(size) }) : t('saveProject.sizeUnknown')}
-            </p>
+            {(contents.separations.length > 0 || contents.render) && <p className="export-resume">{t('saveProject.flacNote')}</p>}
             <div className="import-actions">
               <button ref={goRef} className="plein" data-testid="preparer-projet" onClick={() => void run()}>
                 {t('saveProject.go')}
@@ -164,4 +144,13 @@ function SaveProjectBox() {
       </div>
     </div>
   );
+}
+
+/** What the file will hold, as a stable value (the store is read on every change). */
+let lastContents: ReturnType<typeof projectContents> | null = null;
+function useShallowContents(s: Parameters<typeof projectContents>[0]): ReturnType<typeof projectContents> {
+  const next = projectContents(s);
+  if (lastContents && lastContents.render === next.render && lastContents.separations.join('|') === next.separations.join('|')) return lastContents;
+  lastContents = next;
+  return next;
 }

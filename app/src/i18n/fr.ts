@@ -396,7 +396,7 @@ export const fr = {
   'new.dropHint': 'Vous pouvez aussi déposer le fichier dans la fenêtre.',
   'new.close': 'Fermer',
   'drop.overlay': 'Déposez le fichier audio',
-  'drop.formats': 'mp3, wav, aiff, m4a ou flac ; ou un projet Fabtice (.fabtice)',
+  'drop.formats': 'mp3, wav, aiff, m4a ou flac ; ou un projet Fabtice (.fab)',
 
   // Import progress and errors
   'new.updateOffer': 'Une version plus récente de l’outil d’import est disponible.',
@@ -716,7 +716,7 @@ export const fr = {
 
   // Engine
   'engine.error': 'La lecture audio ne fonctionne pas sur cet appareil.',
-  // Lot 4: project files (.fabtice)
+  // Lot 4: project files (.fab)
   'import.opening': 'Ouverture de « {title} »…',
   'project.step.reading': 'Lecture du fichier…',
   'project.step.decoding': 'Préparation du son…',
@@ -730,14 +730,15 @@ export const fr = {
   'new.openProject': 'ouvrir un projet Fabtice',
   'new.openProjectLead': 'Déjà un projet enregistré ?',
   'export.saveProject': 'Enregistrer le projet…',
-  'export.saveProjectNote': 'un fichier .fabtice',
+  'export.saveProjectNote': 'un fichier .fab',
   'export.saveProjectDemo': 'pas pour la démonstration',
   'saveProject.title': 'Enregistrer le projet',
-  'saveProject.lead': 'Un seul fichier qui garde tout : le morceau tel qu’importé, la grille, les accords, vos corrections, les boucles et les repères, le métronome. Vous pouvez le copier, l’envoyer, et le rouvrir avec « Ouvrir un projet ».',
-  'saveProject.instruments': 'Avec les instruments séparés',
-  'saveProject.instrumentsNote': 'Ils se rouvrent sans être recalculés. Le fichier est alors bien plus lourd ({size} de plus).',
+  'saveProject.lead': 'Un seul fichier qui garde tout : le morceau tel qu’importé, la grille, les accords, vos corrections, les boucles et les repères, le métronome, les instruments séparés. Vous pouvez le copier, l’envoyer, et le rouvrir avec « Ouvrir un projet ».',
+  'saveProject.separations.one': 'Avec la séparation faite par {tools}.',
+  'saveProject.separations.other': 'Avec les {n} séparations : {tools}.',
+  'saveProject.render': 'Avec le rendu « meilleure qualité » appliqué.',
+  'saveProject.flacNote': 'Les pistes sont gardées en FLAC, sans perte : la préparation prend un moment.',
   'saveProject.size': 'Taille du fichier : {size}',
-  'saveProject.sizeUnknown': 'Taille du fichier : calcul…',
   'saveProject.go': 'Préparer le fichier',
   'saveProject.working': 'Préparation du fichier…',
   'saveProject.ready': 'Le fichier est prêt.',
@@ -748,8 +749,8 @@ export const fr = {
   'saveProject.error.not-kept': 'Ce morceau n’est pas encore gardé sur cet appareil : il ne peut pas être enregistré pour l’instant. Réessayez dans un moment.',
   'saveProject.error.demo': 'Le morceau de démonstration ne s’enregistre pas.',
   'saveProject.error.no-project': 'Aucun morceau n’est ouvert.',
-  'saveProject.error.too-large': 'Ce projet dépasserait 4 Go : il ne peut pas être enregistré en un seul fichier. Essayez sans les instruments séparés.',
-  'saveProject.error.failed': 'Le fichier n’a pas pu être préparé. Réessayez ; si cela recommence, essayez sans les instruments séparés.',
+  'saveProject.error.too-large': 'Ce projet dépasserait 4 Go : il ne peut pas être enregistré en un seul fichier. Libérez une séparation dont vous n’avez plus besoin, puis réessayez.',
+  'saveProject.error.failed': 'Le fichier n’a pas pu être préparé. Réessayez dans un moment.',
   // Lot 4: settings, « Place sur cet appareil »
   'settings.toolCost': '{size}, téléchargé une fois depuis {host}. Licence des poids : {licence}.',
   'settings.toolCostUnclear': 'Licence incertaine : à vous de juger de l’usage que vous en faites.',

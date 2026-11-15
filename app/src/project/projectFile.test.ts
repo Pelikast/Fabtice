@@ -101,7 +101,7 @@ describe('saving and opening a project file', () => {
     expect(stems.length).toBeGreaterThan(1);
     const pcmBefore = new Map(stems.map((tr) => [tr.audio.id, getAudio(tr.audio.id)!]));
     const { blob, name } = await buildProjectFile({ withInstruments: true });
-    expect(name).toBe('Blues du dimanche.fabtice');
+    expect(name).toBe('Blues du dimanche.fab');
 
     // Another device: nothing open, nothing kept.
     freshApp();

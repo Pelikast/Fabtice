@@ -44,12 +44,12 @@ function saveName(name) {
 function saveDialogOptions(filename, folder) {
   const name = saveName(filename);
   // A project (lot 4): its own title, and the panel keeps the extension that lets the app open it again.
-  if (path.extname(name).toLowerCase() === '.fabtice') {
+  if (path.extname(name).toLowerCase() === '.fab') {
     return {
       title: 'Enregistrer le projet',
       buttonLabel: 'Enregistrer',
       defaultPath: path.join(folder, name),
-      filters: [{ name: 'Projet Fabtice', extensions: ['fabtice'] }],
+      filters: [{ name: 'Projet Fabtice', extensions: ['fab'] }],
     };
   }
   return {

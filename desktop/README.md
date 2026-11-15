@@ -109,7 +109,7 @@ Ouvrez ensuite Fabtice normalement.
    (la fenêtre d’impression de macOS) ou **Enregistrer en PDF…** (le volet
    d’enregistrement de macOS, dans le dossier Téléchargements, au nom du morceau).
 6. **Projets** : **Exporter > Enregistrer le projet…** fait un seul fichier
-   `.fabtice` qui garde tout (le morceau tel qu’importé, la grille, les
+   `.fab` qui garde tout (le morceau tel qu’importé, la grille, les
    accords, vos corrections, les boucles et repères, le métronome et, au
    choix, les instruments séparés) ; la fenêtre d’enregistrement de macOS
    s’ouvre au nom du morceau. Pour le rouvrir : **double-clic** sur le fichier
@@ -141,18 +141,18 @@ Fonctionnement :
 - La page de diagnostic est servie par `fabtice://diagnostic/` et partage le
   même `window.fabtice` (`src/preload.js`). Les appels IPC ne sont acceptés
   que de ces deux adresses, depuis la fenêtre principale d’une page.
-- Projets `.fabtice` (lot 4) : l’extension est déclarée à macOS par
+- Projets `.fab` (lot 4) : l’extension est déclarée à macOS par
   `fileAssociations` dans `package.json` (« Projet Fabtice »,
   `application/x-fabtice`), ce qui donne le double-clic et « Ouvrir avec ».
   macOS signale le fichier par l’évènement `open-file`, écouté dès
   `will-finish-launching` (l’app peut être lancée pour lui) ; un chemin passé
   en argument (seconde instance) est traité de même. `src/open-files.js` ne
-  retient qu’un chemin absolu vers un fichier ordinaire en `.fabtice` de moins
+  retient qu’un chemin absolu vers un fichier ordinaire en `.fab` de moins
   de 4 Go, sous un jeton aléatoire ; la page demande ceux qui attendent
   (`pendingProjects`), reçoit les suivants (`onOpenProject`), lit chacun par
   plages de 16 Mo au plus (`readProjectFile`) et le libère
   (`releaseProjectFile`). Aucun autre fichier n’est lisible par ce chemin. La
-  fenêtre d’enregistrement d’un projet a son titre et le filtre `.fabtice`
+  fenêtre d’enregistrement d’un projet a son titre et le filtre `.fab`
   (`src/downloads.js`). Ce qui ne peut pas être essayé ici : le double-clic
   réel dans le Finder et l’icône du type de fichier ; le test de bout en bout
   fait ce que fait macOS (`app.emit('open-file', …)`).

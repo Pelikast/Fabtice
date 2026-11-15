@@ -5,7 +5,7 @@ import { blobSource } from '../project/zip';
 import { openNewPiece } from '../store/actions';
 import { appStore } from '../store/store';
 
-/** A `.fabtice` project (by its name, or by its first bytes) opens as a project; anything else is imported as audio. */
+/** A `.fab` project (by its name, or by its first bytes) opens as a project; anything else is imported as audio. */
 async function openDropped(file: File): Promise<void> {
   const source = blobSource(file);
   if (isProjectFileName(file.name) || (await looksLikeProjectFile(source))) await startProjectOpen(source, file.name);

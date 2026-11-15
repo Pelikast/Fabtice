@@ -296,7 +296,7 @@ function registerIpc() {
     return fetchStandardsText(url, { fetchImpl: electronFetch(net) });
   });
 
-  // Lot 4: `.fabtice` files opened from the Finder. The page asks once for those that came before it
+  // Lot 4: `.fab` files opened from the Finder. The page asks once for those that came before it
   // (and from then on is told of the next ones), then reads each by ranges with its token.
   handle('fabtice:pending-projects', async (event) => {
     const contents = event.sender;

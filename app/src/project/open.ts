@@ -1,33 +1,37 @@
-// « Ouvrir un projet… »: a `.fabtice` file replaces the open piece exactly as
-// an import does.
+// « Ouvrir un projet… »: a `.fab` file replaces the open piece exactly as an
+// import does.
 //
-//   - Everything is read and checked BEFORE the open piece is touched: the
-//     manifest and the document (migrated if older, refused if too recent),
-//     the original audio (checked, decoded), the separated instruments
-//     (checked, read straight into 16-bit chunks). A damaged file ends on a
-//     calm sentence; the piece open and the one kept on the device stay as
-//     they were.
+//   - Everything is checked BEFORE the open piece is touched: the manifest and
+//     the document (migrated if older, refused if too recent), the CRC of every
+//     entry (the whole file is read once by slices), the original audio
+//     (decoded), the current separation's instruments (decoded from FLAC
+//     straight into 16-bit blocks). A damaged file ends on a calm sentence; the
+//     piece open and the one kept on the device stay as they were.
 //   - Then the project is restored as it was saved, under its ids: grid, key,
 //     corrections, chords, loops and markers, metronome, view, instruments.
 //     The analysis does not run again (it only runs for a piece that has none).
-//   - Then it becomes the piece kept on the device (`keeper.keepNewProject`),
-//     and its instruments are written next to it, as a separation does.
-//   - Instruments that cannot be read (damaged in the file): the piece opens
-//     whole and one sentence says so, as at launch.
+//   - Then it becomes the piece kept on the device (`keeper.keepNewProject`):
+//     the current instruments are written next to it, then each other
+//     separation is decoded, written and let go (one at a time: memory), then
+//     the kept render, which is heard at once when the key and tempo are its own.
+//   - Instruments that cannot be read: the piece opens whole and one sentence
+//     says so, as at launch.
 
 import { yieldToMain, type PcmAudio } from '../audio/pcm';
-import { toPcm, type DecodedAudio } from '../audio/registry';
+import { dropAudio, registerAudio, toPcm, type DecodedAudio } from '../audio/registry';
 import { t } from '../i18n';
 import { decodeAudioBytes } from '../import/decode';
 import { ImportError, type ImportProgress } from '../import/types';
 import type { ProjectDocument } from '../model/document';
 import type { Track } from '../model/project';
+import { reviveKeptRender } from '../render/controller';
 import { getKeeper, getProjectStorage } from '../storage';
 import type { StoredAudio } from '../storage/ProjectStorage';
 import { wholePieceOf } from '../storage/restore';
 import { restoreProject, setStorageNotice } from '../store/actions';
-import { setImportStems, setSeparationNotice } from '../store/separationActions';
-import { FILE_EXTENSION, openProjectFile, ProjectFileError, PROJECT_MIME, MIMETYPE_ENTRY } from './fileFormat';
+import { dropOtherSeparation, setImportStems, setSeparationNotice } from '../store/separationActions';
+import { appStore } from '../store/store';
+import { FILE_EXTENSION, MIMETYPE_ENTRY, openProjectFile, PROJECT_MIME, ProjectFileError, type OpenedProjectFile } from './fileFormat';
 import type { ByteSource } from './zip';
 
 /** True for a name that says « Fabtice project ». */
@@ -35,7 +39,7 @@ export function isProjectFileName(name: string): boolean {
   return name.toLowerCase().endsWith(FILE_EXTENSION);
 }
 
-/** True when the first bytes are those of a `.fabtice` file (a project renamed, or dropped without its extension). */
+/** True when the first bytes are those of a `.fab` file (a project renamed, or dropped without its extension). */
 export async function looksLikeProjectFile(source: ByteSource): Promise<boolean> {
   const sig = MIMETYPE_ENTRY + PROJECT_MIME;
   if (source.size < 30 + sig.length) return false;
@@ -61,6 +65,8 @@ function fileError(e: unknown): never {
   throw e;
 }
 
+const separatedOf = (tracks: readonly Track[]) => tracks.filter((tr) => tr.audio.origin === 'separated');
+
 /**
  * Opens the project file `source` (named `name`) in place of the open piece.
  * Progress goes to `onProgress` (phase `opening`); rejects with an
@@ -76,34 +82,32 @@ export async function openProjectSource(
   deps: OpenDeps = {},
 ): Promise<void> {
   const { onProgress, signal } = options;
-  let title = name.replace(/\.fabtice$/i, '');
-  const show = (step: 'reading' | 'decoding' | 'instruments' | 'preparing', fraction: number | null) =>
-    onProgress?.({ phase: 'opening', fraction, title, step });
+  let title = name.replace(/\.fab$/i, '');
+  const show = (step: 'reading' | 'decoding' | 'instruments' | 'preparing', fraction: number | null) => onProgress?.({ phase: 'opening', fraction, title, step });
   const aborted = () => {
     if (signal?.aborted) throw new ImportError('cancelled');
   };
   show('reading', null);
-  let file;
+  let file: OpenedProjectFile;
   try {
     file = await openProjectFile(source);
+    title = file.document.project.title;
+    // Every entry checked once, before anything is replaced: the steps after this one cannot meet damage.
+    await file.verify((f) => show('reading', f));
   } catch (e) {
     fileError(e);
   }
   let doc: ProjectDocument = file.document;
-  title = doc.project.title;
   aborted();
 
-  // The original audio: read, checked, decoded (as a kept piece is at launch).
+  // The original audio: read, decoded (as a kept piece is at launch).
   const audio = new Map<string, PcmAudio | DecodedAudio>();
   const originals = new Map<string, StoredAudio>();
-  const all: Track[] = [...doc.tracks, ...doc.separation.aside];
   const decode =
     deps.decode ??
-    ((stored: StoredAudio, onFraction: (fraction: number | null) => void) =>
-      decodeAudioBytes(stored.bytes, { signal, onProgress: (p) => onFraction(p.fraction) }));
-  for (const track of all.filter((tr) => tr.audio.origin !== 'separated')) {
+    ((stored: StoredAudio, onFraction: (fraction: number | null) => void) => decodeAudioBytes(stored.bytes, { signal, onProgress: (p) => onFraction(p.fraction) }));
+  for (const track of [...doc.tracks, ...doc.separation.aside].filter((tr) => tr.audio.origin !== 'separated')) {
     if (originals.has(track.audio.id)) continue;
-    show('reading', null);
     let stored: StoredAudio;
     try {
       stored = await file.readOriginal(track.audio.id);
@@ -118,23 +122,20 @@ export async function openProjectSource(
     originals.set(track.audio.id, stored);
   }
 
-  // The instruments, as they were saved. One that cannot be read: the piece opens whole.
-  const separated = all.filter((tr) => tr.audio.origin === 'separated');
+  // The current separation's instruments. One that cannot be read: the piece opens whole.
+  const current = separatedOf([...doc.tracks, ...doc.separation.aside]);
   let instrumentsLost = false;
   try {
-    for (const [i, track] of separated.entries()) {
-      show('instruments', i / Math.max(1, separated.length));
-      audio.set(
-        track.audio.id,
-        await file.readInstrument(track.audio.id, (f) => show('instruments', (i + f) / separated.length)),
-      );
+    for (const [i, track] of current.entries()) {
+      show('instruments', i / Math.max(1, current.length));
+      audio.set(track.audio.id, await file.readTrack(track.audio.id, (f) => show('instruments', (i + f) / current.length)));
       aborted();
       await yieldToMain();
     }
   } catch (e) {
     if (e instanceof ImportError) throw e;
     instrumentsLost = true;
-    for (const tr of separated) audio.delete(tr.audio.id);
+    for (const tr of current) audio.delete(tr.audio.id);
     doc = wholePieceOf(doc);
   }
   aborted();
@@ -152,18 +153,56 @@ export async function openProjectSource(
   }
   if (instrumentsLost) setSeparationNotice(t('project.instrumentsLost'));
 
-  // Kept on the device, as an import is; then its instruments, as a separation writes them.
+  // Kept on the device, as an import is; then its tracks, as a separation and « Appliquer » write them.
   const id = doc.project.id;
   await keeper.keepNewProject(originals);
-  if (keeper.attachedProject !== id) return;
-  const kept = separated.filter((tr) => audio.has(tr.audio.id) && !instrumentsLost);
-  if (kept.length === 0) return;
+  const kept = keeper.attachedProject === id;
   const storage = getProjectStorage();
-  try {
-    for (const tr of kept) await storage.saveTrackAudio(tr.audio.id, audio.get(tr.audio.id) as PcmAudio);
-  } catch (e) {
-    // Not kept: they play now; the next launch opens the whole piece and says so. The file still has them.
-    setStorageNotice(e instanceof Error && (e as { code?: string }).code === 'quota' ? 'full' : 'unavailable');
-    await storage.deleteTrackAudio(kept.map((tr) => tr.audio.id)).catch(() => {});
+  const still = () => appStore.getState().project?.id === id;
+  let deviceFailed = false;
+  const store = async (audioId: string, pcm: PcmAudio): Promise<boolean> => {
+    if (!kept || deviceFailed) return false;
+    try {
+      await storage.saveTrackAudio(audioId, pcm);
+      return true;
+    } catch (e) {
+      deviceFailed = true;
+      setStorageNotice(e instanceof Error && (e as { code?: string }).code === 'quota' ? 'full' : 'unavailable');
+      return false;
+    }
+  };
+  if (!instrumentsLost) for (const tr of current) await store(tr.audio.id, audio.get(tr.audio.id) as PcmAudio);
+
+  // The other separations: decoded one at a time, written on the device, let go (kept in memory if the device refuses).
+  for (const other of doc.separation.others) {
+    if (!still()) return;
+    try {
+      for (const tr of other.tracks) {
+        const pcm = await file.readTrack(tr.audio.id);
+        const onDevice = await store(tr.audio.id, pcm);
+        if (!onDevice) registerAudio(tr.audio.id, pcm);
+        await yieldToMain();
+      }
+    } catch {
+      for (const tr of other.tracks) dropAudio(tr.audio.id);
+      const gone = dropOtherSeparation(other.result.id);
+      void storage.deleteTrackAudio(gone).catch(() => {});
+    }
+  }
+
+  // The kept render: written on the device, and heard now if the key and tempo are its own.
+  const render = doc.keptRender;
+  if (render && still()) {
+    const renderAudio = new Map<string, PcmAudio>();
+    try {
+      for (const r of render.tracks) {
+        const pcm = await file.readTrack(r.audioId);
+        renderAudio.set(r.audioId, pcm);
+        await store(r.audioId, pcm);
+      }
+      await reviveKeptRender(renderAudio);
+    } catch {
+      appStore.setState({ keptRender: null });
+    }
   }
 }

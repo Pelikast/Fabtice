@@ -242,7 +242,7 @@ export interface DesktopBridge {
   onYtdlpProgress(callback: (progress: YtdlpProgress) => void): Unsubscribe;
   onExtractProgress(callback: (progress: ExtractProgress) => void): Unsubscribe;
   /**
-   * Lot 4: `.fabtice` files macOS handed to the app (double-click in the Finder, « Ouvrir avec »)
+   * Lot 4: `.fab` files macOS handed to the app (double-click in the Finder, « Ouvrir avec »)
    * before the page asked; from that call on, the next ones come through `onOpenProject`.
    * A Mac app that predates it lacks these four methods.
    */

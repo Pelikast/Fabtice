@@ -1,6 +1,6 @@
 'use strict';
 
-// Lot 4, `.fabtice` projects inside the Mac app, end to end:
+// Lot 4, `.fab` projects inside the Mac app, end to end:
 //   1. a WAV of several MB is imported, separated (the stand-in separator of
 //      `?debug`: real 16-bit instruments of the piece's length), corrected by
 //      hand, given a named loop and metronome settings;
@@ -130,9 +130,9 @@ test('a project saved in the app opens in a fresh app from the Finder, everythin
       for (let i = 0; i < 300 && (await app.evaluate(() => globalThis.__downloads.length)) === 0; i++) await page.waitForTimeout(100);
       const [d] = await app.evaluate(() => globalThis.__downloads);
       assert.equal(d.state, 'completed');
-      assert.equal(d.name, 'Blues du dimanche.fabtice');
+      assert.equal(d.name, 'Blues du dimanche.fab');
       assert.equal(d.options.title, 'Enregistrer le projet');
-      assert.deepEqual(d.options.filters, [{ name: 'Projet Fabtice', extensions: ['fabtice'] }]);
+      assert.deepEqual(d.options.filters, [{ name: 'Projet Fabtice', extensions: ['fab'] }]);
       saved = d.target;
       const size = fs.statSync(saved).size;
       assert.equal(size, d.total);
@@ -181,14 +181,14 @@ test('a project saved in the app opens in a fresh app from the Finder, everythin
 
       // 4. A damaged copy, handed over the same way: a calm sentence, the open piece stays.
       const bytes = fs.readFileSync(saved);
-      const damaged = path.join(base, 'Abîmé.fabtice');
+      const damaged = path.join(base, 'Abîmé.fab');
       fs.writeFileSync(damaged, bytes.subarray(0, Math.floor(bytes.length * 0.7)));
       await openAsFinderDoes(app, damaged);
       await page.waitForSelector('.import-erreur', { timeout: 60000 });
       const text = await page.textContent('.import-erreur');
       assert.match(text, /incomplet ou abîmé/);
       assert.equal(await page.evaluate(() => window.__fabtice.store.getState().project.id), before.project, 'the open piece is untouched');
-      // Anything else handed over is ignored (only .fabtice files are read).
+      // Anything else handed over is ignored (only .fab files are read).
       await openAsFinderDoes(app, wav);
       await clean(page, problems, 'damaged file');
     } finally {

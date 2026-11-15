@@ -1,5 +1,5 @@
 // The serialisable form of the open project: what project storage keeps on
-// the device and what the `.fabtice` format will build on (lot 4). Audio
+// the device and what the `.fab` format will build on (lot 4). Audio
 // bytes are stored next to it, never inside.
 //
 // Version history (migrations in `storage/documentFormat.ts`):
