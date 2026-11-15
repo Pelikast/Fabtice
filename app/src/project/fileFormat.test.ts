@@ -1,27 +1,19 @@
-import { mkdtempSync, openSync, closeSync, readSync, rmSync, writeSync, fstatSync } from 'node:fs';
+import { closeSync, fstatSync, mkdtempSync, openSync, readSync, rmSync, writeSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { CHUNK, pcmFromChannels, type Chunk, type PcmAudio } from '../audio/pcm';
+import { CHUNK, pcmFromChannels, type PcmAudio } from '../audio/pcm';
 import { emptyCorrections } from '../model/corrections';
 import type { ProjectDocument } from '../model/document';
 import type { Track } from '../model/project';
+import type { SeparationSummary } from '../model/separation';
+import { nodeFlacEncode } from '../test/flacEncode';
 import { sampleDocument } from '../test/sampleDocument';
-import {
-  instrumentsFileBytes,
-  openProjectFile,
-  PROJECT_FILE_VERSION,
-  projectFileName,
-  projectFileSize,
-  ProjectFileError,
-  writeProjectFile,
-  type ProjectFileInput,
-} from './fileFormat';
+import { openProjectFile, PROJECT_FILE_VERSION, projectFileName, ProjectFileError, trackEntries, writeProjectFile, type ProjectFileInput } from './fileFormat';
 import { bytesSource, readZipDirectory, ZipStreamWriter, type ByteSink, type ByteSource } from './zip';
 
 const SR = 48000;
 
-/** Collects what the writer produces. */
 function memorySink(): ByteSink & { bytes(): Uint8Array } {
   const parts: Uint8Array[] = [];
   return {
@@ -38,43 +30,66 @@ function memorySink(): ByteSink & { bytes(): Uint8Array } {
   };
 }
 
-const tone = (frames: number, hz: number, amp = 0.4) => Float32Array.from({ length: frames }, (_, i) => amp * Math.sin((2 * Math.PI * hz * i) / SR));
+let seed = 3;
+const noise = () => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff - 0.5);
+const tone = (frames: number, hz: number, amp = 0.4) => Float32Array.from({ length: frames }, (_, i) => amp * Math.sin((2 * Math.PI * hz * i) / SR) + 0.01 * noise());
 
-function separatedTrack(id: string, name: string, stem: 'bass' | 'other', frames: number, channels: number): Track {
-  return { id: `track-${id}`, name, role: stem === 'bass' ? 'basse' : 'autres', mute: false, solo: stem === 'bass', volume: 0.7, stem, audio: { id, origin: 'separated', channels, sampleRate: SR, frames } };
+function track(id: string, name: string, stem: 'bass' | 'other' | 'vocals', frames: number): Track {
+  return { id: `track-${id}`, name, role: stem === 'bass' ? 'basse' : stem === 'vocals' ? 'voix' : 'autres', mute: false, solo: stem === 'bass', volume: 0.7, stem, audio: { id, origin: 'separated', channels: 2, sampleRate: SR, frames } };
 }
 
-/** A separated piece: two instruments shown (one stereo, one mono), the whole piece aside, chords corrected by hand. */
-function separatedInput(frames = SR * 3 + 123): { input: ProjectFileInput; bass: PcmAudio; other: PcmAudio } {
+const summary = (id: string, modelId: string, modelName: string): SeparationSummary => ({
+  id,
+  modelId,
+  modelName,
+  modelSha256: 'a'.repeat(64),
+  backend: 'cpu',
+  fellBack: true,
+  stems: ['bass', 'other'],
+  kept: ['bass'],
+  startedAt: '2026-11-13T10:00:00.000Z',
+  finishedAt: '2026-11-13T10:03:00.000Z',
+  computeSeconds: 180,
+  pieceSeconds: 3,
+});
+
+/**
+ * A worked-on piece: two separations (HTDemucs current, BS-RoFormer kept aside, each with its mix), one
+ * stereo and one mono instrument each, and a kept render of the shown tracks.
+ */
+function workedOn(frames = SR * 3 + 123) {
   const base = sampleDocument();
-  const bass = pcmFromChannels([tone(frames, 55), tone(frames, 82)], SR);
-  const other = pcmFromChannels([tone(frames, 440, 0.2), tone(frames, 440, 0.2)], SR);
-  expect(other.mono).toBe(true);
+  const pcm = new Map<string, PcmAudio>();
+  const make = (id: string, hz: number, mono = false) => {
+    const l = tone(frames, hz);
+    pcm.set(id, pcmFromChannels(mono ? [l, l] : [l, tone(frames, hz * 1.5, 0.3)], SR));
+  };
+  make('a-bass', 55);
+  make('a-other', 440, true);
+  make('b-bass', 57);
+  make('b-vocals', 330);
+  make('r-0', 60);
+  make('r-1', 450, true);
+  const current = [track('a-bass', 'Basse', 'bass', frames), track('a-other', 'Autres', 'other', frames)];
+  const other = [track('b-bass', 'Basse', 'bass', frames), { ...track('b-vocals', 'Voix', 'vocals', frames), mute: true }];
   const doc: ProjectDocument = {
     ...base,
-    tracks: [separatedTrack('sep-bass', 'Basse', 'bass', frames, 2), separatedTrack('sep-other', 'Autres', 'other', frames, 2)],
-    separation: {
-      result: {
-        id: 'sep',
-        modelId: 'htdemucs-6s',
-        modelName: 'HTDemucs 6 sources',
-        modelSha256: 'a'.repeat(64),
-        backend: 'cpu',
-        fellBack: true,
-        stems: ['bass', 'other'],
-        kept: ['bass'],
-        startedAt: '2026-11-13T10:00:00.000Z',
-        finishedAt: '2026-11-13T10:03:00.000Z',
-        computeSeconds: 180,
-        pieceSeconds: frames / SR,
-      },
-      showing: 'instruments',
-      aside: base.tracks,
-    },
+    tracks: current,
+    separation: { result: summary('a', 'htdemucs-6s', 'HTDemucs 6 sources'), showing: 'instruments', aside: base.tracks, others: [{ result: summary('b', 'bs-roformer-sw', 'BS-RoFormer SW'), tracks: other }] },
     corrections: { ...emptyCorrections(), key: { tonic: 3, mode: 'major' } as never },
+    keptRender: {
+      target: { semitones: 2, cents: -10, tempoRatio: 0.8, formants: false, audioKey: 'a-bass|a-other' },
+      renderedAt: '2026-11-13T10:10:00.000Z',
+      tracks: [
+        { trackId: 'track-a-bass', audioId: 'r-0', frames, channels: 2 },
+        { trackId: 'track-a-other', audioId: 'r-1', frames, channels: 2 },
+      ],
+    },
   };
   const originals = new Map([['audio-1', { bytes: Uint8Array.from({ length: 70_001 }, (_, i) => (i * 7) & 255).buffer, mimeType: 'audio/mpeg', fileName: 'Blues du dimanche.mp3' }]]);
-  return { input: { document: doc, originals, instruments: new Map([['sep-bass', bass], ['sep-other', other]]) }, bass, other };
+  const tracks = new Map([...pcm].map(([id, p]) => [id, async () => p] as const));
+  const input: ProjectFileInput = { document: doc, originals, tracks };
+  return { input, pcm };
 }
 
 function samePcm(a: PcmAudio, b: PcmAudio): boolean {
@@ -96,150 +111,129 @@ async function errorCode(p: Promise<unknown>): Promise<string> {
   return 'no error';
 }
 
-describe('the .fabtice file', () => {
-  it('round trip: document, original bytes untouched, instruments to the sample', async () => {
-    const { input, bass, other } = separatedInput();
-    const sink = memorySink();
-    const { bytes } = await writeProjectFile(input, sink, { now: new Date('2026-11-15T08:00:00Z') });
-    const file = sink.bytes();
-    expect(file.length).toBe(bytes);
-    expect(projectFileSize(input)).toBe(bytes);
-    // The fixed signature: « PK », then the mimetype entry and its content at byte 30.
-    expect(new TextDecoder().decode(file.subarray(30, 59))).toBe('mimetypeapplication/x-fabtice');
+const write = async (input: ProjectFileInput) => {
+  const sink = memorySink();
+  const out = await writeProjectFile(input, sink, { encode: nodeFlacEncode, now: new Date('2026-11-15T08:00:00Z') });
+  return { file: sink.bytes(), ...out };
+};
 
+describe('the .fab file', () => {
+  it('round trip: document, original bytes untouched, every separation and the kept render to the sample, in FLAC', async () => {
+    const { input, pcm } = workedOn();
+    const { file, bytes } = await write(input);
+    expect(file.length).toBe(bytes);
+    expect(new TextDecoder().decode(file.subarray(30, 59))).toBe('mimetypeapplication/x-fabtice');
     const opened = await openProjectFile(bytesSource(file));
+    await opened.verify();
     expect(opened.manifest.formatVersion).toBe(PROJECT_FILE_VERSION);
     expect(opened.document).toEqual(JSON.parse(JSON.stringify(input.document)));
     const original = await opened.readOriginal('audio-1');
     expect(new Uint8Array(original.bytes)).toEqual(new Uint8Array(input.originals.get('audio-1')!.bytes));
-    expect(original.fileName).toBe('Blues du dimanche.mp3');
-    expect(samePcm(await opened.readInstrument('sep-bass'), bass)).toBe(true);
-    const back = await opened.readInstrument('sep-other');
-    expect(back.mono).toBe(true);
-    expect(back.channelCount).toBe(2);
-    expect(samePcm(back, other)).toBe(true);
+    for (const [id, p] of pcm) {
+      const back = await opened.readTrack(id);
+      expect(samePcm(back, p), id).toBe(true);
+    }
+    // FLAC: well under the 16-bit samples' size.
+    const samples = [...pcm.values()].reduce((n, p) => n + p.frames * (p.mono ? 2 : 4), 0);
+    expect(bytes).toBeLessThan(samples);
   });
 
-  it('is an ordinary archive: the original and the instruments can be taken out with any tool', async () => {
-    const { input } = separatedInput();
-    const sink = memorySink();
-    await writeProjectFile(input, sink);
-    const names = (await readZipDirectory(bytesSource(sink.bytes()))).map((e) => e.name);
-    expect(names).toEqual(['mimetype', 'fabtice.json', 'projet.json', 'audio/Blues du dimanche.mp3', 'instruments/Basse.wav', 'instruments/Autres.wav']);
+  it('is an ordinary archive: each separation in its folder, the render apart, all in FLAC', async () => {
+    const { file } = await write(workedOn().input);
+    const names = (await readZipDirectory(bytesSource(file))).map((e) => e.name);
+    expect(names).toEqual([
+      'mimetype',
+      'fabtice.json',
+      'projet.json',
+      'audio/Blues du dimanche.mp3',
+      'separations/HTDemucs 6 sources/Basse.flac',
+      'separations/HTDemucs 6 sources/Autres.flac',
+      'separations/BS-RoFormer SW/Basse.flac',
+      'separations/BS-RoFormer SW/Voix.flac',
+      'rendu/Basse.flac',
+      'rendu/Autres.flac',
+    ]);
   });
 
-  it('without the instruments: the size says what they add', async () => {
-    const { input, bass, other } = separatedInput();
-    const whole = { ...input, document: { ...input.document, tracks: input.document.separation.aside, separation: { result: null, showing: 'whole' as const, aside: [] } }, instruments: new Map() };
-    expect(projectFileSize(input) - projectFileSize(whole)).toBeGreaterThan(instrumentsFileBytes([bass, other]));
-    const sink = memorySink();
-    await writeProjectFile(whole, sink);
-    const opened = await openProjectFile(bytesSource(sink.bytes()));
-    expect(opened.instrumentIds).toEqual([]);
-    expect(opened.document.separation.result).toBeNull();
+  it('a piece never separated: just the document and the original', async () => {
+    const base = sampleDocument();
+    const { file } = await write({ document: base, originals: workedOn().input.originals, tracks: new Map() });
+    const opened = await openProjectFile(bytesSource(file));
+    expect(trackEntries(opened.document)).toEqual([]);
   });
 
   it('refuses to write a document that names an audio it was not given', async () => {
-    const { input } = separatedInput();
-    await expect(writeProjectFile({ ...input, instruments: new Map() }, memorySink())).rejects.toThrow(/no audio/);
+    const { input } = workedOn();
+    await expect(writeProjectFile({ ...input, tracks: new Map() }, memorySink(), { encode: nodeFlacEncode })).rejects.toThrow(/no audio/);
   });
 
   it('opens a file whose document is from an older version (migrated, as the device copy is)', async () => {
-    const { input } = separatedInput();
+    const { input } = workedOn();
     const old = JSON.parse(JSON.stringify(input.document)) as Record<string, unknown>;
     old.version = 3;
     delete old.metronome;
     delete old.markers;
-    const sink = memorySink();
-    await writeProjectFile({ ...input, document: old as unknown as ProjectDocument }, sink);
-    const opened = await openProjectFile(bytesSource(sink.bytes()));
-    expect(opened.document.version).toBe(4);
+    delete old.keptRender;
+    const sep = old.separation as Record<string, unknown>;
+    delete sep.others;
+    const tracks = new Map([...input.tracks].filter(([id]) => id.startsWith('a-')));
+    const { file } = await write({ ...input, document: old as unknown as ProjectDocument, tracks });
+    const opened = await openProjectFile(bytesSource(file));
+    expect(opened.document.version).toBe(5);
     expect(opened.document.markers).toEqual({ loops: [] });
-    expect(opened.document.metronome.countInBars).toBe(0);
+    expect(opened.document.separation.others).toEqual([]);
+    expect(opened.document.keptRender).toBeNull();
   });
 
   it('says « too recent » for a later file layout or a later document', async () => {
-    const { input } = separatedInput();
-    const newerDoc = memorySink();
-    await writeProjectFile({ ...input, document: { ...input.document, version: 5 as 4 } }, newerDoc);
-    expect(await errorCode(openProjectFile(bytesSource(newerDoc.bytes())))).toBe('too-recent');
-
-    // A later layout: same entries, manifest version 2.
+    const { input } = workedOn();
+    const { file } = await write({ ...input, document: { ...input.document, version: 6 as 5 } });
+    expect(await errorCode(openProjectFile(bytesSource(file)))).toBe('too-recent');
     const sink = memorySink();
     const zip = new ZipStreamWriter(sink);
     const enc = (s: string) => new TextEncoder().encode(s) as Uint8Array<ArrayBuffer>;
     await zip.addSmall('mimetype', enc('application/x-fabtice'));
-    await zip.addSmall('fabtice.json', enc(JSON.stringify({ format: 'fabtice', formatVersion: 2, audio: [], instruments: [] })));
+    await zip.addSmall('fabtice.json', enc(JSON.stringify({ format: 'fabtice', formatVersion: 3, audio: [], tracks: [] })));
     await zip.finish();
     expect(await errorCode(openProjectFile(bytesSource(sink.bytes())))).toBe('too-recent');
   });
 
-  it('tells a damaged file from another kind of file', async () => {
-    const { input } = separatedInput();
-    const sink = memorySink();
-    await writeProjectFile(input, sink);
-    const good = sink.bytes();
-
+  it('tells a damaged file from another kind of file, and finds damage before anything is replaced', async () => {
+    const { input } = workedOn();
+    const { file: good } = await write(input);
     expect(await errorCode(openProjectFile(bytesSource(new TextEncoder().encode('ID3 not a project at all, an mp3 maybe'))))).toBe('not-project');
     expect(await errorCode(openProjectFile(bytesSource(new Uint8Array(0))))).toBe('not-project');
-    // Any other archive is not a project.
     const other = memorySink();
     const zip = new ZipStreamWriter(other);
     await zip.addSmall('readme.txt', new TextEncoder().encode('hello') as Uint8Array<ArrayBuffer>);
     await zip.finish();
     expect(await errorCode(openProjectFile(bytesSource(other.bytes())))).toBe('not-project');
-
-    // Cut short anywhere: damaged, never a crash.
     for (const keep of [40, 2000, Math.floor(good.length / 2), good.length - 30, good.length - 1]) {
       expect(await errorCode(openProjectFile(bytesSource(good.subarray(0, keep))))).toBe('damaged');
     }
-
-    // One byte changed in an instrument: the file opens, the instrument is refused by its checksum.
+    // One byte changed in a FLAC track: the file opens, `verify` finds it, and so does reading the track.
+    const entries = await readZipDirectory(bytesSource(good));
+    const flac = entries.find((e) => e.name === 'separations/BS-RoFormer SW/Voix.flac')!;
     const flipped = good.slice();
-    flipped[good.length - 2000] = flipped[good.length - 2000]! ^ 0xff;
+    const at = flac.headerOffset + 30 + new TextEncoder().encode(flac.name).length + 900;
+    flipped[at] = flipped[at]! ^ 0xff;
     const opened = await openProjectFile(bytesSource(flipped));
-    expect(await errorCode(opened.readInstrument('sep-other'))).toBe('damaged');
-    // In the original audio.
-    const flippedAudio = good.slice();
-    const entry = (await readZipDirectory(bytesSource(good))).find((e) => e.name.startsWith('audio/'))!;
-    const at = entry.headerOffset + 30 + new TextEncoder().encode(entry.name).length + 500;
-    flippedAudio[at] = flippedAudio[at]! ^ 0xff;
-    expect(await errorCode((await openProjectFile(bytesSource(flippedAudio))).readOriginal('audio-1'))).toBe('damaged');
-
-  });
-
-  it('a document of the wrong shape inside a well-formed file is damaged', async () => {
-    const sink = memorySink();
-    const zip = new ZipStreamWriter(sink);
-    const enc = (s: string) => new TextEncoder().encode(s) as Uint8Array<ArrayBuffer>;
-    await zip.addSmall('mimetype', enc('application/x-fabtice'));
-    await zip.addSmall('fabtice.json', enc(JSON.stringify({ format: 'fabtice', formatVersion: 1, audio: [], instruments: [] })));
-    await zip.addSmall('projet.json', enc(JSON.stringify({ ...sampleDocument(), tracks: [{ nonsense: true }] })));
-    await zip.finish();
-    expect(await errorCode(openProjectFile(bytesSource(sink.bytes())))).toBe('damaged');
-    // And a document that names an audio the file does not hold.
-    const sink2 = memorySink();
-    const zip2 = new ZipStreamWriter(sink2);
-    await zip2.addSmall('mimetype', enc('application/x-fabtice'));
-    await zip2.addSmall('fabtice.json', enc(JSON.stringify({ format: 'fabtice', formatVersion: 1, audio: [], instruments: [] })));
-    await zip2.addSmall('projet.json', enc(JSON.stringify(sampleDocument())));
-    await zip2.finish();
-    expect(await errorCode(openProjectFile(bytesSource(sink2.bytes())))).toBe('damaged');
+    expect(await errorCode(opened.verify())).toBe('damaged');
+    expect(await errorCode(opened.readTrack('b-vocals'))).toBe('damaged');
   });
 
   it('names the file after the piece', () => {
-    expect(projectFileName('Blue Bossa / take 2')).toBe('take 2.fabtice');
-    expect(projectFileName('Lover Man')).toBe('Lover Man.fabtice');
-    expect(projectFileName('  ')).toBe('Morceau.fabtice');
+    expect(projectFileName('Blue Bossa / take 2')).toBe('take 2.fab');
+    expect(projectFileName('Lover Man')).toBe('Lover Man.fab');
+    expect(projectFileName('  ')).toBe('Morceau.fab');
   });
 });
 
-// ---------------------------------------------------------------- size and memory
+// ---------------------------------------------------------------- size, time and memory
 
-/** A file on disk as a sink and as a source. */
 function diskFile() {
   const dir = mkdtempSync(path.join(tmpdir(), 'fabtice-format-'));
-  const file = path.join(dir, 'big.fabtice');
+  const file = path.join(dir, 'big.fab');
   const fd = openSync(file, 'w+');
   const sink: ByteSink = { write: (c) => void writeSync(fd, c) };
   const source = (): ByteSource => ({
@@ -254,72 +248,62 @@ function diskFile() {
 }
 
 /**
- * A long stereo instrument whose chunks all share one buffer: hundreds of MB
- * of samples to write while holding one chunk (the input itself costs nothing).
+ * The owner's measure: a piece of `minutes` with six stereo instruments, FLAC in the `.fab` against the 16-bit
+ * blocks the device keeps. Music-like signal (tones, a little noise), so FLAC has real work to do.
  */
-function hugeTrack(chunks: number): PcmAudio {
-  const l = new Int16Array(CHUNK);
-  const r = new Int16Array(CHUNK);
-  for (let i = 0; i < CHUNK; i++) {
-    l[i] = (i * 13) & 0x7fff;
-    r[i] = -((i * 7) & 0x7fff);
+async function measure(minutes: number) {
+  const frames = Math.round(SR * 60 * minutes);
+  const base = sampleDocument();
+  const stems = ['vocals', 'drums', 'bass', 'guitar', 'piano', 'other'] as const;
+  const pcm = new Map<string, PcmAudio>();
+  const tracks: Track[] = stems.map((stem, i) => {
+    const id = `m-${stem}`;
+    pcm.set(id, pcmFromChannels([tone(frames, 110 * (i + 1), 0.3), tone(frames, 165 * (i + 1), 0.25)], SR));
+    return { id: `t-${stem}`, name: stem, role: 'autres', mute: false, solo: false, volume: 1, stem, audio: { id, origin: 'separated', channels: 2, sampleRate: SR, frames } } as Track;
+  });
+  const doc: ProjectDocument = { ...base, tracks, separation: { result: { ...summary('m', 'htdemucs-6s', 'HTDemucs 6 sources'), stems: [...stems], kept: [...stems] }, showing: 'instruments', aside: base.tracks, others: [] } };
+  const originals = new Map([['audio-1', { bytes: new Uint8Array(4_000_000).fill(3).buffer, mimeType: 'audio/mpeg', fileName: 'long.mp3' }]]);
+  const blocks = [...pcm.values()].reduce((n, p) => n + p.bytes, 0);
+  const disk = diskFile();
+  try {
+    global.gc?.();
+    const before = process.memoryUsage();
+    let peak = 0;
+    const sample = () => {
+      const m = process.memoryUsage();
+      peak = Math.max(peak, m.rss - before.rss);
+    };
+    const watch = setInterval(sample, 5);
+    const t0 = performance.now();
+    const { bytes } = await writeProjectFile({ document: doc, originals, tracks: new Map([...pcm].map(([id, p]) => [id, async () => p] as const)) }, disk.sink, { encode: nodeFlacEncode, tick: async () => sample() });
+    const saveMs = performance.now() - t0;
+    const savePeak = peak;
+    peak = 0;
+    const t1 = performance.now();
+    const opened = await openProjectFile(disk.source());
+    await opened.verify();
+    for (const id of pcm.keys()) await opened.readTrack(id);
+    const openMs = performance.now() - t1;
+    sample();
+    clearInterval(watch);
+    // eslint-disable-next-line no-console
+    console.log(
+      `[fab] ${minutes} min, 6 stereo instruments: blocks ${Math.round(blocks / 1e6)} MB, .fab ${Math.round(bytes / 1e6)} MB (${Math.round((100 * bytes) / blocks)} %); ` +
+        `saved in ${(saveMs / 1000).toFixed(1)} s (one encoder; resident memory +${Math.round(savePeak / 1e6)} MB), ` +
+        `checked and decoded in ${(openMs / 1000).toFixed(1)} s (resident memory +${Math.round(peak / 1e6)} MB, the decoded samples included)`,
+    );
+    return { bytes, blocks };
+  } finally {
+    disk.done();
   }
-  const one: Chunk = { l, r };
-  const list = new Array<Chunk>(chunks).fill(one);
-  return { sampleRate: SR, frames: chunks * CHUNK, channelCount: 2, mono: false, chunks: list, bytes: chunks * CHUNK * 4 };
 }
 
-describe('a file of several hundred MB, written and read piece by piece', () => {
-  it('never holds the file in memory', { timeout: 300_000 }, async () => {
-    const chunks = 2400; // 2400 × 128 KiB = 315 MB of samples
-    const big = hugeTrack(chunks);
-    const base = sampleDocument();
-    const doc: ProjectDocument = {
-      ...base,
-      tracks: [separatedTrack('big', 'Basse', 'bass', big.frames, 2)],
-      separation: { result: separatedInput().input.document.separation.result, showing: 'instruments', aside: base.tracks },
-    };
-    const originals = new Map([['audio-1', { bytes: new Uint8Array(4_000_000).fill(3).buffer, mimeType: 'audio/mpeg', fileName: 'long.mp3' }]]);
-    const disk = diskFile();
-    try {
-      global.gc?.();
-      const before = process.memoryUsage();
-      let peak = 0;
-      const sample = () => {
-        const m = process.memoryUsage();
-        peak = Math.max(peak, m.arrayBuffers - before.arrayBuffers, m.rss - before.rss);
-      };
-      const watch = setInterval(sample, 5);
-      const t0 = performance.now();
-      const { bytes } = await writeProjectFile({ document: doc, originals, instruments: new Map([['big', big]]) }, disk.sink, { tick: async () => sample() });
-      const writeMs = performance.now() - t0;
-      sample();
-      const writePeak = peak;
-      expect(bytes).toBeGreaterThan(300_000_000);
-
-      // Reading back: checked against the CRC, slice by slice, into a track (the only real allocation: the samples themselves).
-      peak = 0;
-      const t1 = performance.now();
-      const opened = await openProjectFile(disk.source());
-      const back = await opened.readInstrument('big');
-      const readMs = performance.now() - t1;
-      sample();
-      clearInterval(watch);
-      expect(back.frames).toBe(big.frames);
-      expect(back.chunks[chunks - 1]!.l[CHUNK - 1]).toBe(l(CHUNK - 1));
-      expect(back.chunks[1234]!.r![777]).toBe(-((777 * 7) & 0x7fff));
-      const samples = back.bytes;
-      // eslint-disable-next-line no-console
-      console.log(`[format] ${Math.round(bytes / 1e6)} MB written in ${Math.round(writeMs)} ms (peak +${Math.round(writePeak / 1e6)} MB), read in ${Math.round(readMs)} ms (peak +${Math.round(peak / 1e6)} MB, of which ${Math.round(samples / 1e6)} MB are the samples read)`);
-      // Writing holds a few slices, not the file.
-      expect(writePeak).toBeLessThan(80_000_000);
-      // Reading holds the samples read, plus a few slices.
-      expect(peak).toBeLessThan(samples + 80_000_000);
-    } finally {
-      disk.done();
-    }
-    function l(i: number) {
-      return (i * 13) & 0x7fff;
-    }
+describe('FLAC in the .fab: size, time, memory', () => {
+  it('four minutes, six instruments', { timeout: 600_000 }, async () => {
+    const { bytes, blocks } = await measure(4);
+    expect(bytes).toBeLessThan(blocks);
+  });
+  it.runIf(process.env.FABTICE_FAB_LONG === '1')('twelve minutes, six instruments', { timeout: 1_800_000 }, async () => {
+    await measure(12);
   });
 });

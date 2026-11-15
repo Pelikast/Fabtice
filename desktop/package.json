@@ -52,7 +52,7 @@
     "publish": null,
     "fileAssociations": [
       {
-        "ext": "fabtice",
+        "ext": "fab",
         "name": "Projet Fabtice",
         "description": "Projet Fabtice",
         "role": "Editor",

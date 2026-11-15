@@ -166,6 +166,23 @@ describe('progressive acceleration', () => {
     core.setAcceleration(null);
     expect(core.rateTarget).toBeCloseTo(1.2, 12);
   }, T);
+
+  it('a new audio thread takes the acceleration up where the closed one was (step and passes), within bounds', async () => {
+    const core = await makeCore();
+    addTrack(core, new Float32Array(SR * 4));
+    core.setLoop(true, 0, SR);
+    core.setAcceleration({ factors: Float64Array.from([0.5, 0.75, 1]), every: 3 });
+    core.resumeAcceleration(1, 2);
+    expect(core.accelStep).toBe(1);
+    expect(core.accelerationPasses).toBe(2);
+    expect(core.rateTarget).toBe(0.75);
+    core.resumeAcceleration(9, 9); // out of range: the last step, one pass short of the next
+    expect(core.accelStep).toBe(2);
+    expect(core.accelerationPasses).toBe(2);
+    core.setAcceleration(null);
+    core.resumeAcceleration(1, 0); // no plan: nothing
+    expect(core.rateTarget).toBe(1);
+  }, T);
 });
 
 describe('click sounds and volume', () => {

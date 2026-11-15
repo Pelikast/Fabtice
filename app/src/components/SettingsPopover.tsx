@@ -9,9 +9,12 @@ import { StandardsSettingsEntry } from './StandardsOffer';
 import { ChordModelSetting } from './ChordModelSetting';
 import { setFormants, setSeparationModel } from '../store/separationActions';
 import { useApp } from '../store/store';
+import { chooseSeparation } from '../separation/runner';
 import { useFitPanel } from '../ui/useFitPanel';
 import { ExportItems } from './ExportMenu';
 import { DeviceStorage } from './DeviceStorage';
+import { AudioJournalCopy } from './AudioJournalCopy';
+import { isDesktop } from '../platform/desktopBridge';
 import { formatSize } from '../separation/useChoice';
 
 const MINOR: { value: MinorNotation; sample: string }[] = [
@@ -110,6 +113,7 @@ function AdvancedSettings() {
               </small>
             )}
           </label>
+          <ListenedSeparation />
           <ChordModelSetting />
           <StandardsSettingsEntry
             onOpen={() => {
@@ -127,8 +131,31 @@ function AdvancedSettings() {
             </label>
           )}
           <DeviceStorage />
+          {/* The Mac app has it in Aide → Diagnostic… */}
+          {!isDesktop() && <AudioJournalCopy />}
         </div>
       )}
     </div>
+  );
+}
+
+/** Version 5: with several separations kept, which one is heard (the same choice as in the separation panel). */
+function ListenedSeparation() {
+  const current = useApp((s) => s.separation.result);
+  const others = useApp((s) => s.separation.others);
+  const running = useApp((s) => s.separationRun.status === 'running');
+  if (!current || others.length === 0) return null;
+  return (
+    <label className="option option-colonne">
+      <span>{t('settings.listenedSeparation')}</span>
+      <select value={current.id} disabled={running} data-testid="separation-ecoutee" onChange={(e) => void chooseSeparation(e.target.value)}>
+        {[current, ...others.map((o) => o.result)].map((r) => (
+          <option key={r.id} value={r.id}>
+            {r.modelName}
+          </option>
+        ))}
+      </select>
+      <small>{t('settings.listenedNote')}</small>
+    </label>
   );
 }

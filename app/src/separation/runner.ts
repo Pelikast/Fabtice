@@ -17,10 +17,11 @@
 //   - A new piece cancels the separation of the previous one.
 
 import { pcmBytes, sumPcm, type PcmAudio } from '../audio/pcm';
-import { getAudio, registerAudio } from '../audio/registry';
+import { dropAudio, getAudio, registerAudio } from '../audio/registry';
+import { t } from '../i18n';
 import type { SeparationSummary, StemId } from '../model/separation';
 import { getKeeper, getProjectStorage } from '../storage';
-import { applySeparation, dropSeparation, setImportStems, setSeparationNotice, setSeparationRun, wholeTracks } from '../store/separationActions';
+import { applySeparation, dropOtherSeparation, dropSeparation, setImportStems, setSeparationNotice, setSeparationRun, switchSeparation, wholeTracks } from '../store/separationActions';
 import { setStorageNotice } from '../store/actions';
 import { appStore, type AppState } from '../store/store';
 import { newId } from '../util/id';
@@ -138,13 +139,15 @@ export async function startSeparation(options: StartOptions = {}): Promise<void>
       computeSeconds: out.computeSeconds,
       pieceSeconds: audio.frames / audio.sampleRate,
     };
-    const before = [...store.getState().tracks, ...store.getState().separation.aside].filter((tr) => tr.audio.origin === 'separated').map((tr) => tr.audio.id);
-    await applySeparation(summary, registered);
+    const change = await applySeparation(summary, registered);
     // A real separation leaves its measurement report (« Copier le rapport », the Mac app's diagnostics).
     if (out.report) keepSeparationReport(id, out.report);
     setSeparationProgress({ fraction: 1, remainingSeconds: 0, download: null });
     setSeparationRun({ status: 'idle' });
-    if (before.length) void getProjectStorage().deleteTrackAudio(before).catch(() => {});
+    // A tool run again replaces its own separation; the one that was current is kept among the others, on the
+    // device (out of memory once it is safely there).
+    if (change.replaced.length) void getProjectStorage().deleteTrackAudio(change.replaced).catch(() => {});
+    if (change.setAside.length) void releaseKept(project.id, change.setAside);
   } catch (e) {
     if (!stillMine()) return;
     const code = e instanceof SeparationError ? e.code : 'failed';
@@ -166,6 +169,65 @@ async function keepOnDevice(projectId: string, tracks: readonly (readonly [strin
     // Not kept: the instruments stay usable now; the next launch opens the whole piece and says so.
     setStorageNotice(e instanceof Error && e.name === 'StorageError' && (e as { code?: string }).code === 'quota' ? 'full' : 'unavailable');
     await storage.deleteTrackAudio(tracks.map(([id]) => id)).catch(() => {});
+  }
+}
+
+/**
+ * The samples of a separation that is no longer current leave memory once they are on the device; a piece
+ * that is not kept there (the demo, a device that refuses) keeps them in memory, so that it can be chosen again.
+ */
+async function releaseKept(projectId: string, audioIds: readonly string[]): Promise<void> {
+  const keeper = getKeeper();
+  await keeper.settled();
+  if (keeper.attachedProject !== projectId) return;
+  try {
+    const usage = await getProjectStorage().trackAudioUsage();
+    const stored = new Set(usage.ids);
+    const s = appStore.getState();
+    const still = new Set([...s.tracks, ...s.separation.aside].map((tr) => tr.audio.id));
+    for (const id of audioIds) if (stored.has(id) && !still.has(id)) dropAudio(id);
+  } catch {
+    // stays in memory
+  }
+}
+
+/**
+ * Version 5, « choisir une autre séparation »: one of the kept separations becomes the current one, without
+ * computing anything: its samples come from memory, or from the device (a fraction of a second). Resolves
+ * false (and says so) if they cannot be read; that separation is then forgotten.
+ */
+export async function chooseSeparation(resultId: string): Promise<boolean> {
+  const s = appStore.getState();
+  const chosen = s.separation.others.find((o) => o.result.id === resultId);
+  if (!chosen || !s.project) return false;
+  const projectId = s.project.id;
+  try {
+    for (const tr of chosen.tracks) {
+      if (getAudio(tr.audio.id)) continue;
+      const pcm = await getProjectStorage().loadTrackAudio(tr.audio.id);
+      if (!pcm) throw new Error(`instrument ${tr.audio.id} not on the device`);
+      registerAudio(tr.audio.id, pcm);
+    }
+  } catch {
+    if (appStore.getState().project?.id !== projectId) return false;
+    const gone = dropOtherSeparation(resultId);
+    void getProjectStorage().deleteTrackAudio(gone).catch(() => {});
+    setSeparationNotice(t('separation.otherLost'));
+    return false;
+  }
+  if (appStore.getState().project?.id !== projectId) return false;
+  const setAside = await switchSeparation(resultId);
+  void releaseKept(projectId, setAside);
+  return true;
+}
+
+/** Version 5: forgets one of the other separations, memory and device. */
+export async function freeOtherSeparation(resultId: string): Promise<void> {
+  const ids = dropOtherSeparation(resultId);
+  try {
+    await getProjectStorage().deleteTrackAudio(ids);
+  } catch {
+    // swept at the next launch
   }
 }
 

@@ -20,6 +20,13 @@ function buildMenu({ openDiagnostic }) {
       ],
     },
     {
+      label: 'Fichier',
+      submenu: [
+        // macOS keeps this list itself (app.addRecentDocument, projects.js); a choice comes back as `open-file`.
+        { role: 'recentDocuments', label: 'Ouvrir un projet récent', submenu: [{ role: 'clearRecentDocuments', label: 'Effacer le menu' }] },
+      ],
+    },
+    {
       label: 'Édition',
       submenu: [
         { role: 'undo', label: 'Annuler' },
@@ -61,6 +68,7 @@ function buildMenu({ openDiagnostic }) {
   // Outside macOS the first menu has no app role: keep the same entries usable.
   if (process.platform !== 'darwin') {
     template[0] = { label: 'Fabtice', submenu: [{ role: 'quit', label: 'Quitter Fabtice' }] };
+    template.splice(1, 1);
     template[3] = { label: 'Fenêtre', submenu: [{ role: 'minimize', label: 'Réduire' }, { role: 'close', label: 'Fermer' }] };
   }
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));

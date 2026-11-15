@@ -80,7 +80,7 @@
   .cle-editeur { left: 0; width: min(320px, calc(100vw - 24px)); }
   .accord-case { min-height: 40px; margin: 0 -3px; padding: 0 3px; }
   .case[data-rangs="2"] .accord-case { min-height: 0; }
-  .case .accord-case[data-debut] { left: calc(var(--debut) * (100% - var(--pg) - var(--pd)) + var(--pg) - 3px); }
+  .case .accord-case[data-debut] { left: calc(var(--debut) * (100% - var(--pg) - var(--pd)) + var(--pg) - 3px + var(--pousse, 0px)); }
   .accord-case.libre { min-width: 36px; height: 48px; }
   .case .numero { top: 4px; right: 5px; }
   .analyse-bouton { padding: 4px 6px; font-size: 12px; }

@@ -109,15 +109,30 @@ Ouvrez ensuite Fabtice normalement.
    (la fenêtre d’impression de macOS) ou **Enregistrer en PDF…** (le volet
    d’enregistrement de macOS, dans le dossier Téléchargements, au nom du morceau).
 6. **Projets** : **Exporter > Enregistrer le projet…** fait un seul fichier
-   `.fabtice` qui garde tout (le morceau tel qu’importé, la grille, les
-   accords, vos corrections, les boucles et repères, le métronome et, au
-   choix, les instruments séparés) ; la fenêtre d’enregistrement de macOS
-   s’ouvre au nom du morceau. Pour le rouvrir : **double-clic** sur le fichier
-   dans le Finder (ou clic droit > **Ouvrir avec** > Fabtice), le déposer sur
-   la fenêtre, ou « ouvrir un projet Fabtice » dans la fenêtre « Nouveau
-   morceau ». Le morceau ouvert est remplacé comme par un import ; si le
-   fichier est abîmé, une phrase le dit et rien ne change. Format :
-   `app/src/project/FORMAT.md`.
+   `.fab` qui garde tout : le morceau tel qu’importé, la grille, les accords,
+   vos corrections, les boucles et repères, le métronome, **toutes** les
+   séparations faites (une par outil) et le dernier rendu « meilleure
+   qualité », ces pistes en FLAC sans perte ; la fenêtre d’enregistrement de
+   macOS s’ouvre au nom du morceau. Pour le rouvrir : **double-clic** sur le
+   fichier dans le Finder (ou clic droit > **Ouvrir avec** > Fabtice), le
+   déposer sur la fenêtre, « ouvrir un projet Fabtice » ou un des **projets
+   récents** dans la fenêtre « Nouveau morceau », ou **Fichier > Ouvrir un
+   projet récent** (aussi dans le Dock). Le morceau ouvert est remplacé comme
+   par un import ; si le fichier est abîmé, une phrase le dit et rien ne
+   change. Format : `app/src/project/FORMAT.md`.
+7. **Le son ne démarre plus ?** Menu **Aide > Diagnostic…**, puis **Copier le
+   journal audio** (il est aussi dans « Copier le diagnostic ») et collez le
+   texte dans la conversation. Il donne, avec l’heure, ce que Fabtice a fait de
+   la sortie audio (ouverte, mise en sommeil, rendue au système, rouverte,
+   reprise après une panne), les mises en veille et sorties de veille du Mac,
+   les changements de périphériques audio et l’arrêt éventuel d’un processus
+   de Chromium. Il est gardé après un redémarrage du Mac. Fabtice rend la
+   sortie audio au système après 45 secondes sans lecture et dès que le Mac
+   se met en veille ; il n’empêche jamais la mise en veille. Si le son de tout
+   le Mac est bloqué (même l’aperçu du Finder reste muet), il n’est en général
+   pas nécessaire de redémarrer : ouvrir **Moniteur d’activité**, chercher
+   `coreaudiod`, le sélectionner puis **Forcer à quitter** (mot de passe
+   demandé) ; macOS le relance aussitôt.
 
 L’app utilise yt-dlp tel quel, depuis la connexion de l’utilisateur, sans
 aucun moyen de contourner les protections de YouTube. Si YouTube refuse, le
@@ -126,6 +141,19 @@ diagnostic montre simplement le message d’erreur.
 ## Pour le développement
 
 Fonctionnement :
+
+- **Sortie audio et veille** : `src/power-events.js` écoute `powerMonitor`
+  (veille, réveil, verrouillage de l’écran, température, arrêt) et
+  `child-process-gone` / `render-process-gone` (arrêt du service audio, du
+  processus graphique ou d’une page) ; il écrit dans le journal et transmet
+  veille, réveil et verrouillage aux fenêtres (`fabtice:power`, `onPower` du
+  pont), dont le moteur rend alors la sortie audio. `src/audio-journal.js`
+  garde les 200 derniers événements (ceux de l’interface arrivent par
+  `audioJournalAdd`, la source est déduite de l’adresse de l’expéditeur) dans
+  `audio-journal.json` du dossier de données ; `audioJournal()` le rend en
+  texte pour la fenêtre de diagnostic. Le lecteur de la fenêtre de diagnostic
+  ferme lui aussi son contexte 30 s après la dernière pause et à la veille.
+  L’app n’utilise jamais `powerSaveBlocker` (un test le vérifie).
 
 - L’interface est construite par `app/` (`npm run build:desktop`) dans
   `desktop/ui/` (non versionné) et embarquée dans l’app. Elle est servie par
@@ -141,19 +169,32 @@ Fonctionnement :
 - La page de diagnostic est servie par `fabtice://diagnostic/` et partage le
   même `window.fabtice` (`src/preload.js`). Les appels IPC ne sont acceptés
   que de ces deux adresses, depuis la fenêtre principale d’une page.
-- Projets `.fabtice` (lot 4) : l’extension est déclarée à macOS par
-  `fileAssociations` dans `package.json` (« Projet Fabtice »,
-  `application/x-fabtice`), ce qui donne le double-clic et « Ouvrir avec ».
+- Projets `.fab` (lot 4, puis décisions du 15 novembre) : l’extension est
+  déclarée à macOS par `fileAssociations` dans `package.json` (`fab`, « Projet
+  Fabtice », `application/x-fabtice`), ce qui donne le double-clic et « Ouvrir
+  avec ». Tout ce qui touche aux projets dans le processus principal est dans
+  `src/projects.js` (main.js n’a que trois points d’accroche : la création,
+  `registerIpc`, et `onSaved` des téléchargements).
   macOS signale le fichier par l’évènement `open-file`, écouté dès
   `will-finish-launching` (l’app peut être lancée pour lui) ; un chemin passé
   en argument (seconde instance) est traité de même. `src/open-files.js` ne
-  retient qu’un chemin absolu vers un fichier ordinaire en `.fabtice` de moins
+  retient qu’un chemin absolu vers un fichier ordinaire en `.fab` de moins
   de 4 Go, sous un jeton aléatoire ; la page demande ceux qui attendent
   (`pendingProjects`), reçoit les suivants (`onOpenProject`), lit chacun par
   plages de 16 Mo au plus (`readProjectFile`) et le libère
   (`releaseProjectFile`). Aucun autre fichier n’est lisible par ce chemin. La
-  fenêtre d’enregistrement d’un projet a son titre et le filtre `.fabtice`
-  (`src/downloads.js`). Ce qui ne peut pas être essayé ici : le double-clic
+  fenêtre d’enregistrement d’un projet a son titre et le filtre `.fab`
+  (`src/downloads.js`). **Projets récents** (`src/recent-projects.js`) : les
+  huit derniers `.fab` ouverts (Finder, liste, sélecteur de la page : le
+  preload lit le chemin avec `webUtils.getPathForFile`, la page ne le voit
+  jamais) ou enregistrés (fin du téléchargement), dans
+  `recent-projects.json` du dossier de données, les fichiers disparus retirés ;
+  chacun est aussi donné à macOS (`app.addRecentDocument` : menu Fichier >
+  Ouvrir un projet récent, rôle `recentDocuments`, et le Dock ; un choix
+  revient en `open-file`). La page reçoit nom et dossier (« ~ » pour le
+  dossier personnel) et ouvre par un jeton de la dernière liste
+  (`recentProjects`, `openRecentProject`) ; le fichier lui arrive alors comme
+  depuis le Finder. Ce qui ne peut pas être essayé ici : le double-clic
   réel dans le Finder et l’icône du type de fichier ; le test de bout en bout
   fait ce que fait macOS (`app.emit('open-file', …)`).
 - Pas de service worker dans l’app Mac : la version web hors ligne

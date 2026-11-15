@@ -629,51 +629,93 @@ Pistes ; rien n'a été écouté à l'oreille ici. À essayer par le propriétai
 le son des trois clics, le décompte et l'accélération sur un vrai morceau, la
 lisibilité du panneau sur iPhone.
 
-## Lot 4 — projets, hors ligne, réglages : ce qui est livré, choix faits, limites
+## Lot 4 — projets `.fab`, hors ligne, réglages : ce qui est livré, choix faits, limites
 
-**Livré (branche `lot-4-etape-2`).**
-- *Projets.* « Exporter → Enregistrer le projet… » produit un fichier
-  `.fabtice` unique, avec ou sans les instruments séparés (taille annoncée) :
-  téléchargement dans le navigateur, fenêtre d'enregistrement de macOS dans
-  l'app Mac. On le rouvre par « ouvrir un projet Fabtice » dans la fenêtre
-  « Nouveau morceau », en le déposant sur la fenêtre, ou dans l'app Mac par
-  double-clic ou « Ouvrir avec ».
-- *Ouverture.* Elle remplace le morceau comme un import : tout est vérifié
-  avant, tout revient sans nouvelle analyse (grille, tonalité, corrections à
-  la main, accords, boucles et repères, métronome, instruments séparés), puis
-  le projet devient le morceau gardé. Un fichier abîmé, trop récent ou qui
-  n'est pas un projet donne une phrase calme, et rien ne change.
-- *Format* (`app/src/project/FORMAT.md`) : une archive ZIP ordinaire, sans
-  compression, signée par une première entrée `mimetype` ; `fabtice.json`
-  (manifeste, `formatVersion` 1), `projet.json` (le document version 4, relu
-  par les mêmes migrations), `audio/` (le fichier importé, octet pour octet),
-  `instruments/*.wav` (16 bits, 48 kHz). Moins de 4 Go.
-- *Hors ligne.* La version web s'ouvre et joue le morceau gardé sans réseau
-  (service worker écrit à la main, manifeste, icônes tirées du logo) ; jamais
-  de service worker dans l'app Mac.
-- *Réglages.* Sous l'outil de séparation : taille, source et licence. Dans
-  les avancés : « Place sur cet appareil », avec « Libérer » pour les outils
-  téléchargés.
+**Livré (décisions du propriétaire du 15 novembre, voir `CLAUDE.md`).**
+- *Projets `.fab`.* Un seul fichier qui garde tout : le morceau tel
+  qu'importé, octet pour octet ; le document (version 5) ; **toutes** les
+  séparations, une par outil ; le dernier rendu « meilleure qualité ». Ces
+  pistes sont en FLAC 16 bits sans perte (libFLAC pour l'encodage, un
+  décodeur TypeScript à nous pour la lecture, exact à l'échantillon, qui
+  écrit directement dans les blocs 16 bits partagés). Format :
+  `app/src/project/FORMAT.md` (`formatVersion` 2 ; l'ancien `.fabtice`, jamais
+  publié, n'est pas relu).
+- *Ouvrir un projet.* Depuis « Nouveau morceau », en déposant le fichier sur
+  la fenêtre, et dans l'app Mac par double-clic, « Ouvrir avec » et les
+  **projets récents** (dans la fenêtre, dans Fichier → Ouvrir un projet
+  récent, et dans le Dock). Tout est vérifié avant de remplacer le morceau ;
+  un fichier abîmé ou trop récent est refusé calmement.
+- *Plusieurs séparations.* Refaire une séparation avec un autre outil met la
+  précédente de côté ; avec le même outil, elle remplace la sienne. On passe
+  de l'une à l'autre sans recalcul (panneau des instruments, « Séparations
+  gardées », ou Réglages avancés), chacune avec ses réglages de pistes ;
+  chacune se libère seule (« Place sur cet appareil »).
+- *Le dernier rendu « Appliquer meilleure qualité » est gardé* avec le
+  morceau (appareil et `.fab`), un seul à la fois : il est réentendu dès que
+  tonalité, tempo et pistes sont les siens ; un nouveau le remplace, jamais
+  l'original ni les séparations.
+- *Hors ligne et réglages* : service worker écrit à la main, manifeste,
+  icônes tirées du logo (jamais dans l'app Mac) ; taille, source et licence
+  des outils ; « Place sur cet appareil ».
 
-**Choix faits, à faire valider par le propriétaire.** Instruments en WAV (pas
-de FLAC : pas de décodeur à nous qui respecte la règle mémoire), inclus par
-défaut. Un seul morceau gardé sur l'appareil, pas de « Morceaux récents » :
-les fichiers servent à en garder d'autres. Les gros fichiers d'ONNX Runtime
-(15 et 29 Mo) et la description du modèle d'accords détaillé sont gardés
-hors ligne au premier usage, pas d'emblée. Une nouvelle version du site prend
-la main au lancement suivant ; en ligne, la page est toujours la plus
-récente. Pas de réglage d'instrument par défaut (le choix Ut, Si♭, Mi♭ suit
-déjà d'un morceau au suivant).
+**Choix faits, à faire valider par le propriétaire.**
+- **Sur l'appareil, les pistes restent en blocs 16 bits, pas en FLAC**
+  (mesuré : 4 minutes à six instruments, 277 Mo relus en 1 s, contre 162 Mo
+  en FLAC à décoder en 6 s ; 12 minutes, 830 Mo en 3,4 s contre 477 Mo et
+  20 s). La réouverture rapide a primé ; le FLAC sert au fichier qu'on garde
+  et qu'on envoie. S'il préfère la place à la vitesse, le décodeur existe.
+- L'original reste tel qu'importé (un mp3 reste un mp3).
+- Plus de case « sans les instruments » : le projet les contient toujours.
+- Sur le web, pas de liste de projets récents (seul Chrome le permettrait,
+  avec une autorisation à chaque réouverture) : « Rouvrir » pour le morceau
+  gardé et le sélecteur de fichiers.
+- Un seul morceau gardé sur l'appareil ; les gros fichiers de calcul sont
+  gardés hors ligne au premier usage seulement.
 
 **Limites.** N'ont pas pu être essayés ici : les vraies fenêtres de macOS, le
-double-clic dans le Finder et l'icône du type de fichier, l'installation de
-la version web sur iPhone ou dans Safari, le service worker sur Netlify. **Au
-premier déploiement Netlify, vérifier d'abord le hors-ligne et les en-têtes
-d'isolation** (un service worker fautif reste installé chez les visiteurs).
-Un projet de 20 minutes avec sept instruments (environ 1,6 Go) n'a pas été
-mesuré : dans le navigateur, le fichier s'assemble en mémoire.
+menu des projets récents et le Dock, le double-clic dans le Finder et l'icône
+du type, l'installation de la version web sur iPhone ou dans Safari, le
+service worker sur Netlify. **Au premier déploiement Netlify, vérifier
+d'abord le hors-ligne et les en-têtes d'isolation.** Un projet de 20 minutes
+à plusieurs séparations (plus de 1 Go) n'a pas été mesuré dans un
+navigateur. Enregistrer un `.fab` prend du temps pour un long morceau
+(environ 30 s pour 12 minutes à six instruments ici, pourcentage affiché).
 
-**Reste du lot 4** : finitions selon les retours du propriétaire.
+## Sortie audio rendue au système (retours du 15 novembre)
+
+Sur le Mac Intel, le son de tout le Mac s'est bloqué après que Fabtice était
+resté ouvert longtemps sans jouer (service audio de macOS figé, redémarrage
+nécessaire). **La cause n'est pas prouvée** et ne peut pas être reproduite
+ici. Hypothèses, de la plus à la moins probable : panne de macOS 12 autour
+d'une veille ou d'un changement de sortie pendant que Fabtice gardait un flux
+ouvert ; contexte audio resté en marche par une course au démarrage (ce que
+le code permettait : c'est un fait) ; lecteur de la fenêtre Diagnostic jamais
+fermé (un fait aussi, s'il y avait importé un lien) ; manque de mémoire
+pendant un calcul ; panne de macOS sans rapport avec l'app.
+
+Désormais le moteur (`app/src/audio/WorkletEngine.ts`) met le contexte en
+sommeil 0,4 s après une pause et le **ferme après 45 s sans lecture** ; il le
+ferme aussi à la mise en veille du Mac, à la sortie de veille, à l'écran
+verrouillé sans lecture, à un changement de périphérique audio (la lecture
+est mise en pause, sans reprise automatique), à la page masquée sans lecture
+et à la page quittée (`audio/deviceLifecycle.ts`,
+`desktop/src/power-events.js`). La lecture suivante rouvre tout sans que rien
+ne change (pistes, séparations, rendu appliqué ou gardé, boucle, tonalité,
+tempo, métronome, accélération, position), avec environ 50 à 100 ms de plus
+au démarrage (mesuré ici, pas sur ses Mac). Un contexte qui ne démarre pas,
+ou un moteur qui ne publie plus sa position, est refait **une fois** ; au
+second échec, un message calme s'affiche et « Lecture » reste disponible. Le
+**journal audio** (200 événements datés, gardé après un redémarrage) se copie
+depuis Aide → Diagnostic… (« Copier le journal audio », inclus dans « Copier
+le diagnostic ») et, sur le web, depuis les réglages avancés. L'app n'empêche
+jamais la mise en veille (un test le vérifie). Corrigé au passage dans le
+moteur : un déplacement demandé pendant le fondu de 8 ms d'une pause était
+perdu si la lecture suivait aussitôt.
+
+En cas de nouveau blocage, à dire au propriétaire : copier le journal audio
+(il survit au redémarrage) ; pour retrouver le son sans redémarrer, Moniteur
+d'activité → `coreaudiod` → Forcer à quitter ; noter si le Mac avait dormi ou
+si un écran, un casque ou des écouteurs avaient changé.
 
 ## Points ouverts
 

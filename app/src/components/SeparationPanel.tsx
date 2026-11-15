@@ -21,6 +21,7 @@ import { estimateSentence, formatSize, formatWait, useSeparationChoice } from '.
 import type { ModelChoice } from '../separation/types';
 import { closePanel, togglePanel } from '../store/actions';
 import { showInstruments, showWholePiece, stemName } from '../store/separationActions';
+import { KeptSeparations } from './KeptSeparations';
 import { useApp } from '../store/store';
 import { getDesktopBridge } from '../platform/desktopBridge';
 import { onSeparationReport, separationReportFor } from '../separation/report';
@@ -116,6 +117,7 @@ function SeparationPanel({ ref }: { ref: Ref<HTMLDivElement> }) {
     <div ref={fitRef} className="fenetre panneau-separation" role="dialog" aria-label={t('separation.title')} data-testid="panneau-separation">
       <h2 className="libelle">{t('separation.title')}</h2>
       {run.status === 'running' ? <Running /> : result ? <Done /> : <Offer />}
+      {run.status !== 'running' && <KeptSeparations />}
       {getSeparator().kind === 'mock' && <p className="panneau-note discret">{t('separation.mockNote')}</p>}
     </div>
   );

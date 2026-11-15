@@ -43,6 +43,7 @@ export function sampleDocument(overrides: Partial<ProjectDocument> = {}): Projec
     metronome: defaultMetronome(),
     markers: emptyMarkers(),
     savedAt: '2026-11-13T10:05:00.000Z',
+    keptRender: null,
     ...overrides,
   };
 }

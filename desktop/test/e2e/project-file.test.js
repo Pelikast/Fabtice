@@ -1,6 +1,6 @@
 'use strict';
 
-// Lot 4, `.fabtice` projects inside the Mac app, end to end:
+// Lot 4, `.fab` projects inside the Mac app, end to end:
 //   1. a WAV of several MB is imported, separated (the stand-in separator of
 //      `?debug`: real 16-bit instruments of the piece's length), corrected by
 //      hand, given a named loop and metronome settings;
@@ -122,22 +122,26 @@ test('a project saved in the app opens in a fresh app from the Finder, everythin
       await page.click('button:has-text("Exporter")');
       await page.click('.menu-export [data-export="project"]');
       await page.waitForSelector('[data-testid="enregistrer-projet"]');
-      await page.waitForSelector('[data-testid="avec-instruments"]');
-      assert.equal(await page.isChecked('[data-testid="avec-instruments"]'), true, 'with the instruments by default');
       await page.click('[data-testid="preparer-projet"]');
       await page.waitForSelector('[data-testid="fichier-projet"]', { timeout: 120000 });
       await page.click('[data-testid="fichier-projet"]');
       for (let i = 0; i < 300 && (await app.evaluate(() => globalThis.__downloads.length)) === 0; i++) await page.waitForTimeout(100);
       const [d] = await app.evaluate(() => globalThis.__downloads);
       assert.equal(d.state, 'completed');
-      assert.equal(d.name, 'Blues du dimanche.fabtice');
+      assert.equal(d.name, 'Blues du dimanche.fab');
       assert.equal(d.options.title, 'Enregistrer le projet');
-      assert.deepEqual(d.options.filters, [{ name: 'Projet Fabtice', extensions: ['fabtice'] }]);
+      assert.deepEqual(d.options.filters, [{ name: 'Projet Fabtice', extensions: ['fab'] }]);
       saved = d.target;
       const size = fs.statSync(saved).size;
       assert.equal(size, d.total);
-      // The original as imported, plus two stereo instruments of 40 s at 48 kHz in 16 bits (7.7 MB each).
-      assert.ok(size > wavBytes + 2 * 7_000_000, `realistic size: ${size} bytes`);
+      // The original as imported, plus the instruments of 40 s in FLAC (7.7 MB each in 16 bits, about 60 % of that).
+      assert.ok(size > wavBytes + 2 * 2_000_000 && size < wavBytes + 4 * 7_700_000, `realistic size: ${size} bytes`);
+      // Saved: it is the first of the recent projects (the page sees its name and folder, never the path).
+      await page.waitForTimeout(300);
+      const recent = await page.evaluate(() => window.fabtice.recentProjects());
+      assert.equal(recent[0] && recent[0].name, 'Blues du dimanche.fab', JSON.stringify(recent));
+      // The page opens one by its token only: a path it would make up opens nothing.
+      assert.deepEqual(await page.evaluate((p) => window.fabtice.openRecentProject(p), saved), { ok: false });
       const head = fs.readFileSync(saved).subarray(0, 59);
       assert.equal(head.toString('latin1', 30), 'mimetypeapplication/x-fabtice');
       await clean(page, problems, 'saving');
@@ -171,7 +175,7 @@ test('a project saved in the app opens in a fresh app from the Finder, everythin
     }
   }
 
-  // ... and it is kept: a relaunch brings it back, instruments included.
+  // ... and it is kept: a relaunch brings it back, instruments included; it is in the recent projects.
   {
     const { app, page, problems } = await launchInterface(UTF8, userB);
     try {
@@ -179,16 +183,27 @@ test('a project saved in the app opens in a fresh app from the Finder, everythin
       await pieceReady(page);
       assert.deepEqual(await snapshot(page), before, 'kept on the device as it was opened');
 
+      // « Projets récents » in « Nouveau morceau »: the file opened from the Finder, opened again from there.
+      await page.evaluate(() => window.__fabtice.actions.openNewPiece());
+      await page.waitForSelector('[data-testid="projets-recents"] .lien', { timeout: 10000 });
+      assert.equal((await page.textContent('[data-testid="projets-recents"] .lien')).trim(), 'Blues du dimanche');
+      await page.screenshot({ path: path.join(base, 'recents.png') });
+      if (process.env.FABTICE_E2E_SHOTS) fs.copyFileSync(path.join(base, 'recents.png'), path.join(process.env.FABTICE_E2E_SHOTS, 'projets-recents.png'));
+      await page.click('[data-testid="projets-recents"] .lien');
+      await page.waitForFunction(() => window.__fabtice.store.getState().ui.import.kind === 'busy', null, { timeout: 10000 }).catch(() => {});
+      await pieceReady(page);
+      assert.deepEqual(await snapshot(page), before, 'opened again from the recent projects');
+
       // 4. A damaged copy, handed over the same way: a calm sentence, the open piece stays.
       const bytes = fs.readFileSync(saved);
-      const damaged = path.join(base, 'Abîmé.fabtice');
+      const damaged = path.join(base, 'Abîmé.fab');
       fs.writeFileSync(damaged, bytes.subarray(0, Math.floor(bytes.length * 0.7)));
       await openAsFinderDoes(app, damaged);
       await page.waitForSelector('.import-erreur', { timeout: 60000 });
       const text = await page.textContent('.import-erreur');
       assert.match(text, /incomplet ou abîmé/);
       assert.equal(await page.evaluate(() => window.__fabtice.store.getState().project.id), before.project, 'the open piece is untouched');
-      // Anything else handed over is ignored (only .fabtice files are read).
+      // Anything else handed over is ignored (only .fab files are read).
       await openAsFinderDoes(app, wav);
       await clean(page, problems, 'damaged file');
     } finally {

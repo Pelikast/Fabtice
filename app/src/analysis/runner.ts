@@ -73,7 +73,7 @@ export async function runAnalysis(): Promise<void> {
     }
     const prev = analysisProgressStore.getState();
     const fraction = Math.min(1, Math.max(Math.max(0, p.fraction), prev.fraction));
-    const windowChanged = (p.chordWindow?.done ?? -1) !== (prev.chordWindow?.done ?? -1);
+    const windowChanged = (p.chordWindow?.done ?? -1) !== (prev.chordWindow?.done ?? -1) || Math.abs((p.chordWindow?.fraction ?? 0) - (prev.chordWindow?.fraction ?? 0)) >= 0.005;
     if (fraction - prev.fraction >= 0.002 || (p.download?.loaded ?? 0) !== (prev.download?.loaded ?? 0) || windowChanged) {
       setAnalysisProgress({ fraction, download: p.download ?? null, chordWindow: p.chordWindow ?? null });
     }

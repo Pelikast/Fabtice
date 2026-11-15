@@ -20,6 +20,7 @@ import { mixToMono } from './engine/resample';
 import type { NetworkOutputs } from './engine/pipeline';
 import { CHORD_MODEL_ID, modelsFor, type BeatModelChoice, type ChordModelChoice } from './models';
 import { openModelStore } from './models/store';
+import { createWindowClock, DEFAULT_WINDOW_SECONDS } from './windowClock';
 import {
   AnalysisError,
   type AnalysisErrorCode,
@@ -64,6 +65,12 @@ const GRACE_MS = 300;
 
 /** Expected duration of the chord network, in seconds of work per second of music (for the steady progress). */
 const CHORD_SECONDS_PER_SECOND = 0.01;
+
+/**
+ * Seconds one window of the fine chord model took in the last analysis of this session (null
+ * before any): the prior of the next one's steady progress (`windowClock.ts`).
+ */
+let sessionWindowSeconds: number | null = null;
 
 export interface FabticeAnalyzerOptions {
   beatModel?: BeatModelChoice;
@@ -219,6 +226,8 @@ export class FabticeAnalyzer implements Analyzer {
       let latest = 0;
       let download: AnalysisProgress['download'];
       let chordWindow: AnalysisProgress['chordWindow'];
+      const clock = createWindowClock(sessionWindowSeconds ?? DEFAULT_WINDOW_SECONDS);
+      let windowsMeasured = false;
       const weights = request.chordModel === 'fine' ? FINE_STEP_WEIGHTS : STEP_WEIGHTS;
       const share = (s: AnalysisStep): [number, number] => {
         const scale = downloadBytes > 0 ? 1 - DOWNLOAD_SHARE : 1;
@@ -234,7 +243,11 @@ export class FabticeAnalyzer implements Analyzer {
         const [base, weight] = share(step);
         let f = stepFraction;
         // The chord network gives no news while it runs: advance on the clock, never to the end.
-        if (step === 'chords' && f === 0 && !chordWindow) {
+        if (step === 'chords' && chordWindow) {
+          // The fine model reports whole windows: the clock fills in between, from the windows before.
+          f = clock.fraction(performance.now());
+          chordWindow = { ...chordWindow, fraction: f };
+        } else if (step === 'chords' && f === 0 && request.chordModel !== 'fine') {
           const expected = Math.max(1, duration * CHORD_SECONDS_PER_SECOND);
           f = Math.min(0.95, 1 - Math.exp(-(performance.now() - stepStarted) / 1000 / expected));
         }
@@ -277,11 +290,16 @@ export class FabticeAnalyzer implements Analyzer {
             step = m.step;
             stepFraction = m.fraction;
             download = m.download;
-            if (m.chordWindow) chordWindow = m.chordWindow;
+            if (m.chordWindow) {
+              chordWindow = m.chordWindow;
+              clock.report(m.chordWindow.done, m.chordWindow.total, performance.now());
+              if (m.chordWindow.done > 0) windowsMeasured = true;
+            }
             report();
             break;
           case 'result':
             latest = 1;
+            if (windowsMeasured) sessionWindowSeconds = clock.windowSeconds();
             try {
               request.onProgress?.({ step: 'finish', fraction: 1 });
             } catch {

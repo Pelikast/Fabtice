@@ -14,6 +14,9 @@
 
 import type { Seconds, TimeRange } from '../model/project';
 import type { PcmAudio } from './pcm';
+import type { ReleaseReason } from './journal';
+
+export type { ReleaseReason };
 
 /** The engine runs its AudioContext at this rate, whatever the machine's setting. */
 export const ENGINE_SAMPLE_RATE = 48000;
@@ -264,6 +267,15 @@ export interface AudioEngine {
 
   /** True while the rendered set is what is heard (see `setRenderedTracks`). Cheap. */
   isRenderedInUse(): boolean;
+
+  /**
+   * Gives the audio output back to the system now (the Mac goes to sleep or wakes up, the output device
+   * changed, the page is hidden or left: see `audio/deviceLifecycle.ts`). Pauses first if playing (the
+   * state becomes `ready`, the position stays where it was heard). Tracks, applied render, loop, key,
+   * tempo, mixes and metronome are kept; the next `play()` opens the output again (a little later than
+   * usual). The engine also does this by itself after a while without playback.
+   */
+  releaseDevice(reason: ReleaseReason): void;
 
   /** Subscribes to an event; returns the unsubscribe function. */
   on<K extends keyof EngineEvents>(event: K, listener: EngineEvents[K]): () => void;

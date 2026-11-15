@@ -304,3 +304,21 @@
 .place-lignes li:first-child { border-top: 0; }
 .place-taille { color: var(--encre-douce); font-variant-numeric: tabular-nums; }
 .place-lignes .lien { min-height: 32px; font-size: 13px; }
+
+/* « Séparations gardées » in the separation panel (owner's decisions of 15 November). */
+.separations-gardees { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--trait-fin); }
+.separations-gardees ul { list-style: none; margin: 4px 0; padding: 0; }
+.separations-gardees li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 12px;
+  min-height: 40px;
+  border-top: 1px solid var(--trait-fin);
+  font-size: 14px;
+}
+.separations-gardees li:first-child { border-top: 0; }
+.separations-gardees li[aria-current] .separation-nom { font-weight: 600; }
+.separations-gardees small { color: var(--encre-douce); font-weight: 400; }
+.separations-gardees .separation-actions { display: flex; gap: 14px; }

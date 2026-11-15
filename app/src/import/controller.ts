@@ -98,7 +98,7 @@ export function startFileImport(file: File): Promise<void> {
 }
 
 /**
- * Lot 4, « Ouvrir un projet… » (or a `.fabtice` file dropped, or opened by the
+ * Lot 4, « Ouvrir un projet… » (or a `.fab` file dropped, or opened by the
  * Mac app): the project replaces the open piece, as an import does.
  */
 export function startProjectOpen(source: ByteSource, name: string): Promise<void> {

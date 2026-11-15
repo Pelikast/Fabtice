@@ -18,6 +18,7 @@ import {
   type EngineEvents,
   type EngineState,
   type EngineTrack,
+  type ReleaseReason,
   type TrackMix,
 } from './AudioEngine';
 
@@ -51,6 +52,8 @@ export interface MockEngineSnapshot {
   accelerationStep: number;
   /** Count-in of the last `play()` (offsets in source seconds), null when none. */
   lastCountIn: number[] | null;
+  /** Every `releaseDevice()` call, oldest first (the reasons). */
+  releases: ReleaseReason[];
   /** The « Appliquer » audio received (null when none) and whether it is the one heard. */
   rendered: { tracks: string[]; semitones: number; cents: number; tempoRatio: number; inUse: boolean } | null;
 }
@@ -78,6 +81,7 @@ export class MockEngine implements AudioEngine {
   private acceleration: AccelerationSchedule | null = null;
   private accelStep = 0;
   private accelPasses = 0;
+  private releases: ReleaseReason[] = [];
   /** Count-in in progress: the clock times (ms) its clicks sound at; the music starts at `anchorTime`. */
   private countInAt: number[] = [];
   private lastCountIn: number[] | null = null;
@@ -163,6 +167,12 @@ export class MockEngine implements AudioEngine {
     if (!this.playing) return;
     this.stop();
     this.setState('ready');
+  }
+
+  /** No device here: pauses like the real engine and remembers why (`snapshot().releases`). */
+  releaseDevice(reason: ReleaseReason): void {
+    this.releases.push(reason);
+    this.pause();
   }
 
   seek(time: Seconds): void {
@@ -319,6 +329,7 @@ export class MockEngine implements AudioEngine {
       acceleration: this.acceleration ? { factors: [...this.acceleration.factors], every: this.acceleration.every } : null,
       accelerationStep: this.getMetronomeStatus().accelerationStep,
       lastCountIn: this.lastCountIn,
+      releases: [...this.releases],
       rendered: this.rendered
         ? {
             tracks: this.rendered.tracks.map((t) => t.id),

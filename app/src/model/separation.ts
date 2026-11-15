@@ -104,8 +104,28 @@ export interface SeparationState {
    * while the whole piece is. Empty when `result` is null.
    */
   aside: Track[];
+  /**
+   * Version 5: the other separations of the piece, one per tool (running a tool
+   * again replaces its own), each with its instrument tracks and their own mix
+   * (mute, solo, volume). Not in memory: their samples stay on the device (and
+   * in the `.fab` file) until one is chosen, which swaps it with the current
+   * one without computing anything.
+   */
+  others: OtherSeparation[];
+}
+
+/** A separation kept but not current: its summary and its instrument tracks, with their mix. */
+export interface OtherSeparation {
+  result: SeparationSummary;
+  tracks: Track[];
 }
 
 export function emptySeparation(): SeparationState {
-  return { result: null, showing: 'whole', aside: [] };
+  return { result: null, showing: 'whole', aside: [], others: [] };
+}
+
+/** Every separated track of the piece: the current separation's and the others'. */
+export function allSeparatedTracks(sep: SeparationState, shown: readonly Track[]): Track[] {
+  const current = [...shown, ...sep.aside].filter((tr) => tr.audio.origin === 'separated');
+  return [...current, ...sep.others.flatMap((o) => o.tracks)];
 }

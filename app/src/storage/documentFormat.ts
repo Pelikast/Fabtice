@@ -49,6 +49,12 @@ export const MIGRATIONS: Migrations = {
     metronome: defaultMetronome(),
     markers: emptyMarkers(),
   }),
+  // Version 4 -> 5: the one separation stays the current one, no other; no render kept (it never was).
+  4: (doc) => ({
+    ...doc,
+    separation: isRec(doc.separation) ? { ...doc.separation, others: [] } : doc.separation,
+    keptRender: null,
+  }),
 };
 
 type Rec = Record<string, unknown>;
@@ -163,9 +169,35 @@ function checkCorrections(c: unknown): void {
  * result, the whole piece is shown and nothing is aside; with one, exactly
  * one of the two sets (shown, aside) is the whole piece.
  */
+function checkSummary(r: unknown): void {
+  if (!isRec(r) || !isStr(r.id) || !isStr(r.modelId) || !isStr(r.modelName) || !isStr(r.modelSha256)) corrupt('separation result');
+  if ((r.backend !== 'gpu' && r.backend !== 'cpu') || typeof r.fellBack !== 'boolean') corrupt('separation backend');
+  if (!Array.isArray(r.stems) || !r.stems.every(isStemId) || !Array.isArray(r.kept) || !r.kept.every(isStemId)) corrupt('separation stems');
+  if (!isStr(r.startedAt) || !isStr(r.finishedAt) || !isNum(r.computeSeconds) || !isNum(r.pieceSeconds)) corrupt('separation dates');
+}
+
+/** Version 5: the other separations, one per tool, each with its own instrument tracks. Read exactly. */
+function checkOthers(sep: Rec): void {
+  if (!Array.isArray(sep.others)) corrupt('other separations');
+  const tools = new Set<string>();
+  if (isRec(sep.result)) tools.add(sep.result.modelId as string);
+  for (const o of sep.others as unknown[]) {
+    if (!isRec(o) || !Array.isArray(o.tracks) || o.tracks.length === 0) corrupt('other separation');
+    checkSummary(o.result);
+    const tool = (o.result as Rec).modelId as string;
+    if (tools.has(tool)) corrupt('two separations with one tool');
+    tools.add(tool);
+    for (const tr of o.tracks as unknown[]) {
+      checkTrack(tr);
+      if (((tr as Rec).audio as Rec).origin !== 'separated') corrupt('other separation: a track that is not an instrument');
+    }
+  }
+}
+
 function checkSeparation(doc: Rec): void {
   const sep = doc.separation;
   if (!isRec(sep) || (sep.showing !== 'whole' && sep.showing !== 'instruments') || !Array.isArray(sep.aside)) corrupt('separation');
+  checkOthers(sep);
   for (const tr of sep.aside as unknown[]) checkTrack(tr);
   const tracks = doc.tracks as Rec[];
   const aside = sep.aside as Rec[];
@@ -175,10 +207,7 @@ function checkSeparation(doc: Rec): void {
     if (sep.showing !== 'whole' || aside.length > 0) corrupt('separation without a result');
     return;
   }
-  if (!isRec(r) || !isStr(r.id) || !isStr(r.modelId) || !isStr(r.modelName) || !isStr(r.modelSha256)) corrupt('separation result');
-  if ((r.backend !== 'gpu' && r.backend !== 'cpu') || typeof r.fellBack !== 'boolean') corrupt('separation backend');
-  if (!Array.isArray(r.stems) || !r.stems.every(isStemId) || !Array.isArray(r.kept) || !r.kept.every(isStemId)) corrupt('separation stems');
-  if (!isStr(r.startedAt) || !isStr(r.finishedAt) || !isNum(r.computeSeconds) || !isNum(r.pieceSeconds)) corrupt('separation dates');
+  checkSummary(r);
   if (aside.length === 0) corrupt('separation: nothing aside');
   const [shown, other] = sep.showing === 'instruments' ? [tracks, aside] : [aside, tracks];
   if (!isWhole(other) || !shown.every((tr) => (tr.audio as Rec).origin === 'separated')) corrupt('separation: sets mixed up');
@@ -266,8 +295,19 @@ export function readDocument(raw: unknown, migrations: Migrations = MIGRATIONS, 
   checkCorrections(doc.corrections);
   checkSeparation(doc);
   checkMarkers(doc.markers);
-  doc = { ...doc, analysis: readAnalysis(doc.analysis), exportPrefs: readExportPrefs(doc.exportPrefs), metronome: readMetronome(doc.metronome) };
+  doc = { ...doc, analysis: readAnalysis(doc.analysis), exportPrefs: readExportPrefs(doc.exportPrefs), metronome: readMetronome(doc.metronome), keptRender: readKeptRender(doc.keptRender) };
   const view = doc.view as Rec;
   if (!INSTRUMENTS.includes(view.instrument as never)) doc = { ...doc, view: { ...view, instrument: 'ut' } };
   return doc as unknown as ProjectDocument;
+}
+
+// ---------------------------------------------------------------- version 5: the render kept
+
+/** The kept render is a convenience (it can be made again): anything unreadable is simply dropped. */
+function readKeptRender(r: unknown): unknown {
+  if (!isRec(r) || !isStr(r.renderedAt) || !Array.isArray(r.tracks) || r.tracks.length === 0) return null;
+  const t = r.target;
+  if (!isRec(t) || !isNum(t.semitones) || !isNum(t.cents) || !isNum(t.tempoRatio) || typeof t.formants !== 'boolean' || !isStr(t.audioKey)) return null;
+  const ok = (r.tracks as unknown[]).every((x) => isRec(x) && isStr(x.trackId) && isStr(x.audioId) && isNum(x.frames) && isNum(x.channels));
+  return ok ? r : null;
 }

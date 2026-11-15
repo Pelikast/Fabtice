@@ -3,17 +3,15 @@ import { chord } from '../harmony/chord';
 import { constantTempoMap } from '../grid/tempoMap';
 import { emptyCorrections } from '../model/corrections';
 import { movableBeats, withBarChords, withChordMoved, type BarEntry } from './edits';
-import { chordStart, fitLayout, fitsAt, FIT_RATIOS, PRINT_GEOMETRY, type FitChord, type FitGeometry } from './fit';
+import { chordStart, fitBar, fitChart, FIT_GAP_EM, FIT_MIN_RIGHT, FIT_RATIOS, PRINT_GEOMETRY, type FitChord, type FitGeometry } from './fit';
 import { chartBars, resolveChords } from './layout';
 
 // A desktop bar: 206 px wide, chords of 30 px; a phone bar: 91 px, chords of 21 px.
 const desktop: FitGeometry = { width: 206, padLeft: 16, padRight: 8, base: 30, room: 77 };
 const phone: FitGeometry = { width: 91, padLeft: 8, padRight: 2, base: 21, room: 64 };
 
-// Widths in em, in the order of what the chart's font gives: « Dm7 » 2.0, « G7 » 1.3, « C♯m7♭5 » 2.6, « F♯7♭9 » 2.6.
+// Widths in em, as the chart's font gives: « Dm7 » 2.0, « G7 » 1.3.
 const SHORT = 2.0;
-const LONG1 = 2.6;
-const LONG2 = 2.6;
 const at = (beat: number, beats: number, em: number): FitChord => ({ frac: beat / beats, em });
 
 describe('where chords sit in a bar', () => {
@@ -33,64 +31,108 @@ describe('where chords sit in a bar', () => {
   });
 });
 
-describe('the size of a bar’s chords', () => {
-  it('two short chords on beats 1 and 3 keep the normal size, on one row', () => {
-    expect(fitLayout([at(0, 4, SHORT), at(2, 4, SHORT)], desktop)).toEqual({ step: 0, rows: 1 });
+describe('one size for the whole chart', () => {
+  const bar = (chords: FitChord[], g: FitGeometry = desktop) => ({ chords, geometry: g });
+  // « D♭7♯11 » is about 4.2 em wide in the chart's font, « D–7⁹ » about 3.2 em.
+  const LATE = 4.2;
+  const MINOR = 3.2;
+
+  it('two short chords on beats 1 and 3, or one chord: normal size, one row, nothing pushed', () => {
+    const r = fitChart([bar([at(0, 4, SHORT), at(2, 4, SHORT)]), bar([at(0, 4, 1.2)])]);
+    expect(r.step).toBe(0);
+    expect(r.bars.map((b) => b.rows)).toEqual([1, 1]);
+    expect(r.bars.flatMap((b) => b.push)).toEqual([0, 0, 0]);
+    expect(r.limitedBy).toBeNull();
   });
 
-  it('one chord, even at beat 4, is not made smaller when it fits', () => {
-    expect(fitLayout([at(3, 4, 1.2)], desktop)).toEqual({ step: 0, rows: 1 });
+  it('bar 31: a long symbol on beat 4 does not shrink the bar, it is pushed back against the end bar line', () => {
+    // Before: beat 4 starts at 153 px of a 206 px bar, 45 px of room for a 126 px symbol: the whole bar went to 11 px.
+    const late = [at(0, 4, 2.2), at(3, 4, LATE)];
+    const r = fitChart([bar(late)]);
+    expect(r.step).toBe(0);
+    const f = r.bars[0]!;
+    expect(f.fits).toBe(true);
+    expect(f.push[0]).toBe(0);
+    expect(f.push[1]!).toBeLessThan(-50);
+    // It ends inside the bar, against the bar line.
+    const start = chordStart(3 / 4, desktop) + f.push[1]!;
+    expect(start + LATE * 30).toBeLessThanOrEqual(desktop.width - FIT_MIN_RIGHT + 0.01);
+    expect(start + LATE * 30).toBeGreaterThan(desktop.width - 10);
   });
 
-  it('« C♯m7♭5 » then « F♯7♭9 » on beats 1 and 3: normal size when the bar is wide enough, the next steps when not', () => {
-    const pair = [at(0, 4, LONG1), at(2, 4, LONG2)];
-    expect(fitLayout(pair, desktop).step).toBe(0);
-    // A bar of 150 px: the first symbol (78 px at 30 px) would touch the second at the middle.
-    const narrow: FitGeometry = { ...desktop, width: 150, room: 77 };
-    const r = fitLayout(pair, narrow);
+  it('two long chords that then touch go on two rows at the same size, never smaller', () => {
+    const r = fitChart([bar([at(0, 4, MINOR + 1), at(3, 4, LATE + 1)])]);
+    expect(r.step).toBe(0);
+    expect(r.bars[0]!.rows).toBe(2);
+    expect(r.bars[0]!.fits).toBe(true);
+  });
+
+  it('the neighbours are not affected: a crowded bar changes its own rows, not the size of the others', () => {
+    const calm = bar([at(0, 4, SHORT), at(2, 4, SHORT)]);
+    const crowded = bar([at(0, 4, 1.8), at(1, 4, 1.8), at(2, 4, 1.8), at(3, 4, 2.4)]);
+    const r = fitChart([calm, crowded, calm]);
+    expect(r.step).toBe(0);
+    expect(r.bars.map((b) => b.rows)).toEqual([1, 2, 1]);
+  });
+
+  it('a chord that would touch the one before it moves right of it rather than shrink everything', () => {
+    // Three chords on a phone: beats 1 and 3 share a row and the first is a little too wide for the middle.
+    const f = fitBar([at(0, 4, 2.0), at(1, 4, 1.4), at(2, 4, 1.4)], phone, 1);
+    expect(f.rows).toBe(2);
+    expect(f.fits).toBe(true);
+    expect(f.push[2]!).toBeGreaterThan(0);
+  });
+
+  it('chords sharing a row are pushed against each other and keep their order and a gap', () => {
+    const chords = [at(0, 4, 2), at(1, 4, 2), at(3, 4, LATE)];
+    const f = fitBar(chords, desktop, 1);
+    const size = desktop.base;
+    // Rows by turns: chords 0 and 2 share the first row.
+    const x0 = chordStart(0, desktop) + f.push[0]!;
+    const x2 = chordStart(3 / 4, desktop) + f.push[2]!;
+    expect(f.rows).toBe(2);
+    expect(x2).toBeGreaterThanOrEqual(x0 + 2 * size + FIT_GAP_EM * size - 0.01);
+  });
+
+  it('the size goes down for the WHOLE chart, and only when a bar does not fit even on two rows', () => {
+    // A symbol wider than any bar at the large sizes: every bar follows, the same step.
+    const huge = bar([at(0, 4, 6.5)]);
+    const calm = bar([at(0, 4, SHORT), at(2, 4, SHORT)]);
+    const r = fitChart([calm, huge, calm]);
     expect(r.step).toBeGreaterThan(0);
-    expect(fitsAt(pair, narrow, FIT_RATIOS[r.step]!, r.rows)).toBe(true);
+    expect(r.limitedBy).toBe(1);
+    expect(r.lastResort).toBe(false);
+    expect(r.bars.every((b) => b.fits)).toBe(true);
+    // The step is the largest that works: one larger, the huge bar does not fit.
+    expect(fitBar(huge.chords, desktop, FIT_RATIOS[r.step - 1]!).fits).toBe(false);
   });
 
-  it('four chords on four beats of a desktop bar go down the steps on one row', () => {
-    const four = [0, 1, 2, 3].map((b) => at(b, 4, SHORT));
-    const r = fitLayout(four, desktop);
-    expect(r.rows).toBe(1);
-    expect(r.step).toBeGreaterThan(0);
-    expect(fitsAt(four, desktop, FIT_RATIOS[r.step]!, 1)).toBe(true);
+  it('on a phone a lone symbol of 4 em still fits at the normal size; four chords go on two rows', () => {
+    const r = fitChart([bar([at(0, 4, 3.2)], phone), bar([0, 1, 2, 3].map((b) => at(b, 4, 1.4)), phone)]);
+    expect(r.step).toBe(0);
+    expect(r.bars[1]!.rows).toBe(2);
   });
 
-  it('on a phone, chords that cannot be read side by side go on two rows rather than shrink further', () => {
-    // Two chords one beat apart in a bar 91 px wide: side by side they would need 8 px letters.
-    const close = [at(0, 4, 2.4), at(1, 4, 2.4)];
-    const r = fitLayout(close, phone);
-    expect(r.rows).toBe(2);
-    expect(r.step).toBeLessThanOrEqual(2);
-    expect(fitsAt(close, phone, FIT_RATIOS[r.step]!, 2)).toBe(true);
-    expect(fitsAt(close, phone, FIT_RATIOS[2]!, 1)).toBe(false);
+  it('a symbol too long for any step is still written, at the smallest step, and says so', () => {
+    const r = fitChart([bar([at(0, 4, 40), at(1, 4, 40)], phone)]);
+    expect(r.step).toBe(FIT_RATIOS.length - 1);
+    expect(r.lastResort).toBe(true);
   });
 
-  it('every answer that is not the last resort really fits', () => {
+  it('a chart without chords has nothing to fit', () => {
+    expect(fitChart([bar([]), bar([])])).toMatchObject({ step: 0, lastResort: false });
+  });
+
+  it('every bar of every beat count, on screen and paper, fits or is the declared last resort', () => {
     for (const g of [desktop, phone, PRINT_GEOMETRY]) {
       for (const beats of [3, 4, 5, 7]) {
-        for (const placed of [[0, 2], [0, 1], [0, 2, 3], [0, 1, 2, 3], [1, 3], [3]]) {
-          const chords = placed.filter((b) => b < beats).map((b) => at(b, beats, 2.4));
-          const r = fitLayout(chords, g);
-          const last = r.step === FIT_RATIOS.length - 1;
-          if (!last) expect(fitsAt(chords, g, FIT_RATIOS[r.step]!, r.rows)).toBe(true);
+        for (const placed of [[0, 2], [0, 1], [0, 2, 3], [0, 1, 2, 3], [1, 3], [3], [2, 3]]) {
+          const chords = placed.filter((b) => b < beats).map((b) => at(b, beats, 3));
+          const r = fitChart([bar(chords, g)]);
+          expect(r.lastResort || r.bars[0]!.fits).toBe(true);
         }
       }
     }
-  });
-
-  it('a symbol too long for any step is still written, at the smallest step', () => {
-    const r = fitLayout([at(0, 4, 40), at(1, 4, 40)], phone);
-    expect(r.step).toBe(FIT_RATIOS.length - 1);
-  });
-
-  it('never leaves the bar: a last chord reaching past the bar line is made smaller', () => {
-    const r = fitLayout([at(3, 4, 2.6)], desktop);
-    expect(r.step).toBeGreaterThan(0);
   });
 });
 
