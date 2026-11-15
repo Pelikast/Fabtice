@@ -332,3 +332,19 @@ export async function reviveKeptRender(source?: ReadonlyMap<string, PcmAudio>): 
     reviving = false;
   }
 }
+
+/** « Libérer » the kept render (« Place sur cet appareil »): forgotten, memory and device; the original stays. */
+export async function forgetKeptRender(): Promise<void> {
+  const kept = appStore.getState().keptRender;
+  if (!kept) return;
+  if (appStore.getState().render.status === 'applied') {
+    dropRendered();
+    setRender({ status: 'none' });
+  }
+  appStore.setState({ keptRender: null });
+  try {
+    await getProjectStorage().deleteTrackAudio(kept.tracks.map((t) => t.audioId));
+  } catch {
+    // swept at the next launch
+  }
+}
