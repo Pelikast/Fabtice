@@ -22,7 +22,7 @@ const MAX_FILE_BYTES = 0xffffffff;
 const MAX_READ_BYTES = 16 * 1024 * 1024;
 
 /**
- * @param {{ fsp?: typeof fsp }} [deps]
+ * @param {{ fsp?: typeof fsp, onAccepted?: (entry: { token: string, name: string, size: number }, filePath: string) => void }} [deps]
  */
 function createOpenFiles(deps = {}) {
   const files = deps.fsp || fsp;
@@ -33,19 +33,31 @@ function createOpenFiles(deps = {}) {
   /** @type {((entry: { token: string, name: string, size: number }) => void) | null} */
   let listener = null;
 
-  /** A path macOS handed over: kept if it is a `.fab` regular file of a sane size. Resolves the entry or null. */
-  async function accept(filePath) {
+  /** The size of a `.fab` regular file of a sane size at an absolute path, or null. */
+  async function projectSize(filePath) {
     if (typeof filePath !== 'string' || !path.isAbsolute(filePath) || path.extname(filePath).toLowerCase() !== EXTENSION) return null;
-    let st;
     try {
-      st = await files.stat(filePath);
+      const st = await files.stat(filePath);
+      return st.isFile() && st.size <= MAX_FILE_BYTES ? st.size : null;
     } catch {
       return null;
     }
-    if (!st.isFile() || st.size > MAX_FILE_BYTES) return null;
+  }
+
+  /** True for a path `accept` would take. */
+  async function isProjectFile(filePath) {
+    return (await projectSize(filePath)) !== null;
+  }
+
+  /** A path macOS handed over: kept if it is a `.fab` regular file of a sane size. Resolves the entry or null. */
+  async function accept(filePath) {
+    const size = await projectSize(filePath);
+    if (size === null) return null;
+    const st = { size };
     const token = crypto.randomBytes(16).toString('hex');
     const entry = { token, name: path.basename(filePath), size: st.size };
     known.set(token, { path: filePath, name: entry.name, size: st.size });
+    if (deps.onAccepted) deps.onAccepted(entry, filePath);
     if (listener) listener(entry);
     else pending.push(entry);
     return entry;
@@ -94,7 +106,7 @@ function createOpenFiles(deps = {}) {
     known.delete(token);
   }
 
-  return { accept, takePending, onOpen, read, release };
+  return { accept, isProjectFile, takePending, onOpen, read, release };
 }
 
 /** `.fab` paths in a command line (a second launch, or a launch that names files). */

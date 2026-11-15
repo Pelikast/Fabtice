@@ -1,6 +1,6 @@
 'use strict';
 
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
 function subscribe(channel, callback) {
   const listener = (_event, payload) => callback(payload);
@@ -26,6 +26,19 @@ contextBridge.exposeInMainWorld('fabtice', {
   readProjectFile: (token, offset, length) => ipcRenderer.invoke('fabtice:read-project', String(token), Number(offset), Number(length)),
   releaseProjectFile: (token) => ipcRenderer.invoke('fabtice:release-project', String(token)),
   onOpenProject: (cb) => subscribe('fabtice:open-project', cb),
+  recentProjects: () => ipcRenderer.invoke('fabtice:recent-projects'),
+  openRecentProject: (token) => ipcRenderer.invoke('fabtice:open-recent-project', String(token)),
+  clearRecentProjects: () => ipcRenderer.invoke('fabtice:clear-recent-projects'),
+  // A project chosen in the page's file picker: its path (never shown to the page) goes in the recent list.
+  rememberProjectFile: (file) => {
+    let p = '';
+    try {
+      p = webUtils.getPathForFile(file);
+    } catch {
+      return Promise.resolve(false);
+    }
+    return p ? ipcRenderer.invoke('fabtice:remember-project', p) : Promise.resolve(false);
+  },
   onYtdlpProgress: (cb) => subscribe('fabtice:ytdlp-progress', cb),
   onExtractProgress: (cb) => subscribe('fabtice:extract-progress', cb),
 });

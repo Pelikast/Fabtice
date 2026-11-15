@@ -218,3 +218,11 @@
 @media (max-width: 760px) {
   .avis-stockage { bottom: 212px; }
 }
+
+/* Mac app: « Projets récents » in « Nouveau morceau », a few calm lines. */
+.projets-recents { margin: 4px 0 8px; }
+.projets-recents h3 { font-size: 11px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; color: var(--encre-douce); margin: 8px 0 2px; }
+.projets-recents ul { list-style: none; margin: 0; padding: 0; }
+.projets-recents li { display: flex; align-items: baseline; gap: 10px; min-height: 32px; font-size: 14px; }
+.projets-recents li .lien { text-align: left; }
+.projets-recents small { color: var(--encre-douce); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }

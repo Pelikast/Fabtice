@@ -735,6 +735,7 @@ export const fr = {
   'project.instrumentsLost': 'Les instruments séparés de ce projet n’ont pas pu être lus : le morceau s’ouvre entier. Vous pouvez séparer de nouveau.',
   'new.openProject': 'ouvrir un projet Fabtice',
   'new.openProjectLead': 'Déjà un projet enregistré ?',
+  'new.recentTitle': 'Projets récents',
   'export.saveProject': 'Enregistrer le projet…',
   'export.saveProjectNote': 'un fichier .fab',
   'export.saveProjectDemo': 'pas pour la démonstration',

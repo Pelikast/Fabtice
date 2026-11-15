@@ -61,9 +61,9 @@ function saveDialogOptions(filename, folder) {
 
 /**
  * @param {import('electron').Session} electronSession
- * @param {{ downloadsDir: () => string }} options
+ * @param {{ downloadsDir: () => string, onSaved?: (savedPath: string) => void }} options
  */
-function installDownloads(electronSession, { downloadsDir }) {
+function installDownloads(electronSession, { downloadsDir, onSaved }) {
   let lastFolder = null;
   electronSession.on('will-download', (_event, item) => {
     item.setSaveDialogOptions(saveDialogOptions(item.getFilename(), lastFolder || downloadsDir()));
@@ -71,6 +71,8 @@ function installDownloads(electronSession, { downloadsDir }) {
       if (state !== 'completed') return;
       const saved = item.getSavePath();
       if (saved) lastFolder = path.dirname(saved);
+      // A project saved goes in the recent list (projects.js).
+      if (saved && onSaved) onSaved(saved);
     });
   });
 }

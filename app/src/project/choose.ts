@@ -4,6 +4,7 @@
 // is the user's gesture.
 
 import { startProjectOpen } from '../import/controller';
+import { getDesktopBridge } from '../platform/desktopBridge';
 import { FILE_EXTENSION, PROJECT_MIME } from './fileFormat';
 import { blobSource } from './zip';
 
@@ -26,7 +27,10 @@ export function chooseProjectFile(): void {
   input.addEventListener('change', () => {
     done();
     const file = input.files?.[0];
-    if (file) void startProjectOpen(blobSource(file), file.name);
+    if (!file) return;
+    // Mac app: it goes in the recent projects.
+    void getDesktopBridge()?.rememberProjectFile?.(file).catch(() => false);
+    void startProjectOpen(blobSource(file), file.name);
   });
   document.body.append(input);
   input.click();
