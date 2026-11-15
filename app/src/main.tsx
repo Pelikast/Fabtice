@@ -47,8 +47,9 @@ if (params.has('demo')) {
       }
     });
   }
-  // Autosave on, then the kept piece reopened, else the new-piece dialog.
-  void startStorage();
+  // Autosave on, then the kept piece reopened, else the new-piece dialog. Then (Mac app) the `.fabtice`
+  // files opened from the Finder, which replace it as an import would.
+  void startStorage().then(() => import('./project/fromDesktop').then((m) => m.followOpenedProjects()));
   // Mac app: is a newer version of the import tool available? (a discreet offer, never a prompt)
   void checkToolUpdate();
 }

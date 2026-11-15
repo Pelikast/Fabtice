@@ -241,6 +241,23 @@ export interface DesktopBridge {
   lastSeparationReport?(): Promise<LastImportReport>;
   onYtdlpProgress(callback: (progress: YtdlpProgress) => void): Unsubscribe;
   onExtractProgress(callback: (progress: ExtractProgress) => void): Unsubscribe;
+  /**
+   * Lot 4: `.fabtice` files macOS handed to the app (double-click in the Finder, « Ouvrir avec »)
+   * before the page asked; from that call on, the next ones come through `onOpenProject`.
+   * A Mac app that predates it lacks these four methods.
+   */
+  pendingProjects?(): Promise<OpenedProjectFile[]>;
+  onOpenProject?(callback: (file: OpenedProjectFile) => void): Unsubscribe;
+  /** Bytes `offset` to `offset + length` (at most 16 MB) of the file behind `token`. */
+  readProjectFile?(token: string, offset: number, length: number): Promise<Uint8Array>;
+  releaseProjectFile?(token: string): Promise<true>;
+}
+
+/** A project file macOS handed over (`desktop/src/open-files.js`): read by ranges with its token. */
+export interface OpenedProjectFile {
+  token: string;
+  name: string;
+  size: number;
 }
 
 declare global {

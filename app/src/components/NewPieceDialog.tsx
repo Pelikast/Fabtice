@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { formatAmount } from '../import/amount';
-import { cancelImport, isCancellablePhase, startFileImport, startLinkImport, startProjectOpen, startToolUpdate } from '../import/controller';
-import { FILE_EXTENSION, PROJECT_MIME } from '../project/fileFormat';
-import { blobSource } from '../project/zip';
+import { cancelImport, isCancellablePhase, startFileImport, startLinkImport, startToolUpdate } from '../import/controller';
+import { chooseProjectFile } from '../project/choose';
 import { FILE_ACCEPT } from '../import/formats';
 import { t } from '../i18n';
 import { getDesktopBridge } from '../platform/desktopBridge';
@@ -116,30 +115,14 @@ function Choices({ open, desktop }: { open: boolean; desktop: boolean }) {
   }, [open]);
 
   const chooseFile = () => fileRef.current?.click();
-  // Lot 4: a `.fabtice` project, offered calmly after the main way in.
-  const projectRef = useRef<HTMLInputElement>(null);
-  const chooseProject = () => projectRef.current?.click();
-  const projectInput = (
-    <input
-      ref={projectRef}
-      type="file"
-      accept={`${FILE_EXTENSION},${PROJECT_MIME}`}
-      hidden
-      data-testid="choisir-projet"
-      onChange={(e) => {
-        const file = e.target.files?.[0];
-        e.target.value = '';
-        if (file) void startProjectOpen(blobSource(file), file.name);
-      }}
-    />
-  );
+  // Lot 4: a `.fabtice` project, offered calmly after the main way in. Its file picker is made on the
+  // spot (`chooseProjectFile`): the dialog keeps a single file field, the audio one.
   const projectLine = (
     <div className="sinon ouvrir-projet">
       {t('new.openProjectLead')}{' '}
-      <button className="lien" data-testid="ouvrir-projet" onClick={chooseProject}>
+      <button className="lien" data-testid="ouvrir-projet" onClick={chooseProjectFile}>
         {t('new.openProject')}
       </button>
-      {projectInput}
     </div>
   );
   const fileInput = (

@@ -18,6 +18,7 @@ const { installDownloads } = require('./downloads');
 const { installContextMenu } = require('./context-menu');
 const printing = require('./printing');
 const { electronFetch, fetchStandardsText } = require('./standards-fetch');
+const { createOpenFiles, projectPathsIn } = require('./open-files');
 
 // The interface is built by app/ (npm run build:desktop) into desktop/ui/.
 const UI_DIR = path.join(__dirname, '..', 'ui');
@@ -33,6 +34,8 @@ let manager = null;
 let systemInfo = null;
 let updateCheck = null;
 let extraction = null;
+// Project files macOS hands over (double-click, « Ouvrir avec »): see open-files.js.
+const openFiles = createOpenFiles();
 
 // Diagnostics are pasted into conversations: replace the home folder by "~".
 function redact(value) {
@@ -293,6 +296,21 @@ function registerIpc() {
     return fetchStandardsText(url, { fetchImpl: electronFetch(net) });
   });
 
+  // Lot 4: `.fabtice` files opened from the Finder. The page asks once for those that came before it
+  // (and from then on is told of the next ones), then reads each by ranges with its token.
+  handle('fabtice:pending-projects', async (event) => {
+    const contents = event.sender;
+    openFiles.onOpen((entry) => {
+      if (!contents.isDestroyed()) contents.send('fabtice:open-project', entry);
+    });
+    return openFiles.takePending();
+  });
+  handle('fabtice:read-project', async (_e, token, offset, length) => openFiles.read(token, offset, length));
+  handle('fabtice:release-project', async (_e, token) => {
+    openFiles.release(token);
+    return true;
+  });
+
   handle('fabtice:copy', async (_e, text) => {
     if (typeof text !== 'string' || text.length > 1_000_000) throw new Error('invalid text');
     clipboard.writeText(text);
@@ -321,7 +339,25 @@ if (!app.requestSingleInstanceLock()) {
   trace('another instance holds the lock: quitting');
   app.quit();
 } else {
-  app.on('second-instance', () => {
+  // macOS starts the app for a project, or hands one to the running app: listened to before `ready`.
+  const openProject = (filePath) => {
+    void openFiles.accept(filePath).then((entry) => {
+      if (entry && win) {
+        if (win.isMinimized()) win.restore();
+        win.focus();
+      }
+    });
+  };
+  app.on('will-finish-launching', () => {
+    app.on('open-file', (event, filePath) => {
+      event.preventDefault();
+      openProject(filePath);
+    });
+  });
+  for (const p of projectPathsIn(process.argv.slice(1))) openProject(p);
+
+  app.on('second-instance', (_event, argv) => {
+    for (const p of projectPathsIn(argv)) openProject(p);
     if (win) {
       if (win.isMinimized()) win.restore();
       win.focus();
