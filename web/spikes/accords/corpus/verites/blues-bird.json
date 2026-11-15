@@ -3074,11 +3074,11 @@
     "other": "disque/other.flac",
     "piano": "disque/piano.flac"
    },
-   "timeScale": 1.025975,
+   "timeScale": 0.974683,
    "settings": {
     "lo": 174.9616,
     "hi": 4317.0482,
-    "speed_cents": -44.3948,
+    "speed_cents": 44.3948,
     "wow": 0.0028,
     "wow_hz": 0.55,
     "flutter": 0.0009,

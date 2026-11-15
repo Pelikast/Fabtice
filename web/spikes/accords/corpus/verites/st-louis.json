@@ -2280,11 +2280,11 @@
     "guitar": "disque/guitar.flac",
     "other": "disque/other.flac"
    },
-   "timeScale": 1.023449,
+   "timeScale": 0.977088,
    "settings": {
     "lo": 186.0337,
     "hi": 4047.0304,
-    "speed_cents": -40.1269,
+    "speed_cents": 40.1269,
     "wow": 0.0035,
     "wow_hz": 0.55,
     "flutter": 0.0011,

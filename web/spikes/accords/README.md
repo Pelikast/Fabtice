@@ -106,10 +106,11 @@ Les résultats vont dans `resultats/<variante>.json` et `resultats/<variante>.md
 trouvés de chaque morceau dans `data/sorties/`).
 
 **Temps.** La première fois, les réseaux tournent sur chaque fichier (environ
-15 minutes pour tout le corpus sur 4 cœurs sans carte graphique). Leurs
+9 minutes pour tout le corpus sur 4 cœurs sans carte graphique, plus si la
+machine est chargée). Leurs
 sorties sont gardées dans `data/cache/`, rangées par empreinte du fichier
 audio et des outils : ensuite, une variante qui ne change que le décodage
-relit tout le corpus en quelques secondes. Une variante qui fait tourner les
+relit tout le corpus en quelques secondes (2 à 7 s). Une variante qui fait tourner les
 réseaux sur les instruments séparés paie ces calculs une fois par fichier.
 
 ## Ajouter une variante
@@ -144,6 +145,11 @@ export default maVariante;
 
 `base` (`banc/variantes/base.ts`) est l'analyse actuelle de l'app, recopiée
 pas à pas du worker (`decode()` dans `app/src/analysis/worker/analysis.worker.ts`).
+`crema-brut` (`banc/variantes/crema-brut.ts`) est l'exemple le plus court :
+la meilleure lecture du réseau sur chaque temps, sans décodage. Le banc
+reproduit exactement les chiffres de l'app sur son morceau d'essai
+(`node dist/verif-demo.mjs` : 96,3 % des temps, fondamentale 84,2 %,
+fondamentale et qualité 74,3 %).
 
 ## Ce que veulent dire les chiffres
 
@@ -174,7 +180,43 @@ ne le sont pas, et quelle part des erreurs est signalée.
 
 Voir `resultats/base.md` (tableau complet, par style, types d'erreurs).
 
-RESUME_BASE
+Mesuré sur le pipeline de la branche `accords` (avec la réparation des
+temps, version d'analyseur 2), « couleur » = fondamentale + qualité exacte,
+par temps :
+
+| Son | Fondamentale (grille détectée) | Couleur (grille détectée) | Couleur (vraie grille) | Accords manqués |
+|---|---|---|---|---|
+| synthèse, son propre (25) | 70 % | 57 % | 58 % | 64 % |
+| synthèse, vieux disque (25) | 61 % | **49 %** | 49 % | 66 % |
+| GuitarSet, réel (24) | 85 % | 70 % | 71 % | — |
+| GuitarSet, façon vieux disque (24) | 83 % | 64 % | 66 % | — |
+
+Le banc retrouve bien ce que le propriétaire entend : sur le vieux disque
+de synthèse, un accord sur deux est faux. Ce qu'on apprend :
+
+- **Ce ne sont pas les temps.** Avec la vraie grille, les accords ne gagnent
+  qu'un point : sur ce corpus la grille détectée est bonne (95 % des temps),
+  l'erreur est dans la lecture des accords.
+- **Le II-V est confondu.** L'erreur la plus fréquente est une fondamentale à
+  la quinte ou à la quarte (un quart des erreurs) ; la confusion n° 1 est un
+  m7 lu comme le 7 une quarte au-dessus (Dm7 lu G7), puis maj7 lu comme le 7
+  une quinte au-dessus (Cmaj7 lu G7). Les voicings sans fondamentale et une
+  basse qui marche brouillent la fondamentale.
+- **Les changements à mi-mesure sont manqués** : deux fois sur trois, une
+  mesure à deux accords n'en reçoit qu'un. Le décodage actuel n'apporte
+  presque rien par rapport à la lecture brute du réseau temps par temps
+  (variante de diagnostic `crema-brut` : même couleur à un point près, 36 %
+  de changements manqués mais 38 % de mesures avec un accord en trop).
+- **Qualités** : 7 lu comme accord parfait, m7 lu comme 7, m7 lu comme m,
+  maj7 lu comme accord parfait : le réseau simplifie les septièmes. Les
+  extensions sont presque toujours fausses (« complet » autour de 30 %).
+- **Tonalité** : juste pour 68 % des morceaux de synthèse ; quand elle est
+  fausse, c'est presque toujours la tonalité de la dominante (une quinte
+  au-dessus) — et la tonalité guide ensuite le choix des accords.
+- **Le signal « douteux »** a du sens (un accord douteux est faux 7 fois sur
+  10, un accord sûr 3 à 4 fois sur 10) mais ne signale que 40 % des erreurs.
+- Les styles les plus durs : modal (voicings en quartes), swing rapide,
+  valses ; les plus faciles : ballades, jazz traditionnel à trois accords.
 
 ## Réglages de difficulté
 

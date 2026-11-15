@@ -180,7 +180,7 @@ def write_track(row):
     # old-record version of the real recording
     seed = int(hashlib.sha256(tid.encode()).hexdigest()[:8], 16)
     rng = np.random.default_rng(seed)
-    old = render.old_settings(rng, 0.6)
+    old = render.old_settings(rng, 0.6, 8.0)  # the GuitarSet guitars are about 5-10 cents sharp (measured)
     y, time_scale = render.old_linear(x, old, seed)
     ymix, _ = render.old_finish(y, old, seed)
     ymix = ymix / max(1.0, np.max(np.abs(ymix)) / 0.98)

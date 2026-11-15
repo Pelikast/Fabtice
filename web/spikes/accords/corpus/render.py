@@ -129,8 +129,14 @@ OLD_DEFAULTS = dict(lo=150.0, hi=4800.0, speed_cents=25.0, wow=0.0025, wow_hz=0.
 """
 
 
-def old_settings(rng, strength):
-    """Per-piece old-record settings: `strength` 0 (mild) .. 1 (strong)."""
+MAX_DETUNE = 35.0
+"""Largest total detune (piece tuning + record speed), in cents. Beyond about 50
+cents the music is heard a semitone away and every chord is « wrong » by a
+semitone: that is a transposition, not a chord error, so the bench avoids it."""
+
+
+def old_settings(rng, strength, cents=0.0):
+    """Per-piece old-record settings: `strength` 0 (mild) .. 1 (strong); `cents`: the piece's own tuning."""
     s = dict(OLD_DEFAULTS)
     s["lo"] = 120 + 80 * strength + rng.uniform(-15, 15)
     s["hi"] = 5600 - 1800 * strength + rng.uniform(-200, 200)
@@ -143,6 +149,12 @@ def old_settings(rng, strength):
     s["crackle"] = 4 + 10 * strength
     s["pops"] = 0.2 + 0.6 * strength
     s["strength"] = strength
+    sp = s["speed_cents"]
+    if abs(cents + sp) > MAX_DETUNE:
+        sp = -sp
+    if abs(cents + sp) > MAX_DETUNE:
+        sp = float(np.sign(cents + sp) * MAX_DETUNE - cents)
+    s["speed_cents"] = sp
     return s
 
 

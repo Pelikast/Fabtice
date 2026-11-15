@@ -161,7 +161,7 @@ def build(piece, sf2):
     # old record: mono, linear chain on the mix and on each stem, then saturation and noise on the mix
     strength = float(np.clip((0.85 if piece["style"] == "trad" else 0.55) + rng.uniform(-0.2, 0.15), 0, 1))
     osr = np.random.default_rng(piece["seed"] + 2000)
-    old = render.old_settings(osr, strength)
+    old = render.old_settings(osr, strength, knobs["cents"])
     oseed = piece["seed"] + 3000
     mono = (mix * g).mean(axis=1)
     y, time_scale = render.old_linear(mono, old, oseed)

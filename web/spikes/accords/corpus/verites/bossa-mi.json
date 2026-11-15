@@ -1955,11 +1955,11 @@
     "other": "disque/other.flac",
     "piano": "disque/piano.flac"
    },
-   "timeScale": 1.008534,
+   "timeScale": 0.991538,
    "settings": {
     "lo": 160.9697,
     "hi": 4642.6066,
-    "speed_cents": -14.7125,
+    "speed_cents": 14.7125,
     "wow": 0.0025,
     "wow_hz": 0.55,
     "flutter": 0.0008,
