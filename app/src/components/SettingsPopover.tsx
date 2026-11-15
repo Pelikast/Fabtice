@@ -6,6 +6,7 @@ import { useMainTools, useSeparationChoice } from '../separation/useChoice';
 import { openStandardsPanel } from '../standards/offer';
 import { closePanel, openNewPiece, setFollow, setMinorNotation, togglePanel } from '../store/actions';
 import { StandardsSettingsEntry } from './StandardsOffer';
+import { ChordModelSetting } from './ChordModelSetting';
 import { setFormants, setSeparationModel } from '../store/separationActions';
 import { useApp } from '../store/store';
 import { useFitPanel } from '../ui/useFitPanel';
@@ -96,6 +97,7 @@ function AdvancedSettings() {
             </select>
             {autoChoice && <small>{t('settings.toolAutoWhy', { name: autoChoice.model.name, reason: autoChoice.reason })}</small>}
           </label>
+          <ChordModelSetting />
           <StandardsSettingsEntry
             onOpen={() => {
               closePanel();

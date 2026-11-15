@@ -8,7 +8,8 @@ import { getAnalyzer, type AnalysisModelInfo } from '../analysis';
 import { useAnalysisProgress } from '../analysis/progress';
 import { evidenceText } from '../analysis/evidenceText';
 import { cancelAnalysis, runAnalysis } from '../analysis/runner';
-import { analysisEvidence } from '../analysis/types';
+import { chordModelChoice, useChordModelChoice } from '../analysis/chordModel';
+import { analysisEvidence, resultChordModel, type ChordWindowProgress } from '../analysis/types';
 import { formatNumber, t } from '../i18n';
 import { closePanel, openPanel, togglePanel } from '../store/actions';
 import { selectAnalysisStatus } from '../store/chartSelectors';
@@ -20,13 +21,15 @@ const percent = (f: number) => Math.round(Math.min(1, Math.max(0, f)) * 100);
 const megabytes = (bytes: number) => formatNumber(bytes / 1e6, 0);
 
 /** Short text of the status for the top bar, or null when there is nothing to say. */
-function statusText(run: AnalysisRun, fraction: number): string | null {
+function statusText(run: AnalysisRun, fraction: number, window: ChordWindowProgress | null, fallback: string | null): string | null {
   if (run.status === 'running') {
-    return run.step === 'download'
-      ? t('analysis.statusDownload', { n: percent(fraction) })
-      : t('analysis.statusRunning', { n: percent(fraction) });
+    if (run.step === 'download') return t('analysis.statusDownload', { n: percent(fraction) });
+    if (run.step === 'chords' && window && window.total > 0) return t('analysis.statusFine', { done: window.done, total: window.total });
+    return t('analysis.statusRunning', { n: percent(fraction) });
   }
   if (run.status === 'error') return t('analysis.statusError');
+  // The fine chord model could not run: the default one read the chords. Said calmly, until the next analysis.
+  if (fallback) return t('analysis.statusFallback');
   return null;
 }
 
@@ -34,6 +37,9 @@ export function AnalysisStatus() {
   const run = useApp((s) => s.analysisRun);
   // Whole percents only: the top bar redraws once per percent at most.
   const fraction = useAnalysisProgress((p) => percent(p.fraction) / 100);
+  const windowDone = useAnalysisProgress((p) => p.chordWindow?.done ?? -1);
+  const windowTotal = useAnalysisProgress((p) => p.chordWindow?.total ?? 0);
+  const fallback = useAnalysisProgress((p) => p.fallback ?? null);
   const open = useApp((s) => s.ui.panel === 'analysis');
   const buttonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -61,7 +67,7 @@ export function AnalysisStatus() {
     }
   }, [run.status]);
 
-  const text = statusText(run, fraction);
+  const text = statusText(run, fraction, windowDone >= 0 ? { done: windowDone, total: windowTotal } : null, fallback);
   if (!text && !open) return null;
   return (
     // Any press on the button or in the panel means the user has taken it over: it then stays until they close it.
@@ -91,6 +97,8 @@ export function AnalysisProgressNote() {
   const run = useApp((s) => s.analysisRun);
   const fraction = useAnalysisProgress((p) => p.fraction);
   const download = useAnalysisProgress((p) => p.download);
+  const windowDone = useAnalysisProgress((p) => p.chordWindow?.done ?? -1);
+  const windowTotal = useAnalysisProgress((p) => p.chordWindow?.total ?? 0);
   const models = useModels();
   if (run.status !== 'running') return null;
   const toDownload = models.filter((m) => !m.cached);
@@ -100,8 +108,8 @@ export function AnalysisProgressNote() {
       <div className="analyse-progres" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent(fraction)}>
         <span style={{ transform: `scaleX(${Math.min(1, Math.max(0, fraction))})` }} />
       </div>
-      <p className="analyse-etape">
-        {t(`analysis.step.${run.step}`)}
+      <p className="analyse-etape" data-testid="analyse-etape">
+        {run.step === 'chords' && windowDone >= 0 && windowTotal > 0 ? t('analysis.stepFine', { done: windowDone, total: windowTotal }) : t(`analysis.step.${run.step}`)}
         {run.step === 'download' && download && ` · ${t('analysis.downloaded', { loaded: megabytes(download.loaded), total: megabytes(download.total) })}`}
       </p>
       {showSources && models.length > 0 && <ModelSources models={models} />}
@@ -135,16 +143,17 @@ function ModelSources({ models }: { models: AnalysisModelInfo[] }) {
 function useModels(): AnalysisModelInfo[] {
   const [models, setModels] = useState<AnalysisModelInfo[]>([]);
   const step = useApp((s) => (s.analysisRun.status === 'running' ? s.analysisRun.step : null));
+  const chordModel = useChordModelChoice();
   useEffect(() => {
     let alive = true;
     getAnalyzer()
-      .models()
+      .models(chordModelChoice())
       .then((m) => alive && setModels(m))
       .catch(() => {});
     return () => {
       alive = false;
     };
-  }, [step]);
+  }, [step, chordModel]);
   return models;
 }
 
@@ -152,6 +161,7 @@ export function AnalysisPanel({ ref }: { ref: Ref<HTMLDivElement> }) {
   const status = useApp(selectAnalysisStatus);
   const run = useApp((s) => s.analysisRun);
   const used = useApp((s) => (s.analysis ? evidenceText(analysisEvidence(s.analysis)) : ''));
+  const chordModel = useApp((s) => (s.analysis ? resultChordModel(s.analysis) : null));
   const fitRef = useFitPanel(ref);
   return (
     <div ref={fitRef} className="fenetre panneau-analyse" role="dialog" aria-label={t('analysis.title')}>
@@ -172,6 +182,15 @@ export function AnalysisPanel({ ref }: { ref: Ref<HTMLDivElement> }) {
           {status === 'done' && used && (
             <p className="panneau-note" data-testid="analyse-ecoute">
               {used}
+            </p>
+          )}
+          {status === 'done' && chordModel && (
+            <p className="panneau-note" data-testid="analyse-modele-accords">
+              {chordModel.fallback
+                ? t(`analysis.fallback.${chordModel.fallback}`)
+                : chordModel.id === 'tsumugi-chords'
+                  ? t('analysis.chordModelFine')
+                  : null}
             </p>
           )}
           <button

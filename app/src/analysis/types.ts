@@ -215,7 +215,7 @@ export interface Analyzer {
   /** `mock` or `fabtice`; copied into `AnalysisResult.analyser.id`. */
   readonly id: string;
   /** The models this analyser uses, with their source, size, licence and whether they are cached. */
-  models(): Promise<AnalysisModelInfo[]>;
+  models(chordModel?: ChordModelChoice): Promise<AnalysisModelInfo[]>;
   /**
    * Analyses a piece. Resolves with a complete result; rejects with an
    * `AnalysisError`. Only one analysis runs at a time: a second call while one
