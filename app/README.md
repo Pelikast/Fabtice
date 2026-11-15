@@ -1357,6 +1357,11 @@ gardés (règle de toujours, testée dans `chordModel.test.ts`).
   fenêtres) : environ 6 min avec 4 fils, 11 min avec un seul (mesuré sous Node,
   `web/spikes/accords/modeles/ts/wasm-song.ts`). Vérification dans Chromium :
   `FABTICE_ANALYSIS_ONLY=fin npm run test:analysis` (hors de la liste par défaut).
+  Dans l'app Mac (Electron sous `xvfb-run`, même machine) : 50 s pour le morceau de
+  démonstration téléchargement compris, 71 s une autre fois (machine plus
+  chargée) ; mémoire de tous les processus de l'app : 1,7 Go au repos, 3,0 à
+  3,3 Go au pic. Essai : `FABTICE_E2E_ANALYSIS_FINE=1 xvfb-run -a node --test
+  test/e2e/analysis-fine.test.js` dans `desktop/` (non bloquant).
 
 #### Grille d'accords — `src/chart/`
 

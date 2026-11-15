@@ -161,7 +161,10 @@ export function AnalysisPanel({ ref }: { ref: Ref<HTMLDivElement> }) {
   const status = useApp(selectAnalysisStatus);
   const run = useApp((s) => s.analysisRun);
   const used = useApp((s) => (s.analysis ? evidenceText(analysisEvidence(s.analysis)) : ''));
-  const chordModel = useApp((s) => (s.analysis ? resultChordModel(s.analysis) : null));
+  // Primitives only: a selector that builds an object would re-render for ever.
+  const chordId = useApp((s) => (s.analysis ? resultChordModel(s.analysis).id : null));
+  const chordFallback = useApp((s) => (s.analysis ? (resultChordModel(s.analysis).fallback ?? null) : null));
+  const chordModel = chordId ? { id: chordId, fallback: chordFallback } : null;
   const fitRef = useFitPanel(ref);
   return (
     <div ref={fitRef} className="fenetre panneau-analyse" role="dialog" aria-label={t('analysis.title')}>
