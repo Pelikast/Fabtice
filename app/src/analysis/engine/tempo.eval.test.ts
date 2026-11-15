@@ -4,6 +4,7 @@
 // runs with FABTICE_REPAIR_FULL=1; by default a third of the level cases (a fixed, scattered third).
 
 import { describe, expect, it } from 'vitest';
+import { STEADY, ruleBreaks, steadyBars } from './steady';
 import { current, displacedCases, levelCases, negativeCases, previous, scoreTempo, truthOutcome, type TempoCase, type TempoScore } from './tempo.cases';
 
 const FULL = !!process.env.FABTICE_REPAIR_FULL;
@@ -55,12 +56,17 @@ function line(label: string, a: Acc): string {
   return `${label.padEnd(34)} ${String(a.n).padStart(5)}  bars in place ${pc(a.placedBefore, a.n).padStart(7)} → ${pc(a.placedNow, a.n).padStart(7)}  downbeats after ${pc(a.downBefore, a.downN).padStart(7)} → ${pc(a.downNow, a.downN).padStart(7)}  F ${pc(a.fBefore, a.n)} → ${pc(a.fNow, a.n)}  jumps ${a.jumpsBefore} → ${a.jumpsNow}  zigzags ${a.zigBefore} → ${a.zigNow}  broken ${a.broken}`;
 }
 
+/** Cases whose grid now still breaks the owner's rule (a brutal and brief change that comes back, `steady.ts`). */
+const ruleBroken = new Map<string, { beats: number[]; numbers: number[]; m: number }>();
+
 function run(cases: TempoCase[], key: (c: TempoCase) => string) {
   const rows = new Map<string, Acc>();
   for (const c of cases) {
     const t = scoreTempo(c, truthOutcome(c));
     const b = scoreTempo(c, previous(c));
-    const n = scoreTempo(c, current(c));
+    const now = current(c);
+    const n = scoreTempo(c, now);
+    if (ruleBreaks(now.beats, now.numbers, now.m).length) ruleBroken.set(c.name, now);
     for (const k of [key(c), `all ${c.split}`]) {
       const a = rows.get(k) ?? acc();
       add(a, c, b, n, t);
@@ -124,10 +130,29 @@ describe('the tempo hardening on its case set', () => {
     for (const c of negatives) {
       const same = (o: { beats: number[] }) => o.beats.length === c.detected.length && o.beats.every((t, i) => Math.abs(t - c.detected[i]!) < 1e-9);
       if (c.base.startsWith('ambiguous')) continue;
+      const now = current(c);
+      if (ruleBreaks(now.beats, now.numbers, now.m).length) ruleBroken.set(c.name, now);
+      // An isolated fermata between two steady stretches is, by the owner's rule, a brutal and brief change that
+      // comes back: the last safety net makes it a whole number of beats at the neighbouring tempo (`steady.ts`).
+      if (c.base.startsWith('fermatas')) continue;
       if (!same(previous(c))) changedBefore.push(c.name);
-      if (!same(current(c))) changed.push(c.name);
+      if (!same(now)) changed.push(c.name);
     }
     console.log(`negatives: ${negatives.length}, changed before ${changedBefore.length}, now ${changed.length}${changed.length ? `: ${changed.join('; ')}` : ''}`);
     expect(changed.filter((x) => !changedBefore.includes(x))).toEqual([]);
+  });
+
+  it('leaves no brutal and brief change that comes back, on any case', () => {
+    // Left only where a whole number of bars does not fit and the downbeats heard (absent, weak, or against:
+    // `steady.ts`, PREFER and AGAINST) do not choose a part of a bar: allowed one without them, the net leaves none.
+    console.log(`rule left for want of downbeats heard on ${ruleBroken.size} cases${ruleBroken.size ? `: ${[...ruleBroken.keys()].join('; ')}` : ''}`);
+    const left: string[] = [];
+    for (const [name, now] of ruleBroken) {
+      const r = steadyBars(now.beats, now.numbers.indexOf(1), now.m, { ...STEADY, free: true });
+      const numbers = r.beats.map((_, i) => ((((i - r.downbeat) % now.m) + now.m) % now.m === 0 ? 1 : 2));
+      if (ruleBreaks(r.beats, numbers, now.m).length) left.push(name);
+    }
+    expect(left).toEqual([]);
+    expect(ruleBroken.size).toBeLessThan(0.025 * (level.length + negatives.length));
   });
 });

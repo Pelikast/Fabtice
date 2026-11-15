@@ -1764,7 +1764,116 @@ chantiers suivent, chacun dans son dossier.
     temps au tempo d'alentour, les mesures re-quadrillées gardent ceux du réseau).
     Les temps déplacés ne se voient presque pas sur le banc (le réseau y est plus
     souvent perdu que décalé) : leur effet est mesuré sur le jeu de cas. Le cas du
-    propriétaire n'a pas pu être écouté ici.
+    propriétaire n'a pas pu être écouté ici. (Version 5 : *Blues for Bird* vieux
+    disque passe à 100 % de premiers temps avec le dernier filet ci-dessous ;
+    l'enregistrement GuitarSet reste à 81 %, voir ses limites.)
+- **Le dernier filet : la règle du propriétaire par construction** (version 5 de
+  l'analyse, `engine/steady.ts`, après tout le reste dans
+  `pipeline.ts#gridFromBeats` ; `OPTIONS.steady` le coupe).
+  - *La règle.* Une variation brutale et brève qui revient n'est jamais crue ; un
+    nouveau tempo qui dure est un vrai changement ; une petite tolérance pour les
+    mouvements légers ou progressifs. Elle est appliquée sur la grille telle que
+    l'app la montre (les mesures tous les m temps depuis le premier temps).
+  - *Ce qui est un passage à refaire* (`briefPassages`). Un **appui** : 2 mesures
+    de suite à la même longueur (à 20 % près), aux temps réguliers (chaque temps à
+    35 % près du temps moyen de sa mesure ; la mesure qui touche le passage peut ne
+    pas l'être). Après un appui, une mesure à 20 % ou plus de son niveau (la
+    médiane des 3 mesures d'avant), puis, **moins de 8 mesures plus tard**, un
+    retour brusque (un pas de 20 % ou plus d'une mesure à la suivante ; en deux pas
+    quand l'écart était d'au moins 44 %) au niveau d'avant, pour un nouvel appui.
+    Seuil des 20 % : à 15 % (le bas de la fourchette demandée), le flou de placement
+    de 25 ms et un rubato de ±12 % déclenchaient sur les négatifs ; à 25 %, les
+    sections plus vives de 25 % que garde le jeu de cas passaient pour des bosses.
+  - *Ce qui reste tel quel.* Un changement qui dure (pas de retour en moins de
+    8 mesures, ou un nouveau tempo tenu égal pendant 6 mesures : « 8 mesures plus
+    vives » en 3/4 lu en 4/4 ne fait que 6 mesures), un ritardando, un
+    accelerando, un rubato (il revient par degrés), une **introduction libre**
+    (aucun appui avant), **les bouts du morceau** (aucun appui après : rien n'est
+    inventé, le tempo n'est pas prolongé dans le silence ou le bruit de fin de
+    disque ; essayé : tenir le tempo jusqu'au dernier temps ajoutait des temps dans
+    les accords tenus de fin, temps trouvés 96,8 → 93,2 % sur *Blues en fa*), une
+    grille dont les temps ne sont réguliers nulle part autour (un réseau perdu à un
+    autre niveau : refaire autour de rien inventait une pulsation, 79 → 61 % de
+    temps trouvés sur un enregistrement GuitarSet).
+  - *La construction.* Le passage est refait entre les deux appuis (élargi d'au
+    plus 2 mesures de chaque côté pour répartir un reste) avec un **nombre entier
+    de temps** : réguliers, ou allant doucement du temps d'un appui à celui de
+    l'autre, ou en gardant les temps trouvés qui tombent à un nombre entier de
+    temps les uns des autres (à un quart de temps près) et en remplissant les trous
+    régulièrement ; chaque temps nouveau se pose sur un temps trouvé à 12 % d'un
+    temps près. Une façon n'est gardée que si ses mesures ne font aucun pas de
+    20 % avec celles d'autour et si au moins 30 % de ses temps sont des temps
+    entendus ; celle qui tombe sur le plus de temps entendus gagne. Des mesures
+    entières par défaut : la phase des mesures tient des deux côtés. Un nombre de
+    temps qui fait une partie de mesure (un temps ajouté ou ôté) seulement si les
+    premiers temps entendus sur tout le morceau s'y accordent mieux (d'au moins
+    1 nat), la phase étant alors celle à laquelle ils s'accordent (avant ou après
+    le passage) ; sans premiers temps, jamais. Le filet repasse sur son propre
+    résultat tant qu'il trouve des passages, sans jamais faire plus de pas brusques
+    qu'avant, et il renonce là où les premiers temps entendus contredisent
+    nettement le résultat (5 nats et plus : un temps perdu ou ajouté là où le tempo
+    bouge vraiment).
+  - *Un point d'orgue isolé* entre deux passages réguliers est, par la règle, une
+    variation brusque et brève : il devient un nombre entier de temps au tempo
+    voisin… sauf quand les premiers temps entendus après lui disent que les mesures
+    continuent (c'est le cas dès qu'ils sont nets) : il reste alors une mesure
+    longue, la note tenue. Les corrections à la main du menu de la mesure restent
+    le moyen d'y revenir.
+  - *Diagnostic de ce qui restait* (banc des temps, sauts de tempo ≥ ×1,3 entre
+    mesures que la vérité n'a pas, par cause ; `temps.ts --jumps`). Version 4 :
+    vieux disque 23 (un autre nombre de temps dans une mesure 15, réseau perdu 7,
+    première ou dernière mesure 1), GuitarSet 6 (bout 4, nombre 2), GuitarSet vieux
+    disque 14 (nombre 5, bout 5, perdu 4). Avec le filet : 12, 6 et 14. Les 32 qui
+    restent : 11 à la première ou la dernière mesure de la musique ; 5 dans le
+    passage du II-V mineur rapide où la grille quitte pour de bon la moitié du
+    tempo (un changement qui dure, en zigzag pendant 5 mesures) ; 7 sur un
+    enregistrement GuitarSet dont la grille est à un niveau mêlé partout (aucun
+    appui régulier) ; 6 au début ou à la fin sans appui (*Bossa* vieux disque, deux
+    GuitarSet) ; 2 sur le II-V mineur rapide (appui irrégulier) ; 1 laissé faute de
+    premiers temps qui choisissent. **Aucun passage qui enfreint la règle telle
+    que définie ci-dessus ne reste** sur le banc, sauf ce dernier.
+  - *Zigzags* (barres plus rapides ou plus lentes que leurs deux voisines d'au
+    moins 5 %, `temps.ts`). Sur le vieux disque, 37 → 24 avec le filet. Ce qui les
+    fait sur les vraies sorties du réseau : des mesures au mauvais nombre de temps
+    (le réseau perd ou ajoute un temps, ou se cale sur la croche swing : *So What*)
+    — c'est ce que le filet traite ; le placement des pics du réseau à une image
+    près (20 ms, soit 3 à 4 % d'une mesure à 210 à la noire : *Anatole*, 3 zigzags
+    de 3 à 7 %) — laissé, rien ne dit où est le vrai temps ; et les passages où le
+    réseau est perdu sans appui autour (*Bossa*).
+  - *Mesuré.* Banc des temps, temps trouvés / premiers temps / sauts / zigzags,
+    version 4 → 5 : rendu propre 97,2 / 96,0 % / 0 / 0, inchangé ; vieux disque
+    94,9 → 94,9 % / 84,5 → 87,3 % / 23 → 12 / 37 → 24 ; GuitarSet 91,8 / 80,6 % /
+    6 / 3, inchangé ; GuitarSet vieux disque 79,1 / 57,9 % / 14 / 23, inchangé.
+    Morceau par morceau, ce qui change : *Blues for Bird* vieux disque 98,0 →
+    99,6 % de temps, premiers temps 47,6 → 100 %, sauts 2 → 0 ; *So What* vieux
+    disque 88,8 → 88,5 %, premiers temps 78,1 → 90,6 %, 1 → 0 ; *Bossa* vieux
+    disque 41,1 → 39,0 % (un morceau où le réseau est perdu), premiers temps 40,6
+    → 46,9 %, sauts 12 → 4. Rien d'autre ne bouge. Banc des accords (grille
+    détectée, `--variant app`) : temps trouvés 97/95/93/81 %, inchangés ; premiers
+    temps 95/83/81/59 → 95/86/81/59 % ; fondamentale et couleur 73/61/70/67 %,
+    inchangés. Sur les sorties du réseau que calcule **l'app** (décodage par
+    Chromium, pas ffmpeg : d'autres sorties ; `fixtures/network-cases/app-cases.json`,
+    `engine/tempoFix.app.test.ts`) : *So What* vieux disque, dans la musique,
+    sauts 4 → 0, premiers temps 79,7 → 92,2 % (les 8 sauts que compte l'app sont
+    tous dans les 27 s de bruit de fin de disque) ; *Blues for Bird* : 2 sauts aux
+    deux premières mesures (levée et temps manqué : aucun appui avant, laissés).
+    Jeu de cas (`tempo.eval.test.ts`, complet) : mesures en place après le passage
+    90,6 → 91,2 % (partie mise de côté), 90,7 → 90,9 % (réglage) ; sauts
+    2 985 → 2 643 et 1 351 → 1 258 ; négatifs : aucun changé (hors points d'orgue,
+    voir plus haut) ; passages qui enfreignent la règle : 236 → 73 cas sur 4 788,
+    tous des cas où aucun nombre entier de mesures ne va et où les premiers temps
+    (absents ou faibles) ne choisissent pas — le test le vérifie en rejouant le
+    filet avec le droit de couper une mesure (`free`) : il n'en reste alors aucun.
+    Jeu de la version 3 (`repair.eval.test.ts`, complet) : preuve nette 98,7 %,
+    faible 98,0 %, cassés 0 et 0 ; sans premiers temps 63,2 % (64,1 % en version
+    4), cassés 22 (20).
+  - *Limites.* Un enregistrement GuitarSet vieux disque garde 81 % de temps
+    trouvés (100 % en version 3) : pendant 5 s le réseau court 5 % trop vite puis
+    ajoute un temps ; la réparation par les mesures ôte le temps en trop mais garde
+    les temps du réseau, en avance jusqu'à 140 ms ; la version 3 refaisait
+    régulièrement 8 s. Ce n'est pas une variation de 20 % : le filet n'y touche
+    pas. `beats.repaired` porte une cause de plus, `steady`. `ANALYSER_VERSION`
+    passe à 5.
 - **Corriger le tempo à la main, à partir d'une mesure** (demande du propriétaire
   du 15 novembre ; `engine/tempoFix.ts`, `analysis/runner.ts#runTempoFix`,
   `store/tempoFixActions.ts`, `components/TempoFixMenu.tsx`, `ui/tempoMenu.ts`).
@@ -1784,21 +1893,29 @@ chantiers suivent, chacun dans son dossier.
     annule l'événement sur les mesures, les deux ne se rencontrent pas ; le menu et
     les mesures ne se sélectionnent pas comme du texte.
   - *« Corriger un changement de tempo indésirable »* : à partir du début de la
-    mesure choisie, le tempo et la longueur des mesures d'avant continuent. Les
-    temps sont suivis sur la sortie du réseau de temps gardée (programmation
-    dynamique sur (image, période) : période dans ±20 % du tempo des 8 temps
-    d'avant, au plus une image de changement d'un temps au suivant, un coût sur
-    chaque changement et sur l'écart au tempo d'avant) : une dérive lente est
-    suivie, un saut vers un autre niveau est impossible. Chaque temps se pose sur
-    un pic du réseau à 2 images près ; sans pic (passage où le réseau n'entendait
-    qu'un temps sur deux), il est placé entre ses voisins. Les mesures sont
-    comptées tous les m temps depuis la mesure choisie (même métrique). Le suivi
-    rend la main à la grille en place dès qu'ils sont d'accord 8 mesures de suite
-    (mêmes temps à 70 ms, mêmes premiers temps) ; sinon il va jusqu'au bout. Par
-    construction, un vrai changement de tempo après la mesure est effacé (l'aide
-    sous l'entrée le dit). C'est là qu'un suivi de continuité est le bon outil :
-    le DBN, mauvais comme défaut parce qu'il choisit le mauvais niveau, n'a plus
-    ce choix à faire ici, les mesures d'avant le donnent.
+    mesure choisie, le tempo et la longueur des mesures d'avant continuent. Le
+    tempo tenu est celui des mesures juste avant quand elles sont régulières
+    (4 mesures de suite à 10 % près) ; sinon celui de la plus proche suite
+    régulière avant, à défaut après ; jamais à plus d'un quart du temps habituel
+    du morceau (les mesures d'avant peuvent être à un autre niveau). Les temps
+    sont **suivis un à un** depuis le dernier temps avant la mesure (le début de
+    la mesure peut être lui-même le temps qui s'est trompé : une croche swing prise
+    pour le premier temps) : chacun est attendu un temps après le précédent, prend
+    le pic du réseau le plus fort à 20 % d'un temps près, sinon tombe où il est
+    attendu ; la longueur du temps bouge d'un dixième de l'avance ou du retard,
+    dans ±20 % du tempo tenu. Un pic plus loin est ignoré, pas suivi : une rangée
+    de contretemps forts (la croche swing d'un disque usé) ne peut plus attirer
+    les temps. Les mesures sont comptées tous les m temps depuis la mesure
+    choisie ; quand les mesures d'avant ne sont pas régulières, la phase des
+    mesures est celle à laquelle s'accordent les premiers temps entendus. Le suivi
+    rend la main à la grille en place dès qu'ils sont d'accord 8 mesures de suite,
+    puis **la reprend** à la première mesure de la grille en place qui s'écarte de
+    20 % du tempo tenu, et ainsi de suite. Par construction, un vrai changement de
+    tempo après la mesure est effacé (l'aide sous l'entrée le dit). Mesuré : le
+    suivi d'avant (meilleur chemin sur tout le reste, `tracker: 'dp'`) remet 677
+    passages du jeu de cas contre 649 pour le suivi un à un, mais sur *So What*
+    vieux disque (sorties de l'app) il glissait sur la croche swing : premiers temps
+    0 %, contre 76,6 % maintenant.
   - *« Réanalyser le tempo à partir de cette mesure »* : toute l'analyse des
     temps (`gridFromBeats` : pics, réparation par les mesures, réparation des
     temps, temps déplacés) sur la sortie du réseau à partir de la mesure, comme
@@ -1837,36 +1954,40 @@ chantiers suivent, chacun dans son dossier.
     chose reste avec la même musique, et la grille et la règle la placent sur le
     temps ou la barre la plus proche de la nouvelle grille.
   - *Mesuré* (`engine/tempoFix.test.ts`, jeu complet `FABTICE_REPAIR_FULL=1` ;
-    réseau reconstruit à partir des temps détectés de chaque cas). Des 1 005
-    passages de niveau que l'analyse automatique laisse faux (hors passages au
-    tout début, où il n'y a pas de tempo d'avant), l'action appliquée à la mesure
-    où le passage commence (puis au passage suivant, sur la grille obtenue) en
-    remet d'aplomb (mesures en place, premiers temps ≥ 97 %, temps ≥ 97 %, aucun
-    saut) :
+    réseau reconstruit à partir des temps détectés de chaque cas). Des 913
+    passages de niveau que l'analyse automatique (version 5) laisse faux (hors
+    passages au tout début, où il n'y a pas de tempo d'avant ; 1 005 en version 4,
+    le dernier filet en remet 92), l'action appliquée à la mesure où le passage
+    commence (puis au passage suivant, sur la grille obtenue) en remet d'aplomb
+    (mesures en place, premiers temps ≥ 97 %, temps ≥ 97 %, aucun saut) :
 
     | | laissés faux | « Corriger » | « Réanalyser » |
     |---|---|---|---|
-    | réglage, premiers temps nets | 55 | 37 | 1 |
-    | réglage, faibles | 228 | 186 | 1 |
-    | réglage, perdus pendant le passage | 28 | 28 | 0 |
+    | réglage, premiers temps nets | 55 | 44 | 1 |
+    | réglage, faibles | 209 | 169 | 1 |
+    | réglage, perdus pendant le passage | 28 | 25 | 0 |
     | mis de côté, nets | 102 | 59 | 4 |
-    | mis de côté, faibles | 498 | 373 | 2 |
-    | mis de côté, perdus | 94 | 88 | 0 |
+    | mis de côté, faibles | 436 | 277 | 2 |
+    | mis de côté, perdus | 83 | 75 | 0 |
 
-    Soit 771 sur 1 005 pour « Corriger », 8 pour « Réanalyser » : sur les mêmes
-    sorties du réseau, l'analyse refaite depuis la mesure trouve presque toujours
-    la même chose que l'analyse entière ; elle ne peut aider que là où ce qui
-    précède a trompé l'analyse (la métrique, la phase des mesures), et c'est rare
-    sur le banc. Aucun temps avant la mesure n'a bougé dans aucun
-    cas. Restent faux surtout : les passages à 3 pour 2 de 16 mesures et plus (le
-    suivi perd un temps), et la dernière mesure d'un passage qui finit le
-    morceau. Sur les négatifs (rubato, ritardando, dérive, points d'orgue),
-    « Réanalyser » ne change rien (2 sur 180 un peu autrement) ; « Corriger »
-    efface par construction un vrai changement de tempo après la mesure, et suit
-    mal une dérive de plus de 20 % (accelerando 90 → 130) : c'est l'entrée à ne
-    pas utiliser là. Réglage du suivi (fenêtre ±12, ±20, ±40 %, coûts) sur la
-    partie réglage : ±12 et ±20 % remettent le plus de passages, ±20 % abîme moins
-    les dérives des négatifs.
+    Soit 649 sur 913 pour « Corriger » (771 sur 1 005 en version 4, avec l'autre
+    suivi), 8 pour « Réanalyser » : sur les mêmes sorties du réseau, l'analyse
+    refaite depuis la mesure trouve presque toujours la même chose que l'analyse
+    entière ; elle ne peut aider que là où ce qui précède a trompé l'analyse (la
+    métrique, la phase des mesures), et c'est rare sur le banc. Aucun temps avant
+    la mesure n'a bougé dans aucun cas. Sur les deux cas réels du propriétaire
+    (sorties de l'app, `tempoFix.app.test.ts`) : *So What* vieux disque,
+    « Corriger » à la mesure 8 de la grille de la version 4 : sauts 4 → 0 dans la
+    musique, temps trouvés 92,3 → 94,9 %, 258 temps pour 256 ; *Blues for Bird*,
+    à la mesure 2 : sauts 2 → 0, 338 temps pour 336, premiers temps 97,6 →
+    100 %. Dans l'app, la grille en place va jusqu'à la fin du fichier (la carte
+    de tempo prolonge le dernier tempo) : le suivi y continue dans le bruit de fin
+    de disque, d'où des temps en plus après la musique (425 segments au lieu de
+    336 sur *Blues for Bird*, dont 338 dans la musique) ; ils sont au tempo tenu.
+    Sur les négatifs (rubato, ritardando, dérive, points d'orgue), « Réanalyser »
+    ne change rien ; « Corriger » efface par construction un vrai changement de
+    tempo après la mesure, et suit mal une dérive de plus de 20 % (accelerando
+    90 → 130) : c'est l'entrée à ne pas utiliser là.
   - *Tests* : `engine/tempoFix.test.ts` (jeu de cas, composition, rubato et vrai
     changement), `store/tempoFix.test.ts` (correction gardée par une nouvelle
     analyse, annulations, document), `project/projectFile.test.ts` (aller-retour

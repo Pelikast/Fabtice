@@ -710,6 +710,47 @@ sont peu améliorées. Deux morceaux en vieux disque de la moitié de contrôle
 perdent un peu (un blues : premiers temps 64 → 48 %). Détail :
 `app/README.md`, « Temps menés par les premiers temps ».
 
+## Temps, version 5 de l'analyse : le dernier filet (15 novembre, second passage)
+
+Un dernier filet (`engine/steady.ts`, à la fin de `gridFromBeats`) applique la
+règle du propriétaire sur la grille telle qu'elle est montrée : un passage
+qui quitte brusquement un niveau régulier (écart de 20 % ou plus entre
+mesures voisines) et y revient brusquement en moins de 8 mesures est refait
+entre les deux appuis réguliers qui l'encadrent, en nombre entier de temps
+(des mesures entières, sauf si les premiers temps entendus choisissent une
+partie de mesure). Restent tels quels : un changement qui dure (6 mesures
+régulières au nouveau tempo suffisent), ritardando, accelerando, rubato,
+introduction libre, les deux bouts du morceau (rien n'y est inventé), et un
+point d'orgue que les premiers temps disent tenu ; un point d'orgue isolé
+devient sinon quelques temps de plus au tempo voisin.
+
+Banc des temps, vieux disque : sauts de tempo 23 → 12, ondulations 37 → 24,
+premiers temps 84,5 → 87,3 %, temps trouvés inchangés (94,9 %) ; son propre
+et guitare inchangés. Banc des accords inchangé, sauf les premiers temps du
+vieux disque (83 → 86 %). Les 32 sauts qui restent sur tout le banc : 11 sur
+la première ou la dernière mesure, 5 sur un changement qui dure mais hésite,
+7 sur une prise de guitare sans aucun appui régulier, 6 en début ou en fin
+sans appui d'un côté, 3 divers. Ce n'est donc pas tout à fait « zéro par
+construction » : sur le jeu de cas, 73 passages sur 4 788 restent (236
+avant), ceux où aucun nombre entier de mesures ne convient et où les premiers
+temps ne tranchent pas.
+
+Recul corrigé : Blues for Bird en vieux disque (premiers temps 48 → 100 %).
+Recul qui reste : une prise de guitare façon vieux disque à 81 % de temps
+trouvés (100 % en version 3) ; le réseau y avance de 140 ms au plus pendant
+5 s, ce n'est pas un saut de 20 % et le filet n'y touche pas.
+
+« Corriger un changement de tempo indésirable » suit désormais les temps un
+à un en ignorant les pics éloignés de plus de 20 % d'un temps (fini le
+glissement sur la croche swinguée), prend son tempo dans la suite régulière
+la plus proche (quatre mesures, avant ou sinon après la mesure choisie) et
+reprend la main après chaque retour à la grille. Deux cas réels, pris sur
+les sorties du réseau telles que l'app les calcule, servent de test
+(`tempoFix.app.test.ts`) : So What et Blues for Bird en vieux disque. Sur le
+jeu de cas, elle remet d'aplomb 649 des 913 passages que l'analyse laisse
+faux. À savoir : la grille continue au tempo tenu dans le bruit de fin de
+disque, après la musique.
+
 ## Correction du tempo à la main, à partir d'une mesure (décision du propriétaire, 15 novembre)
 
 Clic droit (appui long sur écran tactile, touche menu ou Maj+F10) sur une

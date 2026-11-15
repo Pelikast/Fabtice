@@ -223,7 +223,7 @@ export function negativeCases(): TempoCase[] {
 
 /** The analysis as it was (the beat repair of version 3 alone). */
 export function previous(c: TempoCase): Outcome {
-  const r = gridFromBeats(c.detected, c.downAt, REPAIR, null, null);
+  const r = gridFromBeats(c.detected, c.downAt, REPAIR, null, null, undefined, null);
   return { beats: r.grid.beats, numbers: r.grid.numbers, m: r.grid.beatsPerBar, repaired: r.repairs.length };
 }
 

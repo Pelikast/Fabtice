@@ -22,7 +22,7 @@ import type { TuningEstimate } from './tuning';
 export const DOUBT = 0.35;
 
 /** Version of the analyser's musical logic; bump it when a constant or an algorithm changes. */
-export const ANALYSER_VERSION = '4';
+export const ANALYSER_VERSION = '5';
 
 const APP_EXTENSIONS = new Set<string>(['6', 'b9', '9', '#9', '11', '#11', 'b5', '#5', 'b13', '13', 'alt']);
 

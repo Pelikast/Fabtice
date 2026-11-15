@@ -96,9 +96,11 @@ export interface RepairedPassage {
    * `tempo`: a short deviation of the tempo; `bar`: the downbeats after it had moved;
    * `level`: bars of the network's downbeats that held another number of beats
    * (half or double tempo, a lost or an extra beat), re-gridded (`engine/bars.ts`);
-   * `shift`: a run of beats placed early or late that came back, moved into place (`engine/displaced.ts`).
+   * `shift`: a run of beats placed early or late that came back, moved into place (`engine/displaced.ts`);
+   * `steady`: an abrupt and brief change of the bar length between two stable stretches, re-gridded
+   * at their tempo (`engine/steady.ts`, the last safety net).
    */
-  cause: 'tempo' | 'bar' | 'level' | 'shift';
+  cause: 'tempo' | 'bar' | 'level' | 'shift' | 'steady';
 }
 
 /**
