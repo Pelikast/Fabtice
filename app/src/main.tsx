@@ -11,6 +11,7 @@ import * as standardsLibrary from './standards/library';
 import { initStandards } from './standards/offer';
 import { startStorage } from './storage';
 import { appStore } from './store/store';
+import { registerServiceWorker } from './pwa/register';
 import { persistPreferences } from './store/preferences';
 import './styles/index.css';
 
@@ -53,6 +54,9 @@ if (params.has('demo')) {
   // Mac app: is a newer version of the import tool available? (a discreet offer, never a prompt)
   void checkToolUpdate();
 }
+
+// Lot 4: the web app works offline once loaded (never in the Mac app, never on the test addresses unless asked).
+registerServiceWorker();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

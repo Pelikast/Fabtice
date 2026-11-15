@@ -157,6 +157,13 @@ test('a project saved in the app opens in a fresh app from the Finder, everythin
       const after = await snapshot(page);
       assert.deepEqual(after, before, 'everything restored, the instruments to the sample');
       assert.equal(await page.evaluate(() => window.__fabtice.store.getState().analysisRun.status), 'idle', 'not analysed again');
+      // The web app's offline worker never runs in the Mac app (its pages come from the disk).
+      const sw = await page.evaluate(async () => ({
+        // On the app's own scheme the browser refuses service workers outright (InvalidStateError).
+        registrations: navigator.serviceWorker ? await navigator.serviceWorker.getRegistrations().then((r) => r.length, () => 0) : 0,
+        manifest: document.querySelector('link[rel="manifest"]') !== null,
+      }));
+      assert.deepEqual(sw, { registrations: 0, manifest: false }, 'no service worker, no web manifest in the Mac app');
       await page.waitForTimeout(2000);
       await clean(page, problems, 'opening');
     } finally {

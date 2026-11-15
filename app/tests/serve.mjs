@@ -19,6 +19,8 @@ const types = {
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
   '.txt': 'text/plain; charset=utf-8',
+  '.webmanifest': 'application/manifest+json',
+  '.onnx': 'application/octet-stream',
 };
 
 export function startServer(port = 0) {
@@ -34,6 +36,8 @@ export function startServer(port = 0) {
       }
       res.writeHead(200, {
         'Content-Type': types[path.extname(file)] || 'application/octet-stream',
+        // As a real host does (Netlify): the length is known (lot 4: the service worker keeps big files whole).
+        'Content-Length': fs.statSync(file).size,
         'Cache-Control': 'no-store',
         'Cross-Origin-Opener-Policy': 'same-origin',
         'Cross-Origin-Embedder-Policy': 'require-corp',
