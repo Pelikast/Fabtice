@@ -411,6 +411,20 @@ describe('transport', () => {
     expect(core.heardPos()).toBeGreaterThan(frozen + 1.0 * SR);
   });
 
+  it('pause, seek and play again before the fade-out ends: playback goes on from the new place', async () => {
+    const core = await makeCore();
+    addTrack(core, sine(300, 30, 0.5));
+    core.play();
+    run(core, quanta(2));
+    core.pause();
+    core.seek(10 * SR); // within the 8 ms of the fade, as the page posts « seek » then « play »
+    core.play();
+    run(core, quanta(1.5));
+    const h = core.heardPos() / SR;
+    expect(h).toBeGreaterThan(10.8);
+    expect(h).toBeLessThan(11.6);
+  });
+
   it('ended: stops at the end of the material, once everything was heard', async () => {
     const core = await makeCore();
     addTrack(core, sine(300, 3));

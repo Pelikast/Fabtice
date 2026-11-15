@@ -193,6 +193,8 @@ export class PlayerCore {
   private fadeAction = FADE_NONE;
   /** Heard position frozen while a pause fades out; -1 when not pausing. */
   private frozen = -1;
+  /** A seek arrived while the pause was fading out (`frozen` is its target). */
+  private seekWhilePausing = false;
   /** Target of a seek waiting for the fade-out; -1 when none. */
   private pendingSeek = -1;
   /** Source frame playback (re)started from, and output frames played since. */
@@ -487,6 +489,17 @@ export class PlayerCore {
    */
   play(countIn?: { offsets: Float64Array; levels: Uint8Array } | null): void {
     if (this.playing && this.mgTarget === 1) return;
+    if (this.playing && this.fadeAction === FADE_PAUSE && this.seekWhilePausing) {
+      // Paused, moved and played again before the 8 ms fade-out ended (the page posts « seek » then « play »):
+      // carry on as a seek while playing, so the move is not lost.
+      this.seekWhilePausing = false;
+      this.pendingSeek = this.frozen;
+      this.frozen = -1;
+      this.fadeAction = FADE_SEEK;
+      this.mgTarget = 0;
+      return;
+    }
+    this.seekWhilePausing = false;
     if (countIn && countIn.offsets.length > 0 && !this.playing && this.tracks.length > 0) {
       this.startCountIn(countIn);
       return;
@@ -798,6 +811,7 @@ export class PlayerCore {
       return;
     }
     this.frozen = this.heardPos();
+    this.seekWhilePausing = false;
     this.pendingSeek = -1;
     this.mgTarget = 0;
     this.fadeAction = FADE_PAUSE;
@@ -818,6 +832,7 @@ export class PlayerCore {
     }
     if (this.playing && this.fadeAction === FADE_PAUSE) {
       this.frozen = frame; // pausing: the pause simply ends at the new place
+      this.seekWhilePausing = true;
       return;
     }
     if (!this.playing || this.mg < 0.01) {
