@@ -20,6 +20,7 @@ import { buildSegments, decodeChords, type ChordSegment, type DecodeOptions } fr
 import { makeGrid, renumber, type Grid } from './grid';
 import { estimateKey, type KeyEstimate } from './key';
 import { inferMeter, type MeterScore } from './meter';
+import { BARS, repairByBars, type BarOptions } from './bars';
 import { REPAIR, bestPhase, repairBeats, type DownbeatAt, type RepairOptions, type RepairedPassage } from './repair';
 import { resampleRatio } from './resample';
 import { type OrtLike, type RunControl, type SessionLike } from './session';
@@ -33,6 +34,8 @@ export const OPTIONS = {
   harmonyPrior: true,
   /** Repair short tempo accidents and bar shifts of the beat network (`repair.ts`). */
   repair: true,
+  /** Re-grid the bars of the network's downbeats that hold another number of beats (`bars.ts`). */
+  bars: true,
 };
 
 /** Shortest piece analysed, in seconds: below it there is nothing to find. */
@@ -107,11 +110,21 @@ export interface GridFromBeats {
  * beats from it): the chords are decoded on those same bars. `downAt` is the
  * network's downbeat probability at a time (null: none, timing alone).
  */
-export function gridFromBeats(found: readonly number[], downAt: DownbeatAt | null, repair: RepairOptions | null = OPTIONS.repair ? REPAIR : null): GridFromBeats {
+export function gridFromBeats(
+  found: readonly number[],
+  downAt: DownbeatAt | null,
+  repair: RepairOptions | null = OPTIONS.repair ? REPAIR : null,
+  bars: BarOptions | null = OPTIONS.bars ? BARS : null,
+): GridFromBeats {
   const flat = () => 0.5;
   const probs = (beats: readonly number[]) => beats.map((t) => (downAt ?? flat)(t));
   const first = inferMeter(probs(found), { candidates: OPTIONS.meterCandidates });
-  const { beats, repairs } = repair ? repairBeats(found, first.beatsPerBar, downAt, repair) : { beats: found.slice(), repairs: [] };
+  const led = bars && downAt ? repairByBars(found, downAt, OPTIONS.meterCandidates, first.beatsPerBar, bars) : null;
+  const start = led ? led.beats : found;
+  const m0 = led?.meter ?? first.beatsPerBar;
+  const fixed = repair ? repairBeats(start, m0, downAt, repair) : { beats: start.slice(), repairs: [] };
+  const beats = fixed.beats;
+  const repairs = [...(led?.repairs ?? []), ...fixed.repairs].sort((a, b) => a.start - b.start);
   const dp = probs(beats);
   const m = inferMeter(dp, { candidates: OPTIONS.meterCandidates });
   const numbers = beats.length >= 4 ? renumber(beats, m.beatsPerBar, bestPhase(dp, m.beatsPerBar)) : m.numbers;

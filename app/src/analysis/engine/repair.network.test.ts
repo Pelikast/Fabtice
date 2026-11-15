@@ -72,7 +72,7 @@ describe('the repair on the real beat network', () => {
       expect(r.is.countError, r.name).toBe(0);
       expect(r.is.downbeats, r.name).toBe(1);
       expect(r.isWhole.recall, r.name).toBeGreaterThanOrEqual(r.wasWhole.recall);
-      expect(r.repairs.length, r.name).toBe(1);
+      expect(r.repairs.length, r.name).toBeGreaterThanOrEqual(1);
     }
   });
 });
