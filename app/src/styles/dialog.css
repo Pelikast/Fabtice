@@ -73,6 +73,8 @@
 }
 .plein:hover { background: var(--braise-sombre); }
 .sinon { font-size: 13.5px; color: var(--encre-douce); margin-bottom: 6px; }
+/* Lot 4: « Déjà un projet enregistré ? ouvrir un projet Fabtice », a calm line under the main way in. */
+.ouvrir-projet { font-size: 13.5px; color: var(--encre-douce); margin: 12px 0 6px; }
 .pied {
   display: flex;
   justify-content: space-between;

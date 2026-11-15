@@ -31,7 +31,9 @@
     "test:separation-prototype": "node tests/separation-prototype.mjs",
     "test:memory": "node tests/memory.mjs",
     "test:metronome": "node tests/metronome.mjs",
-    "test:markers": "node tests/markers.mjs"
+    "test:markers": "node tests/markers.mjs",
+    "test:project-file": "node tests/project-file.mjs",
+    "test:offline": "node tests/offline.mjs"
   },
   "dependencies": {
     "@audio/encode-flac": "1.4.3",

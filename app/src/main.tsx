@@ -11,6 +11,7 @@ import * as standardsLibrary from './standards/library';
 import { initStandards } from './standards/offer';
 import { startStorage } from './storage';
 import { appStore } from './store/store';
+import { registerServiceWorker } from './pwa/register';
 import { persistPreferences } from './store/preferences';
 import './styles/index.css';
 
@@ -47,11 +48,15 @@ if (params.has('demo')) {
       }
     });
   }
-  // Autosave on, then the kept piece reopened, else the new-piece dialog.
-  void startStorage();
+  // Autosave on, then the kept piece reopened, else the new-piece dialog. Then (Mac app) the `.fabtice`
+  // files opened from the Finder, which replace it as an import would.
+  void startStorage().then(() => import('./project/fromDesktop').then((m) => m.followOpenedProjects()));
   // Mac app: is a newer version of the import tool available? (a discreet offer, never a prompt)
   void checkToolUpdate();
 }
+
+// Lot 4: the web app works offline once loaded (never in the Mac app, never on the test addresses unless asked).
+registerServiceWorker();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

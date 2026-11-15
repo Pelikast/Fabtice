@@ -24,7 +24,9 @@ export type ImportPhase =
   /** Tracks are handed to the engine. */
   | 'preparing'
   /** Launch: the piece kept on the device is being opened again (not an import). */
-  | 'restoring';
+  | 'restoring'
+  /** Lot 4: a `.fabtice` project file is being opened (`project/open.ts`). */
+  | 'opening';
 
 /** What the launch is doing while a kept piece is opened again (`phase: 'restoring'`). */
 export type RestoreStep = 'reading' | 'decoding' | 'instruments' | 'preparing';
@@ -35,7 +37,7 @@ export interface ImportProgress {
   fraction: number | null;
   /** Name of what is being imported (file name or video title) once known. */
   title?: string;
-  /** `restoring` only: the step under way (reading, decoding, preparing the engine). */
+  /** `restoring` and `opening` only: the step under way (reading, decoding, preparing the engine). */
   step?: RestoreStep;
   /** `downloading` with no known total: bytes received so far. */
   received?: number;
@@ -90,6 +92,12 @@ export type ImportErrorCode =
   | 'not-available'
   /** The tracks could not be handed to the audio engine. */
   | 'prepare-failed'
+  /** Lot 4, `.fabtice` file: cut short or damaged. */
+  | 'project-damaged'
+  /** Lot 4, `.fabtice` file: written by a later version of Fabtice. */
+  | 'project-too-recent'
+  /** Lot 4: chosen as a project, but not a Fabtice project file. */
+  | 'project-not-project'
   | 'cancelled';
 
 export class ImportError extends Error {

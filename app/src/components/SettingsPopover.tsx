@@ -11,6 +11,8 @@ import { setFormants, setSeparationModel } from '../store/separationActions';
 import { useApp } from '../store/store';
 import { useFitPanel } from '../ui/useFitPanel';
 import { ExportItems } from './ExportMenu';
+import { DeviceStorage } from './DeviceStorage';
+import { formatSize } from '../separation/useChoice';
 
 const MINOR: { value: MinorNotation; sample: string }[] = [
   { value: 'm', sample: 'Cm7' },
@@ -65,8 +67,11 @@ function SeparationPhoneEntry() {
 
 /**
  * « Réglages avancés », folded by default: the separation tool (automatic, or
- * one of the list) and « Conserver le timbre » for the applied render and the
- * export. Out of the way of someone who opens the app for the first time.
+ * one of the list, with its size, source and licence), the chord model, the
+ * collections of standards, « Conserver le timbre » for the applied render and
+ * the export, and (lot 4) the room taken on this device, with « Libérer » for
+ * the downloaded tools. Out of the way of someone who opens the app for the
+ * first time.
  */
 function AdvancedSettings() {
   const [open, setOpen] = useState(false);
@@ -75,6 +80,7 @@ function AdvancedSettings() {
   const tools = useMainTools();
   const auto = useSeparationChoice(open);
   const autoChoice = setting === 'auto' ? auto : null;
+  const shown = setting === 'auto' ? (auto?.model ?? null) : (tools.find((m) => m.id === setting) ?? null);
   return (
     <div className="avance">
       <button className="option avance-titre" aria-expanded={open} data-testid="reglages-avances" onClick={() => setOpen((o) => !o)}>
@@ -96,6 +102,13 @@ function AdvancedSettings() {
               ))}
             </select>
             {autoChoice && <small>{t('settings.toolAutoWhy', { name: autoChoice.model.name, reason: autoChoice.reason })}</small>}
+            {/* What the tool costs before it is chosen: its size, where it comes from, its licence. */}
+            {shown && (
+              <small data-testid="outil-cout">
+                {t('settings.toolCost', { size: formatSize(shown.file.bytes), host: shown.file.host, licence: shown.licence })}
+                {shown.licenceUnclear && ` ${t('settings.toolCostUnclear')}`}
+              </small>
+            )}
           </label>
           <ChordModelSetting />
           <StandardsSettingsEntry
@@ -113,6 +126,7 @@ function AdvancedSettings() {
               <small>{t('settings.formantsNote')}</small>
             </label>
           )}
+          <DeviceStorage />
         </div>
       )}
     </div>

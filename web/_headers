@@ -3,3 +3,8 @@
 /*
   Cross-Origin-Opener-Policy: same-origin
   Cross-Origin-Embedder-Policy: require-corp
+
+# The offline web app's service worker (lot 4): always asked again, so that a
+# new version is found at the next launch.
+/sw.js
+  Cache-Control: no-cache

@@ -49,6 +49,15 @@
       "title": "Fabtice",
       "writeUpdateInfo": false
     },
-    "publish": null
+    "publish": null,
+    "fileAssociations": [
+      {
+        "ext": "fabtice",
+        "name": "Projet Fabtice",
+        "description": "Projet Fabtice",
+        "role": "Editor",
+        "mimeType": "application/x-fabtice"
+      }
+    ]
   }
 }

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { formatAmount } from '../import/amount';
 import { cancelImport, isCancellablePhase, startFileImport, startLinkImport, startToolUpdate } from '../import/controller';
+import { chooseProjectFile } from '../project/choose';
 import { FILE_ACCEPT } from '../import/formats';
 import { t } from '../i18n';
 import { getDesktopBridge } from '../platform/desktopBridge';
@@ -114,6 +115,16 @@ function Choices({ open, desktop }: { open: boolean; desktop: boolean }) {
   }, [open]);
 
   const chooseFile = () => fileRef.current?.click();
+  // Lot 4: a `.fabtice` project, offered calmly after the main way in. Its file picker is made on the
+  // spot (`chooseProjectFile`): the dialog keeps a single file field, the audio one.
+  const projectLine = (
+    <div className="ouvrir-projet">
+      {t('new.openProjectLead')}{' '}
+      <button className="lien" data-testid="ouvrir-projet" onClick={chooseProjectFile}>
+        {t('new.openProject')}
+      </button>
+    </div>
+  );
   const fileInput = (
     <input
       ref={fileRef}
@@ -171,6 +182,7 @@ function Choices({ open, desktop }: { open: boolean; desktop: boolean }) {
           </button>
         </div>
         {fileInput}
+        {projectLine}
         {toolUpdate && (
           <div className="mise-a-jour">
             <span>{t('new.updateOffer')}</span>{' '}
@@ -196,6 +208,7 @@ function Choices({ open, desktop }: { open: boolean; desktop: boolean }) {
         {t('new.chooseFileButton')}
       </button>
       {fileInput}
+      {projectLine}
       <ImportStems />
       {open && <StandardsCard />}
       <div className="pied">
@@ -284,21 +297,24 @@ function useQuiet(key: string, enabled: boolean, delayMs: number): boolean {
 function ImportProgressView({ status }: { status: Extract<ImportStatus, { kind: 'busy' }> }) {
   const { phase, fraction, title, step, received } = status.progress;
   const restoring = phase === 'restoring';
-  const cancellable = isCancellablePhase(phase);
+  const opening = phase === 'opening';
+  // Once the tracks are being put in place, the open piece is already replaced: nothing to cancel any more.
+  const cancellable = isCancellablePhase(phase) && !(opening && step === 'preparing');
   const quiet = useQuiet(`${phase}|${step ?? ''}|${fraction ?? ''}|${received ?? ''}`, MAY_BE_SLOW.has(phase), QUIET_NOTE_DELAY_MS);
   // A percentage only when there is something real to measure; else the amount received, else nothing.
   const figure = fraction !== null ? t('import.percent', { n: Math.round(fraction * 100) }) : received !== undefined ? t('import.received', { size: formatAmount(received) }) : '';
   return (
     <div className="import-etat" role="status" aria-live="polite">
-      {title && !restoring && <div className="import-titre">{title}</div>}
+      {title && !restoring && !opening && <div className="import-titre">{title}</div>}
       <div className="phase">
-        <span>{restoring ? t('import.restoring', { title: title ?? '' }) : t(`import.${phase}`)}</span>
+        <span>{restoring ? t('import.restoring', { title: title ?? '' }) : opening ? t('import.opening', { title: title ?? '' }) : t(`import.${phase}`)}</span>
         <span>{figure}</span>
       </div>
       <div className={`jauge${fraction === null ? ' indeterminee' : ''}`} style={{ '--avance': fraction ?? 0 } as CSSProperties}>
         <span />
       </div>
       {restoring && step && <p className="import-note">{t(`restore.step.${step}`)}</p>}
+      {opening && step && <p className="import-note">{t(`project.step.${step}`)}</p>}
       {phase === 'installing' && <p className="import-note">{t('import.installingNote')}</p>}
       {quiet && <p className="import-note">{t('import.quietNote')}</p>}
       {cancellable ? (

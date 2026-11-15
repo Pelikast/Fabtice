@@ -619,8 +619,51 @@ Pistes ; rien n'a été écouté à l'oreille ici. À essayer par le propriétai
 le son des trois clics, le décompte et l'accélération sur un vrai morceau, la
 lisibilité du panneau sur iPhone.
 
-**Reste du lot 4** : projets `.fabtice` (ouvrir, créer), version web hors
-ligne (PWA), réglages, finitions.
+## Lot 4 — projets, hors ligne, réglages : ce qui est livré, choix faits, limites
+
+**Livré (branche `lot-4-etape-2`).**
+- *Projets.* « Exporter → Enregistrer le projet… » produit un fichier
+  `.fabtice` unique, avec ou sans les instruments séparés (taille annoncée) :
+  téléchargement dans le navigateur, fenêtre d'enregistrement de macOS dans
+  l'app Mac. On le rouvre par « ouvrir un projet Fabtice » dans la fenêtre
+  « Nouveau morceau », en le déposant sur la fenêtre, ou dans l'app Mac par
+  double-clic ou « Ouvrir avec ».
+- *Ouverture.* Elle remplace le morceau comme un import : tout est vérifié
+  avant, tout revient sans nouvelle analyse (grille, tonalité, corrections à
+  la main, accords, boucles et repères, métronome, instruments séparés), puis
+  le projet devient le morceau gardé. Un fichier abîmé, trop récent ou qui
+  n'est pas un projet donne une phrase calme, et rien ne change.
+- *Format* (`app/src/project/FORMAT.md`) : une archive ZIP ordinaire, sans
+  compression, signée par une première entrée `mimetype` ; `fabtice.json`
+  (manifeste, `formatVersion` 1), `projet.json` (le document version 4, relu
+  par les mêmes migrations), `audio/` (le fichier importé, octet pour octet),
+  `instruments/*.wav` (16 bits, 48 kHz). Moins de 4 Go.
+- *Hors ligne.* La version web s'ouvre et joue le morceau gardé sans réseau
+  (service worker écrit à la main, manifeste, icônes tirées du logo) ; jamais
+  de service worker dans l'app Mac.
+- *Réglages.* Sous l'outil de séparation : taille, source et licence. Dans
+  les avancés : « Place sur cet appareil », avec « Libérer » pour les outils
+  téléchargés.
+
+**Choix faits, à faire valider par le propriétaire.** Instruments en WAV (pas
+de FLAC : pas de décodeur à nous qui respecte la règle mémoire), inclus par
+défaut. Un seul morceau gardé sur l'appareil, pas de « Morceaux récents » :
+les fichiers servent à en garder d'autres. Les gros fichiers d'ONNX Runtime
+(15 et 29 Mo) et la description du modèle d'accords détaillé sont gardés
+hors ligne au premier usage, pas d'emblée. Une nouvelle version du site prend
+la main au lancement suivant ; en ligne, la page est toujours la plus
+récente. Pas de réglage d'instrument par défaut (le choix Ut, Si♭, Mi♭ suit
+déjà d'un morceau au suivant).
+
+**Limites.** N'ont pas pu être essayés ici : les vraies fenêtres de macOS, le
+double-clic dans le Finder et l'icône du type de fichier, l'installation de
+la version web sur iPhone ou dans Safari, le service worker sur Netlify. **Au
+premier déploiement Netlify, vérifier d'abord le hors-ligne et les en-têtes
+d'isolation** (un service worker fautif reste installé chez les visiteurs).
+Un projet de 20 minutes avec sept instruments (environ 1,6 Go) n'a pas été
+mesuré : dans le navigateur, le fichier s'assemble en mémoire.
+
+**Reste du lot 4** : finitions selon les retours du propriétaire.
 
 ## Points ouverts
 

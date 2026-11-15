@@ -37,6 +37,8 @@ le stockage.
 | `npm run test:export-memory` | après `build`, au premier plan : la mémoire de l'export de sept pistes de cinq minutes (archive de WAV, de MP3, mélange en WAV, FLAC et MP3), chiffres affichés |
 | `npm run test:metronome` | après `build` (lot 4) : le panneau du métronome (volume, décompte, mesure et regroupement, temps forts et faibles, accélération), ce qui arrive au moteur factice (piste de clics, volume, plan, décompte au moment de Lecture), le palier et le décompte affichés, le panneau dans la fenêtre à 1280 × 800, 960 × 640 et 390 × 844, puis les réglages retrouvés après rechargement (profil persistant). `FABTICE_METRONOME_OUT` pour les captures |
 | `npm run test:markers` | après `build` (lot 4) : boucles gardées (garder, rappeler, renommer, ordonner, supprimer), sections (les lettres de la grille : listées, bouclées, ajoutées, renommées, supprimées, les mêmes dans la grille d'accords), la rangée « Repères » de la règle (clic), le clavier, le téléphone, puis tout retrouvé après rechargement (profil persistant). `FABTICE_MARKERS_OUT` pour les captures |
+| `npm run test:project-file` | après `build` (lot 4) : les projets `.fabtice` avec des tailles réelles et des profils persistants : un WAV d'une minute importé (vrai moteur), séparé (séparateur factice : de vrais instruments 16 bits), corrigé, avec boucle nommée, métronome et transposition, enregistré avec puis sans les instruments (fichier téléchargé et vérifié : nom, signature, taille annoncée = taille réelle, 57 Mo) ; ouvert dans un autre profil par « Ouvrir un projet Fabtice » (tout revient, instruments à l'échantillon près, pas de nouvelle analyse), rechargé (gardé sur l'appareil) ; copie abîmée, fichier audio choisi comme projet ; projet déposé sur la fenêtre ; la fenêtre « Nouveau morceau » et les réglages (avancés dépliés) à 1280 × 800 et 390 × 844. Captures dans `FABTICE_PROJECT_OUT` |
+| `npm run test:offline` | après `build` (lot 4) : la version web hors ligne dans Chromium, profil persistant, **vrai moteur** : le service worker s'installe (adresse `?horsligne&debug`), garde les petits fichiers de l'app mais pas les gros WebAssembly d'ONNX Runtime ; un morceau de 5 Mo importé ; réseau coupé (`setOffline`), rechargement : l'app s'ouvre, `crossOriginIsolated` est vrai, le morceau gardé revient et **joue** ; un gros fichier demandé en ligne est gardé et resservi hors ligne avec les en-têtes d'isolation ; la maquette voisine n'est pas touchée ; en ligne, une nouvelle page sur le serveur est celle qu'on voit au chargement suivant ; manifeste et icônes. Captures dans `FABTICE_OFFLINE_OUT` |
 | `npm run test:chart` | après `build` : la grille d'accords comparée à la maquette (même balisage des accords, mêmes tailles, sections, boucle, mesure en cours, instruments, états vide et « analyse en cours », téléphone), puis les gestes (clic, glisser, suivi), l'éditeur d'accord (toujours entier et dans la fenêtre, à 1280 × 800 et 960 × 640), tous les panneaux flottants (Tempo, analyse, réglages, Exporter, accord fin, tonalité : dans la fenêtre, au-dessus du transport, dernier bouton cliquable, à 1280 × 800, 1024 × 700 et 960 × 640 ; `ui/useFitPanel.ts` leur donne une hauteur maximale et un défilement propre quand la fenêtre est trop basse), la tonalité, les sections, le clavier, l'autosauvegarde (rechargement d'un morceau gardé), le toucher réel sur téléphone (390 × 844) et l'impression (feuille de style d'impression, PDF A4 et Letter lus avec `pdftotext`, sauts de page) ; panneaux de corrections et d'accordage ; captures de l'app, de la maquette et des pages imprimées dans `FABTICE_CHART_OUT` (`pdftotext`, `pdfinfo` et `pdftoppm` de poppler sont nécessaires pour la partie impression) |
 
 Les fichiers audio de test de `test:import` sont dans `tests/fixtures/` (quelques
@@ -141,6 +143,13 @@ src/
   platform/           l'app Mac vue depuis la page (window.fabtice)
   storage/            projet courant sur l'appareil : contrat, IndexedDB, gardien
                       (autosauvegarde), réouverture au lancement
+  project/            fichiers de projet `.fabtice` (lot 4) : conteneur ZIP lu et écrit
+                      par tranches (zip.ts), format (fileFormat.ts, FORMAT.md),
+                      « Enregistrer le projet » (save.ts), ouverture (open.ts, choose.ts),
+                      fichiers ouverts depuis le Finder (fromDesktop.ts)
+  pwa/                version web hors ligne (lot 4) : service worker écrit à la main
+                      (sw.js, complété par la construction) et son inscription
+  settings/           « Place sur cet appareil » (lot 4) : tailles et « Libérer »
   i18n/               tous les textes (fr.ts) et t()
   demo/               le morceau synthétique de ?demo
   styles/             jetons, base, une feuille par zone, téléphone
@@ -1098,6 +1107,146 @@ fabriquer une grille.
   390 × 844, puis réglages et repères retrouvés après rechargement dans un profil
   persistant. Captures dans `FABTICE_METRONOME_OUT` et `FABTICE_MARKERS_OUT`.
 
+### Lot 4 : projets `.fabtice`, version web hors ligne, réglages
+
+#### Projets `.fabtice` (`src/project/`)
+
+Le format est décrit dans `src/project/FORMAT.md` : une archive ZIP sans
+compression, signée par son entrée `mimetype`, avec un manifeste versionné
+(`formatVersion` 1), le document du projet (version 4, **même lecteur et mêmes
+migrations** que la copie gardée sur l'appareil), le fichier importé octet pour
+octet et, au choix, les instruments séparés en WAV 16 bits. Le document du
+projet n'a pas changé de forme ni de version.
+
+- **Enregistrer** : « Exporter » → « Enregistrer le projet… » (première entrée
+  du menu ; sur téléphone, dans le menu « ⋯ »). Une petite fenêtre de la
+  famille de « Exporter le son » : une phrase, « Avec les instruments
+  séparés » (seulement si le morceau est séparé, cochée par défaut, avec ce
+  qu'ils ajoutent), la taille exacte du fichier, « Préparer le fichier », puis
+  le lien « Enregistrer « titre.fabtice » » : un téléchargement dans un
+  navigateur, la fenêtre d'enregistrement de macOS dans l'app Mac (titre
+  « Enregistrer le projet », filtre `.fabtice` : `desktop/src/downloads.js`).
+  Le document vient de l'état, le fichier d'origine de l'appareil (là où le
+  gardien l'a écrit), les instruments de la mémoire ; rien n'est réencodé. Le
+  morceau de démonstration ne s'enregistre pas ; un morceau pas encore gardé
+  non plus (phrase calme, « Réessayer »).
+- **Ouvrir** : la fenêtre « Nouveau morceau » garde son bouton principal en
+  premier ; dessous, une ligne discrète « Déjà un projet enregistré ? ouvrir un
+  projet Fabtice » (le sélecteur de fichier est créé à la demande, hors de la
+  fenêtre : celle-ci n'a toujours qu'un champ de fichier, l'audio). Un fichier
+  `.fabtice` déposé sur la fenêtre s'ouvre aussi (reconnu à son extension ou à
+  sa signature) ; tout autre fichier est importé comme avant. App Mac : double-clic
+  dans le Finder et « Ouvrir avec » (ci-dessous).
+- **Ouvrir remplace le morceau comme un import** (`open.ts`), dans la même
+  file que les imports (un seul à la fois, `import/controller.ts#exclusive`),
+  avec « Ouverture de « titre »… » et ses étapes (lecture du fichier,
+  préparation du son, instruments, mise en place). Tout est **lu et vérifié
+  avant** de toucher au morceau ouvert : manifeste, document, CRC de chaque
+  son, décodage de l'original. Un fichier abîmé, trop récent ou qui n'est pas
+  un projet s'arrête sur une phrase calme ; le morceau ouvert et celui gardé
+  restent tels quels. Puis `restoreProject` (mêmes identifiants : grille,
+  tonalité, corrections à la main, accords, boucles et repères, métronome,
+  affichage, instruments), sans relancer l'analyse (elle ne part que pour un
+  morceau qui n'en a pas) ni la séparation (les instruments cochés pour un
+  import sont oubliés). Enfin le projet devient le morceau gardé
+  (`keeper.keepNewProject`) et ses instruments sont écrits à côté, comme après
+  une séparation. Un instrument abîmé dans le fichier : le morceau s'ouvre
+  entier, avec une phrase.
+- **Un seul morceau gardé sur l'appareil** (décision du lot 4) : pas de liste
+  « Morceaux récents ». Le stockage est bâti autour d'un projet courant
+  (`replaceCurrent`, réouverture, « Rouvrir / Oublier ») et les instruments
+  pèsent des centaines de Mo : plusieurs morceaux gardés demanderaient de
+  reprendre le gardien, la réouverture et la gestion du quota, ce qui n'est ni
+  petit ni sûr. Les fichiers `.fabtice` jouent ce rôle : on en garde autant
+  qu'on veut, où l'on veut.
+
+#### App Mac : double-clic et « Ouvrir avec »
+
+`desktop/package.json` déclare l'extension (`fileAssociations` : « Projet
+Fabtice », `application/x-fabtice`, rôle Éditeur). macOS signale le fichier par
+`open-file` (écouté avant `ready`, l'app pouvant être lancée pour lui) ;
+`desktop/src/open-files.js` ne garde qu'un chemin absolu vers un fichier
+ordinaire en `.fabtice` de moins de 4 Go, sous un jeton aléatoire. La page
+demande au démarrage ceux qui attendent (`pendingProjects`), après la
+réouverture du morceau gardé, puis reçoit les suivants (`onOpenProject`) ; elle
+lit chaque fichier **par plages** avec son jeton (`readProjectFile`, 16 Mo au
+plus par appel) et le libère ensuite. Aucun autre fichier du disque n'est
+lisible par ce chemin. Types dans `platform/desktopBridge.ts` (méthodes
+facultatives : une app plus ancienne ne les a pas).
+
+#### Version web hors ligne (`src/pwa/`)
+
+- **Service worker écrit à la main** (`sw.js`, sans dépendance ni module de
+  construction : il tient en une centaine de lignes et doit préserver les en-têtes
+  d'isolation, ce qu'aucun outil courant ne fait de lui-même). La construction
+  web (`vite.config.ts#writePwaFiles`) y écrit la version (empreinte de la page
+  et des noms de fichiers), la liste à garder d'emblée et la liste complète, et
+  dépose à côté `manifest.webmanifest` et les icônes. Rien de tout cela dans la
+  construction de l'app Mac.
+- **Ce qu'il touche** : seulement les fichiers de l'app (la page, `assets/`, le
+  manifeste, les icônes). La maquette, les prototypes, les listes distantes
+  (outils de séparation, recueils) et les téléchargements de Hugging Face
+  passent sans lui (ces derniers sont dans IndexedDB).
+- **La page** : réseau d'abord (4 s au plus), sinon la copie gardée : en ligne,
+  on voit toujours la dernière version ; jamais une page périmée pour
+  toujours. **Les fichiers** (noms à empreinte) : copie gardée d'abord. Environ
+  3 Mo sont gardés avec chaque version ; les WebAssembly d'ONNX Runtime (15 et
+  29 Mo) et le graphe du modèle d'accords détaillé sont **gardés au premier
+  usage** (décision : ne pas imposer 44 Mo à qui n'analyse ou ne sépare pas
+  encore). Ils sont lus en entier une fois puis gardés (un gros corps envoyé
+  tel quel dans le cache échoue dans Chromium, mesuré ici).
+- **Isolation** : toute réponse donnée par le service worker porte COOP et COEP
+  (sinon le moteur perd sa mémoire partagée) ; vérifié hors ligne par
+  `test:offline` (`crossOriginIsolated`).
+- **Mise à jour** : une nouvelle version s'installe en silence et prend la main
+  au lancement suivant (quand aucune page de l'ancienne n'est ouverte) ; les
+  copies de l'ancienne sont alors effacées, sauf les gros fichiers que la
+  nouvelle nomme encore. `web/_headers` demande que `sw.js` soit toujours
+  revérifié.
+- **Où il s'inscrit** (`register.ts`) : en https, hors app Mac (le protocole
+  `fabtice://` refuse de toute façon les service workers), pas sur les adresses
+  de test ni sur une page servie par cette machine, sauf `?horsligne` (les
+  vérifications du navigateur ne doivent pas dépendre d'une copie laissée par
+  un essai précédent).
+- **Icônes** : le « F » de Fabtice à l'encre et son « t » italique braise, en
+  Fraunces, sur le papier : la marque telle qu'elle est (`src/assets/icons/`,
+  refaites par `make-icons.mjs` si la marque change), plus une version
+  « maskable » avec la marge de sécurité.
+
+#### Réglages
+
+Le panneau garde son ordre : d'abord l'essentiel (suivre la tête de lecture,
+notation des accords mineurs), puis « Réglages avancés », replié. Ajouts du
+lot 4, dans les avancés : sous l'outil de séparation, **sa taille, sa source et
+la licence connue de ses poids** (avec la mise en garde quand elle est
+incertaine), comme le modèle d'accords le faisait déjà ; et, en dernier,
+**« Place sur cet appareil »** (`components/DeviceStorage.tsx`,
+`settings/deviceUsage.ts`) : la place totale prise par Fabtice (selon le
+navigateur), puis une ligne par chose gardée avec sa taille : instruments
+séparés du morceau, outils d'analyse, modèle d'accords détaillé, outils de
+séparation, grilles des standards (comptées en grilles : leur magasin ne
+donne pas sa taille). « Libérer » efface un outil téléchargé (il revient quand
+il sert), désactivé pendant le calcul qui s'en sert. Le morceau gardé ne se
+libère pas ici (c'est « Oublier ce morceau » ou un nouveau morceau).
+Pas de réglage « instrument par défaut » (Ut, Si♭, Mi♭) : le choix fait dans
+l'en-tête de la grille suit déjà d'un morceau au suivant ; un second endroit
+ferait doublon.
+
+#### Vérifications
+
+- `npm test` : `project/fileFormat.test.ts` (aller-retour, archive lisible par
+  tout outil, sans instruments, document plus ancien migré, trop récent, abîmé
+  ou coupé n'importe où, autre fichier, et un fichier de **319 Mo** écrit puis
+  relu par tranches avec la mémoire de pointe mesurée), `project/projectFile.test.ts`
+  (par le magasin : tout revient et est gardé, sans instruments, fichier abîmé
+  sans effet, instrument abîmé, démonstration et morceau pas gardé),
+  `settings/deviceUsage.test.ts` (tailles, « Libérer », où s'inscrit le service
+  worker).
+- `npm run test:project-file`, `npm run test:offline` (Chromium, ci-dessus).
+- App Mac : `test/unit/open-files.test.js`, `test/e2e/project-file.test.js`
+  (enregistrer dans l'app, ouvrir dans une app neuve comme le Finder le fait,
+  relance, copie abîmée, pas de service worker).
+
 ## Contrats pour la suite
 
 ### Lot 2 : ce qui existe et ce qui reste, par chantier
@@ -1876,7 +2025,7 @@ qui envoie ces en-têtes, pas par `file://`.
 
 ### Stockage du projet — `src/storage/`
 
-Un seul projet à la fois (lot 1) : le document du projet courant
+Un seul projet à la fois (lot 1 ; confirmé au lot 4, les fichiers `.fabtice` servent à en garder d'autres) : le document du projet courant
 (`ProjectDocument`, `model/document.ts`, produit par
 `store/document.ts#toProjectDocument`), les **octets audio d'origine** (le mp3,
 le m4a… tel qu'importé) et, depuis le lot 3, les **instruments séparés** en 16

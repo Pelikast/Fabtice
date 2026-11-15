@@ -1,5 +1,6 @@
 /// <reference types="vitest/config" />
-import { readFileSync, rmSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { copyFileSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { defineConfig, type Plugin } from 'vite';
@@ -29,6 +30,52 @@ const ORT_WEBGPU_ENTRY = path.resolve(here, 'node_modules/onnxruntime-web/dist/o
 // Encoders of « Exporter le son »: LAME (LGPL-2.1+), libFLAC (BSD-3-Clause) and the wasm wrappers (MIT).
 const ENCODERS_DIR = path.resolve(here, 'src/export/audio/encoders');
 const ENCODER_LICENCES = ['LICENSE-lame.txt', 'LICENSE-wasm-media-encoders.txt', 'LICENSE-libflac.txt', 'LICENSE-audio-encode-flac.txt'];
+// Lot 4, the web app offline (PWA): the hand-written service worker, filled in at build time, the icons
+// (made from the brand by src/assets/icons/make-icons.mjs) and the manifest. Web build only: the Mac app
+// serves its pages from the disk and has no service worker.
+const PWA_DIR = path.resolve(here, 'src/pwa');
+const ICONS_DIR = path.resolve(here, 'src/assets/icons');
+const ICONS = ['icon-192.png', 'icon-512.png', 'icon-maskable-512.png', 'apple-touch-icon.png'];
+// Kept on first use rather than with each version: ONNX Runtime's WebAssembly (15 MB, and 29 MB for the
+// graphics chip) and the detailed chord model's graph. Everything else (about 3 MB) comes with the version.
+const LAZY_ASSET = /(^|\/)ort-wasm-.*\.wasm$|\.onnx$/;
+const MANIFEST = {
+  name: 'Fabtice',
+  short_name: 'Fabtice',
+  description: 'Un outil de travail pour musiciens : boucles, tonalité, tempo, grille d’accords.',
+  lang: 'fr',
+  start_url: './',
+  scope: './',
+  display: 'standalone',
+  background_color: '#f4ecdf',
+  theme_color: '#f4ecdf',
+  icons: [
+    { src: 'icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+    { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+    { src: 'icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+  ],
+};
+
+/** Writes the manifest, the icons and the service worker next to the built page (web build). */
+function writePwaFiles(outDir: string, files: string[]): void {
+  for (const icon of ICONS) copyFileSync(path.join(ICONS_DIR, icon), path.join(outDir, icon));
+  writeFileSync(path.join(outDir, 'manifest.webmanifest'), JSON.stringify(MANIFEST, null, 2));
+  const own = ['index.html', 'manifest.webmanifest', ...ICONS];
+  const assets = files.filter((f) => f.startsWith('assets/')).sort();
+  const precache = [...own, ...assets.filter((f) => !LAZY_ASSET.test(f))];
+  // The version: what the page and its files are (their names carry their hash; the page is hashed whole).
+  const version = createHash('sha256')
+    .update(readFileSync(path.join(outDir, 'index.html')))
+    .update(assets.join('\n'))
+    .digest('hex')
+    .slice(0, 16);
+  const sw = readFileSync(path.join(PWA_DIR, 'sw.js'), 'utf8')
+    .replace("'__VERSION__'", JSON.stringify(version))
+    .replace('__PRECACHE__', JSON.stringify(precache))
+    .replace('__ASSETS__', JSON.stringify(assets));
+  writeFileSync(path.join(outDir, 'sw.js'), sw);
+}
+
 // Fonts worth preloading: needed by the first paint of the shell.
 const PRELOADED_FONTS = /^(fraunces-latin-full-normal|instrument-sans-latin-wght-normal|noto-music-music-400-normal)-.*\.woff2$/;
 
@@ -55,6 +102,7 @@ function fabticeOutput(mode: string): Plugin {
       if (mode !== 'desktop') {
         rmSync(path.join(WEB_OUT, 'assets'), { recursive: true, force: true });
         rmSync(path.join(WEB_OUT, 'index.html'), { force: true });
+        for (const f of ['sw.js', 'manifest.webmanifest', ...ICONS]) rmSync(path.join(WEB_OUT, f), { force: true });
       }
     },
     generateBundle() {
@@ -72,17 +120,27 @@ function fabticeOutput(mode: string): Plugin {
       }
       this.emitFile({ type: 'asset', fileName: `assets/${ORT_LICENCE}`, source: readFileSync(path.join(ANALYSIS_DIR, ORT_LICENCE)) });
     },
+    writeBundle(options, bundle) {
+      if (mode !== 'desktop' && options.dir) writePwaFiles(options.dir, Object.keys(bundle));
+    },
     transformIndexHtml: {
       order: 'post',
       handler(_html, ctx) {
         if (!ctx.bundle) return [];
-        return Object.keys(ctx.bundle)
+        const fonts = Object.keys(ctx.bundle)
           .filter((file) => PRELOADED_FONTS.test(path.basename(file)))
           .map((file) => ({
             tag: 'link',
             attrs: { rel: 'preload', href: `./${file}`, as: 'font', type: 'font/woff2', crossorigin: '' },
             injectTo: 'head' as const,
           }));
+        if (mode === 'desktop') return fonts;
+        const pwa = [
+          { tag: 'link', attrs: { rel: 'manifest', href: './manifest.webmanifest' }, injectTo: 'head' as const },
+          { tag: 'link', attrs: { rel: 'apple-touch-icon', href: './apple-touch-icon.png' }, injectTo: 'head' as const },
+          { tag: 'link', attrs: { rel: 'icon', type: 'image/png', sizes: '192x192', href: './icon-192.png' }, injectTo: 'head' as const },
+        ];
+        return [...fonts, ...pwa];
       },
     },
   };

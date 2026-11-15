@@ -1,7 +1,16 @@
 import { useEffect, useState } from 'react';
-import { startFileImport } from '../import/controller';
+import { startFileImport, startProjectOpen } from '../import/controller';
+import { isProjectFileName, looksLikeProjectFile } from '../project/open';
+import { blobSource } from '../project/zip';
 import { openNewPiece } from '../store/actions';
 import { appStore } from '../store/store';
+
+/** A `.fabtice` project (by its name, or by its first bytes) opens as a project; anything else is imported as audio. */
+async function openDropped(file: File): Promise<void> {
+  const source = blobSource(file);
+  if (isProjectFileName(file.name) || (await looksLikeProjectFile(source))) await startProjectOpen(source, file.name);
+  else await startFileImport(file);
+}
 
 const hasFiles = (e: DragEvent) => Array.from(e.dataTransfer?.types ?? []).includes('Files');
 
@@ -37,7 +46,7 @@ export function useFileDrop(): boolean {
       const file = e.dataTransfer?.files[0];
       if (!file || appStore.getState().ui.import.kind === 'busy') return;
       openNewPiece();
-      void startFileImport(file);
+      void openDropped(file);
     };
     window.addEventListener('dragenter', onEnter);
     window.addEventListener('dragover', onOver);
