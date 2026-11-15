@@ -18,8 +18,9 @@
 // beats (otherwise the net would invent a pulse); the one on the most found
 // beats wins. Whole bars by default (the bar phase holds on both sides); a
 // number of beats that holds a part of a bar when the downbeats heard over
-// the whole piece agree with it better, the bar phase then being the one they
-// agree with (before or after the passage). The net passes again on its own
+// the whole piece agree with it better (by `PREFER`; without downbeats heard,
+// never), the bar phase then being the one they agree with (before or after
+// the passage). The net passes again on its own
 // result while it finds passages and makes no more abrupt changes.
 //
 // What stays: a change that lasts (no return within `brief` bars, or a new
