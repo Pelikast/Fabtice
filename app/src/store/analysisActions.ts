@@ -16,6 +16,12 @@ export interface ApplyAnalysisOptions {
    * Without it (the default) nothing done by hand is touched.
    */
   replaceCorrections?: boolean;
+  /**
+   * The request asked for the user's grid to be kept: the result's beats are
+   * that grid, not analysed ones. The analysed beats of the earlier result are
+   * kept instead, so « Revenir à l'analyse » still goes back to them.
+   */
+  keptGrid?: boolean;
 }
 
 /**
@@ -38,7 +44,8 @@ export function applyAnalysis(result: AnalysisResult, opts: ApplyAnalysisOptions
     }
   }
   const corrections = opts.replaceCorrections ? { ...emptyCorrections(), sections: s.corrections.sections } : s.corrections;
-  set({ analysis: result, tempoMap, corrections, analysisRun: { status: 'idle' } });
+  const analysis = opts.keptGrid && s.analysis ? { ...result, beats: s.analysis.beats } : result;
+  set({ analysis, tempoMap, corrections, analysisRun: { status: 'idle' } });
 }
 
 export function setAnalysisRun(analysisRun: AnalysisRun): void {

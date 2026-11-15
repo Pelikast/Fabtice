@@ -10,6 +10,7 @@ import { evidenceText } from '../analysis/evidenceText';
 import { cancelAnalysis, runAnalysis } from '../analysis/runner';
 import { chordModelChoice, useChordModelChoice } from '../analysis/chordModel';
 import { analysisEvidence, resultChordModel, type ChordWindowProgress } from '../analysis/types';
+import { formatBarNumber } from '../grid/format';
 import { formatNumber, t } from '../i18n';
 import { closePanel, openPanel, togglePanel } from '../store/actions';
 import { selectAnalysisStatus } from '../store/chartSelectors';
@@ -31,6 +32,7 @@ function statusText(run: AnalysisRun, fraction: number, window: (ChordWindowProg
   if (run.status === 'running') {
     if (run.step === 'download') return t('analysis.statusDownload', { n: percent(fraction) });
     if (run.step === 'chords' && window && window.total > 0) return t('analysis.statusFine', { n: window.percent });
+    if (run.tempoBar !== undefined) return t('analysis.statusTempo', { bar: formatBarNumber(run.tempoBar), n: percent(fraction) });
     return t('analysis.statusRunning', { n: percent(fraction) });
   }
   if (run.status === 'error') return t('analysis.statusError');

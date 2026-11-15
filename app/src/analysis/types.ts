@@ -13,6 +13,7 @@ import type { Key } from '../model/harmony';
 import type { Seconds } from '../model/project';
 import type { Meter } from '../model/tempoMap';
 import type { KnownCharts } from './engine/chart';
+import type { TempoFixRequest } from './engine/tempoFix';
 import type { ChordModelChoice } from './models';
 
 /** One downloadable model (shown to the user before and during the first download). */
@@ -196,6 +197,13 @@ export interface AnalysisRequest {
   onProgress?: (p: AnalysisProgress) => void;
   /** Aborts the analysis: `analyse()` then rejects with `AnalysisError('cancelled')` quickly. */
   signal?: AbortSignal;
+  /**
+   * A manual tempo action of the bar menu (`engine/tempoFix.ts`): the grid is
+   * computed from the network's outputs from `from` on (`grid` is then the grid
+   * in force, kept before `from`), and the chords are decoded on it. The
+   * result's `beats` is that new grid.
+   */
+  tempoFix?: TempoFixRequest | null;
 }
 
 export type AnalysisErrorCode =

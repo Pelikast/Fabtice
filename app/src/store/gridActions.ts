@@ -56,7 +56,10 @@ export function resetGridToAnalysis(): void {
   const { analysis } = get();
   if (!analysis) return;
   try {
-    set({ tempoMap: tempoMapFromBeats(analysis.beats.times, analysis.beats.downbeat, analysis.beats.meter, 'analysis') });
+    set((s) => ({
+      tempoMap: tempoMapFromBeats(analysis.beats.times, analysis.beats.downbeat, analysis.beats.meter, 'analysis'),
+      corrections: s.corrections.tempoFixes.length ? { ...s.corrections, tempoFixes: [] } : s.corrections,
+    }));
   } catch {
     // unusable analysed grid: keep the one in force
   }

@@ -119,11 +119,12 @@ export function gridFromBeats(
   repair: RepairOptions | null = OPTIONS.repair ? REPAIR : null,
   bars: BarOptions | null = OPTIONS.bars ? BARS : null,
   displaced: DisplacedOptions | null = OPTIONS.displaced ? DISPLACED : null,
+  candidates: readonly number[] = OPTIONS.meterCandidates,
 ): GridFromBeats {
   const flat = () => 0.5;
   const probs = (beats: readonly number[]) => beats.map((t) => (downAt ?? flat)(t));
-  const first = inferMeter(probs(found), { candidates: OPTIONS.meterCandidates });
-  const led = bars && downAt ? repairByBars(found, downAt, OPTIONS.meterCandidates, first.beatsPerBar, bars) : null;
+  const first = inferMeter(probs(found), { candidates });
+  const led = bars && downAt ? repairByBars(found, downAt, candidates, first.beatsPerBar, bars) : null;
   const start = led ? led.beats : found;
   const m0 = led?.meter ?? first.beatsPerBar;
   const fixed = repair ? repairBeats(start, m0, downAt, repair) : { beats: start.slice(), repairs: [] };
@@ -131,7 +132,7 @@ export function gridFromBeats(
   const beats = moved.beats;
   const repairs = [...(led?.repairs ?? []), ...fixed.repairs, ...moved.repairs].sort((a, b) => a.start - b.start);
   const dp = probs(beats);
-  const m = inferMeter(dp, { candidates: OPTIONS.meterCandidates });
+  const m = inferMeter(dp, { candidates });
   const numbers = beats.length >= 4 ? renumber(beats, m.beatsPerBar, bestPhase(dp, m.beatsPerBar)) : m.numbers;
   return { grid: makeGrid(beats, numbers, m.beatsPerBar), meterScores: m.scores, repairs };
 }

@@ -20,6 +20,7 @@ import { gridFromActivations, gridFromBeats } from '../../../../app/src/analysis
 import { downProbAt, pickPeaks, postMinimal } from '../../../../app/src/analysis/engine/beats';
 import { REPAIR } from '../../../../app/src/analysis/engine/repair';
 import { DISPLACED } from '../../../../app/src/analysis/engine/displaced';
+import { TEMPO_FIX, applyTempoFix } from '../../../../app/src/analysis/engine/tempoFix';
 import { BARS, barChains, downbeatPeaks, repairByBars } from '../../../../app/src/analysis/engine/bars';
 import { firstDownbeat } from '../../../../app/src/analysis/engine/grid';
 import { networks } from './networks';
@@ -194,8 +195,92 @@ export function truthOf(t: Truth, condition: string) {
   return { times: t.beats.map((x) => x * s), downbeat: t.downbeat, meter: t.meter };
 }
 
+/**
+ * The first bar of a grid that goes wrong: the bar (its downbeat in the grid)
+ * holding the first true beat not found, or found with the wrong bar number.
+ * Null when the grid is right all through.
+ */
+export function firstWrongBar(truth: { times: number[]; downbeat: number; meter: number }, g: FoundGrid): number | null {
+  const m = g.beatsPerBar;
+  let lastGood = -1;
+  let good = 0;
+  for (let k = 0; k < truth.times.length; k++) {
+    const x = truth.times[k]!;
+    if (x < g.times[0]! - TOL) continue; // before the grid begins
+    let i = -1;
+    for (let q = Math.max(0, lastGood); q < g.times.length; q++) {
+      if (Math.abs(g.times[q]! - x) <= TOL) {
+        i = q;
+        break;
+      }
+      if (g.times[q]! > x + TOL) break;
+    }
+    const trueDown = (((k - truth.downbeat) % truth.meter) + truth.meter) % truth.meter === 0;
+    const down = i >= 0 && (((i - g.downbeat) % m) + m) % m === 0;
+    if (i < 0 || trueDown !== down) {
+      // Wrong before two right bars: the grid is wrong from its start (a phase error, not a tempo accident).
+      if (good < 2 * m) return null;
+      let d = lastGood;
+      while (d > 0 && (((d - g.downbeat) % m) + m) % m !== 0) d--;
+      return g.times[d]!;
+    }
+    lastGood = i;
+    good++;
+  }
+  return null;
+}
+
 const opt = args();
-if (process.argv[1]?.endsWith('temps.mjs')) {
+if (process.argv[1]?.endsWith('temps.mjs') && opt.manual) {
+  // --manual: the two actions of the bar menu applied at the first wrong bar of the app's grid, on every piece where it is wrong.
+  const partage = JSON.parse(readFileSync(join(ROOT, 'banc', 'partage.json'), 'utf8')) as { dev: string[]; test: string[] };
+  const inList = (id: string, list: string[]) => list.some((p) => (p.endsWith('*') ? id.startsWith(p.slice(0, -1)) : p === id));
+  const ok = (s: BeatScore) => s.beatF >= 0.97 && s.downbeats >= 0.97 && s.jumps <= s.truthJumps;
+  const tally = new Map<string, { wrong: number; fixed: number; better: number; worse: number }>();
+  const fixOpts = { ...TEMPO_FIX, ...JSON.parse(process.env.FIX_OPTS ?? '{}') };
+  for (const t of loadCorpus()) {
+    if (opt.split && !inList(t.id, opt.split === 'dev' ? partage.dev : partage.test)) continue;
+    for (const condition of Object.keys(t.conditions)) {
+      const act = (await networks(`${t.dir}/${t.conditions[condition]!.mix}`)).outputs.act;
+      const truth = truthOf(t, condition);
+      const g = METHODS.app!(act);
+      const s0 = scoreGrid(truth, g);
+      if (ok(s0)) continue;
+      const from = firstWrongBar(truth, g);
+      const cells: string[] = [`app F ${(100 * s0.beatF).toFixed(1)} D ${(100 * s0.downbeats).toFixed(1)} J ${s0.jumps}`];
+      for (const kind of ['continuity', 'fresh'] as const) {
+        const key = `${condition}|${kind}`;
+        const tl = tally.get(key) ?? { wrong: 0, fixed: 0, better: 0, worse: 0 };
+        tl.wrong++;
+        if (from === null) {
+          tally.set(key, tl);
+          cells.push(`${kind}: wrong from the start`);
+          continue;
+        }
+        const hint = { times: g.times, downbeat: g.downbeat, meter: { numerator: g.beatsPerBar, denominator: 4 } };
+        const r = applyTempoFix(act, { kind, from, grid: hint }, fixOpts);
+        if (opt.only === t.id) {
+          const show = (a: readonly number[]) => a.filter((x) => x >= from - 3 && x <= from + 12).map((x) => x.toFixed(2)).join(' ');
+          const downs = (a: readonly number[], d: number, mm: number) => a.filter((x, i) => (((i - d) % mm) + mm) % mm === 0 && x >= from - 3 && x <= from + 12).map((x) => x.toFixed(2)).join(' ');
+          console.log(`  ${kind}\n    grid  ${show(g.times)}\n    now   ${show(r.times)}\n    true  ${show(truth.times)}\n    downs now ${downs(r.times, r.downbeat, r.meter.numerator)} | true ${downs(truth.times, truth.downbeat, truth.meter)}`);
+        }
+        const s1 = scoreGrid(truth, { times: r.times, downbeat: r.downbeat, beatsPerBar: r.meter.numerator });
+        const gain = s1.beatF - s0.beatF + s1.downbeats - s0.downbeats;
+        tl.fixed += +ok(s1);
+        tl.better += +(gain > 0.02);
+        tl.worse += +(gain < -0.02);
+        tally.set(key, tl);
+        cells.push(`${kind} F ${(100 * s1.beatF).toFixed(1)} D ${(100 * s1.downbeats).toFixed(1)} J ${s1.jumps}`);
+      }
+      console.log(`${t.id.padEnd(24)} ${condition.padEnd(11)} from ${from === null ? '-' : from.toFixed(1)} | ${cells.join(' | ')}`);
+    }
+  }
+  console.log('\ncondition    action       wrong  fixed  better  worse');
+  for (const [k, v] of [...tally.entries()].sort()) {
+    const [c, a] = k.split('|');
+    console.log(`${c!.padEnd(12)} ${a!.padEnd(11)} ${String(v.wrong).padStart(6)} ${String(v.fixed).padStart(6)} ${String(v.better).padStart(7)} ${String(v.worse).padStart(6)}`);
+  }
+} else if (process.argv[1]?.endsWith('temps.mjs')) {
   const methods = (opt.methods ?? 'none,app').split(',');
   const only = opt.only ? new Set(opt.only.split(',')) : null;
   const wanted = opt.conditions ? opt.conditions.split(',') : null;

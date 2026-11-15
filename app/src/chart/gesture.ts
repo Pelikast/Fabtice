@@ -11,12 +11,15 @@
 // HOLD, then drag: a finger resting on a bar for `HOLD_MS` selects that bar
 // (a visible veil tells it worked), and moving on then extends the selection.
 // A finger that moves before that is a scroll, so scrolling can never select
-// by accident, and a tap is too short to be a hold.
+// by accident, and a tap is too short to be a hold. A finger that stays on the
+// same bar for `MENU_HOLD_MS` opens the bar menu (manual tempo actions)
+// instead: the one-bar selection it made is undone.
 
 export const DRAG_PX = 4;
 export const TOUCH_SLOP_PX = 10;
 export const HOLD_MS = 420;
 export const TAP_MAX_MS = HOLD_MS;
+export const MENU_HOLD_MS = 900;
 
 /** What is under the pointer when it goes down. */
 export type Hit =
@@ -38,6 +41,8 @@ export type GestureEvent =
   | { type: 'move'; pointerId: number; x: number; y: number; bar: number | null }
   /** The hold timer of a finger fired. */
   | { type: 'hold'; pointerId: number }
+  /** The longer hold timer fired (`MENU_HOLD_MS`). */
+  | { type: 'menu'; pointerId: number }
   | { type: 'up'; pointerId: number; at: number }
   | { type: 'cancel'; pointerId: number };
 
@@ -48,7 +53,11 @@ export type Effect =
   /** A selection is finished: the playhead goes into the loop. */
   | { type: 'commit' }
   /** A finger moved before holding: it scrolls the sheet, the gesture is over. */
-  | { type: 'scroll' };
+  | { type: 'scroll' }
+  /** The loop as it was before the gesture comes back (the hold opened the menu, not a selection). */
+  | { type: 'unselect' }
+  /** Open the bar menu at this bar. */
+  | { type: 'menu'; bar: number };
 
 export interface Step {
   state: GestureState;
@@ -88,6 +97,11 @@ export function stepGesture(state: GestureState, e: GestureEvent): Step {
       if (state.kind !== 'press' || !state.touch) return none(state);
       const anchor = state.hit.bar;
       return { state: { kind: 'select', pointerId: state.pointerId, touch: true, anchor, last: anchor }, effects: [range(anchor, anchor)] };
+    }
+    case 'menu': {
+      // Only a finger still on the bar it selected by holding.
+      if (state.kind !== 'select' || !state.touch || state.anchor !== state.last) return none(state);
+      return { state: IDLE, effects: [{ type: 'unselect' }, { type: 'menu', bar: state.anchor }] };
     }
     case 'up': {
       if (state.kind === 'select') return { state: IDLE, effects: [{ type: 'commit' }] };

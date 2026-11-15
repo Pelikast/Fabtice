@@ -140,12 +140,21 @@ export class FabticeAnalyzer implements Analyzer {
       const chordModel = request.chordModel ?? 'crema';
       // Outputs kept from another chord model (or from a fine run that fell back) are recomputed.
       const reuse =
-        this.kept && this.kept.audioId === request.audioId && (request.grid || request.key) && this.kept.chordId === CHORD_MODEL_ID[chordModel] ? this.kept : null;
+        this.kept && this.kept.audioId === request.audioId && (request.grid || request.key || request.tempoFix) && this.kept.chordId === CHORD_MODEL_ID[chordModel] ? this.kept : null;
       if (!reuse) this.kept = null;
       let message: ToWorker;
       let transfer: Transferable[] = [];
       if (reuse) {
-        message = { type: 'decode', outputs: reuse.outputs, duration: reuse.duration, models: reuse.models, grid: request.grid ?? null, key: request.key ?? null, known: request.knownCharts ?? null } satisfies DecodeRequestMessage;
+        message = {
+          type: 'decode',
+          outputs: reuse.outputs,
+          duration: reuse.duration,
+          models: reuse.models,
+          grid: request.grid ?? null,
+          key: request.key ?? null,
+          known: request.knownCharts ?? null,
+          tempoFix: request.tempoFix ?? null,
+        } satisfies DecodeRequestMessage;
       } else {
         const mono = await this.mix(channels, length, signal);
         // The fine model listens in stereo: its own copies of the channels (the request's are not ours).
@@ -162,6 +171,7 @@ export class FabticeAnalyzer implements Analyzer {
           grid: request.grid ?? null,
           key: request.key ?? null,
           known: request.knownCharts ?? null,
+          tempoFix: request.tempoFix ?? null,
         } satisfies AnalyseRequestMessage;
         transfer = [mono.buffer, ...stereo.map((c) => c.buffer)];
       }

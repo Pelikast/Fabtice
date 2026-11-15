@@ -1,0 +1,29 @@
+/* The bar menu (« Corriger un changement de tempo indésirable », « Réanalyser
+   le tempo à partir de cette mesure »): a small window at the bar, the same
+   paper and options as the other menus. */
+.menu-tempo {
+  position: fixed;
+  z-index: 60;
+  width: min(340px, calc(100vw - 16px));
+  user-select: none;
+  -webkit-user-select: none;
+}
+.menu-tempo .libelle { display: block; padding: 2px 10px 6px; }
+.menu-tempo .option { flex-direction: column; align-items: flex-start; gap: 2px; }
+.menu-tempo .option:hover:not(:disabled), .menu-tempo .option:focus-visible { background: var(--papier-fonce); }
+.menu-tempo .option:disabled { color: var(--encre-douce); cursor: default; }
+.menu-tempo .option small { font-size: 12px; font-style: italic; line-height: 1.35; color: var(--encre-douce); }
+.menu-tempo .retour { border-top: 1px solid var(--trait-fin); border-radius: 0 0 var(--rayon) var(--rayon); }
+.menu-tempo-note { margin: 4px 10px 2px; font-size: 12px; color: var(--encre-douce); }
+
+/* A bar where a manual tempo action starts: a small brass dot by its number (chart). */
+.case .numero.tempo-corrige::before {
+  content: "";
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  margin-right: 4px;
+  vertical-align: 1px;
+  border-radius: 50%;
+  background: var(--laiton);
+}

@@ -65,6 +65,8 @@ export type AnalysisRun =
       projectId: string;
       /** Changes a few times per analysis; the fine progress is in `analysis/progress.ts`. */
       step: AnalysisStep;
+      /** A manual tempo action from this bar (index in the grid in force) is being computed. */
+      tempoBar?: number;
     }
   | { status: 'error'; projectId: string; code: AnalysisErrorCode };
 

@@ -27,7 +27,8 @@ import { appStore, type AppState } from '../store/store';
 import { onFrame } from '../ui/frameLoop';
 import { isPhoneLayout } from '../util/media';
 import { PHONE_BAR_WIDTH, clampScale } from '../view/zoom';
-import { clamp, meterAtBar, nominalBpm } from '../grid/tempoMap';
+import { clamp, meterAtBar, nominalBpm, timeToBar } from '../grid/tempoMap';
+import { openTempoMenu } from '../ui/tempoMenu';
 import {
   DRAG_THRESHOLD_PX,
   EDGE_GRAB_PX,
@@ -67,6 +68,8 @@ const MAX_DPR = 3;
 const AUTOSCROLL_ZONE_PX = 32;
 const MOMENTUM_MIN = 0.03; // px per ms
 const TAP_MAX_MS = 600;
+/** A finger held this long on the ruler opens the bar menu (a tap is shorter). */
+const MENU_HOLD_MS = 650;
 
 type Region = 'tempo' | 'mesures' | 'lane';
 
@@ -104,6 +107,8 @@ export class TimelineController {
   private readonly thumb: HTMLElement;
   private readonly colors: Colors;
   private readonly cleanups: (() => void)[] = [];
+  /** Timer of a finger held on the ruler (bar menu). */
+  private menuTimer = 0;
   private readonly reducedMotion: boolean;
   private lanes: Lane[] = [];
 
@@ -390,6 +395,7 @@ export class TimelineController {
         accordsTop: this.hasChords ? RULER_ROW_HEIGHT.tempo : null,
         chordStride: this.chordStride,
         mesuresTop: h - RULER_ROW_HEIGHT.mesures,
+        tempoFixes: s.corrections.tempoFixes.map((f) => f.time),
       });
     }
     if (d & LOOP) this.placeLoop();
@@ -625,6 +631,7 @@ export class TimelineController {
       }
       this.watchChords(s);
       if (s.loop !== prev.loop) this.invalidate(RULER | LOOP | MARKERS);
+      if (s.corrections.tempoFixes !== prev.corrections.tempoFixes) this.invalidate(RULER);
       if (s.markers !== prev.markers || s.corrections.sections !== prev.corrections.sections || s.tempoMap !== prev.tempoMap) this.invalidate(MARKERS);
       if (s.view.subdivision !== prev.view.subdivision || s.view.triplets !== prev.view.triplets) this.invalidate(GRID);
       if (s.view.pxPerSecond !== prev.view.pxPerSecond) this.scaleFromStore(s.view.pxPerSecond);
@@ -733,6 +740,9 @@ export class TimelineController {
       on(el, 'lostpointercapture', (e) => this.onPointerCancel(e));
     }
     on(this.root, 'wheel', (e) => this.onWheel(e), { passive: false });
+    // The bar menu (manual tempo actions): a right click on the ruler's bars or tempo curve.
+    on(this.ruler, 'contextmenu', (e) => this.onContextMenu(e));
+    this.cleanups.push(() => this.clearMenuTimer());
     // Safari reports the trackpad pinch as gesture events.
     const gesture = (type: string, fn: (e: Event & { scale: number; clientX: number }) => void) => {
       const h = (e: Event) => fn(e as Event & { scale: number; clientX: number });
@@ -774,10 +784,38 @@ export class TimelineController {
     return hitLoopEdge(this.localX(clientX), timeToX(loop.start, this.t0, this.pps), timeToX(loop.end, this.t0, this.pps), tol);
   }
 
+  /** The bar under a ruler point. */
+  private barAt(clientX: number): number {
+    return timeToBar(this.s.tempoMap, clamp(this.timeAt(clientX), 0, this.duration)).bar;
+  }
+
+  private onContextMenu(e: MouseEvent): void {
+    e.preventDefault();
+    // A finger: the long press opens it (below); some browsers also send this event then.
+    if (this.menuTimer) return;
+    const region = this.regionAt(e.clientY);
+    if (region !== 'tempo' && region !== 'mesures') return;
+    openTempoMenu(this.barAt(e.clientX), e.clientX, e.clientY, this.root);
+  }
+
+  private clearMenuTimer(): void {
+    if (this.menuTimer) window.clearTimeout(this.menuTimer);
+    this.menuTimer = 0;
+  }
+
+  /** The bar menu for the bar under the playhead (the context-menu key, Shift+F10). */
+  openMenuAtPlayhead(): void {
+    const t = getEngine().getPosition();
+    const r = this.ruler.getBoundingClientRect();
+    const x = clamp(this.root.getBoundingClientRect().left + timeToX(t, this.t0, this.pps), r.left, r.right);
+    openTempoMenu(timeToBar(this.s.tempoMap, t).bar, x, r.bottom, this.root);
+  }
+
   private onPointerDown(e: PointerEvent): void {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     const region = this.regionAt(e.clientY);
     if (!region) return;
+    this.clearMenuTimer();
     this.momentum = 0;
     this.lastClientX = e.clientX;
     const touch = e.pointerType === 'touch';
@@ -815,6 +853,17 @@ export class TimelineController {
       at: e.timeStamp,
       touch,
     };
+    // A finger held still on the ruler opens the bar menu.
+    if (touch && region !== 'lane') {
+      const { pointerId, clientX, clientY } = e;
+      this.menuTimer = window.setTimeout(() => {
+        this.menuTimer = 0;
+        const g = this.gesture;
+        if (!g || g.kind !== 'press' || g.pointerId !== pointerId) return;
+        this.endGesture();
+        openTempoMenu(this.barAt(clientX), clientX, clientY, this.root);
+      }, MENU_HOLD_MS);
+    }
   }
 
   private onPointerMove(e: PointerEvent): void {
@@ -832,6 +881,7 @@ export class TimelineController {
     if (g.pointerId !== e.pointerId) return;
     if (g.kind === 'press') {
       if (Math.hypot(e.clientX - g.startX, e.clientY - g.startY) < DRAG_THRESHOLD_PX) return;
+      this.clearMenuTimer();
       if (g.region === 'tempo' || (g.region === 'lane' && g.touch)) {
         this.gesture = { kind: 'pan', pointerId: g.pointerId, lastX: g.startX, velocity: 0, lastAt: e.timeStamp };
         this.root.style.cursor = 'grabbing';
@@ -878,6 +928,7 @@ export class TimelineController {
 
   private onPointerUp(e: PointerEvent): void {
     this.touches.delete(e.pointerId);
+    this.clearMenuTimer();
     const g = this.gesture;
     if (!g) return;
     if (g.kind === 'pinch') {
@@ -899,6 +950,7 @@ export class TimelineController {
 
   private onPointerCancel(e: PointerEvent): void {
     this.touches.delete(e.pointerId);
+    this.clearMenuTimer();
     const g = this.gesture;
     if (!g) return;
     if (g.kind === 'pinch') {

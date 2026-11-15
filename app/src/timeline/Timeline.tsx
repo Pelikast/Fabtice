@@ -17,7 +17,8 @@
 import { useEffect, useLayoutEffect, useRef, type CSSProperties, type RefObject } from 'react';
 import { t } from '../i18n';
 import { selectHasChords, selectHasMarkers } from '../store/chartSelectors';
-import { useApp } from '../store/store';
+import { appStore, useApp } from '../store/store';
+import { isMenuKey } from '../ui/tempoMenu';
 import { TimelineController } from './controller';
 import { rulerRows } from './layout';
 import './timeline.css';
@@ -60,6 +61,20 @@ export function Timeline({ scroller }: TimelineProps) {
   useLayoutEffect(() => {
     controller.current?.rowsChanged(hasChords, hasMarkers);
   }, [hasChords, hasMarkers]);
+
+  // The bar menu from the keyboard (the context-menu key, Shift+F10): the bar under the playhead.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!isMenuKey(e) || !appStore.getState().project) return;
+      const el = e.target;
+      if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement || (el instanceof HTMLElement && el.isContentEditable)) return;
+      if (el instanceof Element && el.closest('[role="menu"], [role="dialog"]')) return;
+      e.preventDefault();
+      controller.current?.openMenuAtPlayhead();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   // Lanes added, removed or re-ordered.
   const ids = lanes.map((l) => l[0]).join(',');

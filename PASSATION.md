@@ -709,6 +709,42 @@ sont peu améliorées. Deux morceaux en vieux disque de la moitié de contrôle
 perdent un peu (un blues : premiers temps 64 → 48 %). Détail :
 `app/README.md`, « Temps menés par les premiers temps ».
 
+## Correction du tempo à la main, à partir d'une mesure (décision du propriétaire, 15 novembre)
+
+Clic droit (appui long sur écran tactile, touche menu ou Maj+F10) sur une
+mesure de la règle ou de la grille d'accords, deux choix :
+- **« Corriger un changement de tempo indésirable »** : à partir de la mesure,
+  les temps sont suivis sur la sortie gardée du réseau en gardant le tempo et
+  la longueur des mesures d'avant (±20 %, dérive lente seulement ; la main est
+  rendue à la grille dès que les deux s'accordent sur 8 mesures). Par
+  construction, un vrai changement de tempo après la mesure est effacé : la
+  ligne d'explication du menu le dit.
+- **« Réanalyser le tempo à partir de cette mesure »** : l'analyse des temps
+  est refaite depuis la mesure comme si le morceau commençait là, sans rien
+  supposer.
+
+Il n'y a pas de modèle de langage dans l'analyse : « dire à l'analyse » se
+traduit par ces deux réglages du suivi des temps. Rien ne bouge avant la
+mesure ; les accords sont relus à partir d'elle ; le résultat est une
+correction de la grille faite à la main (gardée par « Analyser de nouveau »,
+retirée par « Revenir à l'analyse »), notée dans `corrections.tempoFixes`
+(document version 5, absent = aucune). Une marque laiton dans la règle et
+dans la grille montre où elle commence ; le menu de cette mesure propose
+alors « Revenir à l'analyse », qui retire aussi les corrections faites après.
+Après réouverture du morceau, le réseau tourne une fois de nouveau (avec un
+pourcentage). Les accords, sections et boucles faits à la main restent au
+même instant de l'enregistrement.
+
+Mesuré sur le jeu de cas : sur 1 005 passages que l'analyse automatique
+laisse faux, « Corriger » en remet 771 d'aplomb quand on l'applique à la
+première mesure fausse ; « Réanalyser » seulement 8 (sur les mêmes sorties du
+réseau, elle retrouve ce que l'analyse complète trouvait : elle sert surtout
+après une vraie rupture). « Corriger » manque encore les passages aux 3/2 de
+16 mesures et plus, et la dernière mesure d'un passage qui finit le morceau ;
+elle suit mal une dérive de plus de 20 %. Test : `npm run test:tempo-fix`.
+Corrigé au passage : après « Analyser de nouveau » sur une grille corrigée,
+« Revenir à l'analyse » ne revenait plus à rien.
+
 ## Sortie audio rendue au système (retours du 15 novembre)
 
 Sur le Mac Intel, le son de tout le Mac s'est bloqué après que Fabtice était

@@ -20,6 +20,7 @@ import { gridFromBeats } from './pipeline';
 import { REPAIR } from './repair';
 import { baseSequences, burst, downbeatOutput, fromTempo, gauss, match, stretched, timeAt, type Evidence, type Failure, type Outcome, type Truth } from './repair.cases';
 import type { DownbeatAt } from './repair';
+import type { BeatActivations } from './beats';
 
 export interface TempoCase {
   name: string;
@@ -332,4 +333,33 @@ export function scoreTempo(c: TempoCase, out: Outcome): TempoScore {
 /** The truth as an outcome (for its own jumps and zigzags). */
 export function truthOutcome(c: TempoCase): Outcome {
   return { beats: c.truth.beats, numbers: c.truth.numbers, m: c.truth.m, repaired: 0 };
+}
+
+// ---------------------------------------------------------------- the network's outputs, for the manual actions
+
+/**
+ * Beat and downbeat outputs (logits, 50 frames/s) that give back the case's
+ * detected beats: a peak of +6 at each detected beat, −6 elsewhere with a
+ * little noise, nothing at the true beats the network missed (measured on the
+ * bench: −1 to −8 there). The downbeat output is the case's (`downAt`), or flat.
+ */
+export function activationsOf(c: TempoCase): BeatActivations {
+  const fps = 50;
+  const frames = Math.ceil((c.truth.beats[c.truth.beats.length - 1]! + 2) * fps);
+  const r = rng(Math.round(c.detected[0]! * 1e6) + c.detected.length);
+  const beat = new Float32Array(frames);
+  const down = new Float32Array(frames);
+  for (let f = 0; f < frames; f++) beat[f] = -6 + 0.5 * (r() - 0.5);
+  for (const t of c.detected) {
+    const fc = t * fps;
+    for (let f = Math.max(0, Math.floor(fc) - 3); f <= Math.min(frames - 1, Math.ceil(fc) + 3); f++) {
+      const v = -6 + 12 * Math.exp(-0.5 * ((f - fc) / 0.9) ** 2);
+      if (v > beat[f]!) beat[f] = v;
+    }
+  }
+  for (let f = 0; f < frames; f++) {
+    const p = Math.min(1 - 1e-6, Math.max(1e-6, c.downAt ? c.downAt(f / fps) : 0.1));
+    down[f] = Math.log(p / (1 - p));
+  }
+  return { beat, down, frames, fps };
 }

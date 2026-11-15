@@ -312,7 +312,8 @@ export function toggleMetronome(): void {
 // ---------------------------------------------------------------- grid (manual entry, lot 1)
 
 export function setManualGrid(change: ManualGridChange): void {
-  set((s) => ({ tempoMap: withManualGrid(s.tempoMap, change) }));
+  // A grid typed by hand replaces the whole grid: the manual tempo actions on the old one go with it.
+  set((s) => ({ tempoMap: withManualGrid(s.tempoMap, change), corrections: s.corrections.tempoFixes.length ? { ...s.corrections, tempoFixes: [] } : s.corrections }));
 }
 
 /** « Premier temps ici »: the first downbeat goes where the playhead is heard. */
