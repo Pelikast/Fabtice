@@ -982,14 +982,15 @@ chantiers suivent, chacun dans son dossier.
     main à la boucle d'événements) et pendant le téléchargement (abandon du `fetch`).
   - `analysis/engine/` : les calculs, **purs** (sans navigateur, testés dans Node) :
     `fft`, `resample`, `tuning` (accordage), `beats` (log-mel, réseau en tranches de
-    30 s, pics, probabilité de premier temps), `meter` (métrique 3 ou 4 : HMM sur la
+    30 s, pics, probabilité de premier temps), `repair` (réparation des temps, voir
+    plus bas), `meter` (métrique 3 ou 4 : HMM sur la
     probabilité de premier temps, a priori 3 : 0,2 et 4 : 0,6), `chords` (CREMA, mise
     en commun par temps), `decode` (décodage calé sur les temps avec l'a priori de
     l'harmonie jazz, confiance, extensions suggérées, basse), `key` (profils de
     Krumhansl), `pipeline` (l'enchaînement), `result` (la traduction vers le modèle :
     « sus4 + 7 » devient la qualité `7sus4`, « sus2 + 7 » est abandonné, `doubtful`
     quand la moyenne géométrique de la probabilité du réseau est < 0,35, premier
-    temps = premier temps numéroté 1 ; la tonalité et la grille de l'utilisateur sont
+    temps = premier temps numéroté 1, passages réparés dans `beats.repaired` ; la tonalité et la grille de l'utilisateur sont
     gardées telles quelles, avec une sûreté de 1). `engine/fixtures/` : les entrées
     déterministes et `make-fixtures.mjs`, qui fait tourner **les fonctions du
     prototype** dessus et écrit `prototype-values.json` ; les tests comparent le port
@@ -1052,6 +1053,146 @@ chantiers suivent, chacun dans son dossier.
   beaucoup pour un téléphone (voir PASSATION : la page y a été fermée par le système
   pendant la séparation). Un manque de mémoire est annoncé (`memory`) quand le
   navigateur le dit, mais une page fermée de force par le système ne peut pas l'être.
+- **Réparation des temps** (`engine/repair.ts`, entre les pics du réseau de temps
+  et la métrique ; `OPTIONS.repair` dans `pipeline.ts` la coupe).
+  - *Le défaut constaté* (enregistrement de 1945, solo de vents au milieu : bosse
+    de la courbe de tempo, puis toutes les mesures décalées d'un temps). Les temps
+    sont les pics du réseau pris tels quels (pas de modèle de tempo). Là où le réseau
+    perd la pulsation un moment (section rythmique effacée, son usé), il oublie un
+    temps, en ajoute un, ou suit quelques temps une autre cadence. Or la grille de
+    l'app est une liste de temps avec **un seul** premier temps et une seule
+    métrique (`grid/beats.ts`) : les mesures sont comptées tous les N temps depuis
+    ce premier temps. Un temps de trop ou de moins décale donc **toutes** les mesures
+    qui suivent, et la courbe (tempo moyen de chaque mesure, `grid/tempoCurve.ts`)
+    fait une bosse là où les temps sont trop serrés et un creux là où ils sont trop
+    espacés. Le HMM de métrique voyait bien les premiers temps revenir après le
+    passage (il change alors de phase), mais seul son premier « 1 » était gardé
+    (`AnalysedBeats.downbeat`) : mesuré sur les cas ci-dessous, **aucun** premier
+    temps juste après le passage, même quand le réseau les donne nettement. Et les
+    accords étaient décodés sur la numérotation du HMM, pas sur celle affichée.
+  - *La règle* (celle du propriétaire). Un écart de tempo bref qui revient au tempo
+    d'avant n'est pas cru : ses temps sont remplacés par des temps au tempo
+    d'alentour, **autant que ce tempo en fait tenir** dans le passage (le compte
+    est juste, les mesures d'après ne bougent pas). Un intervalle est « hors tempo »
+    quand il s'écarte de plus de 30 % de la médiane de ses voisins (12 de chaque côté,
+    deux passes, la seconde sans les intervalles déjà hors tempo et sur 24) ; les
+    intervalles hors tempo à moins de 3 intervalles l'un de l'autre forment un
+    passage. On le répare si : 8 intervalles de chaque côté existent (rien à moins de
+    8 temps du début ou de la fin : introduction libre, ritardando final), dont 4 au
+    moins dans le tempo, réguliers (aucun à plus de 20 % de leur médiane) ; le tempo
+    d'après est celui d'avant à 20 % près ; le passage dure **16 temps au plus** au
+    tempo d'alentour (au-delà : un nouveau tempo qui tient, gardé) ; et il dure un
+    nombre entier de temps de ce tempo à **0,2 temps** près (sinon : un point
+    d'orgue, un vrai fléchissement, gardés). Les changements lents (rubato,
+    ritardando, accelerando) ne font jamais d'intervalle hors tempo. Puis **les
+    premiers temps ont le dernier mot** : si, sur 12 mesures de chaque côté, la
+    probabilité de premier temps du réseau préfère les temps tels que trouvés de
+    plus de 2 (log-vraisemblance, en nats : 7 fois plus vraisemblable), le passage
+    est gardé. Un passage dont le compte est déjà juste mais dont les temps sont
+    déplacés est remis au tempo d'alentour (la bosse de la courbe disparaît, les
+    mesures ne bougent pas).
+  - *Les mesures* (deuxième réparation, menée par les premiers temps). Là où le HMM
+    de métrique (saut de phase permis, 0,002) recommence la mesure de 1 ou 2 temps
+    alors que le tempo n'a pas assez dévié pour la première règle (le réseau glisse
+    lentement d'un temps), on cherche autour du saut le passage dont la durée fait,
+    au tempo d'alentour, le compte corrigé (à 0,3 temps près), et on le remplit ;
+    seulement si les premiers temps des deux côtés préfèrent le résultat de plus de 2.
+    Une vraie mesure à 2 temps dans un 4/4 régulier n'a pas de passage qui convienne
+    et reste telle quelle.
+  - *Une seule phase* : la numérotation finale est celle qui s'accorde le mieux avec
+    les premiers temps de **tout** le morceau (`bestPhase`), plutôt que le premier
+    « 1 » d'un chemin qui peut sauter ; les accords sont décodés sur ces mêmes mesures.
+  - *Marques* : chaque passage réparé est noté dans `beats.repaired` (début et fin,
+    temps trouvés et temps mis, cause `tempo` ou `bar`), champ facultatif ; les
+    analyses enregistrées avant restent lisibles telles quelles (`repairedPassages`
+    dans `analysis/types.ts`). L'interface ne les montre pas encore.
+    `ANALYSER_VERSION` passe à 2.
+  - *Les seuils sont mesurés* sur un jeu de cas (`engine/repair.cases.ts`) : 25
+    suites de temps (régulier à 72 et 140, dérive 72→86, rubato ±8 % sur 16 s et
+    ±12 % sur 10 s, ritardando final avec point d'orgue, accelerando 90→130, points
+    d'orgue de 1,7 et 2,5 temps, introduction libre, 100 puis 135 qui tient, 8 mesures
+    plus vite puis retour ; en 4/4 et 3/4 ; plus les vrais temps du morceau d'essai),
+    vues comme le réseau les donne (décalage aléatoire de 12 ou 25 ms ; le réseau
+    fait 11 ms sur le morceau d'essai, 10 à 20 ms sur ses versions abîmées) avec
+    trois niveaux de preuve des premiers temps (nette comme mesurée sur le morceau
+    d'essai, faible et bruitée, aucune) ; dans chacune, 19 sortes de défaut à 30, 50
+    et 70 % du morceau (un temps de trop, un ou deux de moins, un temps déplacé, deux
+    fois plus vite sur 1 ou 2 mesures, 3 pour 2, 4 pour 3, 3 pour 4, 2 pour 3, moitié,
+    un temps de plus ou de moins réparti sur 1 ou 2 mesures, contretemps, bosse puis
+    creux avec un temps de plus, de moins ou autant). Sur les suites propres :
+    l'écart d'un intervalle à ses voisins atteint 0,27 (×1,31) au 99,9e centile et
+    0,40 (×1,5) au pire (140 bpm, 25 ms) ; la dispersion d'un côté 0,35 ; l'écart de
+    tempo d'un côté à l'autre 0,19. Sur les défauts, l'écart entre le compte juste et
+    la durée divisée par le tempo d'alentour : 0,06 temps en médiane, 0,30 au 90e
+    centile, jusqu'à 1,16 temps dans le rubato à ±12 % (là, le tempo d'alentour ne
+    dit pas le compte). D'où les seuils : 30 % hors tempo ≈ le 99,9e centile des
+    suites propres ; 20 % de retour ≈ leur pire écart d'un côté à l'autre. Les autres
+    ont été choisis par balayage sur les 8 016 cas, un seuil à la fois, en gardant
+    les valeurs qui ne changent **rien** aux suites propres en réparant le plus
+    (mesures en place après le défaut avec une preuve de premiers temps nette /
+    faible / aucune ; « cassés » = cas justes avant, faux après ; chaque ligne avec
+    les autres seuils à leur valeur du moment, d'abord 4 mesures pesées et un veto
+    de 4, d'où des chiffres plus bas que le résultat final) :
+
+    | seuil | essayé → retenu |
+    |---|---|
+    | hors tempo | ×1,25 : 3 suites propres changées (jusqu'à 118 ms) ; ×1,4 : 92,8 / 79,6 / 53,6 % ; **×1,3** : 0 changée, 94,7 / 82,8 / 64,1 % |
+    | durée entière | 0,15 : 19 cassés ; 0,25 : 43 cassés ; **0,2** : 26 cassés |
+    | retour au tempo | ×1,1 : 90,3 / 79,3 / 61,3 % ; ×1,3 : 28 cassés ; **×1,2** |
+    | longueur maximale | 8 temps : 92,3 / 80,8 % ; 24 : 92,3 / 82,9 % ; **16** : 94,7 / 82,8 % |
+    | régularité d'un côté | ×1,25 : 29 cassés ; **×1,2** : 26 |
+    | bouts déplacés | 1 ou 2 temps : 41 à 60 cassés sans preuve, 1 ou 2 suites propres changées ; **0** |
+    | veto (nats) | 6 : preuve faible 75,9 % ; 3 : 85,4 ; 1 ou 2 : 87,4–89,4 ; **2** |
+    | mesures pesées | 2 : faible 78,7 % ; 4 : 87,4 ; 8 : 95,6 ; **12** : 97,0 ; 16 et 24 : 97,2 |
+    | remettre au tempo un compte juste | non : temps du passage retrouvés 78,9 % ; **oui** : 80,9 %, rien de plus changé |
+
+  - *Mesures* (`repair.eval.test.ts`, jeu complet avec `FABTICE_REPAIR_FULL=1`, 51 s
+    ici ; sans, un quart du jeu, 14 s, dans `npm test`). 7 866 défauts injectés :
+    **mesures en place après le passage 31,6 % → 97,9 %** avec une preuve de
+    premiers temps nette, **31,6 % → 96,9 %** faible, **31,6 % → 64,1 %** sans aucune
+    (les 31,6 % d'avant sont les défauts qui ajoutent ou ôtent des mesures entières) ;
+    cassés : 0, 0 et 20 (sur 2 486 justes avant ; tous sans preuve de premiers
+    temps : 11 dans le rubato à ±12 %, 2 à ±8 %, 4 près d'un point d'orgue, 2 au
+    changement de tempo 100 → 135, 1 dans l'introduction libre). Par
+    défaut, de avant → après : un temps de trop 0 → 94 %, un de moins 0 → 93 %, deux
+    de moins 0 → 94 %, 4 pour 3 sur deux mesures 0 → 71 %, 3 pour 4 0 → 80 %, 2 pour
+    3 0 → 84 %, un temps de plus ou de moins réparti sur deux mesures 0 → 66 et 65 %,
+    sur une mesure 0 → 74 et 87 %, contretemps 0 → 77 %, bosse puis creux avec un
+    temps de plus 0 → 86 %, de moins 0 → 74 %. **Suites propres : aucune changée** (0
+    temps ajouté, ôté ou déplacé sur 138 suites, aucun premier temps perdu) ; seuls
+    4 des 12 cas « point d'orgue d'exactement 2 ou 3 temps » le sont (voir limites).
+  - *De bout en bout sur le vrai réseau* (`repair.network.test.ts`) : les sorties du
+    réseau de temps sur le morceau d'essai et sur des versions modifiées
+    (`fixtures/network-cases/make_audio.py` : passage où la section rythmique est
+    presque effacée, ligne de vents à une autre cadence, couleur « vieux disque » ;
+    `run_network.mjs` refait le fichier). Le réseau y échoue trois fois comme sur
+    l'enregistrement du propriétaire : 2 temps perdus (passage effacé à −30 dB), 3
+    temps perdus (−40 dB), un temps ajouté (vents en 2 pour 3) ; avant, 0 % des
+    premiers temps justes après le passage (45, 40 et 30 % sur tout le morceau) ;
+    après, 100 % (90, 95 et 95 % sur le morceau ; 95 % sans défaut), temps trouvés
+    95 → 96,3 %, 95 → 98,8 %, 98,8 → 98,8 %. Les trois autres versions, où le réseau
+    n'échoue pas, et le morceau d'essai lui-même ne changent pas d'un temps ; sur le
+    morceau d'essai, `test:analysis` donne toujours les chiffres du prototype
+    (96,3 % des temps, 19 premiers temps sur 20, fondamentales 84,2 %, fondamentale
+    et qualité 74,3 %).
+  - *Limites.* Un point d'orgue qui dure exactement 2 ou 3 temps (à 0,2 près)
+    ressemble, par sa durée, à des temps perdus : sans premiers temps nets il est
+    rempli (4 cas sur 12, tous sans preuve ou avec une preuve faible ; aucun avec
+    une preuve nette). Le bout d'un passage réparé reste où le réseau l'a mis (un
+    temps à 96 ms du vrai dans un des cas « vrai réseau »). Dans un rubato rapide
+    et fort (±12 % en 10 s), le tempo d'alentour ne prédit pas le compte : quelques
+    passages y sont mal comptés. Sans
+    aucune preuve de premiers temps, une glissade lente d'un temps (moins de 30 % par
+    intervalle) n'est pas vue. Une vraie mesure irrégulière (2/4 dans un 4/4) ne peut
+    pas être représentée par la grille de l'app : la phase choisie est celle de la
+    plus grande partie du morceau. Le cas de test principal (enregistrement de 1945)
+    n'a pas pu être écouté ici ; les cas « vrai réseau » sont un morceau synthétique
+    abîmé, pas un vieux disque.
+  - *Pour un morceau déjà analysé* : la nouvelle grille ne vient qu'avec une
+    nouvelle analyse (le résultat enregistré n'est jamais recalculé tout seul).
+    Panneau « Tempo et mesures » : « Analyser de nouveau ». Si la grille a été
+    corrigée à la main, d'abord « Revenir à l'analyse » (sinon la grille de
+    l'utilisateur est gardée et seuls les accords sont refaits dessus).
 - **Reste à faire** : décider de l'hébergement des conversions ONNX (copie sous un
   compte du projet, voir PASSATION) ; mesurer la mémoire sur iPhone et, si besoin,
   rogner (tranches plus courtes pour le réseau de temps, au prix d'un autre

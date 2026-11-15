@@ -166,12 +166,15 @@ export function postMinimal(act: BeatActivations, { refine = true } = {}): { bea
   return { beats, downbeatIdx: [...snapped].sort((a, b) => a - b) };
 }
 
+/** Downbeat probability at time t: max downbeat sigmoid within ±2 frames. */
+export function downProbAt(act: BeatActivations, t: number): number {
+  const f = Math.round(t * act.fps);
+  let m = -1000;
+  for (let k = f - 2; k <= f + 2; k++) if (k >= 0 && k < act.frames && act.down[k]! > m) m = act.down[k]!;
+  return sigmoid(m);
+}
+
 /** Per-beat downbeat probability: max downbeat sigmoid within ±2 frames of each beat. */
 export function beatDownProb(act: BeatActivations, beats: readonly number[]): number[] {
-  return beats.map((t) => {
-    const f = Math.round(t * act.fps);
-    let m = -1000;
-    for (let k = f - 2; k <= f + 2; k++) if (k >= 0 && k < act.frames && act.down[k]! > m) m = act.down[k]!;
-    return sigmoid(m);
-  });
+  return beats.map((t) => downProbAt(act, t));
 }
