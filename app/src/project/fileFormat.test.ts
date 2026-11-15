@@ -196,14 +196,14 @@ describe('the .fabtice file', () => {
 
     // One byte changed in an instrument: the file opens, the instrument is refused by its checksum.
     const flipped = good.slice();
-    flipped[good.length - 2000] ^= 0xff;
+    flipped[good.length - 2000] = flipped[good.length - 2000]! ^ 0xff;
     const opened = await openProjectFile(bytesSource(flipped));
     expect(await errorCode(opened.readInstrument('sep-other'))).toBe('damaged');
     // In the original audio.
     const flippedAudio = good.slice();
     const entry = (await readZipDirectory(bytesSource(good))).find((e) => e.name.startsWith('audio/'))!;
     const at = entry.headerOffset + 30 + new TextEncoder().encode(entry.name).length + 500;
-    flippedAudio[at] ^= 0xff;
+    flippedAudio[at] = flippedAudio[at]! ^ 0xff;
     expect(await errorCode((await openProjectFile(bytesSource(flippedAudio))).readOriginal('audio-1'))).toBe('damaged');
 
   });

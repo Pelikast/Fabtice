@@ -24,3 +24,12 @@ export function openPrint(): void {
 export function closePrint(): void {
   appStore.setState((s) => ({ ui: { ...s.ui, printOpen: false } }));
 }
+
+/** Lot 4, « Enregistrer le projet… »: its small dialog (with or without the instruments, then the file). */
+export function openSaveProject(): void {
+  appStore.setState((s) => ({ ui: { ...s.ui, saveProjectOpen: true, panel: 'none' } }));
+}
+
+export function closeSaveProject(): void {
+  appStore.setState((s) => ({ ui: { ...s.ui, saveProjectOpen: false } }));
+}

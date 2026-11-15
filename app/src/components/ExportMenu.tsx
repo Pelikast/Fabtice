@@ -10,7 +10,7 @@ import { closePanel, togglePanel } from '../store/actions';
 import { useFitPanel } from '../ui/useFitPanel';
 import { selectHasChords } from '../store/chartSelectors';
 import { getDesktopBridge } from '../platform/desktopBridge';
-import { openExportAudio, openPrint } from '../store/exportActions';
+import { openExportAudio, openPrint, openSaveProject } from '../store/exportActions';
 import { appStore, useApp } from '../store/store';
 import { useOutsideClose } from '../ui/useOutsideClose';
 
@@ -128,12 +128,27 @@ function ExportPanel({ ref }: { ref: Ref<HTMLDivElement> }) {
 export function ExportItems() {
   const hasChords = useApp(selectHasChords);
   const hasTracks = useApp((s) => s.tracks.length > 0);
+  const hasProject = useApp((s) => s.project !== null && s.project.source.kind !== 'demo');
   const items: { key: string; label: string; ready: boolean; enabled: boolean; note: string; run: () => void }[] = [
     { key: 'print', label: t('export.print'), ready: PRINT_READY, enabled: hasChords, note: hasChords ? t('export.soon') : t('export.needsChords'), run: openPrint },
     { key: 'audio', label: t('export.audio'), ready: true, enabled: hasTracks, note: '', run: openExportAudio },
   ];
   return (
     <>
+      {/* Lot 4: the whole project as one file, first: it is what one keeps. */}
+      <button
+        className="option"
+        role="menuitem"
+        data-export="project"
+        disabled={!hasProject}
+        onClick={() => {
+          closePanel();
+          openSaveProject();
+        }}
+      >
+        <span>{t('export.saveProject')}</span>
+        <small>{t('export.saveProjectNote')}</small>
+      </button>
       <IRealEntries enabled={hasChords} />
       {items.map((it) => {
         const active = it.ready && it.enabled;

@@ -12,6 +12,7 @@ import { ChartView } from './ChartView';
 import { ExportAudioDialog } from './ExportAudioDialog';
 import { NewPieceDialog } from './NewPieceDialog';
 import { PrintDialog } from './PrintDialog';
+import { SaveProjectDialog } from './SaveProjectDialog';
 import { SeparationPanelHost } from './SeparationPanel';
 import { StandardsDialog } from './StandardsOffer';
 import { StorageNotice } from './StorageNotice';
@@ -21,7 +22,7 @@ import { Transport } from './Transport';
 
 export function App() {
   const mode = useApp((s) => s.view.mode);
-  const dialogOpen = useApp((s) => s.ui.newPieceOpen || s.ui.exportAudioOpen || s.ui.printOpen || s.render.status === 'rendering' || s.render.status === 'error');
+  const dialogOpen = useApp((s) => s.ui.newPieceOpen || s.ui.exportAudioOpen || s.ui.printOpen || s.ui.saveProjectOpen || s.render.status === 'rendering' || s.render.status === 'error');
   const standardsOpen = useStandards((s) => s.panelOpen);
   const inert = dialogOpen || standardsOpen;
   const dragging = useFileDrop();
@@ -44,6 +45,7 @@ export function App() {
       <StandardsDialog />
       <ExportAudioDialog />
       <PrintDialog />
+      <SaveProjectDialog />
       <ApplyWaiting />
       {dragging && (
         <div className="depot" aria-hidden="true">

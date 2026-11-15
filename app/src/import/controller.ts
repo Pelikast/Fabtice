@@ -13,6 +13,8 @@ import { appStore } from '../store/store';
 import { getKeeper } from '../storage';
 import type { StoredAudio } from '../storage/ProjectStorage';
 import { importFromFile } from './fromFile';
+import { openProjectSource } from '../project/open';
+import type { ByteSource } from '../project/zip';
 import { importFromLink } from './fromLink';
 import { installTool, isToolUpdateAvailable } from './tool';
 import { ImportError, type ImportOptions, type ImportPhase, type ImportedPiece } from './types';
@@ -31,7 +33,7 @@ export function isImportRunning(): boolean {
 
 /** Phases that « Annuler » can stop: reading and decoding happen in this page only. */
 export function isCancellablePhase(phase: ImportPhase): boolean {
-  return phase === 'reading' || phase === 'decoding';
+  return phase === 'reading' || phase === 'decoding' || phase === 'opening';
 }
 
 /** The Mac app's own sentence is shown for refusals only (live stream, too long); other details are technical. */
@@ -48,20 +50,8 @@ function fail(e: unknown): void {
 }
 
 async function run(task: (options: ImportOptions) => Promise<ImportedPiece>): Promise<void> {
-  if (running) return;
-  const job: Job = { controller: new AbortController(), phase: 'reading' };
-  running = job;
-  setDialogNotice(null);
-  setImportStatus({ kind: 'busy', progress: { phase: job.phase, fraction: null } });
-  try {
-    const piece = await task({
-      signal: job.controller.signal,
-      onProgress: (progress) => {
-        if (running !== job) return;
-        job.phase = progress.phase;
-        setImportStatus({ kind: 'busy', progress });
-      },
-    });
+  return exclusive(async (options, job) => {
+    const piece = await task(options);
     if (running !== job) return;
     job.phase = 'preparing';
     setImportStatus({ kind: 'busy', progress: { phase: 'preparing', fraction: null, title: piece.title } });
@@ -74,6 +64,28 @@ async function run(task: (options: ImportOptions) => Promise<ImportedPiece>): Pr
     const s = appStore.getState();
     const originals = new Map<string, StoredAudio>(s.tracks.map((tr) => [tr.audio.id, piece.original]));
     void getKeeper().keepNewProject(originals);
+  });
+}
+
+/** One job of the dialog at a time (an import, a project opened): progress and errors go to the dialog. */
+async function exclusive(task: (options: ImportOptions, job: Job) => Promise<void>): Promise<void> {
+  if (running) return;
+  const job: Job = { controller: new AbortController(), phase: 'reading' };
+  running = job;
+  setDialogNotice(null);
+  setImportStatus({ kind: 'busy', progress: { phase: job.phase, fraction: null } });
+  try {
+    await task(
+      {
+        signal: job.controller.signal,
+        onProgress: (progress) => {
+          if (running !== job) return;
+          job.phase = progress.phase;
+          setImportStatus({ kind: 'busy', progress });
+        },
+      },
+      job,
+    );
   } catch (e) {
     if (running === job) fail(e);
   } finally {
@@ -83,6 +95,17 @@ async function run(task: (options: ImportOptions) => Promise<ImportedPiece>): Pr
 
 export function startFileImport(file: File): Promise<void> {
   return run((options) => importFromFile(file, options));
+}
+
+/**
+ * Lot 4, « Ouvrir un projet… » (or a `.fabtice` file dropped, or opened by the
+ * Mac app): the project replaces the open piece, as an import does.
+ */
+export function startProjectOpen(source: ByteSource, name: string): Promise<void> {
+  return exclusive(async (options) => {
+    await openProjectSource(source, name, options);
+    setImportStatus({ kind: 'idle' });
+  });
 }
 
 export function startLinkImport(link: string): Promise<void> {

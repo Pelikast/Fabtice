@@ -120,6 +120,8 @@ export interface UiState {
   exportAudioOpen: boolean;
   /** « Imprimer la grille » (a dialog: orientation, size, print or save as PDF). */
   printOpen: boolean;
+  /** Lot 4: « Enregistrer le projet » (a dialog: with or without the instruments, then the file). */
+  saveProjectOpen: boolean;
 }
 
 export interface TransportState {
@@ -207,6 +209,7 @@ export function initialState(): AppState {
       separationNotice: null,
       exportAudioOpen: false,
       printOpen: false,
+      saveProjectOpen: false,
     },
   };
 }
