@@ -1,6 +1,6 @@
 import flac from '@audio/encode-flac';
 import { describe, expect, it } from 'vitest';
-import { FlacDecoder, FlacError } from './decode';
+import { BitReader, FlacDecoder, FlacError } from './decode';
 
 /** 16-bit samples as libFLAC's encoder is fed by the app (k / 32768), encoded in one go. */
 async function encode(channels: Int16Array[], sampleRate = 48000, level = 5): Promise<Uint8Array> {
@@ -57,6 +57,40 @@ function material(frames: number, seed = 1): Int16Array[] {
   return [l, r];
 }
 
+/** Rice codes written bit by bit, the way FLAC does: zigzag, unary quotient ended by a one, `k` low bits. */
+function riceBytes(values: number[], k: number): Uint8Array {
+  const bits: number[] = [];
+  for (const v of values) {
+    const u = v >= 0 ? 2 * v : -2 * v - 1;
+    const q = Math.floor(u / 2 ** k);
+    for (let i = 0; i < q; i++) bits.push(0);
+    bits.push(1);
+    for (let i = k - 1; i >= 0; i--) bits.push((u >> i) & 1);
+  }
+  const out = new Uint8Array(Math.ceil(bits.length / 8) + 8);
+  bits.forEach((b, i) => {
+    if (b) out[i >> 3]! |= 0x80 >> (i & 7);
+  });
+  return out;
+}
+
+describe('Rice codes', () => {
+  it('every code, wherever it ends in the 32-bit cache (a shift by 32 is a no-op in JavaScript)', () => {
+    let s = 7;
+    const rnd = () => (s = (s * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+    for (let trial = 0; trial < 400; trial++) {
+      const k = trial % 6;
+      // Long and short quotients, so that codes end on every bit of the cache.
+      const values = Array.from({ length: 300 }, () => Math.round((rnd() - 0.5) * (rnd() < 0.1 ? 4000 : 40) * 2 ** k) + 0);
+      const br = new BitReader();
+      br.reset(riceBytes(values, k), 0);
+      const out = new Int32Array(values.length);
+      br.rice(out, 0, values.length, k);
+      expect(Array.from(out), `trial ${trial}`).toEqual(values);
+    }
+  });
+});
+
 describe('FLAC decoder', () => {
   it('gives back what libFLAC encoded, to the sample (stereo, every level, odd slices)', async () => {
     const src = material(48000 * 3 + 777);
@@ -68,6 +102,26 @@ describe('FLAC decoder', () => {
         expect(channels[0]).toEqual(src[0]);
         expect(channels[1]).toEqual(src[1]);
       }
+    }
+  });
+
+  it('a full bit cache ending on the stop bit of a code (regression: a shift by 32 is a no-op in JavaScript)', { timeout: 120_000 }, async () => {
+    // Quiet, varied material (sums of parts, as the separation's « Autres » is): many short Rice codes, so
+    // that a code ends on the very last bit of a full 32-bit cache, which once desynchronised the decoder.
+    for (let seed = 1; seed <= 6; seed++) {
+      let s = seed;
+      const rnd = () => ((s = (s * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff - 0.5);
+      const n = 48000 * 2;
+      const l = new Int16Array(n);
+      const r = new Int16Array(n);
+      for (let i = 0; i < n; i++) {
+        const t = i / 48000;
+        l[i] = Math.round((0.1 * Math.sin(2 * Math.PI * 110 * seed * t) + 0.002 * rnd()) * 32768);
+        r[i] = Math.round((0.09 * Math.sin(2 * Math.PI * 110 * seed * t + 0.3) + 0.03 * Math.sin(2 * Math.PI * 990 * t) + 0.002 * rnd()) * 32768);
+      }
+      const { channels } = decodeAll(await encode([l, r]), 1 << 20);
+      expect(channels[0], `seed ${seed}`).toEqual(l);
+      expect(channels[1], `seed ${seed}`).toEqual(r);
     }
   });
 

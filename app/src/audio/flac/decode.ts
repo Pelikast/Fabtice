@@ -34,7 +34,8 @@ export interface FlacInfo {
 class NeedMore extends Error {}
 const NEED_MORE = new NeedMore();
 
-class BitReader {
+/** Exported for its own tests only. */
+export class BitReader {
   bytes: Uint8Array = new Uint8Array(0);
   pos = 0; // byte position of the next unread byte not in `cache`
   cache = 0; // up to 32 bits, left-aligned in a 32-bit word (as an unsigned number)
@@ -105,7 +106,8 @@ class BitReader {
         continue;
       }
       count += z;
-      this.cache = (this.cache << (z + 1)) >>> 0;
+      // A shift by 32 does nothing in JavaScript: the last bit of a full cache empties it by hand.
+      this.cache = z + 1 >= 32 ? 0 : (this.cache << (z + 1)) >>> 0;
       this.bits -= z + 1;
       return count;
     }
@@ -145,7 +147,8 @@ class BitReader {
           continue;
         }
         q += z;
-        cache = (cache << (z + 1)) >>> 0;
+        // A shift by 32 does nothing in JavaScript: the last bit of a full cache empties it by hand.
+        cache = z + 1 >= 32 ? 0 : (cache << (z + 1)) >>> 0;
         bits -= z + 1;
         break;
       }
