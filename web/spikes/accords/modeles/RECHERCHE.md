@@ -6,11 +6,166 @@ extensions, basse et renversements), qui tournent sur l'appareil de
 l'utilisateur avec onnxruntime-web, et les proposer comme choix dans les
 réglages avancés.
 
-Rien ici n'est encore mesuré sur le banc de mesure (`web/spikes/accords/`,
-en préparation) : les chiffres ci-dessous viennent d'un seul morceau de
-démonstration synthétique (`web/spikes/analyse/demo/demo-swing.mp3`, 37 s,
-accordé à +30 cents). Ils donnent un ordre de grandeur, pas un classement
-définitif.
+## Mesures sur le banc (15 novembre, après l'étape A)
+
+### Ce qu'on a mesuré
+
+- **Morceaux** : Tsumugi est lent, il n'a tourné que sur un sous-ensemble fixé
+  à l'avance (`corpus_list.py`, `SUBSET`) : 14 morceaux de synthèse couvrant
+  tous les styles, en son propre et en vieux disque, et 8 prises GuitarSet
+  (une bossa et un jazz par guitariste), en réel et façon vieux disque. Ils
+  tombent à moitié dans le développement et à moitié dans le contrôle de
+  `banc/partage.json` (7 / 7 et 4 / 4). Les modèles légers ont tourné sur
+  tout le corpus.
+- **Entrées réalistes** : Tsumugi reçoit les temps, premiers temps et la
+  tonalité **que l'app détecte** (variante `modele-grille`), pas la vérité.
+  Il est aussi mesuré sans temps ni tonalité.
+- **Variantes du banc** (`banc/variantes/modele-*.ts`, code commun dans
+  `modeles/bench/`) : `modele-dec` (Tsumugi et son propre décodeur),
+  `modele-brut` (le modèle seul, meilleure lecture par temps), `modele-a`
+  (le modèle **à la place de CREMA**, ramené aux 169 accords, puis toute
+  l'étape A : basse sur la bande grave, reprises, grille connue, fiabilité),
+  `modele-amix` (étape A sur le mélange CREMA^(1−w) × modèle^w ; w appris sur
+  le développement, rapporté sur le contrôle, `learn_mix.py`).
+- Chiffres « par temps », grille détectée. Tableaux complets dans
+  `resultats/modeles/`.
+
+### Résultat : seul Tsumugi ajoute des points à l'étape A, et beaucoup
+
+Sous-ensemble entier (22 morceaux), couleur (fondamentale + qualité exacte) :
+
+| Variante | Synthèse propre | Synthèse vieux disque | GuitarSet | GuitarSet vieux disque |
+|---|---|---|---|---|
+| `base` (app d'avant) | 55 % | 46 % | 84 % | 77 % |
+| `app` (étape A, CREMA) | 67 % | 55 % | 84 % | 77 % |
+| Tsumugi seul, son propre décodeur | 86 % | 76 % | 79 % | 84 % |
+| **Tsumugi à la place de CREMA + étape A** | **88 %** | **79 %** | 79 % | **86 %** |
+| idem, Tsumugi sans temps ni tonalité | 87 % | 74 % | 80 % | 85 % |
+| Jiang 2019 à la place de CREMA + étape A | 61 % | 22 % | 76 % | 44 % |
+| BTC à la place de CREMA + étape A | 68 % | 47 % | 71 % | 62 % |
+| ChordMini à la place de CREMA + étape A | 67 % | 44 % | 60 % | 65 % |
+
+Le même, détaillé, pour « Tsumugi à la place de CREMA + étape A » contre
+`app` (sous-ensemble entier) :
+
+| Son | Fondamentale | Couleur | Complet (extensions et basse) | Basse | Changements manqués | En trop | Fondamentale à la quinte |
+|---|---|---|---|---|---|---|---|
+| synthèse propre | 79 → 92 % | 67 → 88 % | 34 → 65 % | 78 → 92 % | 40 → 15 % | 18 → 6 % | 7 → 2 % |
+| synthèse vieux disque | 65 → 85 % | 55 → 79 % | 29 → 48 % | 63 → 86 % | 54 → 28 % | 17 → 12 % | 10 → 4 % |
+| GuitarSet | 91 → 87 % | 84 → 79 % | 79 → 76 % | 86 → 95 % | — | 11 → 20 % | 2 → 2 % |
+| GuitarSet vieux disque | 89 → 92 % | 77 → 86 % | 68 → 78 % | 79 → 90 % | — | 18 → 15 % | 5 → 2 % |
+
+Sur les seuls morceaux de **contrôle** (jamais servis à régler quoi que ce
+soit), même constat : couleur synthèse propre 67 → 89 %, **vieux disque
+52 → 83 %**, GuitarSet 79 → 75 %, GuitarSet vieux disque 89 → 85 % (4 prises
+seulement : ±5 points, c'est 2 ou 3 accords).
+
+Mélanges avec CREMA par-dessus l'étape A (poids appris sur le développement,
+couleur sur le contrôle) :
+
+| Variante | Synthèse propre | Synthèse vieux disque | GuitarSet | GuitarSet vieux disque |
+|---|---|---|---|---|
+| `app` | 67 % | 52 % | 79 % | 89 % |
+| app + Tsumugi (w 0,8) | 90 % | 81 % | 79 % | 86 % |
+| app + Tsumugi sans temps (w 0,5) | 84 % | 70 % | 88 % | 91 % |
+| app + Jiang (w 0,2) | 69 % | 48 % | 72 % | 80 % |
+| app + BTC (w 0,5) | 74 % | 52 % | 70 % | 82 % |
+| app + ChordMini (w 0,5) | 73 % | 51 % | 72 % | 78 % |
+
+Ce qu'on en tire :
+
+- **Tsumugi tient sur le jazz et sur le vieux disque** : +21 points de
+  couleur sur la synthèse propre, +24 sur le vieux disque (+31 sur le
+  contrôle), et ce gain s'ajoute à l'étape A au lieu de la remplacer (étape A
+  sur Tsumugi > Tsumugi seul). Il n'a pas besoin de nos temps pour cela
+  (sans temps ni tonalité, à 1–5 points près).
+- **Là où il aide** : la confusion du II-V presque disparue (fondamentale à la
+  quinte : 7–10 % des temps → 2–4 %) ; les changements à mi-mesure (manqués :
+  40–54 % → 15–28 %) ; les septièmes (septième fausse : 5–7 % → 2–3 %) ;
+  **les extensions et la basse**, que le propriétaire trouve peu fiables
+  aujourd'hui : « complet » 34 → 65 % (propre), 29 → 48 % (vieux disque),
+  basse 63–86 % → 86–95 %.
+- **Là où il n'aide pas** : la guitare seule et propre de GuitarSet (−4 à −5
+  points de couleur, plus d'accords en trop), où CREMA était déjà bon. Sur le
+  GuitarSet façon vieux disque, il gagne sur l'ensemble (+9) mais perd 4
+  points sur les 4 prises de contrôle : à surveiller, peu de données.
+- Mélanger Tsumugi à CREMA n'apporte rien de plus que Tsumugi seul (w appris =
+  0,8, presque tout Tsumugi) et perd sur « complet » (les extensions viennent
+  alors des notes de CREMA). **Tsumugi doit remplacer CREMA**, avec ses
+  propres notes et sa basse, l'étape A restant telle quelle.
+- **Les modèles légers n'ajoutent rien de fiable à l'étape A**. BTC et
+  ChordMini gagnent 6–7 points sur la synthèse propre mais rien sur le vieux
+  disque, et perdent sur GuitarSet. Jiang 2019 s'effondre sur le vieux disque
+  (22 % seul) : son « hybrid CQT » et son estimation d'accordage ne
+  supportent pas la bande étroite. Aucun ne justifie une intégration.
+
+### Coût de Tsumugi dans le navigateur (mesuré)
+
+onnxruntime-web 1.31.1 (WASM, la version de l'app) sous Node, sur cette
+machine à 4 cœurs **chargée par d'autres calculs** (`ts/wasm-song.ts`,
+fenêtres de 30 s) :
+
+| | 1 fil | 4 fils |
+|---|---|---|
+| une fenêtre (20 s de musique gardées) | 53 s | 28 s |
+| **morceau de 4 minutes** (12 fenêtres) | **≈ 11 min** | **≈ 6 min** |
+| mémoire au pic (processus entier) | 2,35 Go | 2,37 Go |
+
+- Téléchargement : **67,6 Mo** (poids de l'auteur, Hugging Face, CC BY-NC 4.0)
+  + **1,36 Mo** de graphe sans poids. Chargement de la session : 1 à 1,5 s.
+- Sur le M1 Pro du propriétaire, compter probablement 2 à 3 fois plus vite
+  (à mesurer ; la carte graphique n'est pas essayée). C'est du même ordre que
+  la séparation, que le propriétaire accepte.
+- Pistes pour réduire : garder 25 s par fenêtre au lieu de 20 (−17 %
+  de calcul, à mesurer), WebGPU. Pas pour le téléphone (mémoire).
+
+### Recommandation
+
+**Intégrer Tsumugi maintenant, comme choix dans les réglages avancés**
+(« Accords : modèle détaillé, plus lent »), en remplacement de CREMA pour la
+lecture des accords, avec l'étape A inchangée par-dessus. CREMA reste le
+modèle par défaut (léger, téléphone). Ne pas intégrer Jiang, BTC ni ChordMini.
+
+### Plan d'intégration (ce qui existe déjà dans `modeles/`)
+
+1. **Fichiers** — fait : `build_graph.py` refait le graphe sans poids à
+   l'identique (outils, code et poids figés ; empreinte vérifiée deux fois) ;
+   l'empreinte est gelée dans `tsumugi-graph.json` (1 356 051 octets,
+   SHA-256 `235901fc…77`). À faire : livrer ce graphe avec l'app (décision du
+   propriétaire : c'est notre travail, il ne contient aucun poids) et ajouter
+   les poids de l'auteur à la liste des modèles (`models.ts`, adresse figée,
+   67 647 992 octets, SHA-256 `6b62daef…0ee0a`, licence CC BY-NC 4.0 affichée).
+2. **Entrées** — fait, en TypeScript pur avec tests
+   (`ts/tsumugi-features.ts`, `ts/tsumugi-features.test.ts`) : rééchantillonnage
+   48 kHz → 25,6 kHz stéréo, plan des fenêtres de 30 s (20 s gardées),
+   descripteurs de temps (11) et de tonalité (25), recollage des sorties.
+   Vérifié contre le code Python de l'auteur sur deux fichiers (descripteurs
+   identiques à 10⁻⁶ près), et de bout en bout : rééchantillonneur TS → modèle
+   → mêmes accords que la chaîne Python (99,97 % et 100 % des images).
+3. **Exécution** — fait : `ts/tsumugi-run.ts` (la boucle des fenêtres sur une
+   session onnxruntime-web créée avec `externalData`), essayée dans
+   onnxruntime-web WASM : 100 % des images identiques à Python. À faire :
+   l'appeler dans le worker d'analyse, avec la progression par fenêtre.
+4. **Raccord au décodeur** — à faire, dans les fichiers de l'autre session :
+   ramener les 745 sorties aux 169 accords de l'app (somme par fondamentale et
+   qualité, extensions repliées : le code de référence est
+   `modeles/bench/lire.ts`, `bench_precompute.py#write_ts`), passer à
+   `analyseChart` des `ChordFrames` à 25 images/s avec les notes (`tones`) et
+   la basse (`bass`) de Tsumugi, `timeScale` 1 (Tsumugi n'a pas besoin de la
+   correction d'accordage). C'est exactement la variante `modele-a`.
+5. **Extensions** — ensuite : Tsumugi donne ses propres extensions (62
+   qualités) ; les proposer au lieu de celles tirées des notes ferait encore
+   monter « complet » (à mesurer).
+
+Ce qui reste à porter en TypeScript : rien côté entrées ; le repli 745 → 169
+(une vingtaine de lignes) et l'appel du worker.
+
+## Premiers chiffres, sur le seul morceau de démonstration (avant le banc)
+
+Les chiffres ci-dessous (jusqu'à la fin de « En bref » et du premier tableau
+de scores) viennent d'un seul morceau de démonstration synthétique
+(`web/spikes/analyse/demo/demo-swing.mp3`, 37 s, accordé à +30 cents). Les
+mesures du banc ci-dessus les remplacent.
 
 ## En bref
 
