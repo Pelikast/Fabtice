@@ -89,11 +89,13 @@ function tonalHint(key: Key | null) {
 function decode(outputs: NetworkOutputs, grid: GridHint | null, key: Key | null, base: Pick<ResultInput, 'duration' | 'models'>) {
   let g;
   let meterScores: ResultInput['meterScores'] = [];
+  let repairs: ResultInput['repairs'] = [];
   if (grid) g = gridFromHint(grid.times, grid.downbeat, grid.meter.numerator);
   else {
     const r = gridFromActivations(outputs.act);
     g = r.grid;
     meterScores = r.meterScores;
+    repairs = r.repairs;
   }
   if (g.beats.length < 2) throw new AnalysisError('no-music', 'no beats found');
   const chart = chartFromGrid(outputs.frames, outputs.timeScale, g, tonalHint(key));
@@ -106,6 +108,7 @@ function decode(outputs: NetworkOutputs, grid: GridHint | null, key: Key | null,
     keyIsHint: !!key,
     tuning: outputs.tuning,
     segments: chart.segments,
+    repairs,
     ...base,
   });
 }

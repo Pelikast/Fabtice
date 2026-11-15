@@ -35,6 +35,7 @@
 // The thresholds are measured (`repair.cases.ts`, `repair.eval.test.ts`,
 // app/README.md « Réparation des temps »).
 
+import type { RepairedPassage } from '../types';
 import { inferMeter } from './meter';
 
 export interface RepairOptions {
@@ -44,6 +45,8 @@ export interface RepairOptions {
   flag: number;
   /** In-tempo intervals allowed between two out-of-tempo ones of the same passage. */
   gap: number;
+  /** Beats the kept ends of a passage may be moved outwards, in all, to find the best fit. */
+  extend: number;
   /** Intervals on each side of a passage that give the tempo before and after it. */
   context: number;
   /** Of which at least this many must be in tempo (else: start or end of the piece, nothing is done). */
@@ -56,6 +59,10 @@ export interface RepairOptions {
   maxBeats: number;
   /** The passage must last a whole number of beats at the surrounding tempo, within this many beats. */
   fit: number;
+  /** The same, for the bar repair (led by the downbeat evidence, which then has to agree). */
+  barFit: number;
+  /** The tempo repair changes the count only if a found interval deviates from the surrounding tempo by more than this (|ln|). */
+  gross: number;
   /** Downbeat evidence (log-likelihood, nats) needed to overrule the timing decision. */
   veto: number;
   /** Bars on each side of a passage whose downbeat evidence is weighed. */
@@ -70,29 +77,22 @@ export const REPAIR: RepairOptions = {
   window: 12,
   flag: Math.log(1.3),
   gap: 3,
+  extend: 2,
   context: 8,
   contextMin: 4,
   steady: Math.log(1.08),
   back: Math.log(1.2),
   maxBeats: 16,
   fit: 0.3,
+  barFit: 0.3,
+  gross: 0,
   veto: 4,
   bars: 4,
   maxShift: 2,
   regularize: true,
 };
 
-/** A passage whose beats were replaced. Times are those of the two beats kept on either side. */
-export interface RepairedPassage {
-  start: number;
-  end: number;
-  /** Beats the network had strictly between `start` and `end`. */
-  found: number;
-  /** Beats put there instead, evenly at the surrounding tempo. */
-  placed: number;
-  /** `tempo`: a short deviation of the tempo; `bar`: the downbeats after it had moved. */
-  cause: 'tempo' | 'bar';
-}
+export type { RepairedPassage };
 
 export interface RepairResult {
   beats: number[];
@@ -234,7 +234,7 @@ export function repairTempo(beats: readonly number[], m: number, downAt: Downbea
     // The two beats kept on either side: the run's ends, or up to `gap` beats further out when
     // the run's own end beats are off (the last beat of a burst is rarely on a true beat).
     let pick: { s: number; e: number; before: number; after: number; k: number; misfit: number } | null = null;
-    for (let ext = 0; ext <= 2 * o.gap; ext++) {
+    for (let ext = 0; ext <= o.extend; ext++) {
       for (let ds = 0; ds <= ext; ds++) {
         const s = a - ds;
         const e = b + 1 + ext - ds;
@@ -258,6 +258,13 @@ export function repairTempo(beats: readonly number[], m: number, downAt: Downbea
     if (found === 1 && k === 1) continue; // one interval, nothing inside to place
     const inner = fillBeats(beats[s]!, beats[e]!, k, before, after);
     if (found === k && !o.regularize) continue; // the count is right: the bars are not moved, the beats stay as found
+    if (found !== k && o.gross > 0) {
+      // A count is changed only against a gross error of the found beats (a beat too many or too few shows as one).
+      const p = Math.sqrt(before * after);
+      let worst = 0;
+      for (let j = s; j < e; j++) worst = Math.max(worst, Math.abs(Math.log(d[j]! / p)));
+      if (worst < o.gross) continue;
+    }
     if (downAt) {
       const asFound = evidence(beats, s, e, beats.slice(s + 1, e), m, o, downAt);
       const asFilled = evidence(beats, s, e, inner, m, o, downAt);
@@ -304,7 +311,7 @@ export function repairBars(beats: readonly number[], m: number, downAt: Downbeat
             const k = e - s + shift;
             if (k < 1 || k > o.maxBeats) continue;
             const misfit = Math.abs(span / p - k);
-            if (misfit > o.fit) continue;
+            if (misfit > o.barFit) continue;
             if (best && (misfit > best.misfit + 1e-9 || (Math.abs(misfit - best.misfit) <= 1e-9 && e - s >= best.e - best.s))) continue;
             best = { s, e, inner: fillBeats(cur[s]!, cur[e]!, k, before, after), cause: 'bar', misfit };
           }
