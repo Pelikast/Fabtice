@@ -45,7 +45,7 @@
   .feuille-infos { width: auto; }
   .feuille-infos p { color: var(--encre); font-size: 11pt; white-space: normal; }
   .papier-seul { display: inline; }
-  .cle-bouton { margin: 0; padding: 0; color: inherit; background: none; }
+  .cle-bouton { margin: 0 0.2em 0 0; padding: 0; color: inherit; background: none; }
 
   .grille { padding: 0; }
   /* A line of bars never splits between two pages; its width is the unit of everything in it. */

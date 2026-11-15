@@ -98,6 +98,9 @@ test('a right click in the link field offers Couper, Copier, Coller, Tout sélec
     await new Promise((r) => setTimeout(r, 500));
     assert.equal((await shown(app)).length, 4, 'no menu on plain text without a selection');
 
+    // The interface's window made no noise (the diagnostic window's WebGPU probe does, so it is checked before).
+    await assertClean(page, problems, 'context menu');
+
     // 5. The diagnostic window has it too.
     const diagnostic = await openDiagnostic(app);
     await diagnostic.locator('#link').click({ button: 'right' });
@@ -105,8 +108,6 @@ test('a right click in the link field offers Couper, Copier, Coller, Tout sélec
     assert.deepEqual((await shown(app))[4].map((l) => l.replace(' (off)', '')), ['Couper', 'Copier', 'Coller', '-', 'Tout sélectionner'], 'the diagnostic window: the same menu');
     await press(app, 'Coller');
     await diagnostic.waitForFunction((link) => document.querySelector('#link').value === link, LINK, { timeout: 5000 });
-
-    await assertClean(page, problems, 'context menu');
   } finally {
     await app.close();
   }
