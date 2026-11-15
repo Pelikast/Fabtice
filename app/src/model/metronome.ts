@@ -50,7 +50,8 @@ export interface MetronomeSettings {
   acceleration: AccelerationPlan;
 }
 
-export const METRONOME_VOLUME = { min: 0, max: 1, default: 0.7 } as const;
+/** 0.5 is the gain the clicks always had (lots 1 to 3): an older piece sounds the same. */
+export const METRONOME_VOLUME = { min: 0, max: 1, default: 0.5 } as const;
 export const COUNT_IN_BARS: readonly (0 | 1 | 2)[] = [0, 1, 2];
 export const ACCELERATION_LIMITS = {
   startPercent: { min: 25, max: 100 },
