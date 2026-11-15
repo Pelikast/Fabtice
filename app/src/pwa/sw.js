@@ -9,7 +9,8 @@
 //     tools and collections, the tools downloaded from Hugging Face (they live in
 //     IndexedDB, not here);
 //   - the page: network first (a few seconds at most), then the copy kept with
-//     this version. A new version is never kept from being seen: as soon as the
+//     this version (always this version's own page, consistent with the files
+//     it keeps). A new version is never kept from being seen: as soon as the
 //     network answers, the page is the newest one;
 //   - assets: their names carry a hash, so a kept copy is always right: kept
 //     copy first, else the network, then kept. The small ones come with the
@@ -83,11 +84,9 @@ async function navigation(request) {
   const network = fetch(request).then((r) => (r.ok ? r : Promise.reject(new Error(`status ${r.status}`))));
   const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), NAVIGATION_TIMEOUT_MS));
   try {
-    const response = await Promise.race([network, timeout]);
-    // The newest page, kept for the next time there is no network.
-    const copy = response.clone();
-    void caches.open(SHELL_CACHE).then((c) => c.put(new URL('index.html', scope).href, copy)).catch(() => {});
-    return isolated(response);
+    // Not kept: the page kept is this version's own, which names the files this version keeps. A newer page
+    // kept here would name files that are not, and the app would not open offline.
+    return isolated(await Promise.race([network, timeout]));
   } catch {
     const kept = await fromShell('index.html');
     if (kept) return isolated(kept);
