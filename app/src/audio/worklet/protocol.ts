@@ -55,11 +55,15 @@ export type ToWorklet =
   /** Progressive acceleration (lot 4): tempo factors of the steps and passes per step, or null to stop it; restarts at the first step. */
   | { type: 'acceleration'; factors: Float64Array | null; every: number }
   | { type: 'acceleration-restart' }
+  /** The step and passes an earlier audio thread had reached (after the page reopened the audio output). */
+  | { type: 'acceleration-state'; step: number; passes: number }
   /** `countIn` (lot 4): click offsets in source frames before the start, and their levels. */
   | { type: 'play'; countIn?: { offsets: Float64Array; levels: Uint8Array } | null }
   | { type: 'pause' }
   | { type: 'seek'; frame: number }
-  | { type: 'ping'; id: number };
+  | { type: 'ping'; id: number }
+  /** Test only (`WorkletEngine.debugStall`): the processor stops rendering and publishing, as a stuck audio thread would. */
+  | { type: 'stall' };
 
 export interface Diagnostics {
   /** Mean processing time of a busy quantum, as a fraction of the quantum duration. */
@@ -93,9 +97,10 @@ export type FromWorklet =
 // [8] f64 heard position (source frames), [16] f64 frame stamp (currentFrame),
 // [24] f64 tempo ratio (0 during a count-in: the position waits), [32] f64
 // count-in clicks not heard yet, [40] f64 acceleration step (−1 when no plan
-// acts: none, or the loop is off).
+// acts: none, or the loop is off), [48] f64 passes of the loop heard in that
+// step (so that an engine rebuilt after the output was released carries on).
 
-export const SHARED_BYTES = 48;
+export const SHARED_BYTES = 56;
 export const FLAG_PLAYING = 1;
 
 export interface SharedViews {
@@ -104,5 +109,5 @@ export interface SharedViews {
 }
 
 export function sharedViews(buffer: SharedArrayBuffer): SharedViews {
-  return { i32: new Int32Array(buffer, 0, 2), f64: new Float64Array(buffer, 8, 5) };
+  return { i32: new Int32Array(buffer, 0, 2), f64: new Float64Array(buffer, 8, 6) };
 }

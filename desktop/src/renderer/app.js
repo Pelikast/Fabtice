@@ -15,6 +15,7 @@ const state = {
   attempts: [], // network attempts of the yt-dlp manager
   installError: null,
   separation: null, // { available, at, text }: the report of the last real separation (from the interface)
+  audioJournal: null, // { text, count }: the audio journal kept by the main process (audio-journal.js)
 };
 
 function fmtTime(seconds) {
@@ -130,8 +131,23 @@ fabtice.onYtdlpProgress((p) => {
 
 // ---------------------------------------------------------------- player
 
+// This page's own player gives the audio output back like the interface does: its context is closed
+// 30 s after the last pause (and at once when the Mac goes to sleep), and opened again by « Lecture ».
+const PLAYER_RELEASE_MS = 30000;
+
+function journal(event, text) {
+  if (typeof fabtice.audioJournalAdd === 'function') fabtice.audioJournalAdd({ event, text }).catch(() => {});
+}
+
+function openPlayerContext() {
+  const ctx = new AudioContext();
+  journal('context-created', `Fenêtre de diagnostic : sortie audio ouverte, contexte à ${ctx.sampleRate} Hz, latence de base ${((ctx.baseLatency || 0) * 1000).toFixed(1)} ms`);
+  return ctx;
+}
+
 const player = {
   ctx: null,
+  releaseTimer: null,
   buffer: null,
   source: null,
   startedAt: 0,
@@ -145,8 +161,26 @@ const player = {
     return Math.min(Math.max(t, 0), this.buffer.duration);
   },
 
+  release(why) {
+    clearTimeout(this.releaseTimer);
+    this.releaseTimer = null;
+    if (this.playing) this.pause(false);
+    if (!this.ctx) return;
+    const ctx = this.ctx;
+    this.ctx = null;
+    ctx.close().catch(() => {});
+    journal('context-closed', `Fenêtre de diagnostic : sortie audio fermée (${why})`);
+  },
+
+  scheduleRelease() {
+    clearTimeout(this.releaseTimer);
+    this.releaseTimer = setTimeout(() => this.release('rien joué depuis un moment'), PLAYER_RELEASE_MS);
+  },
+
   play() {
     if (!this.buffer) return;
+    clearTimeout(this.releaseTimer);
+    if (!this.ctx) this.ctx = openPlayerContext();
     if (this.ctx.state === 'suspended') this.ctx.resume();
     if (this.offset >= this.buffer.duration) this.offset = 0;
     const src = this.ctx.createBufferSource();
@@ -158,6 +192,7 @@ const player = {
         this.offset = 0;
         this.source = null;
         updatePlayButton();
+        this.scheduleRelease();
       }
     };
     src.start(0, this.offset);
@@ -167,7 +202,7 @@ const player = {
     updatePlayButton();
   },
 
-  pause() {
+  pause(scheduleRelease = true) {
     if (!this.playing) return;
     this.offset = this.position();
     this.playing = false;
@@ -175,6 +210,7 @@ const player = {
     this.source = null;
     src.stop();
     updatePlayButton();
+    if (scheduleRelease) this.scheduleRelease();
   },
 
   seek(t) {
@@ -185,7 +221,7 @@ const player = {
   },
 
   reset() {
-    if (this.playing) this.pause();
+    if (this.playing) this.pause(false);
     this.buffer = null;
     this.offset = 0;
   },
@@ -238,8 +274,9 @@ async function runImport(event) {
   const link = $('link').value;
   const button = $('import-button');
   const bar = $('import-progress');
-  // The AudioContext is created during the click, as autoplay rules prefer.
-  if (!player.ctx) player.ctx = new AudioContext();
+  // The AudioContext is created during the click, as autoplay rules prefer; it is closed again when idle.
+  clearTimeout(player.releaseTimer);
+  if (!player.ctx) player.ctx = openPlayerContext();
   player.reset();
   $('player').hidden = true;
   state.lastLink = link;
@@ -262,6 +299,7 @@ async function runImport(event) {
     document.body.dataset.decode = result.refused ? 'refused' : 'failed';
     if (result.meta) showMeta(result.meta);
     renderDiagnostics();
+    player.scheduleRelease();
     return;
   }
 
@@ -271,10 +309,12 @@ async function runImport(event) {
     setStatus($('import-status'), `Le fichier a été téléchargé mais Chromium ne sait pas le décoder (${state.decode.error}). Voir le diagnostic.`, true);
     document.body.dataset.decode = 'error';
     renderDiagnostics();
+    player.scheduleRelease();
     return;
   }
   player.buffer = buffer;
   player.offset = 0;
+  player.scheduleRelease();
   $('position').max = String(buffer.duration);
   $('position').value = '0';
   showMeta(result.meta);
@@ -459,6 +499,10 @@ function diagnosticsText() {
   L.push(state.separation ? state.separation.text : 'En cours…');
 
   L.push('');
+  L.push('--- Journal audio ---');
+  L.push(state.audioJournal ? state.audioJournal.text : 'En cours…');
+
+  L.push('');
   L.push('--- WebGPU ---');
   const g = state.webgpu;
   if (!g) {
@@ -484,6 +528,7 @@ function renderDiagnostics() {
 }
 
 async function copyDiagnostics() {
+  await refreshAudioJournal();
   try {
     await fabtice.copyText(diagnosticsText());
     setStatus($('copy-status'), 'Diagnostic copié dans le presse-papiers.');
@@ -520,12 +565,40 @@ async function refreshSeparation() {
   renderDiagnostics();
 }
 
+// The audio journal kept by the main process: shown, copied alone, and part of the diagnostic.
+async function refreshAudioJournal() {
+  try {
+    state.audioJournal = typeof fabtice.audioJournal === 'function' ? await fabtice.audioJournal() : { text: 'Non disponible dans cette version.', count: 0 };
+  } catch (e) {
+    state.audioJournal = { text: `Illisible : ${e.message}`, count: 0 };
+  }
+  $('audio-journal-text').textContent = state.audioJournal.text;
+  renderDiagnostics();
+}
+
+async function copyAudioJournal() {
+  await refreshAudioJournal();
+  try {
+    await fabtice.copyText(state.audioJournal.text);
+    setStatus($('audio-journal-status'), 'Journal audio copié dans le presse-papiers.');
+  } catch (e) {
+    setStatus($('audio-journal-status'), `Copie impossible : ${e.message}`, true);
+  }
+}
+
+if (typeof fabtice.onPower === 'function') {
+  fabtice.onPower((p) => {
+    if (p && (p.kind === 'suspend' || p.kind === 'resume')) player.release(p.kind === 'suspend' ? 'mise en veille' : 'sortie de veille');
+  });
+}
+
 // ---------------------------------------------------------------- start
 
 $('copy-report').addEventListener('click', copyImportReport);
 $('ytdlp-install').addEventListener('click', installYtdlp);
 $('import-form').addEventListener('submit', runImport);
 $('copy-diag').addEventListener('click', copyDiagnostics);
+$('copy-audio-journal').addEventListener('click', copyAudioJournal);
 $('play').addEventListener('click', () => (player.playing ? player.pause() : player.play()));
 $('position').addEventListener('input', () => { player.dragging = true; });
 $('position').addEventListener('change', () => {
@@ -538,6 +611,6 @@ $('position').addEventListener('change', () => {
   requestAnimationFrame(tick);
   state.system = await fabtice.systemInfo();
   renderDiagnostics();
-  await Promise.all([refreshYtdlp().then(() => refreshUpdate()), probeWebGpu().then(renderDiagnostics), refreshSeparation()]);
+  await Promise.all([refreshYtdlp().then(() => refreshUpdate()), probeWebGpu().then(renderDiagnostics), refreshSeparation(), refreshAudioJournal()]);
   document.body.dataset.ready = 'true';
 })();

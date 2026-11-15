@@ -48,6 +48,7 @@ import * as analysisActions from '../store/analysisActions';
 import * as gridActions from '../store/gridActions';
 import * as harmonyActions from '../store/harmonyActions';
 import { demoAnalysis, demoCorrections } from './demoAnalysis';
+import * as audioJournal from '../audio/journal';
 import { demoProject } from './demoProject';
 
 declare global {
@@ -64,6 +65,8 @@ declare global {
       lot4?: typeof lot4Handle;
       /** The library of known chord charts (`?debug`): `findStandard`, `standardsStatus`… */
       standards?: typeof standardsLibrary;
+      /** The audio journal (`audio/journal.ts`): `journalText()`, `journalEntries()`… */
+      audioJournal?: typeof audioJournal;
       ready: Promise<void>;
     };
   }
@@ -148,6 +151,6 @@ export function startDemo(params: URLSearchParams): Promise<void> {
     else if (separation === 'lente' || separation === 'repli' || separation === 'echec') void separationRunner.startSeparation();
     if (params.get('export') === 'ouvert') exportActions.openExportAudio();
   })();
-  window.__fabtice = { store: appStore, engine: getEngine(), actions, lot2: lot2Actions, lot3: lot3Handle, lot4: lot4Handle, ready };
+  window.__fabtice = { store: appStore, engine: getEngine(), actions, lot2: lot2Actions, lot3: lot3Handle, lot4: lot4Handle, audioJournal, ready };
   return ready;
 }

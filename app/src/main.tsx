@@ -2,6 +2,9 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { getEngine } from './audio';
 import { connectEngine } from './audio/connect';
+import { watchAudioDevice } from './audio/deviceLifecycle';
+import * as audioJournal from './audio/journal';
+import { getDesktopBridge } from './platform/desktopBridge';
 import { App } from './components/App';
 import * as actions from './store/actions';
 import { checkToolUpdate } from './import/controller';
@@ -18,6 +21,19 @@ import './styles/index.css';
 setLanguage('fr');
 persistPreferences(appStore);
 connectEngine(appStore, getEngine());
+// The audio output goes back to the system on sleep, wake, a device change, a hidden or closed page
+// (the engine also lets it go by itself after a while without playback): see audio/deviceLifecycle.ts.
+{
+  const bridge = getDesktopBridge();
+  watchAudioDevice({
+    engine: getEngine(),
+    doc: document,
+    win: window,
+    devices: typeof navigator !== 'undefined' && navigator.mediaDevices ? navigator.mediaDevices : null,
+    onPower: bridge?.onPower ? (cb) => bridge.onPower!(cb) : null,
+    userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
+  });
+}
 
 const params = new URLSearchParams(window.location.search);
 // Lot 3: the list of separation tools is fetched from the repository (the bundled copy stays in use if that
@@ -40,7 +56,7 @@ if (params.has('demo')) {
 } else {
   // `?debug`: the same handle as `?demo` (store, engine, actions) for the browser checks, without the demo piece.
   if (params.has('debug')) {
-    window.__fabtice = { store: appStore, engine: getEngine(), actions, standards: standardsLibrary, ready: Promise.resolve() };
+    window.__fabtice = { store: appStore, engine: getEngine(), actions, standards: standardsLibrary, audioJournal, ready: Promise.resolve() };
     void import('./demo/start').then((m) => {
       if (window.__fabtice) {
         window.__fabtice.lot3 = m.lot3Handle;

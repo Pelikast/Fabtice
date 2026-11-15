@@ -681,6 +681,42 @@ d'abord le hors-ligne et les en-têtes d'isolation.** Un projet de 20 minutes
 navigateur. Enregistrer un `.fab` prend du temps pour un long morceau
 (environ 30 s pour 12 minutes à six instruments ici, pourcentage affiché).
 
+## Sortie audio rendue au système (retours du 15 novembre)
+
+Sur le Mac Intel, le son de tout le Mac s'est bloqué après que Fabtice était
+resté ouvert longtemps sans jouer (service audio de macOS figé, redémarrage
+nécessaire). **La cause n'est pas prouvée** et ne peut pas être reproduite
+ici. Hypothèses, de la plus à la moins probable : panne de macOS 12 autour
+d'une veille ou d'un changement de sortie pendant que Fabtice gardait un flux
+ouvert ; contexte audio resté en marche par une course au démarrage (ce que
+le code permettait : c'est un fait) ; lecteur de la fenêtre Diagnostic jamais
+fermé (un fait aussi, s'il y avait importé un lien) ; manque de mémoire
+pendant un calcul ; panne de macOS sans rapport avec l'app.
+
+Désormais le moteur (`app/src/audio/WorkletEngine.ts`) met le contexte en
+sommeil 0,4 s après une pause et le **ferme après 45 s sans lecture** ; il le
+ferme aussi à la mise en veille du Mac, à la sortie de veille, à l'écran
+verrouillé sans lecture, à un changement de périphérique audio (la lecture
+est mise en pause, sans reprise automatique), à la page masquée sans lecture
+et à la page quittée (`audio/deviceLifecycle.ts`,
+`desktop/src/power-events.js`). La lecture suivante rouvre tout sans que rien
+ne change (pistes, séparations, rendu appliqué ou gardé, boucle, tonalité,
+tempo, métronome, accélération, position), avec environ 50 à 100 ms de plus
+au démarrage (mesuré ici, pas sur ses Mac). Un contexte qui ne démarre pas,
+ou un moteur qui ne publie plus sa position, est refait **une fois** ; au
+second échec, un message calme s'affiche et « Lecture » reste disponible. Le
+**journal audio** (200 événements datés, gardé après un redémarrage) se copie
+depuis Aide → Diagnostic… (« Copier le journal audio », inclus dans « Copier
+le diagnostic ») et, sur le web, depuis les réglages avancés. L'app n'empêche
+jamais la mise en veille (un test le vérifie). Corrigé au passage dans le
+moteur : un déplacement demandé pendant le fondu de 8 ms d'une pause était
+perdu si la lecture suivait aussitôt.
+
+En cas de nouveau blocage, à dire au propriétaire : copier le journal audio
+(il survit au redémarrage) ; pour retrouver le son sans redémarrer, Moniteur
+d'activité → `coreaudiod` → Forcer à quitter ; noter si le Mac avait dormi ou
+si un écran, un casque ou des écouteurs avaient changé.
+
 ## Points ouverts
 
 - **Import par lien lent sur le Mac Intel** (une à deux minutes) : la cause

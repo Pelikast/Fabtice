@@ -13,6 +13,8 @@ import { chooseSeparation } from '../separation/runner';
 import { useFitPanel } from '../ui/useFitPanel';
 import { ExportItems } from './ExportMenu';
 import { DeviceStorage } from './DeviceStorage';
+import { AudioJournalCopy } from './AudioJournalCopy';
+import { isDesktop } from '../platform/desktopBridge';
 import { formatSize } from '../separation/useChoice';
 
 const MINOR: { value: MinorNotation; sample: string }[] = [
@@ -129,6 +131,8 @@ function AdvancedSettings() {
             </label>
           )}
           <DeviceStorage />
+          {/* The Mac app has it in Aide → Diagnostic… */}
+          {!isDesktop() && <AudioJournalCopy />}
         </div>
       )}
     </div>

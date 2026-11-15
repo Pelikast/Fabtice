@@ -53,6 +53,7 @@ const only = process.env.ENGINE_ONLY ? process.env.ENGINE_ONLY.split(',') : null
 const want = (n) => !only || only.includes(n);
 
 let failed = 0;
+const T_cents = (f, ref) => 1200 * Math.log2(f / ref);
 const check = (name, cond, detail = '') => {
   if (!cond) failed++;
   console.log(`${cond ? 'PASS' : 'FAIL'}  ${name}${detail ? `  (${detail})` : ''}`);
@@ -129,7 +130,7 @@ function installHelpers() {
 
   // ----- recorder: taps the engine's output, remembers the frame of the first sample
   T.recorder = async () => {
-    if (T.rec) return T.rec;
+    if (T.rec && T.rec.ctx === T.ctx()) return T.rec;
     const ctx = T.ctx();
     const code = `class Rec extends AudioWorkletProcessor {
       constructor() { super(); this.on = false; this.b = []; this.first = -1;
@@ -150,6 +151,7 @@ function installHelpers() {
     T.eng().debugNode.connect(node);
     node.connect(ctx.destination);
     T.rec = {
+      ctx,
       node,
       start() { node.port.postMessage('start'); },
       stop() { return new Promise((res) => { node.port.onmessage = (e) => res(e.data); node.port.postMessage('stop'); }); },
@@ -317,6 +319,8 @@ try {
   const page = await open(webUrl, '?demo');
   await waitEngine(page);
   await page.evaluate(installHelpers);
+  // The sections below measure playback: the engine must not give the output back between them (section 23 checks that).
+  await page.evaluate(() => window.__fabtice.engine.setIdleReleaseDelay(1e9));
   const info = await page.evaluate(() => {
     const e = window.__fabtice.engine;
     return { state: e.getState(), sr: e.debugContext.sampleRate, isolated: crossOriginIsolated, duration: e.getDuration(), real: typeof e.snapshot !== 'function', diag: e.diagnostics() };
@@ -1322,6 +1326,244 @@ try {
     check('accelerating loop: one click per beat at every step, none doubled or missing, on the beat', n >= 14 && Math.abs(r.so.length - r.co.length) <= 1 && off.every((x) => Math.abs(x) < 6 && Math.abs(x - med) < 1.5), `${r.co.length} clicks, ${r.so.length} beats, offsets ${Math.min(...off).toFixed(2)}…${Math.max(...off).toFixed(2)} ms`);
     check('the step heard is reported (the last one, the target)', r.step === 2, String(r.step));
   }
+
+
+  // ---- 23. the audio output goes back to the system when idle, and comes back unnoticed (lot 5, the owner's report)
+  if (want('23')) {
+    const r = await page.evaluate(async () => {
+      const e = T.eng();
+      const J = window.__fabtice.audioJournal;
+      const out = {};
+      const events = () => J.journalEntries().map((x) => x.event);
+      /** ms from play() until the heard position has moved 10 ms past `from` (the first sound is out). */
+      const timedPlay = async () => {
+        const from = e.getPosition();
+        const t0 = performance.now();
+        await e.play();
+        const resolved = performance.now() - t0;
+        while (e.getState() === 'playing' && e.getPosition() < from + 0.01 && performance.now() - t0 < 10000) await T.sleep(2);
+        return { resolved, sounding: performance.now() - t0, from };
+      };
+      const freq = async (ms) => {
+        T.rec = null; // a new context needs its own recorder
+        const { data } = await T.record(ms);
+        return T.zeroCrossFreq(data, Math.round(0.2 * 48000), data.length);
+      };
+
+      // a. warm start (context only suspended), for comparison
+      await T.load([{ id: 'a', data: T.sine(440, 30, 0.4) }]);
+      e.setIdleReleaseDelay(1e9);
+      e.seek(3);
+      out.warm = [];
+      for (let k = 0; k < 3; k++) {
+        await T.sleep(700); // suspended after 0.4 s
+        out.warm.push(await timedPlay());
+        await T.sleep(200);
+        e.pause();
+      }
+
+      // b. idle release: after the delay the context is closed, the engine stays ready where it was
+      e.setIdleReleaseDelay(1200);
+      e.seek(5);
+      e.play().catch(() => {});
+      await T.sleep(400);
+      e.pause();
+      const paused = e.getPosition();
+      await T.sleep(1700);
+      out.afterIdle = { device: e.deviceState(), state: e.getState(), pos: e.getPosition(), paused, ctx: e.debugContext, journal: events().slice(-3) };
+      out.afterIdle.ctx = out.afterIdle.ctx === null;
+
+      // c. first play after a release: latency, and it starts where it was paused
+      out.cold = [];
+      for (let k = 0; k < 3; k++) {
+        const p0 = e.getPosition();
+        const t = await timedPlay();
+        t.p0 = p0;
+        t.firstPos = e.getPosition();
+        t.state = e.getState();
+        t.sr = e.debugContext?.sampleRate;
+        await T.sleep(300);
+        t.advanced = e.getPosition() - t.firstPos;
+        e.pause();
+        out.cold.push(t);
+        await T.sleep(1700); // released again
+        t.releasedAgain = !e.deviceState().held;
+      }
+
+      // d. key, tempo, loop and the applied render survive a release
+      e.setIdleReleaseDelay(1e9);
+      e.setTransposition(3, 0);
+      e.setTempoRatio(0.8);
+      e.setLoop({ start: 1, end: 3 });
+      e.seek(1.5);
+      await e.play();
+      out.previewBefore = await freq(800);
+      e.pause();
+      e.releaseDevice('device');
+      out.releasedNow = !e.deviceState().held;
+      await e.play();
+      out.previewAfter = await freq(800);
+      e.pause();
+      // the applied render (660 Hz, so that it cannot be mistaken for the preview's 523 Hz), given while released
+      e.releaseDevice('sleep');
+      await T.applySet(0.8, { a: T.sine(660, 30 / 0.8, 0.4) }, 3, 0);
+      out.appliedWhileReleased = e.isRenderedInUse();
+      e.seek(1.2);
+      await e.play();
+      out.appliedAfter = await freq(1000);
+      out.appliedWeight = e.diagnostics()?.applied;
+      // the loop: 2 source seconds at 0.8 = 2.5 s; over 3.2 s the position wraps and never leaves [1, 3]
+      const seen = [];
+      for (let k = 0; k < 40; k++) {
+        seen.push(e.getPosition());
+        await T.sleep(80);
+      }
+      out.loop = { min: Math.min(...seen), max: Math.max(...seen), wrapped: seen.some((p, i) => i > 0 && p < seen[i - 1] - 0.5) };
+      e.pause();
+      await e.setRenderedTracks(null);
+      e.setLoop(null);
+      e.setTransposition(0, 0);
+      e.setTempoRatio(1);
+
+      // e. the acceleration step carries on across a release
+      e.setLoop({ start: 0, end: 1 });
+      e.setAcceleration({ factors: Float64Array.from([1, 1.5, 2]), every: 1 });
+      e.seek(0);
+      await e.play();
+      while (e.getMetronomeStatus().accelerationStep < 1 && e.getState() === 'playing') await T.sleep(10);
+      // the step changes when the stretcher's input wraps, some 0.2 s before it is heard: pause well inside the pass
+      await T.sleep(450);
+      e.pause();
+      const stepBefore = e.getMetronomeStatus().accelerationStep;
+      e.releaseDevice('idle');
+      const stepReleased = e.getMetronomeStatus().accelerationStep;
+      await e.play();
+      await T.sleep(100);
+      const stepAfter = e.getMetronomeStatus().accelerationStep;
+      await T.sleep(1200);
+      const stepLater = e.getMetronomeStatus().accelerationStep;
+      e.pause();
+      out.accel = { stepBefore, stepReleased, stepAfter, stepLater };
+      e.setAcceleration(null);
+      e.setLoop(null);
+
+      // f. a context that fails to start is rebuilt once; twice, the engine says so and the next play works
+      e.releaseDevice('idle');
+      e.debugFailResumes(1);
+      await e.play();
+      out.failOnce = { state: e.getState(), journal: J.journalEntries().filter((x) => x.event === 'start-failed').length };
+      e.pause();
+      e.releaseDevice('idle');
+      e.debugFailResumes(2);
+      await e.play();
+      out.failTwice = { state: e.getState(), device: e.deviceState(), error: window.__fabtice.store.getState().transport.error?.code };
+      await T.sleep(100);
+      out.failTwice.button = document.querySelector('.jouer') ? !document.querySelector('.jouer').disabled : null;
+      out.failTwice.message = document.querySelector('.position [role="alert"]')?.textContent ?? null;
+      await e.play();
+      out.afterUserRetry = e.getState();
+      e.pause();
+
+      // g. the watchdog: a stuck audio thread is rebuilt once, playback goes on; stuck again soon after: told
+      e.seek(4);
+      await e.play();
+      await T.sleep(300);
+      const ctxBefore = e.debugContext;
+      e.debugStall();
+      const tStall = performance.now();
+      while (!(e.debugContext && e.debugContext !== ctxBefore && e.getState() === 'playing') && performance.now() - tStall < 8000) await T.sleep(20);
+      out.stall = { rebuiltIn: performance.now() - tStall, state: e.getState(), newContext: e.debugContext !== ctxBefore };
+      await T.sleep(500);
+      out.stall.pos = e.getPosition();
+      e.debugStall();
+      const t2 = performance.now();
+      while (e.getState() !== 'error' && performance.now() - t2 < 8000) await T.sleep(20);
+      out.stallAgain = { state: e.getState(), held: e.deviceState().held, code: window.__fabtice.store.getState().transport.error?.code };
+      await e.play();
+      out.afterStallRetry = e.getState();
+      e.pause();
+
+      // h. a context closed behind the engine's back while playing: stopped where it was, reopened by play()
+      await e.play();
+      await T.sleep(300);
+      await e.debugContext.close();
+      await T.sleep(100);
+      out.closedBehind = { state: e.getState(), held: e.deviceState().held };
+      await e.play();
+      out.afterClosed = e.getState();
+      e.pause();
+
+      out.journal = events();
+      out.text = J.journalText();
+      e.setIdleReleaseDelay(1e9);
+      return out;
+    });
+    const med = (xs) => [...xs].sort((a, b) => a - b)[xs.length >> 1];
+    const warm = med(r.warm.map((x) => x.sounding));
+    const cold = med(r.cold.map((x) => x.sounding));
+    check('idle: the context is CLOSED after the delay, the engine stays ready at the same position', !r.afterIdle.device.held && r.afterIdle.ctx && r.afterIdle.state === 'ready' && Math.abs(r.afterIdle.pos - r.afterIdle.paused) < 1e-6 && r.afterIdle.journal.includes('context-closed'), `${JSON.stringify(r.afterIdle.device)}, journal …${r.afterIdle.journal.join(', ')}`);
+    check('play after a release: playing again at 48 kHz, from where it was paused, and released again when idle', r.cold.every((c) => c.state === 'playing' && c.sr === 48000 && Math.abs(c.firstPos - c.p0) < 0.15 && c.advanced > 0.15 && c.releasedAgain), r.cold.map((c) => `${c.p0.toFixed(2)}→${c.firstPos.toFixed(2)} +${c.advanced.toFixed(2)}`).join(' · '));
+    check('play after a release starts within 1.5 s here (measured: first sound vs. a warm start)', cold < 1500, `after a release ${r.cold.map((c) => c.sounding.toFixed(0)).join(', ')} ms (median ${cold.toFixed(0)}); warm ${r.warm.map((c) => c.sounding.toFixed(0)).join(', ')} ms (median ${warm.toFixed(0)})`);
+    const want3 = 440 * 2 ** (3 / 12);
+    check('the key survives a release (preview +3 semitones)', Math.abs(T_cents(r.previewAfter, want3)) < 10 && Math.abs(T_cents(r.previewBefore, want3)) < 10 && r.releasedNow, `${r.previewBefore.toFixed(1)} Hz before, ${r.previewAfter.toFixed(1)} Hz after (want ${want3.toFixed(1)})`);
+    check('the applied render given while released is the one heard after (660 Hz, weight 1)', r.appliedWhileReleased && Math.abs(T_cents(r.appliedAfter, 660)) < 10 && r.appliedWeight === 1, `${r.appliedAfter.toFixed(1)} Hz, weight ${r.appliedWeight}`);
+    check('the loop and the tempo survive a release (wraps in [1, 3] at 0.8)', r.loop.wrapped && r.loop.min >= 0.99 && r.loop.max <= 3.01, JSON.stringify(r.loop));
+    check('the acceleration step carries on across a release', r.accel.stepBefore === 1 && r.accel.stepReleased === 1 && r.accel.stepAfter === 1 && r.accel.stepLater === 2, JSON.stringify(r.accel));
+    check('a context that fails to start once is rebuilt and plays', r.failOnce.state === 'playing' && r.failOnce.journal >= 1, JSON.stringify(r.failOnce));
+    check('failing twice: error « context », output released, calm message, Lecture still offered; the next play works', r.failTwice.state === 'error' && r.failTwice.error === 'context' && !r.failTwice.device.held && r.failTwice.button && /Le son n’a pas pu démarrer/.test(r.failTwice.message ?? '') && r.afterUserRetry === 'playing', `${JSON.stringify(r.failTwice)} then ${r.afterUserRetry}`);
+    check('watchdog: a stuck audio thread is rebuilt once and playback goes on', r.stall.state === 'playing' && r.stall.newContext && r.stall.rebuiltIn < 5000 && r.stall.pos > 4, `rebuilt in ${r.stall.rebuiltIn.toFixed(0)} ms, position ${r.stall.pos.toFixed(2)}`);
+    check('watchdog: stuck again within a minute → no new try, error shown, output released; the next play works', r.stallAgain.state === 'error' && !r.stallAgain.held && r.stallAgain.code === 'runtime' && r.afterStallRetry === 'playing', `${JSON.stringify(r.stallAgain)} then ${r.afterStallRetry}`);
+    check('a context closed behind the engine’s back: stopped, released, play() reopens it', r.closedBehind.state === 'ready' && !r.closedBehind.held && r.afterClosed === 'playing', `${JSON.stringify(r.closedBehind)} then ${r.afterClosed}`);
+    const needed = ['context-created', 'release', 'context-closed', 'reopen', 'start-failed', 'recovery', 'stall', 'error'];
+    check('the audio journal records creations, releases, reopenings, failures, the stall and the recovery', needed.every((n) => r.journal.includes(n)) && /Dernière lecture réussie : \d{4}/.test(r.text), needed.filter((n) => !r.journal.includes(n)).join(', ') || `${r.journal.length} events`);
+    console.log(`      audio journal (last lines):\n${r.text.split('\n').slice(-6).map((l) => `        ${l}`).join('\n')}`);
+  }
+
+  // ---- 23b. separated instruments and a kept « Appliquer » render survive a release (tracks added, mixed and
+  // rendered while the output is released, as a separation or a revived kept render does)
+  if (want('23') || want('23b')) {
+    const r = await page.evaluate(async () => {
+      const e = T.eng();
+      const out = {};
+      const levels = async (freqs) => {
+        T.rec = null;
+        const { data } = await T.record(900);
+        const from = Math.round(0.3 * 48000);
+        return Object.fromEntries(freqs.map((f) => [f, T.amp(data, from, data.length, f)]));
+      };
+      await T.load([
+        { id: 'voix', data: T.sine(440, 20, 0.2) },
+        { id: 'piano', data: T.sine(550, 20, 0.2) },
+      ]);
+      e.setIdleReleaseDelay(1e9);
+      e.releaseDevice('idle');
+      // a separation finishing while the output is released: a new track, then the mix changes
+      await e.addTrack({ id: 'basse', channels: [T.sine(770, 20, 0.2)], sampleRate: 48000 }, { mute: false, solo: false, volume: 1 });
+      e.setTrackMix('voix', { mute: true, solo: false, volume: 1 });
+      out.heldWhileAdding = e.deviceState().held;
+      e.seek(2);
+      await e.play();
+      out.preview = await levels([440, 550, 770]);
+      out.active = e.diagnostics()?.activeTracks;
+      e.pause();
+      // the kept render revived while released (every track, other frequencies so that it cannot be mistaken)
+      e.releaseDevice('sleep');
+      await T.applySet(1, { voix: T.sine(330, 20, 0.2), piano: T.sine(660, 20, 0.2), basse: T.sine(880, 20, 0.2) });
+      out.inUse = e.isRenderedInUse();
+      e.seek(2);
+      await e.play();
+      out.applied = await levels([330, 660, 880, 550, 770]);
+      out.weight = e.diagnostics()?.applied;
+      e.pause();
+      await e.setRenderedTracks(null);
+      return out;
+    });
+    const p = r.preview;
+    check('separated tracks added and mixed while released are heard after (muted one silent)', !r.heldWhileAdding && p[440] < 0.01 && p[550] > 0.1 && p[770] > 0.1 && r.active === 2, `440 ${p[440].toFixed(3)}, 550 ${p[550].toFixed(3)}, 770 ${p[770].toFixed(3)}, ${r.active} tracks computed`);
+    const a = r.applied;
+    check('a kept render revived while released is what is heard after (mute kept, no preview)', r.inUse && r.weight === 1 && a[330] < 0.01 && a[660] > 0.1 && a[880] > 0.1 && a[550] < 0.01 && a[770] < 0.01, Object.entries(a).map(([f, v]) => `${f} ${v.toFixed(3)}`).join(', ') + `, weight ${r.weight}`);
+  }
+
 
   const errs = errorsOf.get(page);
   check('no page errors with the real engine', errs.length === 0, errs.join(' | '));

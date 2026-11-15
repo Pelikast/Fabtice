@@ -93,7 +93,9 @@ function PositionReadout() {
               ? 'engine.errorLoad'
               : engineError === 'unsupported'
                 ? 'engine.errorUnsupported'
-                : 'engine.error',
+                : engineError === 'context' || engineError === 'runtime'
+                  ? 'engine.errorDevice'
+                  : 'engine.error',
           )}
         </span>
       ) : (
@@ -137,7 +139,13 @@ function SubGridControls() {
 
 function Commands() {
   const playing = useApp((s) => s.transport.engine === 'playing');
-  const ready = useApp((s) => s.transport.engine === 'ready' || s.transport.engine === 'playing');
+  // After the audio output failed (`context`, `runtime`), Lecture stays available: pressing it is a new try.
+  const ready = useApp(
+    (s) =>
+      s.transport.engine === 'ready' ||
+      s.transport.engine === 'playing' ||
+      (s.transport.engine === 'error' && s.project !== null && (s.transport.error?.code === 'context' || s.transport.error?.code === 'runtime')),
+  );
   const loop = useApp((s) => s.loop);
   const looping = loop.enabled && loop.region !== null;
   return (

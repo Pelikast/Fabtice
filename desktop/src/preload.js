@@ -26,6 +26,14 @@ contextBridge.exposeInMainWorld('fabtice', {
   readProjectFile: (token, offset, length) => ipcRenderer.invoke('fabtice:read-project', String(token), Number(offset), Number(length)),
   releaseProjectFile: (token) => ipcRenderer.invoke('fabtice:release-project', String(token)),
   onOpenProject: (cb) => subscribe('fabtice:open-project', cb),
+  // The audio journal (audio-journal.js) and the Mac's power events (power-events.js).
+  audioJournalAdd: (entry) => ipcRenderer.invoke('fabtice:audio-journal-add', {
+    event: String(entry && entry.event),
+    text: String(entry && entry.text),
+    sticky: Boolean(entry && entry.sticky),
+  }),
+  audioJournal: () => ipcRenderer.invoke('fabtice:audio-journal'),
+  onPower: (cb) => subscribe('fabtice:power', cb),
   recentProjects: () => ipcRenderer.invoke('fabtice:recent-projects'),
   openRecentProject: (token) => ipcRenderer.invoke('fabtice:open-recent-project', String(token)),
   clearRecentProjects: () => ipcRenderer.invoke('fabtice:clear-recent-projects'),

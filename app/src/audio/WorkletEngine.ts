@@ -6,9 +6,19 @@
 // The audio-thread half is `worklet/` (core.ts holds the timeline model).
 //
 // Notes for whoever integrates it
-//   - The AudioContext is created (suspended) by `loadTracks()` and resumed
+//   - The AudioContext is created by the first `loadTracks()` and resumed
 //     inside `play()`, synchronously, so the call must come from the user's
-//     gesture. After a pause it is suspended again to let the hardware sleep.
+//     gesture. After a pause it is suspended again (0.4 s) and, when nothing
+//     has played for a while (`IDLE_RELEASE_MS`), CLOSED: the output goes back
+//     to the system. `play()` then opens a new context, inside the gesture,
+//     and gives it everything again (tracks, applied render, settings,
+//     position, acceleration step): the user notices nothing but a slightly
+//     longer start. `releaseDevice()` does the same at once (sleep, output
+//     change, hidden page: see `deviceLifecycle.ts`).
+//   - A context that fails to start, or an audio thread that stops reporting
+//     while playing (watchdog), is torn down and rebuilt ONCE; if that fails
+//     too the engine says so (`context` error) and waits for the next play.
+//     Nothing retries on its own after that.
 //   - Without cross-origin isolation (SharedArrayBuffer) or AudioWorklet,
 //     `loadTracks()` rejects and the state becomes `error` / `unsupported`.
 //     There is no fallback.
@@ -32,6 +42,7 @@ import {
 import type { Seconds, TimeRange } from '../model/project';
 import { isShared, pcmToChannels, type PcmAudio } from './pcm';
 import { storeTrack, type StoredTrack } from './storage';
+import { journalPhrase, reasonText, recordAudio, recordPlay, type ReleaseReason } from './journal';
 import {
   FLAG_PLAYING,
   SHARED_BYTES,
@@ -47,6 +58,14 @@ const PROCESSOR_NAME = 'fabtice-player';
 const MAX_EXTRAPOLATION_S = 0.1;
 /** The context is suspended this long after a pause, so the hardware can sleep. */
 const IDLE_SUSPEND_MS = 400;
+/** After this long without playback the context is CLOSED: the audio output goes back to the system. */
+export const IDLE_RELEASE_MS = 45_000;
+/** While playing, the audio thread must publish its position at least this often, or the engine is rebuilt. */
+const WATCHDOG_MS = 2500;
+/** A context that has not started this long after `resume()` counts as failed. */
+const START_TIMEOUT_MS = 8000;
+/** A second failure this soon after an automatic rebuild is not retried: the user is told. */
+const RECOVERY_WINDOW_MS = 60_000;
 
 type Listeners = { [K in keyof EngineEvents]: Set<EngineEvents[K]> };
 
@@ -109,9 +128,28 @@ export class WorkletEngine implements AudioEngine {
   private loadToken = 0;
   private idleTimer: ReturnType<typeof setTimeout> | null = null;
   private pingId = 0;
-  private pings = new Map<number, () => void>();
+  private pings = new Map<number, { resolve: () => void; reject: (e: Error) => void }>();
   private onReady: ((m: Extract<FromWorklet, { type: 'ready' }>) => void) | null = null;
   private diag: Diagnostics | null = null;
+
+  // the audio output (device) life cycle
+  /** The context was closed on purpose (idle, sleep, output change, failure): the next play() opens a new one. */
+  private released = false;
+  private releaseTimer: ReturnType<typeof setTimeout> | null = null;
+  private idleReleaseMs = IDLE_RELEASE_MS;
+  /** A play() (or an automatic rebuild) is starting the audio: no idle suspend, no release meanwhile. */
+  private starting = false;
+  /** Operations that need the worklet (adding a track, sending an applied render): no release meanwhile. */
+  private busy = 0;
+  private watchdog: ReturnType<typeof setInterval> | null = null;
+  private watchSeq = -1;
+  private watchSince = 0;
+  private recoveredAt = Number.NEGATIVE_INFINITY;
+  private lastFailure: EngineError['code'] | null = null;
+  /** Acceleration step and passes the closed audio thread had reached, given to the next one. */
+  private accelResume: { step: number; passes: number } | null = null;
+  /** Test hook: the next starts of the context fail this many times. */
+  private failResumes = 0;
 
   getState(): EngineState {
     return this.state;
@@ -129,6 +167,27 @@ export class WorkletEngine implements AudioEngine {
 
   get debugContext(): AudioContext | null {
     return this.ctx;
+  }
+
+  /** Whether the engine holds the audio output now (an open AudioContext), and its state. For tests. */
+  deviceState(): { held: boolean; context: AudioContextState | 'none'; released: boolean } {
+    return { held: this.ctx !== null && this.ctx.state !== 'closed', context: this.ctx ? this.ctx.state : 'none', released: this.released };
+  }
+
+  /** Tests: how long without playback before the output is given back (default `IDLE_RELEASE_MS`). */
+  setIdleReleaseDelay(ms: number): void {
+    this.idleReleaseMs = Math.max(0, ms);
+    if (this.releaseTimer !== null) this.scheduleIdle();
+  }
+
+  /** Tests: the next `n` starts of the context fail, as a broken output would. */
+  debugFailResumes(n: number): void {
+    this.failResumes = Math.max(0, Math.floor(n));
+  }
+
+  /** Tests: the audio thread stops rendering and publishing, as a stuck one would (the watchdog must notice). */
+  debugStall(): void {
+    this.post({ type: 'stall' });
   }
 
   /**
@@ -161,16 +220,18 @@ export class WorkletEngine implements AudioEngine {
         this.clear();
         return;
       }
-      await this.ensureGraph();
+      // A released output stays released: the tracks wait here and go to the next context with the rest.
+      if (!this.released) await this.ensureGraph();
       if (token !== this.loadToken) return;
       this.post({ type: 'clear' });
       this.tracks.clear();
       this.applied = null;
+      this.accelResume = null;
       for (const t of tracks) {
         await this.put(t, mixes[t.id] ?? DEFAULT_MIX);
         if (token !== this.loadToken) return;
       }
-      await this.roundTrip();
+      if (this.node) await this.roundTrip();
       if (token !== this.loadToken) return;
     } catch (e) {
       if (token === this.loadToken) this.fail(this.errorCode(e), (e as Error).message ?? String(e));
@@ -185,15 +246,18 @@ export class WorkletEngine implements AudioEngine {
   }
 
   async addTrack(track: EngineTrack, mix: TrackMix): Promise<void> {
+    this.busy++;
     try {
       this.assertUsable();
       this.check(track);
-      await this.ensureGraph();
+      if (!this.released) await this.ensureGraph();
       await this.put(track, mix);
-      await this.roundTrip();
+      if (this.node) await this.roundTrip();
     } catch (e) {
       this.fail(this.errorCode(e), (e as Error).message ?? String(e));
       throw e;
+    } finally {
+      this.busy--;
     }
     this.updateDuration();
     if (this.state === 'empty') this.setState('ready');
@@ -216,6 +280,7 @@ export class WorkletEngine implements AudioEngine {
     this.post({ type: 'clear' });
     this.tracks.clear();
     this.applied = null;
+    this.accelResume = null;
     this.duration = 0;
     this.pos = 0;
     this.lastPos = 0;
@@ -229,22 +294,42 @@ export class WorkletEngine implements AudioEngine {
   // ---------------------------------------------------------------- transport
 
   async play(options?: PlayOptions): Promise<void> {
-    if (this.state !== 'ready' || !this.ctx || !this.node) return;
-    const ctx = this.ctx;
+    // After an output failure the user's next play is a new attempt (never an automatic loop).
+    const retry = this.state === 'error' && this.tracks.size > 0 && (this.lastFailure === 'context' || this.lastFailure === 'runtime');
+    if ((this.state !== 'ready' && !retry) || this.disposed) return;
+    if (retry) {
+      this.lastFailure = null;
+      this.recoveredAt = Number.NEGATIVE_INFINITY;
+      this.setState('ready');
+    }
     const token = ++this.startToken;
     this.cancelIdle();
-    // Called synchronously, before any await: this is what the user gesture allows. Always called, even
-    // when the context looks running: an idle `suspend()` may be in flight, and the resume queues after it.
-    const resumed = ctx.resume();
+    const t0 = now();
+    const reopened = this.ctx === null || this.ctx.state === 'closed';
+    this.starting = true;
     try {
-      await resumed;
+      // The first call is synchronous up to its first await: a new context is created and resumed inside
+      // the user's gesture.
+      await this.startAudio(token, 1);
     } catch (e) {
-      if (token === this.startToken) this.fail('context', `AudioContext.resume() failed: ${(e as Error).message}`);
-      return;
+      if (token !== this.startToken) {
+        this.starting = false;
+        return;
+      }
+      // Second and last try: a new context from scratch.
+      this.teardown('failure');
+      try {
+        await this.startAudio(token, 2);
+      } catch (e2) {
+        this.starting = false;
+        if (token === this.startToken) this.failDevice(`${(e as Error).message}; then ${(e2 as Error).message}`);
+        return;
+      }
     }
-    if (token !== this.startToken || this.state !== 'ready') return;
-    if (ctx.state !== 'running') {
-      this.fail('context', `AudioContext is ${ctx.state} after resume()`);
+    this.starting = false;
+    if (token !== this.startToken || this.state !== 'ready') {
+      // paused (or replaced) while starting: the context goes back to sleep
+      this.scheduleIdle();
       return;
     }
     if (this.pos >= this.duration - 1e-3) this.pos = 0;
@@ -255,6 +340,47 @@ export class WorkletEngine implements AudioEngine {
     this.post({ type: 'play', countIn: ci && ci.offsets.length > 0 ? { offsets: ci.offsets.map((o) => o * sr), levels: Uint8Array.from(ci.levels) } : null });
     this.seekHold = null;
     this.setState('playing');
+    this.startWatchdog();
+    const ms = now() - t0;
+    if (reopened) recordAudio('reopen', { ms: Math.round(ms) });
+    recordPlay(ms, reopened);
+  }
+
+  /**
+   * Makes sure a context exists (a new one if the last was closed: created HERE, synchronously, so that a
+   * call from a user gesture creates and resumes it inside that gesture), resumes it, waits for the worklet
+   * and checks that the context really runs. Throws an `EngineFailure` (journaled) otherwise.
+   */
+  private async startAudio(token: number, attempt: number): Promise<void> {
+    let ctx: AudioContext;
+    let resumed: Promise<void>;
+    try {
+      ctx = this.ctx && this.ctx.state !== 'closed' ? this.ctx : this.openContext();
+      if (this.failResumes > 0) {
+        this.failResumes--;
+        resumed = Promise.reject(new Error('simulated failure'));
+      } else {
+        resumed = ctx.resume();
+      }
+      resumed.catch(() => {});
+    } catch (e) {
+      recordAudio('start-failed', { attempt, detail: (e as Error).message ?? String(e) });
+      throw e instanceof EngineFailure ? e : new EngineFailure('context', (e as Error).message ?? String(e));
+    }
+    try {
+      await this.ensureGraph();
+      if (token !== this.startToken) return;
+      await withTimeout(resumed, START_TIMEOUT_MS, 'the audio output did not start in time');
+    } catch (e) {
+      recordAudio('start-failed', { attempt, detail: (e as Error).message ?? String(e) });
+      throw e instanceof EngineFailure ? e : new EngineFailure('context', `AudioContext.resume() failed: ${(e as Error).message}`);
+    }
+    if (token !== this.startToken) return;
+    if (ctx !== this.ctx || ctx.state !== 'running') {
+      const detail = `AudioContext is ${ctx.state} after resume()`;
+      recordAudio('start-failed', { attempt, detail });
+      throw new EngineFailure('context', detail);
+    }
   }
 
   pause(): void {
@@ -263,8 +389,39 @@ export class WorkletEngine implements AudioEngine {
     this.pos = this.getPosition();
     this.lastPos = this.pos;
     this.post({ type: 'pause' });
+    this.stopWatchdog();
     this.setState('ready');
     this.scheduleIdle();
+  }
+
+  /**
+   * Gives the audio output back to the system now: pauses first (with the usual fade) if playing, then
+   * closes the context. Tracks, applied render, settings and position are kept; the next `play()` opens a
+   * new context. Waits for an operation in progress (loading, a start) to finish first.
+   */
+  releaseDevice(reason: ReleaseReason): void {
+    if (this.disposed) return;
+    if (this.state === 'loading' || this.starting || this.busy > 0) {
+      // something is using the worklet: try again in a moment (loading and starting have their own time limits)
+      setTimeout(() => this.releaseDevice(reason), 1000);
+      return;
+    }
+    const wasPlaying = this.state === 'playing';
+    if (wasPlaying) {
+      this.pos = this.getPosition();
+      this.lastPos = this.pos;
+      this.startToken++;
+      this.post({ type: 'pause' });
+      this.stopWatchdog();
+      this.setState('ready');
+    }
+    if (!this.ctx) {
+      this.cancelIdle();
+      return;
+    }
+    recordAudio('release', { reason: reasonText(reason), playing: wasPlaying ? journalPhrase('audioJournal.playing') : '' });
+    // after a pause, let the 8 ms fade-out be heard before the stream goes
+    this.teardown(reason, wasPlaying ? 60 : 0);
   }
 
   seek(time: Seconds): void {
@@ -318,9 +475,12 @@ export class WorkletEngine implements AudioEngine {
   // ---------------------------------------------------------------- settings
 
   setLoop(region: TimeRange | null): void {
+    const before = this.loop;
     if (region && region.end > region.start) {
       this.loop = { start: Math.round(region.start * this.sampleRate), end: Math.round(region.end * this.sampleRate) };
     } else this.loop = null;
+    // a new loop starts the acceleration again (as the audio thread does)
+    if (before?.start !== this.loop?.start || before?.end !== this.loop?.end) this.accelResume = null;
     this.postLoop();
   }
 
@@ -354,10 +514,12 @@ export class WorkletEngine implements AudioEngine {
 
   setAcceleration(schedule: AccelerationSchedule | null): void {
     this.acceleration = schedule && schedule.factors.length > 0 ? { factors: Float64Array.from(schedule.factors), every: schedule.every } : null;
+    this.accelResume = null;
     this.postAcceleration();
   }
 
   restartAcceleration(): void {
+    this.accelResume = null;
     this.post({ type: 'acceleration-restart' });
   }
 
@@ -365,7 +527,11 @@ export class WorkletEngine implements AudioEngine {
     const st = this.metroStatus;
     st.countInLeft = 0;
     st.accelerationStep = -1;
-    if (!this.views) return st;
+    if (!this.views) {
+      // output released: the step the next audio thread will carry on from
+      if (this.accelResume && this.acceleration && this.loop) st.accelerationStep = this.accelResume.step;
+      return st;
+    }
     const { i32, f64 } = this.views;
     for (let k = 0; k < 4; k++) {
       const s1 = Atomics.load(i32, 0);
@@ -420,15 +586,18 @@ export class WorkletEngine implements AudioEngine {
       if (t.pcm.frames === 0 || t.pcm.channelCount < 1 || t.pcm.channelCount > 2) throw new EngineFailure('load', `rendered track ${t.id}: empty or ${t.pcm.channelCount} channels`);
     }
     if (!(set.tempoRatio >= 0.25 && set.tempoRatio <= 2)) throw new EngineFailure('load', `rendered set: tempo ${set.tempoRatio}`);
-    if (!this.node) throw new EngineFailure('context', 'no audio worklet to play the rendered audio');
+    if (!this.node && !this.released) throw new EngineFailure('context', 'no audio worklet to play the rendered audio');
     const token = this.loadToken;
     this.applied = { semitones: set.semitones, cents: set.cents, tempoRatio: set.tempoRatio, tracks: new Map(set.tracks.map((t) => [t.id, t.pcm])) };
+    // output released: the set is kept here and given to the next context with the tracks
+    if (!this.node) return;
     this.post({
       type: 'rendered',
       semitones: set.semitones + set.cents / 100,
       ratio: set.tempoRatio,
       tracks: set.tracks.map((t) => ({ id: t.id, frames: t.pcm.frames, mono: t.pcm.mono, chunks: t.pcm.chunks })),
     });
+    this.busy++;
     try {
       await this.roundTrip();
     } catch (e) {
@@ -436,6 +605,8 @@ export class WorkletEngine implements AudioEngine {
       this.applied = null;
       this.post({ type: 'rendered-clear' });
       throw e;
+    } finally {
+      this.busy--;
     }
     if (token !== this.loadToken) throw new EngineFailure('load', 'the tracks were replaced while the rendered audio was sent');
   }
@@ -459,13 +630,7 @@ export class WorkletEngine implements AudioEngine {
     if (this.disposed) return;
     this.clear();
     this.disposed = true;
-    this.cancelIdle();
-    this.node?.disconnect();
-    if (this.node) this.node.port.onmessage = null;
-    this.node = null;
-    void this.ctx?.close().catch(() => {});
-    this.ctx = null;
-    this.views = null;
+    this.teardown('dispose');
     for (const set of Object.values(this.listeners)) set.clear();
   }
 
@@ -505,17 +670,25 @@ export class WorkletEngine implements AudioEngine {
     this.duration = frames / this.sampleRate;
   }
 
-  /** Creates the context, the worklet and the wasm engine, once. */
+  /** Creates the context (unless one is open), the worklet and the wasm engine; once per context. */
   private ensureGraph(): Promise<void> {
     if (this.graph && this.ctx && this.ctx.state !== 'closed') return this.graph;
-    this.graph = this.buildGraph();
-    this.graph.catch(() => {
-      this.graph = null;
+    let ctx: AudioContext;
+    try {
+      ctx = this.ctx && this.ctx.state !== 'closed' ? this.ctx : this.openContext();
+    } catch (e) {
+      return Promise.reject(e);
+    }
+    const graph = this.buildGraph(ctx);
+    this.graph = graph;
+    graph.catch(() => {
+      if (this.graph === graph) this.graph = null;
     });
-    return this.graph;
+    return graph;
   }
 
-  private async buildGraph(): Promise<void> {
+  /** A new AudioContext at the engine's rate (synchronous: may run inside a user gesture). Journaled. */
+  private openContext(): AudioContext {
     let ctx: AudioContext;
     try {
       ctx = new AudioContext({ sampleRate: this.sampleRate, latencyHint: 'playback' });
@@ -523,11 +696,18 @@ export class WorkletEngine implements AudioEngine {
       throw new EngineFailure('context', `AudioContext: ${(e as Error).message}`);
     }
     if (ctx.sampleRate !== this.sampleRate) {
-      void ctx.close();
+      void ctx.close().catch(() => {});
       throw new EngineFailure('context', `AudioContext runs at ${ctx.sampleRate} Hz, ${this.sampleRate} Hz required`);
     }
     this.ctx = ctx;
-    ctx.onstatechange = () => this.onContextState();
+    this.graph = null;
+    this.released = false;
+    ctx.onstatechange = () => this.onContextState(ctx);
+    recordAudio('context-created', { rate: ctx.sampleRate, base: ((ctx.baseLatency ?? 0) * 1000).toFixed(1), state: ctx.state });
+    return ctx;
+  }
+
+  private async buildGraph(ctx: AudioContext): Promise<void> {
     try {
       const { workletUrl, wasmUrl } = await import('./assets');
       await ctx.audioWorklet.addModule(workletUrl);
@@ -550,7 +730,7 @@ export class WorkletEngine implements AudioEngine {
         processorOptions: { shared: this.sharedBuffer },
       });
       node.port.onmessage = (e: MessageEvent<FromWorklet>) => this.onWorkletMessage(e.data);
-      node.onprocessorerror = () => this.fail('runtime', 'processor error');
+      node.onprocessorerror = () => void this.recover('runtime', 'processor error');
       node.connect(ctx.destination);
       this.node = node;
       const ready = new Promise<void>((resolve, reject) => {
@@ -564,20 +744,43 @@ export class WorkletEngine implements AudioEngine {
       const copy = bytes.slice(0); // the posted buffer is transferred: keep the cached one intact
       node.port.postMessage({ type: 'init', wasm: copy } satisfies ToWorklet, [copy]);
       await ready;
+      if (ctx !== this.ctx) throw new EngineFailure('context', 'the audio output was released while it opened');
     } catch (e) {
-      void ctx.close().catch(() => {});
-      this.ctx = null;
-      this.node = null;
+      if (ctx === this.ctx) {
+        ctx.onstatechange = null;
+        void ctx.close().catch(() => {});
+        this.ctx = null;
+        this.node = null;
+        this.views = null;
+      }
       if (e instanceof EngineFailure) throw e;
       throw new EngineFailure('context', (e as Error).message ?? String(e));
     }
-    // the settings made before the node existed
+    // Everything the engine holds, for a new node: the settings made before it existed and, after the
+    // output was released, the tracks, the applied render, the acceleration step and the position.
     this.post({ type: 'params', rate: this.ratio, semitones: this.semitones + this.cents / 100 });
     this.post({ type: 'metronome', enabled: this.metronome });
     this.post({ type: 'metronome-volume', volume: this.metronomeVolume });
     this.postClicks();
+    for (const [id, t] of this.tracks) {
+      const st = t.stored;
+      this.post({ type: 'track', id, frames: st.frames, mono: st.mono, chunks: st.chunks, volume: t.mix.volume, mute: t.mix.mute, solo: t.mix.solo });
+    }
+    const a = this.applied;
+    if (a) {
+      this.post({
+        type: 'rendered',
+        semitones: a.semitones + a.cents / 100,
+        ratio: a.tempoRatio,
+        tracks: [...a.tracks].map(([id, p]) => ({ id, frames: p.frames, mono: p.mono, chunks: p.chunks })),
+      });
+    }
     this.postLoop();
     this.postAcceleration();
+    const r = this.accelResume;
+    if (r && this.acceleration) this.post({ type: 'acceleration-state', step: r.step, passes: r.passes });
+    this.accelResume = null;
+    this.post({ type: 'seek', frame: Math.round(this.pos * this.sampleRate) });
   }
 
   private post(m: ToWorklet): void {
@@ -602,9 +805,15 @@ export class WorkletEngine implements AudioEngine {
         this.pings.delete(id);
         reject(new EngineFailure('load', 'the audio worklet did not answer'));
       }, 30000);
-      this.pings.set(id, () => {
-        clearTimeout(timer);
-        resolve();
+      this.pings.set(id, {
+        resolve: () => {
+          clearTimeout(timer);
+          resolve();
+        },
+        reject: (e) => {
+          clearTimeout(timer);
+          reject(e);
+        },
       });
       this.post({ type: 'ping', id });
     });
@@ -618,7 +827,7 @@ export class WorkletEngine implements AudioEngine {
       case 'pong': {
         const f = this.pings.get(m.id);
         this.pings.delete(m.id);
-        f?.();
+        f?.resolve();
         break;
       }
       case 'status':
@@ -634,44 +843,199 @@ export class WorkletEngine implements AudioEngine {
         }
         break;
       case 'error':
-        this.fail('runtime', m.message);
+        void this.recover('runtime', m.message);
         break;
     }
   }
 
-  private onContextState(): void {
-    const ctx = this.ctx;
-    if (!ctx || this.disposed) return;
-    if (ctx.state === 'closed') {
-      if (this.state !== 'empty') this.fail('context', 'the AudioContext was closed');
-    } else if (ctx.state !== 'running' && this.state === 'playing') {
-      // Interrupted by the system (call, another app, tab discarded): stop where we were; play() will resume.
+  private onContextState(ctx: AudioContext): void {
+    if (ctx !== this.ctx || this.disposed) return;
+    const st = ctx.state as string;
+    if (st === 'running') {
+      // A context that comes to run while nothing plays (it starts by itself where autoplay is allowed, as
+      // in the Mac app) goes back to sleep: the output is never left running for nothing.
+      if (this.state !== 'playing' && !this.starting) this.scheduleIdle();
+      return;
+    }
+    if (st !== 'closed' && this.state !== 'playing') return; // our own idle suspend, or a context not started yet
+    // Closed by someone else, or interrupted by the system (call, another app, the output went away) while
+    // playing: stop where we were and let this context go; the next play() opens a new one.
+    recordAudio('context-state', { state: st, while: journalPhrase(this.state === 'playing' ? 'audioJournal.whilePlaying' : 'audioJournal.whileIdle') });
+    if (this.state === 'playing') {
       this.pos = this.lastPos;
+      this.startToken++;
       this.post({ type: 'pause' });
+      this.stopWatchdog();
       this.setState('ready');
+    }
+    if (!this.starting) this.teardown('system');
+  }
+
+  /**
+   * Closes the context and drops the node (the output goes back to the system); keeps every track and
+   * setting for the next context. `delayMs` lets a fade-out finish first.
+   */
+  private teardown(reason: ReleaseReason, delayMs = 0): void {
+    this.cancelIdle();
+    this.stopWatchdog();
+    const ctx = this.ctx;
+    const node = this.node;
+    // the acceleration step reached, for the next audio thread
+    if (this.views && this.acceleration && this.loop) {
+      const step = this.views.f64[4]!;
+      const passes = this.views.f64[5]!;
+      if (step >= 0) this.accelResume = { step, passes };
+    }
+    this.ctx = null;
+    this.node = null;
+    this.graph = null;
+    this.views = null;
+    this.sharedBuffer = null;
+    this.onReady = null;
+    this.released = true;
+    const gone = new EngineFailure('context', 'the audio output was released');
+    for (const p of this.pings.values()) p.reject(gone);
+    this.pings.clear();
+    if (node) {
+      node.port.onmessage = null;
+      node.onprocessorerror = null;
+    }
+    if (!ctx) return;
+    ctx.onstatechange = null;
+    const close = () => {
+      node?.disconnect();
+      if (ctx.state !== 'closed') void ctx.close().catch(() => {});
+    };
+    if (delayMs > 0) setTimeout(close, delayMs);
+    else close();
+    recordAudio('context-closed', { reason: reasonText(reason) });
+  }
+
+  /**
+   * The audio thread failed (watchdog, processor error): rebuild once and, if it was playing, carry on
+   * from where it was heard. A second failure within `RECOVERY_WINDOW_MS` is not retried: the engine
+   * reports the error and waits for the user's next play.
+   */
+  private async recover(code: 'runtime' | 'context', detail: string): Promise<void> {
+    if (this.disposed || this.starting || this.state === 'error') return;
+    recordAudio('error', { code, detail: detail.slice(0, 200) });
+    if (this.state === 'loading' || this.state === 'empty') {
+      // nothing to carry on: let the output go, the next load or play opens a new one
+      this.teardown('failure');
+      return;
+    }
+    const wasPlaying = this.state === 'playing';
+    if (wasPlaying) {
+      this.pos = this.lastPos;
+      this.startToken++;
+      this.stopWatchdog();
+      this.setState('ready');
+    }
+    const t = now();
+    if (t - this.recoveredAt < RECOVERY_WINDOW_MS) {
+      this.failDevice(`again within a minute: ${detail}`, code);
+      return;
+    }
+    this.recoveredAt = t;
+    this.teardown('failure');
+    if (!wasPlaying) {
+      recordAudio('recovery', { result: journalPhrase('audioJournal.recovery.idle') });
+      return;
+    }
+    const token = ++this.startToken;
+    this.starting = true;
+    try {
+      await this.startAudio(token, 1);
+    } catch (e) {
+      this.starting = false;
+      if (token === this.startToken) this.failDevice((e as Error).message, code);
+      return;
+    }
+    this.starting = false;
+    if (token !== this.startToken || this.state !== 'ready') {
+      this.scheduleIdle();
+      return;
+    }
+    this.lastPos = this.pos;
+    this.post({ type: 'seek', frame: Math.round(this.pos * this.sampleRate) });
+    this.post({ type: 'play', countIn: null });
+    this.seekHold = null;
+    this.setState('playing');
+    this.startWatchdog();
+    recordAudio('recovery', { result: journalPhrase('audioJournal.recovery.ok') });
+  }
+
+  /** The output could not be started even after a new try: let it go and say so (`engine.errorDevice`). */
+  private failDevice(detail: string, code: EngineError['code'] = 'context'): void {
+    this.teardown('failure');
+    recordAudio('recovery', { result: journalPhrase('audioJournal.recovery.failed', { detail: detail.slice(0, 160) }) });
+    this.fail(code === 'runtime' ? 'runtime' : 'context', detail);
+  }
+
+  // ----- watchdog: while playing, the audio thread publishes its position every quantum (2.7 ms)
+
+  private startWatchdog(): void {
+    this.stopWatchdog();
+    this.watchSeq = -1;
+    this.watchSince = now();
+    this.watchdog = setInterval(() => this.checkWatchdog(), 500);
+  }
+
+  private stopWatchdog(): void {
+    if (this.watchdog !== null) clearInterval(this.watchdog);
+    this.watchdog = null;
+  }
+
+  private checkWatchdog(): void {
+    if (this.state !== 'playing' || !this.views) return;
+    const seq = Atomics.load(this.views.i32, 0);
+    const t = now();
+    if (seq !== this.watchSeq) {
+      this.watchSeq = seq;
+      this.watchSince = t;
+      return;
+    }
+    if (t - this.watchSince >= WATCHDOG_MS) {
+      recordAudio('stall', { s: ((t - this.watchSince) / 1000).toFixed(1) });
+      void this.recover('runtime', 'the audio thread stopped reporting');
     }
   }
 
   private stopPlayback(): void {
     this.startToken++;
+    this.stopWatchdog();
     if (this.state === 'playing') {
       this.pos = this.getPosition();
       this.post({ type: 'pause' });
     }
   }
 
+  /** Not playing: suspend the context soon (0.4 s), and close it after `idleReleaseMs` (the output goes back). */
   private scheduleIdle(): void {
     this.cancelIdle();
+    if (!this.ctx || this.disposed) return;
     this.idleTimer = setTimeout(() => {
       this.idleTimer = null;
       const ctx = this.ctx;
-      if (ctx && ctx.state === 'running' && this.state !== 'playing' && !this.disposed) void ctx.suspend().catch(() => {});
+      if (ctx && ctx.state === 'running' && this.state !== 'playing' && !this.starting && !this.disposed) {
+        ctx.suspend().catch((e: Error) => {
+          // a context that cannot sleep is not kept open: close it
+          recordAudio('suspend-failed', { detail: e?.message ?? String(e) });
+          if (ctx === this.ctx && this.state !== 'playing') this.releaseDevice('failure');
+        });
+      }
     }, IDLE_SUSPEND_MS);
+    this.releaseTimer = setTimeout(() => {
+      this.releaseTimer = null;
+      if (this.state !== 'playing' && !this.disposed) this.releaseDevice('idle');
+    }, this.idleReleaseMs);
   }
 
   private cancelIdle(): void {
     if (this.idleTimer !== null) clearTimeout(this.idleTimer);
     this.idleTimer = null;
+    if (this.releaseTimer !== null) clearTimeout(this.releaseTimer);
+    this.releaseTimer = null;
   }
 
   private setState(state: EngineState): void {
@@ -682,9 +1046,34 @@ export class WorkletEngine implements AudioEngine {
 
   private fail(code: EngineError['code'], detail: string): void {
     this.startToken++;
+    this.stopWatchdog();
+    this.lastFailure = code;
+    // a broken output is never kept open
+    if ((code === 'context' || code === 'runtime') && this.ctx) this.teardown('failure');
+    recordAudio('error', { code, detail: detail.slice(0, 200) });
     this.listeners.error.forEach((fn) => fn({ code, detail }));
     this.setState('error');
   }
+}
+
+function now(): number {
+  return typeof performance !== 'undefined' ? performance.now() : Date.now();
+}
+
+function withTimeout<T>(p: Promise<T>, ms: number, message: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new EngineFailure('context', message)), ms);
+    p.then(
+      (v) => {
+        clearTimeout(timer);
+        resolve(v);
+      },
+      (e: unknown) => {
+        clearTimeout(timer);
+        reject(e);
+      },
+    );
+  });
 }
 
 class EngineFailure extends Error {
