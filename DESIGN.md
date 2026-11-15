@@ -139,6 +139,22 @@ boucle est un voile de laiton sur les mesures concernées (une mesure bouclée e
 partie n'est voilée que pour cette partie) ; la mesure en cours
 se remplit d'un filet braise.
 
+Chaque accord est écrit **à la place de son temps**, comme sur un Real Book :
+à quatre temps, le temps 1 à la barre, le temps 3 au milieu de la mesure, les
+temps 2 et 4 au quart et aux trois quarts ; à trois temps, trois places. Un
+accord qui commence au milieu d'une mesure garde sa place. Deux accords ne se
+touchent jamais et aucun ne sort de la mesure : quand deux symboles longs se
+rencontrent, les accords de la mesure passent au palier de taille inférieur
+(30, 22, 17, 14, 11 px), et sur un téléphone, où une mesure fait 90 px, ils
+passent sur deux rangées plutôt que de devenir illisibles.
+
+À droite de l'en-tête de la grille, après le choix Ut / Si♭ / Mi♭, un bouton
+discret **Imprimer** (petite imprimante, encre douce, pas de braise) ouvre une
+fenêtre de la famille des fenêtres d'export : orientation (portrait, paysage),
+taille (telle quelle, sur une page), puis « Enregistrer en PDF… » et
+« Imprimer… ». La feuille imprimée est la grille seule, encre sur blanc, avec le
+titre, la tonalité, le tempo et l'instrument (Ut, Si♭, Mi♭).
+
 **Partition (v2)** : cet affichage n'est pas dans l'interface de la v1. Son
 dessin est validé et conservé dans la maquette, à l'adresse
 https://fabtice.netlify.app/maquette/#vue=partition : une page claire

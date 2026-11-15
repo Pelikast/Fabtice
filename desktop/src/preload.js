@@ -19,6 +19,8 @@ contextBridge.exposeInMainWorld('fabtice', {
   lastSeparationReport: () => ipcRenderer.invoke('fabtice:last-separation-report'),
   copyText: (text) => ipcRenderer.invoke('fabtice:copy', String(text)),
   openInIRealPro: (link) => ipcRenderer.invoke('fabtice:open-ireal', String(link)),
+  printChart: (options) => ipcRenderer.invoke('fabtice:print-chart', options),
+  saveChartPdf: (options) => ipcRenderer.invoke('fabtice:save-chart-pdf', options),
   onYtdlpProgress: (cb) => subscribe('fabtice:ytdlp-progress', cb),
   onExtractProgress: (cb) => subscribe('fabtice:extract-progress', cb),
 });

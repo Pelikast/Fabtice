@@ -1081,7 +1081,8 @@ Chromium (`npm run test:chart`).
 
 | Fichier | Rôle |
 |---|---|
-| `layout.ts`, `edits.ts` | mise en page et corrections pures (accords en vigueur, mesures, répétition « 𝄎 », sections et doubles barres, lignes de quatre mesures ; réécriture d'une mesure entière, retour à l'analyse, `hasBarEdit`, `mergedEntries`) |
+| `layout.ts`, `edits.ts` | mise en page et corrections pures (accords en vigueur, mesures, répétition « 𝄎 », sections et doubles barres, lignes de quatre mesures ; réécriture d'une mesure entière, retour à l'analyse, `hasBarEdit`, `mergedEntries`, `movableBeats` et `withChordMoved` : mettre un accord sur un autre temps) |
+| `fit.ts`, `useFitChords.ts` | la place et la taille des accords dans une mesure : chaque accord est écrit **à la place de son temps** ; quand deux symboles se rencontreraient, la taille de la mesure descend par paliers (`FIT_RATIOS`), puis les accords passent sur deux rangées (téléphone) ; fonctions pures testées, et le crochet qui mesure l'écran |
 | `ChartSheet.tsx` | la feuille : en-tête (titre, tonalité, métrique, tempo, choix Ut / Si♭ / Mi♭) et états vide, « analyse en cours », échec, aucun accord |
 | `ChartGrid.tsx` | les mesures et tout ce qui se fait dessus : gestes, clavier, suivi, éditeur |
 | `gesture.ts` | les gestes de la souris et du doigt comme une petite machine à états pure (clic, glisser, appui long) |
@@ -1091,7 +1092,7 @@ Chromium (`npm run test:chart`).
 | `editor.ts`, `editorPlacement.ts`, `ChordEditor.tsx` | l'état de l'éditeur, ce qu'un clic change à un accord (`patchChord`), la place de la fenêtre (fonction pure), la fenêtre elle-même |
 | `KeyEditor.tsx` | la correction de la tonalité depuis « Tonalité de … » |
 | `useFollowLine.ts` | « Suivre la tête de lecture » sur la feuille |
-| `print.ts`, `../styles/print.css` | « Imprimer la grille » |
+| `print.ts`, `../styles/print.css`, `../components/PrintDialog.tsx` | « Imprimer la grille » : la fenêtre (orientation, taille), l'impression du navigateur, le PDF de l'app Mac |
 
 **Gestes** (comme dans la frise des pistes) :
 
@@ -1133,6 +1134,7 @@ s'applique aussitôt (pas de bouton « Valider »), par les actions de
 
 - *Mesure N*, les onglets 1, 2… quand la mesure a plusieurs accords, l'accord
   tel qu'écrit, la croix ;
+- **Place dans la mesure** (quand la mesure a plusieurs accords, ou que cet accord ne commence pas au premier temps) : les temps 1, 2, 3, 4… de la mesure, celui de l'accord enfoncé ; un clic sur un autre temps y met l'accord (`moveChord`). Les temps d'un voisin, et ceux qui feraient passer l'accord devant ou derrière lui, sont grisés : les accords gardent leur ordre. C'est le geste pour mettre un deuxième accord sur le temps 3 (le milieu), 2 ou 4 ;
 - si l'accord est douteux : « Fabtice hésite sur cet accord. », **« C'est le bon
   accord »** (`confirmBar`) et, s'il y en a, « Ou peut-être : » avec les autres
   lectures de l'analyse (`alternatives`) ;
@@ -1145,7 +1147,7 @@ s'applique aussitôt (pas de bouton « Valider »), par les actions de
   note choisie ;
 - « Extension et basse » (replié) : les onze extensions (plusieurs possibles,
   dans l'ordre d'une grille) et la note de basse ;
-- « Pas d'accord (N.C.) », « Deux accords dans la mesure » (`splitBar`) ou « Un
+- « Pas d'accord (N.C.) », « Deux accords dans la mesure » (`splitBar` : le deuxième accord est mis **sur le temps du milieu**, le temps 3 d'une mesure à quatre temps, le temps 2 à trois temps ; on le déplace ensuite avec « Place dans la mesure ») ou « Un
   seul accord pour la mesure » (`mergeBar`, garde l'accord choisi), « Retirer
   cet accord » (`removeChord`), « Revenir à l'analyse » (`resetBar`, seulement
   pour une mesure écrite à la main) ;
@@ -1172,20 +1174,67 @@ défilement suspendent le suivi (et une grâce de 1,2 s), qui reprend quand la
 ligne jouée est de nouveau visible, à la lecture suivante ou après un
 déplacement fait sur la grille.
 
-**Impression** (`print.ts`, `styles/print.css`) : « Imprimer la grille » (menu
-« Exporter », et menu « ⋯ » du téléphone) passe à l'affichage Grille si besoin,
-attend la mise en page et les polices, appelle `window.print()` puis rend
-l'affichage à `afterprint`. La feuille d'impression ne laisse que `.feuille` :
-papier blanc, titre, tonalité telle qu'affichée (avec « pour instrument en
-Si♭ » hors Ut), métrique, tempo, lettres de section, accords dans la même
-typographie, quatre mesures par ligne, saut de page seulement entre deux
-lignes (`break-inside: avoid`) ; ni voile de boucle, ni filet de la mesure en
-cours, ni style « douteux », ni barre du haut, transport, éditeur. Le format du
-papier (A4 ou US Letter) est celui du navigateur : les marges sont dans
-`@page`, rien ne dépend de la taille. `test:chart` imprime en PDF (A4 et
-Letter), lit le texte, compte les pages et vérifie que chaque page tient des
-lignes entières. Le PDF liste deux fois ♭ et ♯ (ils sont tracés avec un contour,
-`.alt` dans `chords.css`) : c'est un effet de la couche de texte, pas du dessin.
+**Où s'écrit chaque accord** (`fit.ts`, `useFitChords.ts`, `styles/chart.css`) : à la
+place de son temps, comme sur un Real Book. Dans une mesure à quatre temps, le temps 1 est à
+la barre, le temps 3 au milieu, les temps 2 et 4 au quart et aux trois quarts ; à trois temps,
+trois places ; les autres métriques en proportion. Un accord qui commence au milieu d'une
+mesure dont l'accord précédent continue reste à son temps (comme avant). Chaque accord est un
+bouton posé en `position: absolute`, sa place `--debut` = temps dans la mesure sur temps de la
+mesure ; le signe de répétition et le style des accords douteux ne changent pas. Quand deux
+symboles se rencontreraient (« C♯m7♭5 » puis « F♯7♭9 »), `useFitChords` mesure la largeur de
+chaque symbole (en em, une fois) et `fit.ts` choisit le premier palier qui tient, le même pour
+tous les accords de la mesure : 30 px, puis 22, 17 (les paliers qui existaient déjà), 14 et
+11 px en dernier recours ; sur une mesure de téléphone (91 px) où trois ou quatre accords ne
+tiennent pas côte à côte à une taille lisible, les accords passent sur **deux rangées** (un en
+haut, un en bas, tour à tour) avant de descendre sous 17 px (12 px sur téléphone). Le palier
+est écrit sur la mesure (`data-taille`, `data-rangs`) et recalculé à chaque changement de
+largeur de la feuille, de polices ou d'accords, avant la peinture. Aucun accord ne se
+chevauche ni ne sort de la mesure ; ce que `test:chart` vérifie sur le morceau de démonstration,
+sur une grille d'essai (un à quatre accords, symboles longs, accord tardif) à 1280 et 390 px,
+et sur papier. Si rien ne tient à aucun palier (symbole démesuré), le plus petit palier est
+pris : un accord n'est jamais caché.
+
+**Impression** (`print.ts`, `PrintDialog.tsx`, `styles/print.css`) :
+
+- *Où la trouver.* Un bouton discret « Imprimer » (petite imprimante, encre douce) à droite du
+  choix Ut / Si♭ / Mi♭, dans l'en-tête de la grille, et l'entrée « Imprimer la grille… » du menu
+  « Exporter » (et du menu « ⋯ » du téléphone). Les deux ouvrent la même petite fenêtre.
+- *La fenêtre « Imprimer la grille ».* **Orientation** : portrait ou paysage. **Taille** : « Telle
+  quelle » (autant de pages qu'il en faut) ou « Sur une page » (toutes les lignes sur une
+  feuille, grisé avec une phrase si le morceau est trop long : plus de 12 lignes de quatre
+  mesures en portrait, plus de 10 en paysage, pour que chaque ligne garde au moins 18 mm).
+  Deux actions : « Imprimer… » (la fenêtre d'impression du système ou du navigateur) et
+  « Enregistrer en PDF… ». Les choix sont gardés d'une fois à l'autre (`localStorage`, facultatif).
+- *Dans l'app Mac.* `window.print()` ne marche pas dans Electron (la page cesse de répondre :
+  c'est pourquoi l'entrée de menu « ne faisait rien »). « Imprimer… » passe par le pont
+  (`printChart`, `webContents.print` : la fenêtre d'impression de macOS, avec l'orientation) et
+  « Enregistrer en PDF… » par `saveChartPdf` (volet d'enregistrement du système, `printToPDF`,
+  fichier écrit par le processus principal ; papier A4, ou US Letter dans une région qui
+  l'emploie). Voir `desktop/README.md`.
+- *Dans un navigateur.* « Imprimer… » ouvre la fenêtre d'impression du navigateur, et
+  « Enregistrer en PDF… » fait la même chose : la fenêtre dit, en une phrase, de choisir
+  « Enregistrer au format PDF » à la place de l'imprimante. L'orientation est écrite dans une
+  règle `@page { size: portrait | landscape }` (Chrome, Edge, Firefox la suivent ; Safari
+  laisse le choix à sa fenêtre).
+- *La feuille.* Titre, tonalité telle qu'affichée, « pour instrument en Ut / Si♭ / Mi♭ »
+  (toujours, y compris en Ut, sur papier seulement : `.papier-seul`), métrique, tempo, lettres de
+  section, accords dans la même typographie, quatre mesures par ligne, saut de page seulement
+  entre deux lignes (`break-inside: avoid`) ; ni voile de boucle, ni filet de la mesure en
+  cours, ni style « douteux », ni barre du haut, transport, éditeur ni bouton d'impression.
+  Une mesure y est dessinée comme sur un ordinateur (206 unités de large, un accord de 30
+  unités) puis mise à l'échelle de la largeur de la page (`container-type: inline-size`, l'unité
+  est un 206e de mesure) : les mêmes paliers (`data-taille-p`, `data-rangs-p`) valent donc pour
+  toutes les feuilles, en portrait comme en paysage. « Sur une page » donne à chaque ligne
+  `min(24 mm, (100vh − 24 mm) / lignes)` (`100vh` est la hauteur de la zone imprimable quand on
+  imprime). Les marges sont dans `@page`, le format du papier est celui du système ou du
+  navigateur.
+- *Tests.* `test:chart` imprime en PDF dans les deux orientations (A4 et Letter : taille de la
+  page, une page pour 25 bars, texte, instrument, rien de l'app), un morceau de 48 mesures (deux
+  pages « telle quelle », une page « sur une page » en portrait, grisé en paysage), un de 32
+  mesures (une page en paysage), la place des accords sur papier à la largeur de chaque page,
+  et la fin des pages sur des lignes entières. `desktop/test/e2e/chart-pdf.test.js` fait le
+  PDF de l'app (voir `desktop/README.md`). Le PDF liste deux fois ♭ et ♯ (ils sont tracés avec
+  un contour, `.alt` dans `chords.css`) : c'est un effet de la couche de texte, pas du dessin.
 
 **Coutures encore utiles** : chaque mesure porte `data-mesure` (indice), chaque
 accord `data-accord` et `data-stop` (`mesure:rang`, -1 pour la zone d'accord
@@ -1264,7 +1313,7 @@ plus se corrige accord par accord (onglets) mais ne se découpe pas davantage.
 
 « Exporter » est un petit menu (`components/ExportMenu.tsx`) : « Grille pour
 iReal Pro » (un lien vers le fichier ; « Ouvrir dans iReal Pro » en plus dans l'app
-Mac), « Imprimer la grille » (disponible, voir plus haut), « Le son : mélange,
+Mac), « Imprimer la grille… » (ouvre la petite fenêtre d'impression, voir plus haut), « Le son : mélange,
 pistes ou boucle… » (lot 3 : ouvre « Exporter le son »). Sur téléphone la barre du haut n'a pas la place du menu : ses
 entrées sont reprises dans le menu « ⋯ » (`SettingsPopover`, `ExportItems`). Le
 panneau « Tempo et mesures » (`components/GridPanel.tsx`) garde la
@@ -1361,8 +1410,11 @@ moteur complet dans Chromium (enregistreur branché sur la sortie du worklet).
 
 Types exacts de `window.fabtice` tel que l'expose `desktop/src/preload.js`
 (`systemInfo`, `ytdlpStatus`, `ytdlpCheck`, `ytdlpInstall`, `extract`,
-`copyText`, `onYtdlpProgress`, `onExtractProgress`, et `openInIRealPro`, facultative : elle
-ouvre un lien `irealb://` avec le système, rien d'autre). `getDesktopBridge()`
+`copyText`, `onYtdlpProgress`, `onExtractProgress`, et trois méthodes facultatives : `openInIRealPro`, qui
+ouvre un lien `irealb://` avec le système, rien d'autre ; `printChart({ orientation })`, la fenêtre
+d'impression du système ; `saveChartPdf({ orientation, title })`, le PDF de la grille, volet
+d'enregistrement compris. Les deux dernières rendent `{ ok: true }` ou
+`{ ok: false, reason: 'cancelled' | 'failed' }` ; une app Mac plus ancienne ne les a pas). `getDesktopBridge()`
 renvoie l'objet dans l'app Mac, `null` sur le web. Pendant `extract`, le pont envoie
 `{ phase: 'info' }` (recherche), `{ phase: 'prepare', meta }` (le téléchargement va
 démarrer, rien à mesurer) puis `{ phase: 'download', percent, receivedBytes, totalBytes,

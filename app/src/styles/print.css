@@ -1,7 +1,19 @@
 /* « Imprimer la grille » (chart/print.ts): on paper only the chart remains, ink
    on white — title line, section letters, bars, chords in the same typography,
    four bars per line, a page break only between lines. No veil, no ember
-   hairline, nothing that says « doubtful » or « being edited », no app. */
+   hairline, nothing that says « doubtful » or « being edited », no app.
+
+   The chart is drawn as the desktop's: a bar is 206 units wide, a chord 30
+   units high, and the unit is a 206th of the width of a bar on the page. So the
+   same drawing fits every paper, in both orientations, and the size step each
+   bar's chords need (`data-taille-p`, chart/fit.ts) is the same everywhere.
+
+   What the dialog chooses (chart/print.ts) is on the root element:
+     data-impression="portrait" | "paysage"     (@page is written by print.ts)
+     data-page-impression="libre" | "une"       as it is | fitted to one page
+     --lignes-impression                         lines of four bars, for « une »    */
+
+.papier-seul { display: none; }
 
 @media print {
   @page { margin: 15mm 13mm 17mm; }
@@ -18,7 +30,7 @@
   /* The app's chrome, the dialogs and the notices. */
   #root > :not(.app),
   .app > :not(.milieu),
-  .instrument, .aide-doigt, .editeur, .cle-editeur, .cle-bouton .chevron { display: none !important; }
+  .instrument, .aide-doigt, .editeur, .cle-editeur, .cle-bouton .chevron, .imprimer-bouton, .fenetre { display: none !important; }
   .app { display: block; height: auto; }
 
   .milieu, .vue, .vue-grille {
@@ -28,21 +40,44 @@
     inset: auto;
   }
   .feuille { width: 100%; margin: 0; padding: 0; }
-  .feuille-tete { margin-bottom: 8mm; break-after: avoid; align-items: baseline; flex-wrap: wrap; gap: 4px 16px; }
+  .feuille-tete { display: flex; flex-direction: row; margin-bottom: 8mm; break-after: avoid; align-items: baseline; flex-wrap: wrap; gap: 4px 16px; }
   .feuille-tete h1 { font-size: 26pt; }
+  .feuille-infos { width: auto; }
   .feuille-infos p { color: var(--encre); font-size: 11pt; white-space: normal; }
-  .cle-bouton { margin: 0; padding: 0; color: inherit; background: none; }
+  .papier-seul { display: inline; }
+  .cle-bouton { margin: 0 0.2em 0 0; padding: 0; color: inherit; background: none; }
 
   .grille { padding: 0; }
-  /* A line of bars never splits between two pages. */
-  .ligne { break-inside: avoid; }
-  .case {
-    height: 24mm;
+  /* A line of bars never splits between two pages; its width is the unit of everything in it. */
+  .ligne { container-type: inline-size; break-inside: avoid; }
+  .feuille .case {
+    --u: calc(25cqw / 206);
+    --corps: min(calc(30 * var(--u)), 8.5mm);
+    --pg: calc(16 * var(--u));
+    --pd: calc(8 * var(--u));
+    --haut: calc(14 * var(--u));
+    --r: 1;
+    --rangs: 1;
+    --ligne-nat: 24mm;
+    gap: 0;
+    height: var(--ligne-nat);
     background: none !important;
     cursor: auto;
     border-bottom-color: #bdb2a3;
     transition: none;
   }
+  /* The step is the one for paper, not the one for the screen. */
+  .feuille .case[data-taille-p="1"] { --r: 0.73; }
+  .feuille .case[data-taille-p="2"] { --r: 0.57; }
+  .feuille .case[data-taille-p="3"] { --r: 0.47; }
+  .feuille .case[data-taille-p="4"] { --r: 0.38; }
+  .feuille .case[data-taille]:not([data-taille-p]) { --r: 1; }
+  /* The rows too (cramped bars): the paper's, not the screen's. */
+  .feuille .case[data-rangs-p="2"] { --rangs: 2; }
+  .feuille .case[data-rangs]:not([data-rangs-p]) { --rangs: 1; }
+  .case[data-rangs-p="2"] .accord-case { min-height: 0; }
+  .feuille .case .numero { font-size: 8pt; }
+  .feuille .case .section { font-size: 10pt; line-height: 13pt; }
   .case .numero { color: var(--encre-douce); }
   .case.dans-boucle { background: none !important; }
   .case.jouee::after { display: none; }
@@ -56,4 +91,12 @@
   .ch.douteux { color: inherit; padding-bottom: 0; border-bottom: 0; }
   .section { cursor: auto; }
   .section::after { display: none; }
+
+  /* On its side the page is 32 mm lower and 74 mm wider: lines of 21 mm let 25 bars fit one page, as in portrait. */
+  html[data-impression="paysage"] .feuille .case { --ligne-nat: 21mm; }
+
+  /* Fitted to one page: the lines share the height of the page (100vh is the page area when printing). */
+  html[data-page-impression="une"] .feuille .case {
+    height: min(var(--ligne-nat), calc((100vh - 24mm) / var(--lignes-impression, 1) - 0.4mm));
+  }
 }

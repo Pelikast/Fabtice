@@ -19,7 +19,7 @@
       "sourcePage": "https://huggingface.co/elicwhite/bs-roformer-sw-6stem-onnx",
       "licence": "aucune licence publiée pour ces poids, provenance non documentée",
       "licenceUnclear": true,
-      "speed": { "gpu": 3.6, "cpu": 4.0, "measured": true, "device": "MacBook M1 Pro : 3,6 fois la durée sur la carte graphique (Chrome), 4,0 fois sur le processeur (Safari)" },
+      "speed": { "gpu": 3.6, "cpu": 4.0, "measured": true, "device": "MacBook M1 Pro : 3,6 à 3,8 fois la durée sur la carte graphique (Chrome, app Mac), 4,0 fois sur le processeur (Safari)" },
       "memoryBytes": 1600000000,
       "config": { "family": "msst", "io": "roformer", "sampleRate": 44100, "segment": 176400, "overlap": 2, "normalize": false, "stft": { "nfft": 2048, "hop": 512, "window": "hann", "normalized": false, "zeroDC": true } }
     },
@@ -40,7 +40,7 @@
       "sourcePage": "https://huggingface.co/Ryan5453/unblend",
       "licence": "code MIT ; licence des poids non accordée (probablement non commerciale, CC BY-NC, selon l’auteur)",
       "licenceUnclear": true,
-      "speed": { "gpu": 1.5, "cpu": 2.5, "measured": false, "device": "estimation, pas encore mesuré sur les appareils du propriétaire" },
+      "speed": { "gpu": 0.85, "cpu": 2.5, "measured": true, "device": "Mac Intel à quatre cœurs, carte graphique intégrée : 0,84 fois la durée (app Mac) ; sur le processeur : estimation" },
       "memoryBytes": 900000000,
       "config": { "family": "demucs", "io": "unblend-demucs", "sampleRate": 44100, "segment": 343980, "overlap": 0.25, "stft": { "nfft": 4096, "hop": 1024, "window": "hann", "normalized": true } }
     },

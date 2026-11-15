@@ -15,6 +15,8 @@ const messages = require('./messages');
 const { formatImportReport } = require('./report');
 const { validateIRealLink } = require('./ireal-link');
 const { installDownloads } = require('./downloads');
+const { installContextMenu } = require('./context-menu');
+const printing = require('./printing');
 
 // The interface is built by app/ (npm run build:desktop) into desktop/ui/.
 const UI_DIR = path.join(__dirname, '..', 'ui');
@@ -261,6 +263,28 @@ function registerIpc() {
     }
   });
 
+  // « Imprimer la grille »: `window.print()` is no use in Electron (the page just stops answering), so the
+  // interface puts the page in its printed form and asks for the printing here. `print` and `printToPDF`
+  // are read at call time, like `dialog.showSaveDialog` (a test stands in for the system's panels).
+  handle('fabtice:print-chart', async (event, options) => {
+    const request = printing.parsePrintRequest(options);
+    if (!request.ok) return { ok: false, reason: 'failed' };
+    return printing.printPage(event.sender, request);
+  });
+
+  handle('fabtice:save-chart-pdf', async (event, options) => {
+    const request = printing.parsePrintRequest(options);
+    if (!request.ok) return { ok: false, reason: 'failed' };
+    return printing.savePagePdf({
+      dialog,
+      window: BrowserWindow.fromWebContents(event.sender),
+      contents: event.sender,
+      request,
+      folder: app.getPath('downloads'),
+      locale: app.getLocale(),
+    });
+  });
+
   handle('fabtice:copy', async (_e, text) => {
     if (typeof text !== 'string' || text.length > 1_000_000) throw new Error('invalid text');
     clipboard.writeText(text);
@@ -301,6 +325,8 @@ if (!app.requestSingleInstanceLock()) {
     contents.on('will-redirect', (event) => event.preventDefault());
     contents.on('will-attach-webview', (event) => event.preventDefault());
     contents.setWindowOpenHandler(() => ({ action: 'deny' }));
+    // Electron shows no right-click menu by itself: the editing entries, in French, in every window.
+    installContextMenu(contents);
   });
 
   trace('single-instance lock obtained, waiting for ready');

@@ -54,6 +54,35 @@ const barChords = (page) =>
   );
 const css = (page, sel, prop, pseudo = null) => page.$eval(sel, (el, [p, ps]) => getComputedStyle(el, ps).getPropertyValue(p), [prop, pseudo]);
 
+/**
+ * Every bar with chords: inside the bar, no chord on another on the same row, each at the place of its beat.
+ * `printed`: the page is in print form (the style sheet draws a bar as 206 units wide: the margins are scaled to it).
+ */
+const geometry = (page, printed = false) =>
+  page.$$eval(
+    '.case[data-temps]',
+    (cells, printed) =>
+      cells.map((c) => {
+        const r = c.getBoundingClientRect();
+        const st = getComputedStyle(c);
+        const pg = printed ? (16 * c.clientWidth) / 206 : parseFloat(st.getPropertyValue('--pg'));
+        const pd = printed ? (8 * c.clientWidth) / 206 : parseFloat(st.getPropertyValue('--pd'));
+        const inner = c.clientWidth - pg - pd;
+        const beats = Number(c.dataset.temps);
+        const rows = (printed ? c.dataset.rangsP : c.dataset.rangs) === '2' ? 2 : 1;
+        const chords = [...c.querySelectorAll('.accord-case[data-debut]')].map((b) => ({ beat: Number(b.dataset.debut), box: b.querySelector('.ch').getBoundingClientRect() }));
+        const problems = [];
+        chords.forEach((ch, i) => {
+          const expected = r.left + c.clientLeft + pg + (ch.beat / beats) * inner;
+          if (Math.abs(ch.box.left - expected) > 2.5) problems.push(`chord ${i} at ${(ch.box.left - expected).toFixed(1)} px from its beat`);
+          if (ch.box.right > r.right + 0.5 || ch.box.left < r.left) problems.push(`chord ${i} leaves the bar`);
+          if (i >= rows && ch.box.left < chords[i - rows].box.right - 0.01) problems.push(`chord ${i} touches chord ${i - rows}`);
+        });
+        return { bar: c.dataset.mesure, n: chords.length, problems, size: st.fontSize, rows };
+      }),
+    printed,
+  );
+
 const INK = 'rgb(43, 31, 23)';
 const INK_SOFT = 'rgb(106, 86, 70)';
 const EMBER = 'rgb(196, 80, 42)';
@@ -127,7 +156,18 @@ try {
     const sections = cells.filter((c) => c.cls.includes('double')).map((c) => c.bar);
     check('section letters A, B, A, boxed', (await page.locator('.case .section').allInnerTexts()).join(',') === 'A,B,A' && (await css(page, '.case .section', 'border-top-style')) === 'solid');
     check('double bar at section changes, not at the start', sections.join(',') === '8,16' && (await css(page, '.case[data-mesure="8"]', 'border-left-style')) === 'double');
-    check('two chords in bar 15', (await page.locator('.case[data-mesure="14"].deux .ch').count()) === 2);
+    check('two chords in bar 15', (await page.locator('.case[data-mesure="14"][data-accords="2"] .ch').count()) === 2);
+    {
+      // The second chord is written where its beat is: beat 3 of 4, the middle of the bar (Real Book).
+      const at = await page.$eval('.case[data-mesure="14"]', (c) => {
+        const r = c.getBoundingClientRect();
+        const st = getComputedStyle(c);
+        const pg = parseFloat(st.getPropertyValue('--pg'));
+        const pd = parseFloat(st.getPropertyValue('--pd'));
+        return [...c.querySelectorAll('.ch')].map((e) => (e.getBoundingClientRect().left - r.left - c.clientLeft - pg) / (c.clientWidth - pg - pd));
+      });
+      check('bar 15: the first chord is on the bar line, the second in the middle of the bar', Math.abs(at[0]) < 0.02 && Math.abs(at[1] - 0.5) < 0.02, at.map((v) => v.toFixed(3)).join(' / '));
+    }
     const doubt = page.locator('.case[data-mesure="11"] .ch');
     check(
       'the doubtful chord is quiet: soft ink, dotted rule, a title; never the ember',
@@ -238,6 +278,87 @@ try {
 
     check('no page errors (desktop)', errors.length === 0, errors.join(' | '));
     await page.close();
+  }
+
+  // ------------------------------------------------------------ chords at the place of their beat (Real Book)
+  {
+    const C = (root, quality, extensions = []) => ({ root, quality, extensions, bass: null });
+    // One, two, three and four chords in a bar; long symbols that meet; a chord that starts in the middle of a bar.
+    const BARS = {
+      0: [[0, C(0, 'maj7')]],
+      1: [[0, C(2, 'min7')], [2, C(7, '7')]],
+      2: [[0, C(0, 'maj7')], [2, C(9, 'min7')], [3, C(2, '7')]],
+      3: [[0, C(0, 'maj7')], [1, C(9, 'min7')], [2, C(2, 'min7')], [3, C(7, '7')]],
+      4: [[0, C(1, 'min7', ['b5'])], [2, C(6, '7', ['b9'])]],
+      5: [[0, C(1, 'min7', ['b5'])], [1, C(6, '7', ['b9'])]],
+      6: [[2, C(5, 'maj7')]],
+      7: [[0, C(10, '7', ['b13'])], [3, C(3, 'maj7')]],
+      8: [[0, C(11, 'min7', ['b5'])], [1, C(4, '7', ['#9', 'b13'])], [2, C(9, 'min7')], [3, C(2, '7', ['b9'])]],
+    };
+    for (const [label, viewport] of [['desktop', { width: 1280, height: 800 }], ['phone', { width: 390, height: 844 }]]) {
+      const { page, errors } = await open('?demo&moteur=factice&vue=grille', viewport);
+      await sleep(200);
+      const demo = await geometry(page);
+      check(`${label}: the demo piece: every chord at the place of its beat, none touching another or leaving its bar`, demo.length > 20 && demo.every((b) => b.problems.length === 0), demo.filter((b) => b.problems.length).map((b) => `bar ${b.bar}: ${b.problems.join(', ')}`).join(' ; '));
+      await page.evaluate((bars) => {
+        for (const [bar, entries] of Object.entries(bars)) window.__fabtice.lot2.harmony.setBarChords(Number(bar), entries.map(([beat, chord]) => ({ beatInBar: beat, chord })));
+      }, BARS);
+      await sleep(400);
+      const g = await geometry(page);
+      const mine = g.filter((b) => Number(b.bar) in BARS);
+      check(`${label}: one to four chords, long symbols, a late chord: each at the place of its beat, none touching, none leaving the bar`, mine.length === 9 && mine.every((b) => b.problems.length === 0), mine.filter((b) => b.problems.length).map((b) => `bar ${b.bar}: ${b.problems.join(', ')}`).join(' ; '));
+      const sizes = Object.fromEntries(mine.map((b) => [b.bar, `${parseFloat(b.size).toFixed(0)}px${b.rows === 2 ? '×2 rows' : ''}`]));
+      console.log(`      sizes (${label}): ${JSON.stringify(sizes)}`);
+      const base = parseFloat(await css(page, '.case[data-mesure="0"]', 'font-size'));
+      check(`${label}: a lone chord keeps the normal size${label === 'desktop' ? ', and so do two short chords' : ''}`, parseFloat(mine[0].size) === base && (label !== 'desktop' || parseFloat(mine[1].size) === base), `${mine[0].size} ${mine[1].size}`);
+      const mid = await page.evaluate(() => {
+        const c = document.querySelector('.case[data-mesure="1"]');
+        const [a, b] = [...c.querySelectorAll('.ch')].map((e) => e.getBoundingClientRect());
+        const r = c.getBoundingClientRect();
+        return { first: (a.left - r.left) / r.width, second: (b.left - r.left) / r.width };
+      });
+      check(`${label}: two chords in a bar: the second starts at the middle of the bar`, Math.abs(mid.second - 0.5) < 0.06 && mid.first < 0.15, JSON.stringify(mid));
+      await page.screenshot({ path: path.join(out, `grille-accords-${viewport.width}.png`) });
+      // Resizing the window re-fits.
+      if (label === 'desktop') {
+        await page.setViewportSize({ width: 700, height: 800 });
+        await sleep(400);
+        const narrow = (await geometry(page)).filter((b) => Number(b.bar) in BARS);
+        check('desktop narrowed to 700 px: still nothing touching, nothing leaving a bar', narrow.every((b) => b.problems.length === 0), narrow.filter((b) => b.problems.length).map((b) => `bar ${b.bar}: ${b.problems.join(', ')}`).join(' ; '));
+      }
+      check(`no page errors (${label}, placement)`, errors.length === 0, errors.join(' | '));
+      await page.close();
+    }
+
+    // How a chord is put on a beat: « Deux accords dans la mesure » gives beat 3 (the middle); the editor moves it to 2 or 4.
+    {
+      const chordOf = (page, bar, i = 0) => page.locator(`.case[data-mesure="${bar}"] .accord-case[data-accord="${i}"]`);
+      const { page, errors } = await open('?demo&moteur=factice&vue=grille');
+      await sleep(300);
+      const beats = (bar) => page.$$eval(`.case[data-mesure="${bar}"] .accord-case[data-debut]`, (els) => els.map((e) => Number(e.dataset.debut)).join(','));
+      check('bar 14 (Cm7) has one chord, on beat 1', (await beats(13)) === '0');
+      await chordOf(page, 13).click();
+      await page.waitForSelector('[data-testid="editeur"]');
+      check('one chord on the bar line: no beat choice offered', (await page.locator('.editeur-temps').count()) === 0);
+      await page.click('.editeur-actions button:has-text("Deux accords dans la mesure")');
+      await sleep(200);
+      check('« Deux accords dans la mesure »: the second chord is on beat 3', (await beats(13)) === '0,2', await beats(13));
+      check('… and it is drawn in the middle of the bar', await page.$eval('.case[data-mesure="13"]', (c) => {
+        const r = c.getBoundingClientRect();
+        const b = c.querySelectorAll('.ch')[1].getBoundingClientRect();
+        return Math.abs((b.left - r.left) / r.width - 0.5) < 0.06;
+      }));
+      check('the editor now offers the beat of the second chord: 1 to 4, with 3 chosen, 1 out of reach', (await page.$$eval('.editeur-temps button', (els) => els.map((e) => `${e.dataset.temps}${e.getAttribute('aria-pressed') === 'true' ? '*' : ''}${e.disabled ? 'x' : ''}`).join(','))) === '1x,2,3*,4', await page.$$eval('.editeur-temps button', (els) => els.map((e) => `${e.dataset.temps}${e.getAttribute('aria-pressed') === 'true' ? '*' : ''}${e.disabled ? 'x' : ''}`).join(',')));
+      await page.click('.editeur-temps button[data-temps="4"]');
+      await sleep(200);
+      check('a click on « 4 »: the second chord is on beat 4', (await beats(13)) === '0,3', await beats(13));
+      await page.click('.editeur-temps button[data-temps="2"]');
+      await sleep(200);
+      check('a click on « 2 »: on beat 2', (await beats(13)) === '0,1', await beats(13));
+      check('the stored chord follows (a hand chord on beat 2 of the bar)', (await state(page)).corrections.chords.length >= 2);
+      check('no page errors (beat choice)', errors.length === 0, errors.join(' | '));
+      await page.close();
+    }
   }
 
   // ------------------------------------------------------------ grid corrections and tuning, from the panels
@@ -1026,6 +1147,9 @@ try {
     check('phone: « Imprimer la grille » is available there', items.includes('print:false'));
     await page.screenshot({ path: path.join(out, 'app-390-menu-export.png') });
     await page.tap('.export-tel [data-export="print"]');
+    await page.waitForSelector('[data-testid="impression"]');
+    await page.screenshot({ path: path.join(out, 'impression-dialogue-390.png') });
+    await page.tap('[data-testid="impression-imprimer"]');
     await sleep(600);
     check('phone: printing from the menu switches to the chart for the printout', (await page.evaluate(() => window.__printed))?.mode === 'grille');
     await page.evaluate(() => window.dispatchEvent(new Event('afterprint')));
@@ -1040,66 +1164,234 @@ try {
   {
     const { page, errors } = await open('?demo&moteur=factice&vue=grille');
     await sleep(300);
-    // The menu entry.
+    // `window.print` is replaced: it records what the page looks like to the style sheet at that moment.
     await page.evaluate(() => {
       window.__printed = null;
       window.print = () => {
-        window.__printed = { mode: window.__fabtice.store.getState().view.mode, fonts: document.fonts.status, chart: document.querySelectorAll('.case').length };
+        const root = document.documentElement;
+        window.__printed = {
+          mode: window.__fabtice.store.getState().view.mode,
+          fonts: document.fonts.status,
+          chart: document.querySelectorAll('.case').length,
+          orientation: root.dataset.impression,
+          size: root.dataset.pageImpression,
+          lines: root.style.getPropertyValue('--lignes-impression'),
+          pageRule: [...document.querySelectorAll('style[data-impression="page"]')].map((e) => e.textContent).join(''),
+          dialog: !!document.querySelector('[data-testid="impression"]'),
+        };
       };
     });
+    const printedNow = () => page.evaluate(() => window.__printed);
+    const resetPrinted = () => page.evaluate(() => (window.__printed = null));
+    const afterPrint = async () => {
+      await page.evaluate(() => window.dispatchEvent(new Event('afterprint')));
+      await sleep(100);
+    };
+    /** The dialog, opened from the chart's own control, the choices made, then « Imprimer… »; the page then stays in print form until `afterPrint`. */
+    async function printWith({ orientation, size }) {
+      await resetPrinted();
+      if (!(await page.locator('[data-testid="impression"]').count())) await page.click('[data-testid="imprimer-grille"]');
+      await page.waitForSelector('[data-testid="impression"]');
+      await page.click(`[data-choix="${orientation}"]`);
+      if (size === 'une') await page.click('[data-choix="une"]');
+      else await page.click('[data-choix="libre"]');
+      await page.click('[data-testid="impression-imprimer"]');
+      await page.waitForFunction(() => window.__printed !== null, null, { timeout: 5000 });
+      return printedNow();
+    }
+
+    // A quiet control in the chart itself, and the menu entry: both open the same dialog.
+    const control = page.locator('[data-testid="imprimer-grille"]');
+    check('the chart has its own quiet « Imprimer » button, with a printer icon, beside the instrument choice', (await control.innerText()) === 'Imprimer' && (await control.locator('svg').count()) === 1 && (await control.getAttribute('title')) === 'Imprimer la grille, ou l’enregistrer en PDF');
+    check('… in the encre-douce ink, not the ember', (await css(page, '[data-testid="imprimer-grille"]', 'color')) === INK_SOFT);
+    await page.screenshot({ path: path.join(out, 'grille-bouton-imprimer-1280.png') });
+    await control.click();
+    await page.waitForSelector('[data-testid="impression"]');
+    const radios = await page.$$eval('[data-testid="impression"] [role="radio"]', (els) => els.map((e) => `${e.dataset.choix}:${e.getAttribute('aria-checked')}:${e.disabled ? 'off' : 'on'}`));
+    check('the dialog: portrait and landscape, as it is and on one page; portrait and « as it is » by default', radios.join() === 'portrait:true:on,paysage:false:on,libre:true:on,une:false:on', radios.join());
+    check('the dialog: two actions, « Imprimer… » and « Enregistrer en PDF… »', (await text(page, '[data-testid="impression-imprimer"]')) === 'Imprimer…' && (await text(page, '[data-testid="impression-pdf"]')) === 'Enregistrer en PDF…');
+    check('the dialog says, in one sentence, that a browser saves as PDF from its print window', (await text(page, '[data-testid="impression"]')).includes('choisissez « Enregistrer au format PDF »'));
+    await page.screenshot({ path: path.join(out, 'impression-dialogue-1280.png') });
+    await page.keyboard.press('Escape');
+    await sleep(100);
+    check('Escape closes the dialog', (await page.locator('[data-testid="impression"]').count()) === 0);
+
+    // From the tracks view, by the menu.
     await page.evaluate(() => window.__fabtice.actions.setViewMode('pistes'));
     await page.click('button:has-text("Exporter")');
     const printItem = page.locator('.menu-export [data-export="print"]');
-    check('Exporter: « Imprimer la grille » is available', await printItem.isEnabled());
+    check('Exporter: « Imprimer la grille… » is available', (await printItem.isEnabled()) && (await printItem.innerText()).startsWith('Imprimer la grille…'));
     await printItem.click();
-    await sleep(500);
-    const printed = await page.evaluate(() => window.__printed);
+    await page.waitForSelector('[data-testid="impression"]');
+    await page.click('[data-testid="impression-imprimer"]');
+    await page.waitForFunction(() => window.__printed !== null, null, { timeout: 5000 });
+    const printed = await printedNow();
     check('printing from the tracks view: the chart is on screen, fonts loaded, when the browser prints', printed && printed.mode === 'grille' && printed.fonts === 'loaded' && printed.chart >= 25, JSON.stringify(printed));
-    await page.evaluate(() => window.dispatchEvent(new Event('afterprint')));
-    await sleep(100);
-    check('after the printing dialog: back to the tracks view', (await state(page)).view.mode === 'pistes');
+    check('… with the choices written for the style sheet: portrait, as it is, one @page rule', printed.orientation === 'portrait' && printed.size === 'libre' && /size:\s*portrait/.test(printed.pageRule), JSON.stringify(printed));
+    await afterPrint();
+    check('after the printing dialog: back to the tracks view, the page rule and the choices removed', (await state(page)).view.mode === 'pistes' && (await page.evaluate(() => !document.querySelector('style[data-impression="page"]') && document.documentElement.dataset.impression === undefined && document.documentElement.dataset.pageImpression === undefined)));
+    check('… and the dialog is closed', (await page.locator('[data-testid="impression"]').count()) === 0);
     await page.evaluate(() => window.__fabtice.actions.setViewMode('grille'));
     await sleep(200);
+
+    // « Enregistrer en PDF… » in a browser: the same print window.
+    await resetPrinted();
+    await page.click('[data-testid="imprimer-grille"]');
+    await page.waitForSelector('[data-testid="impression"]');
+    await page.click('[data-testid="impression-pdf"]');
+    await page.waitForFunction(() => window.__printed !== null, null, { timeout: 5000 });
+    check('« Enregistrer en PDF… » in a browser opens the browser\'s print window (where PDF is one of the printers)', (await printedNow()).mode === 'grille');
+    await afterPrint();
+
+    // The choices are remembered from one time to the next.
+    await printWith({ orientation: 'paysage', size: 'libre' });
+    await afterPrint();
+    await page.click('[data-testid="imprimer-grille"]');
+    await page.waitForSelector('[data-testid="impression"]');
+    check('the last orientation is remembered', (await page.getAttribute('[data-choix="paysage"]', 'aria-checked')) === 'true');
+    await page.click('[data-choix="portrait"]');
+    await page.keyboard.press('Escape');
+    await sleep(100);
 
     // The print style sheet, on a page with everything that must NOT print: a loop, the playing bar, a doubtful chord, an editor open.
     await chordOf(page, 3).click();
     await sleep(300);
     await page.emulateMedia({ media: 'print' });
     await sleep(100);
-    const hidden = await page.evaluate(() => ['.haut', '.bas', '.editeur', '.instrument', '.cle-editeur'].map((s) => [s, document.querySelector(s) ? getComputedStyle(document.querySelector(s)).display : 'absent']));
-    check('print style: the top bar, the transport, the editor and the instrument choice are gone', hidden.every(([, d]) => d === 'none' || d === 'absent'), JSON.stringify(hidden));
+    const hidden = await page.evaluate(() => ['.haut', '.bas', '.editeur', '.instrument', '.cle-editeur', '.imprimer-bouton'].map((s) => [s, document.querySelector(s) ? getComputedStyle(document.querySelector(s)).display : 'absent']));
+    check('print style: the top bar, the transport, the editor, the instrument choice and the print button are gone', hidden.every(([, d]) => d === 'none' || d === 'absent'), JSON.stringify(hidden));
     check('print style: white paper, no paper grain', (await css(page, 'body', 'background-color')) === 'rgb(255, 255, 255)' && (await css(page, 'body', 'display', '::before')) === 'none');
     check('print style: no veil, no ember hairline, no doubtful styling', (await css(page, '.case.dans-boucle', 'background-color')) === 'rgba(0, 0, 0, 0)' && (await css(page, '.case.jouee', 'display', '::after')) === 'none' && (await css(page, '.case[data-mesure="11"] .ch', 'border-bottom-style')) === 'none' && (await css(page, '.case[data-mesure="11"] .ch', 'color')) === INK);
     check('print style: the page is the chart only (the chart scrolls with the page)', (await css(page, '.vue-grille', 'position')) === 'static' && (await css(page, '.vue-grille', 'overflow')) === 'visible');
-    const pdfs = {};
-    for (const format of ['A4', 'Letter']) {
-      const file = path.join(out, `grille-${format}.pdf`);
-      await page.pdf({ path: file, format, printBackground: false });
-      pdfs[format] = file;
-    }
+    await page.keyboard.press('Escape');
+    await page.emulateMedia({ media: 'screen' });
+
+    // PDFs, in both orientations, on A4 and Letter.
     // The accidentals are drawn with a text stroke (chords.css), which a PDF text layer lists twice: collapse.
     const pdftext = (file, first, last) => execFileSync('pdftotext', ['-layout', '-f', String(first), '-l', String(last), file, '-'], { encoding: 'utf8' }).replace(/([♭♯])\1/g, '$1');
-    const pages = (file) => Number(/Pages:\s+(\d+)/.exec(execFileSync('pdfinfo', [file], { encoding: 'utf8' }))[1]);
-    for (const format of ['A4', 'Letter']) {
-      const n = pages(pdfs[format]);
-      const t0 = pdftext(pdfs[format], 1, n);
-      check(`${format}: one page for 25 bars`, n === 1, `${n} page(s)`);
-      check(`${format}: title, key, meter, tempo and the chords are in the text`, ['Blues du dimanche', 'Tonalité de A♭', '4/4', 'tempo 110', 'Fm7', 'B♭m7', 'D♭m6', 'E♭7'].every((s) => t0.includes(s)), t0.split('\n').slice(0, 6).join(' | '));
-      check(`${format}: section letters A and B are there, and the bar numbers 1 to 25`, /\bA\b/.test(t0) && /\bB\b/.test(t0) && [1, 13, 25].every((k) => new RegExp(`\\b${k}\\b`).test(t0)));
-      check(`${format}: nothing of the app (menus, transport, editor)`, !/Exporter|Réglages|Pistes|CLIC|TONALIT[ÉE]\s+TEMPO|Taper un accord/.test(t0));
+    const info = (file) => execFileSync('pdfinfo', [file], { encoding: 'utf8' });
+    const pages = (file) => Number(/Pages:\s+(\d+)/.exec(info(file))[1]);
+    const sizeOf = (file) => {
+      const m = /Page size:\s+([\d.]+) x ([\d.]+) pts/.exec(info(file));
+      return { w: Math.round(Number(m[1])), h: Math.round(Number(m[2])) };
+    };
+    /** The page in print form (as the browser would print it), then its PDF; `format` is the paper. */
+    async function pdfOf(options, file, format = 'A4') {
+      const at = await printWith(options);
+      await page.emulateMedia({ media: 'print' });
+      await sleep(100);
+      await page.pdf({ path: file, format, printBackground: false, preferCSSPageSize: true });
+      await page.emulateMedia({ media: 'screen' });
+      await afterPrint();
+      return at;
     }
-    execFileSync('pdftoppm', ['-png', '-r', '80', '-f', '1', '-l', '1', pdfs.A4, path.join(out, 'grille-A4-page')]);
-    execFileSync('pdftoppm', ['-png', '-r', '80', '-f', '1', '-l', '1', pdfs.Letter, path.join(out, 'grille-Letter-page')]);
+    const A4 = { portrait: [595, 842], paysage: [842, 595] };
+    const LETTER = { portrait: [612, 792], paysage: [792, 612] };
+    for (const orientation of ['portrait', 'paysage']) {
+      const pdfs = {};
+      for (const format of ['A4', 'Letter']) {
+        const file = path.join(out, `grille-${orientation}-${format}.pdf`);
+        await pdfOf({ orientation, size: 'libre' }, file, format);
+        pdfs[format] = file;
+      }
+      for (const format of ['A4', 'Letter']) {
+        const n = pages(pdfs[format]);
+        const size = sizeOf(pdfs[format]);
+        const want = (format === 'A4' ? A4 : LETTER)[orientation];
+        check(`${orientation} ${format}: the page is ${orientation === 'portrait' ? 'upright' : 'on its side'} (${size.w} × ${size.h} pt)`, Math.abs(size.w - want[0]) <= 2 && Math.abs(size.h - want[1]) <= 2, `${size.w} × ${size.h}`);
+        const t0 = pdftext(pdfs[format], 1, n);
+        check(`${orientation} ${format}: one page for 25 bars`, n === 1, `${n} page(s)`);
+        check(`${orientation} ${format}: title, key, meter, tempo and the chords are in the text`, ['Blues du dimanche', 'Tonalité de A♭', '4/4', 'tempo 110', 'Fm7', 'B♭m7', 'D♭m6', 'E♭7'].every((x) => t0.includes(x)), t0.split('\n').slice(0, 6).join(' | '));
+        check(`${orientation} ${format}: the instrument is on the sheet (« pour instrument en Ut »)`, t0.includes('pour instrument en Ut'), t0.split('\n')[0]);
+        check(`${orientation} ${format}: section letters A and B are there, and the bar numbers 1 to 25`, /\bA\b/.test(t0) && /\bB\b/.test(t0) && [1, 13, 25].every((k) => new RegExp(`\\b${k}\\b`).test(t0)));
+        check(`${orientation} ${format}: nothing of the app (menus, transport, editor, dialog)`, !/Exporter|Réglages|Pistes|CLIC|TONALIT[ÉE]\s+TEMPO|Taper un accord|Imprimer|Orientation/.test(t0));
+      }
+      execFileSync('pdftoppm', ['-png', '-r', '80', '-f', '1', '-l', '1', pdfs.A4, path.join(out, `impression-${orientation}-page`)]);
+    }
+
+    // Two chords in a bar on paper: the second at the middle of the bar, nothing touching, in both orientations (the page's width as the layout width).
+    {
+      const C = (root, quality, extensions = []) => ({ root, quality, extensions, bass: null });
+      await page.evaluate((bars) => {
+        for (const [bar, entries] of Object.entries(bars)) window.__fabtice.lot2.harmony.setBarChords(Number(bar), entries.map(([beat, chord]) => ({ beatInBar: beat, chord })));
+      }, {
+        0: [[0, C(0, 'maj7')]],
+        1: [[0, C(2, 'min7')], [2, C(7, '7')]],
+        2: [[0, C(0, 'maj7')], [2, C(9, 'min7')], [3, C(2, '7')]],
+        3: [[0, C(0, 'maj7')], [1, C(9, 'min7')], [2, C(2, 'min7')], [3, C(7, '7')]],
+        4: [[0, C(1, 'min7', ['b5'])], [2, C(6, '7', ['b9'])]],
+        5: [[0, C(1, 'min7', ['b5'])], [1, C(6, '7', ['b9'])]],
+        8: [[0, C(11, 'min7', ['b5'])], [1, C(4, '7', ['#9', 'b13'])], [2, C(9, 'min7')], [3, C(2, '7', ['b9'])]],
+      });
+      await sleep(300);
+      for (const [orientation, width] of [['portrait', 695], ['paysage', 1024]]) {
+        await page.setViewportSize({ width, height: 900 });
+        await page.emulateMedia({ media: 'print' });
+        await sleep(300);
+        const g = (await geometry(page, true)).filter((b) => [0, 1, 2, 3, 4, 5, 8].includes(Number(b.bar)));
+        check(`${orientation} on paper: chords at the place of their beat, none touching, none leaving the bar`, g.length === 7 && g.every((b) => b.problems.length === 0), g.filter((b) => b.problems.length).map((b) => `bar ${b.bar}: ${b.problems.join(', ')}`).join(' ; '));
+        await page.emulateMedia({ media: 'screen' });
+      }
+      await page.setViewportSize({ width: 1280, height: 800 });
+      await sleep(200);
+      // The real PDF, to look at.
+      const file = path.join(out, 'grille-accords-papier.pdf');
+      await pdfOf({ orientation: 'paysage', size: 'libre' }, file, 'A4');
+      execFileSync('pdftoppm', ['-png', '-r', '80', '-f', '1', '-l', '1', file, path.join(out, 'impression-accords-paysage-page')]);
+      const t = pdftext(file, 1, 1);
+      check('on paper, the chords of the bars with one to four chords are all written', ['Dm7', 'G7', 'Am7', 'Dm7'].every((x) => t.includes(x)));
+      await page.evaluate(() => window.__fabtice.lot2.harmony.resetChordCorrections());
+      await sleep(200);
+    }
+
     // Si♭ instrument: the page says so.
-    await page.emulateMedia({ media: 'screen' });
     await page.evaluate(() => window.__fabtice.lot2.harmony.setInstrument('sib'));
-    await page.emulateMedia({ media: 'print' });
-    await sleep(100);
-    await page.pdf({ path: path.join(out, 'grille-sib.pdf'), format: 'A4' });
+    await pdfOf({ orientation: 'portrait', size: 'libre' }, path.join(out, 'grille-sib.pdf'));
     const sib = pdftext(path.join(out, 'grille-sib.pdf'), 1, 1);
     check('printed for a B♭ instrument: the key and the instrument are written, chords transposed', sib.includes('Tonalité de B♭ pour instrument en Si♭') && sib.includes('Gm7'), sib.split('\n').slice(0, 4).join(' | '));
-    await page.emulateMedia({ media: 'screen' });
     await page.evaluate(() => window.__fabtice.lot2.harmony.setInstrument('ut'));
+
+    // A piece of 48 bars (twelve lines): two pages as it is, one page fitted, in portrait; too long to be fitted in landscape.
+    // Another of 32 bars (eight lines) is fitted in landscape.
+    const setBars = (n) =>
+      page.evaluate((bars) => {
+        const s = window.__fabtice.store;
+        const st = s.getState();
+        const bar = 4 * (60 / 110);
+        s.setState({ project: { ...st.project, duration: bars * bar - 0.2 } });
+      }, n);
+    await setBars(48);
+    await sleep(300);
+    await page.click('[data-testid="imprimer-grille"]');
+    await page.waitForSelector('[data-testid="impression"]');
+    await page.click('[data-choix="paysage"]');
+    check('landscape: a piece of 12 lines cannot be fitted to one page (the choice is off, and says why)', (await page.getAttribute('[data-choix="une"]', 'disabled')) !== null && (await text(page, '[data-choix="une"]')).includes('trop long'), await text(page, '[data-choix="une"]'));
+    await page.click('[data-choix="portrait"]');
+    check('portrait: the same piece can be fitted to one page', (await page.getAttribute('[data-choix="une"]', 'disabled')) === null);
+    await page.keyboard.press('Escape');
+    for (const format of ['A4', 'Letter']) {
+      const asIs = path.join(out, `grille-48-libre-${format}.pdf`);
+      const fitted = path.join(out, `grille-48-une-${format}.pdf`);
+      await pdfOf({ orientation: 'portrait', size: 'libre' }, asIs, format);
+      const at = await pdfOf({ orientation: 'portrait', size: 'une' }, fitted, format);
+      check(`portrait ${format}: 48 bars as they are take several pages`, pages(asIs) >= 2, `${pages(asIs)} pages`);
+      check(`portrait ${format}: fitted to one page, they take one (${at.lines} lines)`, pages(fitted) === 1 && at.size === 'une' && at.lines === '12', `${pages(fitted)} page(s), ${JSON.stringify(at)}`);
+      const t = pdftext(fitted, 1, 1);
+      check(`portrait ${format}: … and the last bar (48) is on that page`, /\b48\b/.test(t) && t.includes('Blues du dimanche'));
+      if (format === 'A4') execFileSync('pdftoppm', ['-png', '-r', '60', '-f', '1', '-l', '1', fitted, path.join(out, 'impression-48-une-page')]);
+    }
+    await setBars(32);
+    await sleep(300);
+    {
+      const asIs = path.join(out, 'grille-32-libre-paysage.pdf');
+      const fitted = path.join(out, 'grille-32-une-paysage.pdf');
+      await pdfOf({ orientation: 'paysage', size: 'libre' }, asIs);
+      const at = await pdfOf({ orientation: 'paysage', size: 'une' }, fitted);
+      check('landscape A4: 32 bars as they are take two pages, fitted to one page they take one', pages(asIs) >= 2 && pages(fitted) === 1 && at.size === 'une', `${pages(asIs)} / ${pages(fitted)} ${JSON.stringify(at)}`);
+      const size = sizeOf(fitted);
+      check('landscape A4 fitted: the page is on its side', Math.abs(size.w - 842) <= 2 && Math.abs(size.h - 595) <= 2, `${size.w} × ${size.h}`);
+      execFileSync('pdftoppm', ['-png', '-r', '60', '-f', '1', '-l', '1', fitted, path.join(out, 'impression-32-une-paysage-page')]);
+    }
 
     // A long piece: lines never split between pages, four bars per line.
     await page.evaluate(() => {
@@ -1110,9 +1402,8 @@ try {
       s.setState({ analysis: { ...st.analysis, chords }, project: { ...st.project, duration: 500 } });
     });
     await sleep(300);
-    await page.emulateMedia({ media: 'print' });
     const longPdf = path.join(out, 'grille-long.pdf');
-    await page.pdf({ path: longPdf, format: 'A4' });
+    await pdfOf({ orientation: 'portrait', size: 'libre' }, longPdf);
     const n = pages(longPdf);
     const bars = await page.locator('.case').count();
     check('a long piece makes several pages', n >= 3, `${bars} bars on ${n} pages`);
@@ -1134,7 +1425,10 @@ try {
       expectedNext = last + 1;
     }
     check('page breaks fall between lines (every page holds whole lines of four bars)', clean && expectedNext === bars + 1, detail || `last bar ${expectedNext - 1}/${bars}`);
-    await page.emulateMedia({ media: 'screen' });
+    await page.click('[data-testid="imprimer-grille"]');
+    await page.waitForSelector('[data-testid="impression"]');
+    check('a piece of 58 lines cannot be fitted to one page, in any orientation', (await page.getAttribute('[data-choix="une"]', 'disabled')) !== null);
+    await page.keyboard.press('Escape');
     check('no page errors (printing)', errors.length === 0, errors.join(' | '));
     await page.close();
   }
