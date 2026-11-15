@@ -60,7 +60,8 @@ async function leaveSessionBehind() {
       { role: 'basse', audio: pcm(12, 1), volume: 0.6, mute: true },
     ],
     tempoMap: map96,
-    loop: { start: 2, end: 6 },
+    // Not made of whole bars: kept to the sample, as the user cut it.
+    loop: { start: 2.3125, end: 6.4375 },
   });
   actions.stepSemitones(1);
   actions.stepSemitones(1);
@@ -97,14 +98,15 @@ describe('reopening the kept piece at launch', () => {
     expect(getAudio(after.tracks[0]!.audio.id)?.channelCount).toBe(2);
     expect(getAudio(after.tracks[1]!.audio.id)?.channelCount).toBe(1);
     expect(after.tempoMap).toEqual(map96);
-    expect(after.loop).toEqual({ region: { start: 2, end: 6 }, enabled: true });
+    expect(after.loop).toEqual({ region: { start: 2.3125, end: 6.4375 }, enabled: true });
     expect(after.playback).toEqual({ semitones: 2, cents: -12, tempoRatio: 0.75, metronome: true });
     expect(after.view).toMatchObject({ snap: false, subdivision: 4 });
     expect(after.ui).toMatchObject({ newPieceOpen: false, import: { kind: 'idle' }, notice: null });
     const snap = fresh.snapshot();
     expect(snap.state).toBe('ready');
     expect(snap.tracks.map((x) => x.id)).toEqual(before.tracks.map((x) => x.id));
-    expect(snap).toMatchObject({ semitones: 2, cents: -12, loop: { start: 2, end: 6 }, metronome: true });
+    expect(snap).toMatchObject({ semitones: 2, cents: -12, // Not made of whole bars: kept to the sample, as the user cut it.
+    loop: { start: 2.3125, end: 6.4375 }, metronome: true });
     expect(marker.value).toBeNull();
     expect(keeper.attachedProject).toBe(before.project!.id);
   });
