@@ -89,7 +89,8 @@ export type SeparationRun =
   | { status: 'error'; projectId: string; code: SeparationErrorCode };
 
 /** Why the piece will not be kept on this device (shown as a calm notice). */
-export type StorageNotice = 'unavailable' | 'full';
+/** `renderFull` (retours du 15 novembre): the piece is kept, but the render just applied could not be (no room left). */
+export type StorageNotice = 'unavailable' | 'full' | 'renderFull';
 
 export interface UiState {
   /** The new-piece dialog. Opened at launch when no project is loaded. */

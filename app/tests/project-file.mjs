@@ -77,6 +77,18 @@ const wav = path.join(work, 'Lover Man.wav');
 const wavBytes = writeWav(wav, 60);
 const { srv, url } = await startServer(0);
 const profiles = [];
+const freeTmp = () => {
+  try {
+    const st = fs.statfsSync(os.tmpdir());
+    return `${((st.bavail * st.bsize) / 1e9).toFixed(2)} GB`;
+  } catch {
+    return 'unknown';
+  }
+};
+if (fs.statfsSync) {
+  const st = fs.statfsSync(os.tmpdir());
+  if (st.bavail * st.bsize < 2e9) console.log(`WARN  only ${freeTmp()} free in ${os.tmpdir()}: Chromium's renderer crashes when it is full (its shared memory is there)`);
+}
 const cleanups = [];
 
 async function browserWith(viewport = { width: 1280, height: 800 }) {
@@ -84,6 +96,10 @@ async function browserWith(viewport = { width: 1280, height: 800 }) {
   profiles.push(profile);
   const context = await chromium.launchPersistentContext(profile, { args: ['--no-sandbox', '--autoplay-policy=no-user-gesture-required'], viewport, acceptDownloads: true });
   const page = context.pages()[0] ?? (await context.newPage());
+  // A renderer crash is a failure of its own, said as such (a user relaunching would get it).
+  // Playwright starts Chromium with --disable-dev-shm-usage: its shared memory lives in the temporary folder, and a
+  // full disk there kills the renderer whatever the page does (measured on 15 November). Say so with the figure.
+  page.on('crash', () => check('the page never crashes', false, `renderer crashed at ${new Date().toISOString()}; ${freeTmp()} free in ${os.tmpdir()} (a full temporary folder crashes Chromium's renderer)`));
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => {
@@ -251,9 +267,19 @@ try {
     check('not analysed again', (await page.evaluate(() => window.__fabtice.store.getState().analysisRun.status)) === 'idle');
     console.log(`  (opened in ${(openMs / 1000).toFixed(1)} s)`);
     await sleep(2500);
-    await page.reload();
-    await page.waitForFunction(() => window.__fabtice, null, { timeout: 30000 });
-    await ready(page);
+    // Several reloads in a row (a relaunch, again and again): the piece, its two separations and its render come
+    // back each time, the audio output given back on the way out (`pagehide`) and opened again. FABTICE_RELOADS changes the count.
+    const reloads = Math.max(1, Number(process.env.FABTICE_RELOADS) || 3);
+    const reloadMs = [];
+    for (let k = 0; k < reloads; k++) {
+      if (k > 0) await sleep(1500);
+      const t = Date.now();
+      await page.reload();
+      await page.waitForFunction(() => window.__fabtice, null, { timeout: 30000 });
+      await ready(page);
+      reloadMs.push(Date.now() - t);
+    }
+    console.log(`  (${reloads} reloads: ${reloadMs.join(', ')} ms)`);
     const kept = await snapshot(page);
     check('kept on the device: after a reload it comes back by itself, both separations included', kept.doc.separation.result.modelId === 'htdemucs-6s' && kept.doc.separation.others[0]?.result.modelId === 'bs-roformer-sw');
 

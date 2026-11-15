@@ -457,6 +457,7 @@ export const fr = {
   'restore.forgetFailed': 'Le morceau n’a pas pu être oublié. Réessayez dans un moment.',
   'storage.unavailable': 'Ce morceau ne sera pas gardé : cet appareil ne permet pas à Fabtice d’enregistrer. Vous pouvez travailler normalement, mais il faudra le rouvrir la prochaine fois.',
   'storage.full': 'Ce morceau ne sera pas gardé : il n’y a plus assez de place sur cet appareil. Vous pouvez travailler normalement, mais il faudra le rouvrir la prochaine fois.',
+  'storage.renderFull': 'Le rendu « meilleure qualité » n’a pas pu être gardé : il n’y a plus assez de place sur cet appareil. Il s’entend tant que Fabtice reste ouvert ; la prochaine fois, il faudra l’appliquer de nouveau. Le morceau, lui, est gardé.',
   'storage.dismiss': 'Compris',
 
   // Lot 3: separated parts (track names)
