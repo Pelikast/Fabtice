@@ -431,6 +431,11 @@ export function repairByBars(beats: readonly number[], downAt: DownbeatAt, candi
     const idx = beatsIn(beats, g0, g1);
     const own = idx.filter((i) => Math.abs(beats[i]! - g0) > EPS);
     if (idx.length === target || idx.length < o.minFound * target) continue;
+    // Steady beats all through the gap: the count is theirs (in rubato the bar length does not say it).
+    const run = [...idx.map((i) => beats[i]!), g1];
+    const gd = run.slice(1).map((t, q) => t - run[q]!);
+    const gm = median(gd);
+    if (gd.every((x) => Math.abs(Math.log(x / gm)) <= o.irregular)) continue;
     replace.push({ t0: g0, t1: g1, inner: regridBar(own.map((i) => beats[i]!), g0, g1, target, o.snap), found: own.length });
   }
   if (!replace.length) return { beats: beats.slice(), repairs: [], meter: m };
