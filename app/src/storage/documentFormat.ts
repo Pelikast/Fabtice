@@ -15,6 +15,9 @@ import { AUDIO_FORMATS, defaultExportPreferences, EXPORT_RANGES, EXPORT_WHATS } 
 import { emptyCorrections } from '../model/corrections';
 import { PROJECT_DOCUMENT_VERSION, type ProjectDocument } from '../model/document';
 import { INSTRUMENTS } from '../model/harmony';
+import { isValidPattern, parseMeterKey } from '../grid/metronome';
+import { MARKER_NAME_MAX, emptyMarkers } from '../model/markers';
+import { COUNT_IN_BARS, defaultMetronome, METRONOME_VOLUME } from '../model/metronome';
 import { emptySeparation, isStemId } from '../model/separation';
 import { TEMPO_ORIGINS } from '../model/tempoMap';
 import { StorageError } from './ProjectStorage';
@@ -38,6 +41,13 @@ export const MIGRATIONS: Migrations = {
     ...doc,
     separation: emptySeparation(),
     exportPrefs: defaultExportPreferences(),
+  }),
+  // Lot 3 -> lot 4: the metronome as it was (on/off stays in `playback`; default volume, no count-in, the default
+  // accents, no acceleration), no named loop. The sections were already the chart's letters (`corrections.sections`).
+  3: (doc) => ({
+    ...doc,
+    metronome: defaultMetronome(),
+    markers: emptyMarkers(),
   }),
 };
 
@@ -185,6 +195,51 @@ function readExportPrefs(p: unknown): unknown {
   };
 }
 
+// ---------------------------------------------------------------- version 4: metronome, markers
+
+/**
+ * The metronome only shapes the clicks: anything unreadable goes back to its
+ * default, field by field (a pattern that does not fit its meter is dropped,
+ * the meter then clicks as by default). Never a lost piece.
+ */
+function readMetronome(m: unknown): unknown {
+  const d = defaultMetronome();
+  if (!isRec(m)) return d;
+  const volume = isNum(m.volume) ? Math.min(METRONOME_VOLUME.max, Math.max(METRONOME_VOLUME.min, m.volume)) : d.volume;
+  const countInBars = COUNT_IN_BARS.includes(m.countInBars as never) ? m.countInBars : d.countInBars;
+  const patterns: Rec = {};
+  if (isRec(m.patterns)) {
+    for (const [key, p] of Object.entries(m.patterns)) {
+      const meter = parseMeterKey(key);
+      if (meter && isValidPattern(p, meter)) patterns[key] = p;
+    }
+  }
+  const a = isRec(m.acceleration) ? m.acceleration : {};
+  const da = d.acceleration;
+  const num = (v: unknown, dv: number) => (isNum(v) ? v : dv);
+  const acceleration = {
+    enabled: typeof a.enabled === 'boolean' ? a.enabled : da.enabled,
+    startPercent: num(a.startPercent, da.startPercent),
+    stepPercent: num(a.stepPercent, da.stepPercent),
+    everyRepeats: num(a.everyRepeats, da.everyRepeats),
+    targetPercent: num(a.targetPercent, da.targetPercent),
+  };
+  return { volume, countInBars, patterns, acceleration };
+}
+
+/** Named loops are made by hand: read exactly, or the document is `corrupt` (as the corrections). */
+function checkMarkers(m: unknown): void {
+  if (!isRec(m) || !Array.isArray(m.loops)) corrupt('markers');
+  const ids = new Set<string>();
+  for (const l of m.loops as unknown[]) {
+    if (!isRec(l) || !isStr(l.id) || !isStr(l.name) || l.name.length === 0 || l.name.length > MARKER_NAME_MAX) corrupt('named loop');
+    const r = (l as Rec).region;
+    if (!isRec(r) || !isNum(r.start) || !isNum(r.end) || !(r.end > r.start)) corrupt('named loop region');
+    if (ids.has(l.id as string)) corrupt('named loop id twice');
+    ids.add(l.id as string);
+  }
+}
+
 /**
  * Turns what was read from the device into a current-version document.
  * Returns null for a version this app does not know (newer, or garbage
@@ -210,7 +265,8 @@ export function readDocument(raw: unknown, migrations: Migrations = MIGRATIONS, 
   checkLoopAndPlayback(doc);
   checkCorrections(doc.corrections);
   checkSeparation(doc);
-  doc = { ...doc, analysis: readAnalysis(doc.analysis), exportPrefs: readExportPrefs(doc.exportPrefs) };
+  checkMarkers(doc.markers);
+  doc = { ...doc, analysis: readAnalysis(doc.analysis), exportPrefs: readExportPrefs(doc.exportPrefs), metronome: readMetronome(doc.metronome) };
   const view = doc.view as Rec;
   if (!INSTRUMENTS.includes(view.instrument as never)) doc = { ...doc, view: { ...view, instrument: 'ut' } };
   return doc as unknown as ProjectDocument;

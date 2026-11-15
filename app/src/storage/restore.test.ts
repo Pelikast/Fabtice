@@ -5,6 +5,7 @@ import { connectEngine } from '../audio/connect';
 import { MockEngine } from '../audio/MockEngine';
 import { getAudio, type DecodedAudio } from '../audio/registry';
 import { constantTempoMap } from '../grid/tempoMap';
+import { PROJECT_DOCUMENT_VERSION } from '../model/document';
 import * as actions from '../store/actions';
 import { toProjectDocument } from '../store/document';
 import { appStore, initialState } from '../store/store';
@@ -147,7 +148,7 @@ describe('reopening the kept piece at launch', () => {
   });
 
   it('ignores a piece stored by a newer version', async () => {
-    storage.json = JSON.stringify({ ...sampleDocument(), version: 4 });
+    storage.json = JSON.stringify({ ...sampleDocument(), version: PROJECT_DOCUMENT_VERSION + 1 });
     expect(await restoreAtLaunch({ storage, keeper, marker: memoryMarker() })).toBe('none');
     expect(appStore.getState().ui.newPieceOpen).toBe(true);
     expect(storage.json).not.toBeNull();

@@ -12,7 +12,6 @@ import {
   stepSemitones,
   stepTempo,
   toggleLoop,
-  toggleMetronome,
   togglePanel,
   togglePlay,
   toggleTriplets,
@@ -23,9 +22,11 @@ import { keyInForce } from '../store/chartSelectors';
 import { SEMITONES, TEMPO_RATIO, targetBpm } from '../store/derived';
 import { appStore, useApp } from '../store/store';
 import { useFrame } from '../ui/frameLoop';
-import { BackIcon, LoopIcon, MetronomeIcon, PauseIcon, PlayIcon, TripletIcon } from '../ui/icons';
+import { BackIcon, LoopIcon, PauseIcon, PlayIcon, TripletIcon } from '../ui/icons';
 import { useOutsideClose } from '../ui/useOutsideClose';
 import { ApplyControl } from './ApplyRender';
+import { MarkersControl } from './MarkersPanel';
+import { accelerationText, MetronomeControl } from './MetronomePanel';
 import { TuningPanel } from './TuningPanel';
 
 const SUBDIVISIONS: Subdivision[] = [1, 2, 4, 8];
@@ -43,7 +44,7 @@ export function Transport() {
         <KeyControl />
         <TempoControl />
         <ApplyControl />
-        <MetronomeButton />
+        <MetronomeControl />
       </div>
     </footer>
   );
@@ -57,6 +58,7 @@ function PositionReadout() {
   const timeRef = useRef<HTMLSpanElement>(null);
   const barRef = useRef<HTMLElement>(null);
   const beatRef = useRef<HTMLElement>(null);
+  const countRef = useRef<HTMLSpanElement>(null);
   const loopText = useApp((s) => (s.loop.enabled && s.loop.region ? formatLoop(s.tempoMap, s.loop.region).text : null));
   const loopLong = useApp((s) => (s.loop.enabled && s.loop.region ? formatLoop(s.tempoMap, s.loop.region).long : undefined));
   const loopWhole = useApp((s) => s.loop.region !== null && formatLoop(s.tempoMap, s.loop.region).whole);
@@ -70,11 +72,20 @@ function PositionReadout() {
     for (const [el, text] of [[timeRef.current, time], [barRef.current, bar], [beatRef.current, beat]] as const) {
       if (el && el.textContent !== text) el.textContent = text;
     }
+    // Lot 4: the count-in before the music, « décompte · 3 », while the position waits.
+    const left = getEngine().getMetronomeStatus().countInLeft;
+    const count = countRef.current;
+    if (count) {
+      const text = left > 0 ? t('metronome.countingIn', { n: left }) : '';
+      if (count.textContent !== text) count.textContent = text;
+      if (count.hidden !== (left === 0)) count.hidden = left === 0;
+    }
   });
 
   return (
     <div className="position">
       <span className="temps" ref={timeRef} data-testid="temps" />
+      <span className="decompte" ref={countRef} data-testid="decompte-en-cours" role="status" hidden />
       {engineError ? (
         <span className="ou" role="alert">
           {t(
@@ -160,6 +171,7 @@ function Commands() {
       >
         <LoopIcon />
       </button>
+      <MarkersControl />
     </div>
   );
 }
@@ -214,6 +226,15 @@ function TempoControl() {
   const original = target === null ? null : target / ratio;
   const value = target === null ? t('tempo.percent', { n: Math.round(ratio * 100) }) : formatNumber(Math.round(target), 0);
   const detail = original === null ? t('tempo.speed') : t('tempo.original', { bpm: formatNumber(original, 1) });
+  // Lot 4: during a progressive acceleration the small line says the step heard (« palier 2/7 · 75 % »).
+  const accelerating = useApp((s) => s.metronome.acceleration.enabled && s.loop.enabled && s.loop.region !== null);
+  const detailRef = useRef<HTMLElement>(null);
+  useFrame(() => {
+    const el = detailRef.current;
+    if (!el || !accelerating) return;
+    const text = accelerationText(appStore.getState().metronome.acceleration, getEngine().getMetronomeStatus().accelerationStep, true);
+    if (el.textContent !== text) el.textContent = text;
+  });
   return (
     <div className="reglage" role="group" aria-label={t('tempo.label')}>
       <span className="reglage-nom">{t('tempo.label')}</span>
@@ -222,7 +243,7 @@ function TempoControl() {
       </button>
       <button className="valeur" title={t('tempo.reset')} aria-label={`${value}, ${t('tempo.reset')}`} disabled={ratio === 1} onClick={resetTempo}>
         <strong data-testid="tempo">{value}</strong>
-        <small>{detail}</small>
+        {accelerating ? <small ref={detailRef} data-testid="tempo-palier" /> : <small>{detail}</small>}
       </button>
       <button className="pas" aria-label={t('tempo.faster')} disabled={ratio >= TEMPO_RATIO.max} onClick={() => stepTempo(1)}>
         +
@@ -231,12 +252,4 @@ function TempoControl() {
   );
 }
 
-function MetronomeButton() {
-  const on = useApp((s) => s.playback.metronome);
-  return (
-    <button className="metronome" aria-pressed={on} aria-label={t('metronome.label')} onClick={toggleMetronome}>
-      <MetronomeIcon />
-      {t('metronome.short')}
-    </button>
-  );
-}
+

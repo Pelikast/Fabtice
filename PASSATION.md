@@ -583,6 +583,45 @@ existant au lancement, en créer un), version web hors ligne (PWA), finitions.
 repères s'appuient dessus) ; le document a pu changer de version ; les 29 Mo
 du calcul graphique et les outils téléchargés comptent pour le hors-ligne.
 
+## Lot 4 — métronome et repères : ce qui est livré, choix faits, limites
+
+**Livré (branche `lot-4-etape-1`, document version 4).** « Clic » reste
+l'interrupteur ; un petit bouton à côté ouvre le panneau Métronome : volume,
+décompte d'une ou deux mesures, mesure (2/4 à 7/4, 5/8, 6/8, 7/8, 9/8, 12/8)
+et regroupement (7/8 en 2+2+3, 2+3+2 ou 3+2+2 ; 5/x en 3+2 ou 2+3). Repliés :
+temps forts et faibles (accentué, normal, faible, muet, par temps) et
+accélération progressive de la boucle (départ, gain, toutes les n boucles,
+jusqu'à ; palier affiché dans le panneau et sous le tempo ; « Recommencer »).
+Repères : bouton signet après la boucle dans le transport ; garder la boucle
+sous un nom, la rappeler d'un appui, renommer, ordonner, supprimer ; les
+sections sont les lettres de la grille d'accords (une seule notion), listées,
+bouclées, ajoutées « ici », renommées, supprimées ; une rangée « Repères »
+apparaît dans la règle quand il y en a, et un clic y rappelle une boucle ou
+boucle une section. Le document passe en version 4 (`metronome`, `markers`),
+avec migration ; les morceaux des versions 1 à 3 se rouvrent à l'identique.
+
+**Choix faits, à faire valider par le propriétaire.** Le décompte se joue à
+chaque appui sur Lecture, depuis la tête de lecture, jamais à chaque reprise ;
+il suit la grille, au tempo de la mesure qui suit et au tempo joué.
+L'accélération est en % du tempo réglé, n'agit que si la boucle est active,
+change de palier à la reprise et reste à l'objectif ; elle se joue en qualité
+de prévisualisation, le rendu « Appliquer meilleure qualité » revenant de
+lui-même quand un palier retombe sur son tempo. Changer la mesure dans le
+panneau corrige la grille ; le tempo s'affiche par temps ressenti (noire
+pointée en 6/8). Le volume et le décompte suivent d'un morceau à l'autre ; le
+reste est propre au morceau. Corrigé au passage dans le moteur : un clic
+perdu de temps en temps à la reprise d'une boucle qui commence sur un temps,
+et une rampe de tempo inutile au démarrage.
+
+**Limites.** Seule la métrique de la mesure 1 se règle depuis le panneau ; pas
+de saisie libre d'une métrique ; la rangée Repères n'est que dans l'affichage
+Pistes ; rien n'a été écouté à l'oreille ici. À essayer par le propriétaire :
+le son des trois clics, le décompte et l'accélération sur un vrai morceau, la
+lisibilité du panneau sur iPhone.
+
+**Reste du lot 4** : projets `.fabtice` (ouvrir, créer), version web hors
+ligne (PWA), réglages, finitions.
+
 ## Points ouverts
 
 - **Import par lien lent sur le Mac Intel** (une à deux minutes) : la cause

@@ -29,7 +29,9 @@
     "test:render": "node tests/render.mjs",
     "test:separation-real": "node tests/separation-real.mjs",
     "test:separation-prototype": "node tests/separation-prototype.mjs",
-    "test:memory": "node tests/memory.mjs"
+    "test:memory": "node tests/memory.mjs",
+    "test:metronome": "node tests/metronome.mjs",
+    "test:markers": "node tests/markers.mjs"
   },
   "dependencies": {
     "@audio/encode-flac": "1.4.3",

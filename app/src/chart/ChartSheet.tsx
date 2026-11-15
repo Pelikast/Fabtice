@@ -17,7 +17,7 @@ import { setViewMode } from '../store/actions';
 import { selectAnalysisStatus, selectChartBars, selectDisplayContext } from '../store/chartSelectors';
 import { openPrint } from '../store/exportActions';
 import { setInstrument } from '../store/harmonyActions';
-import { isTempoKnown } from '../store/derived';
+import { isTempoKnown, shownBpm } from '../store/derived';
 import { useApp } from '../store/store';
 import { runAnalysis } from '../analysis/runner';
 import { AnalysisProgressNote } from '../components/AnalysisStatus';
@@ -57,7 +57,7 @@ function ChartHeader({ canPrint }: { canPrint: boolean }) {
   const ctx = useApp(selectDisplayContext);
   const minor = useApp((s) => s.settings.minorNotation);
   const meter = useApp((s) => s.tempoMap.meters[0]!.meter);
-  const bpm = useApp((s) => (isTempoKnown(s.tempoMap) ? nominalBpm(s.tempoMap, s.project?.duration) : null));
+  const bpm = useApp((s) => (isTempoKnown(s.tempoMap) ? shownBpm(s.tempoMap, nominalBpm(s.tempoMap, s.project?.duration)) : null));
   const instrument = useApp((s) => s.view.instrument);
   return (
     <>

@@ -4,7 +4,8 @@
 // grid stays on the music.
 
 import type { Seconds } from '../model/project';
-import type { MeterChange, TempoMap, TempoOrigin } from '../model/tempoMap';
+import type { Meter, MeterChange, TempoMap, TempoOrigin } from '../model/tempoMap';
+import { feltUnits, isAllowedMeter } from './metronome';
 import { BPM_MAX, BPM_MIN, clamp, NUMERATOR_MAX, NUMERATOR_MIN, nominalBpm, timeToBeat } from './tempoMap';
 
 /** Who made the grid once corrected by hand: analysed beats become `corrected`, anything else `manual`. */
@@ -74,4 +75,21 @@ export function canHalveTempo(map: TempoMap, duration?: Seconds): boolean {
 /** True for a grid made of analysed beats (one segment per beat), corrected or not. */
 export function isBeatGrid(map: TempoMap): boolean {
   return map.origin === 'analysis' || map.origin === 'corrected';
+}
+
+/**
+ * A whole meter (lot 4: 5/4, 7/8, 6/8, 12/8…), from the first downbeat on;
+ * meter changes further on are dropped. A beat is one unit of the
+ * denominator, so going from x/4 to x/8 renumbers the beats: the beat a
+ * musician counts (a quarter in 4/4 and 7/8, a dotted quarter in 6/8) stays
+ * on the same music (`grid/metronome.ts#feltUnits`); the beat times never
+ * move. An unchanged meter returns the map itself.
+ */
+export function withMeter(map: TempoMap, meter: Meter): TempoMap {
+  if (!isAllowedMeter(meter)) throw new RangeError(`meter ${meter.numerator}/${meter.denominator} not offered`);
+  const old = map.meters[0]!.meter;
+  if (map.meters.length === 1 && old.numerator === meter.numerator && old.denominator === meter.denominator) return map;
+  const factor = feltUnits(meter) / feltUnits(old);
+  const base = factor === 1 ? map : renumberBeats(map, factor, 0);
+  return { origin: correctedOrigin(map.origin), segments: base.segments.map((s) => ({ ...s })), meters: [{ bar: 0, beat: 0, meter: { ...meter } }] };
 }

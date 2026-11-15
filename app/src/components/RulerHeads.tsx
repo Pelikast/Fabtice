@@ -2,7 +2,7 @@ import { useCallback, useRef } from 'react';
 import { formatNumber, t } from '../i18n';
 import { isTempoKnown, originalBpm } from '../store/derived';
 import { closePanel, togglePanel } from '../store/actions';
-import { selectHasChords } from '../store/chartSelectors';
+import { selectHasChords, selectHasMarkers } from '../store/chartSelectors';
 import { useApp } from '../store/store';
 import { rulerRows } from '../timeline/layout';
 import { ChevronIcon } from '../ui/icons';
@@ -15,6 +15,8 @@ export function RulerHeads() {
   const bpm = useApp((s) => originalBpm(s));
   const open = useApp((s) => s.ui.panel === 'grid');
   const hasChords = useApp(selectHasChords);
+  const hasMarkers = useApp(selectHasMarkers);
+  const markersOpen = useApp((s) => s.ui.panel === 'markers');
   const variable = useApp((s) => s.tempoMap.segments.length > 1);
   const hasProject = useApp((s) => s.project !== null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -25,7 +27,7 @@ export function RulerHeads() {
   const label = known && bpm !== null ? t(variable ? 'ruler.tempoApprox' : 'ruler.tempoValue', { bpm: formatNumber(bpm, 1) }) : t('ruler.tempoUnset');
   return (
     <div className="regle-tetes">
-      {rulerRows({ hasChords }).map((row) => {
+      {rulerRows({ hasChords, hasMarkers }).map((row) => {
         if (row.id === 'tempo') {
           return (
             <button
@@ -44,6 +46,21 @@ export function RulerHeads() {
           );
         }
         if (row.id === 'accords') return <ChordsHead key={row.id} />;
+        if (row.id === 'reperes') {
+          return (
+            <button
+              key={row.id}
+              className="rang-tete reperes"
+              data-panneau="markers"
+              aria-expanded={markersOpen}
+              aria-haspopup="dialog"
+              title={t('markers.open')}
+              onClick={() => togglePanel('markers')}
+            >
+              <span className="texte">{t('ruler.markers')}</span>
+            </button>
+          );
+        }
         return (
           <div key={row.id} className="rang-tete mesures">
             {t('ruler.bars')}

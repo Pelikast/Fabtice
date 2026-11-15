@@ -50,7 +50,13 @@ export type ToWorklet =
   | { type: 'loop'; enabled: boolean; start: number; end: number }
   | { type: 'clicks'; frames: Float64Array; accents: Uint8Array }
   | { type: 'metronome'; enabled: boolean }
-  | { type: 'play' }
+  /** Gain of the click sounds, 0…1 (lot 4). */
+  | { type: 'metronome-volume'; volume: number }
+  /** Progressive acceleration (lot 4): tempo factors of the steps and passes per step, or null to stop it; restarts at the first step. */
+  | { type: 'acceleration'; factors: Float64Array | null; every: number }
+  | { type: 'acceleration-restart' }
+  /** `countIn` (lot 4): click offsets in source frames before the start, and their levels. */
+  | { type: 'play'; countIn?: { offsets: Float64Array; levels: Uint8Array } | null }
   | { type: 'pause' }
   | { type: 'seek'; frame: number }
   | { type: 'ping'; id: number };
@@ -85,9 +91,11 @@ export type FromWorklet =
 // the main thread every animation frame, without allocation or message.
 // Layout (bytes): [0] i32 sequence (odd while writing), [4] i32 flags,
 // [8] f64 heard position (source frames), [16] f64 frame stamp (currentFrame),
-// [24] f64 tempo ratio.
+// [24] f64 tempo ratio (0 during a count-in: the position waits), [32] f64
+// count-in clicks not heard yet, [40] f64 acceleration step (−1 when no plan
+// acts: none, or the loop is off).
 
-export const SHARED_BYTES = 32;
+export const SHARED_BYTES = 48;
 export const FLAG_PLAYING = 1;
 
 export interface SharedViews {
@@ -96,5 +104,5 @@ export interface SharedViews {
 }
 
 export function sharedViews(buffer: SharedArrayBuffer): SharedViews {
-  return { i32: new Int32Array(buffer, 0, 2), f64: new Float64Array(buffer, 8, 3) };
+  return { i32: new Int32Array(buffer, 0, 2), f64: new Float64Array(buffer, 8, 5) };
 }

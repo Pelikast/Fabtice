@@ -41,7 +41,10 @@ if (params.has('demo')) {
   if (params.has('debug')) {
     window.__fabtice = { store: appStore, engine: getEngine(), actions, standards: standardsLibrary, ready: Promise.resolve() };
     void import('./demo/start').then((m) => {
-      if (window.__fabtice) window.__fabtice.lot3 = m.lot3Handle;
+      if (window.__fabtice) {
+        window.__fabtice.lot3 = m.lot3Handle;
+        window.__fabtice.lot4 = m.lot4Handle;
+      }
     });
   }
   // Autosave on, then the kept piece reopened, else the new-piece dialog.

@@ -26,7 +26,7 @@ le stockage.
 | `npm run test:import` | après `build` : import des cinq formats (sélecteur et glisser-déposer), rouverture du projet après rechargement (dont des morceaux de **taille réelle**, 0,5 à 32 Mo, dans un profil de navigateur persistant), morceau gardé mais impossible à rouvrir (offre « Rouvrir » / « Oublier »), autosauvegarde, stockage en échec, import par lien contre un faux `window.fabtice`, coût d'un morceau de cinq minutes (captures dans `FABTICE_IMPORT_OUT`) |
 | `npm run test:timeline` | après `build` : vérifications de la frise dans Chromium (formes d'onde, grille, boucle, défilement, zoom, suivi, téléphone, morceau de dix minutes) |
 | `npm run test:export` | après `build` : le menu « Exporter », le fichier iReal Pro téléchargé par le navigateur, et son lien relu (par un lecteur écrit dans le test) et comparé aux accords de la grille, avec une transposition et un instrument réglés, un accord tapé à la main, une analyse qui se termine |
-| `npm run test:engine` | après `build` (et, en option, `build:desktop`) : mesures du vrai moteur audio dans Chromium (tonalité, tempo, boucle, métronome, limiteur, charge ; sections 14 à 18 : le rendu d'« Appliquer » joué tel quel, passages préécoute/rendu, boucle, métronome, sept pistes) |
+| `npm run test:engine` | après `build` (et, en option, `build:desktop`) : mesures du vrai moteur audio dans Chromium (tonalité, tempo, boucle, métronome, limiteur, charge ; sections 14 à 18 : le rendu d'« Appliquer » joué tel quel, passages préécoute/rendu, boucle, métronome, sept pistes ; sections 19 à 22, lot 4 : 4/4 avec temps forts et faibles et volume, 7/8 regroupé, boucle avec décompte, boucle qui accélère, mesurés contre la grille) |
 | `npm run test:analysis` | après `build` : le **vrai** analyseur dans Chromium (télécharge les outils d'analyse depuis Hugging Face : réseau nécessaire). Le morceau d'essai du prototype passe par l'interface et le résultat est comparé à ce qu'on en sait et à ce que le prototype trouve ; deuxième usage sans téléchargement ; le panneau d'état qui s'ouvre seul au premier téléchargement (il se referme seul à la fin de l'analyse, reste ouvert si l'utilisateur y a touché ou en cas d'erreur) ; annulation (panneau, nouvel import, pendant le téléchargement) ; réseau absent ; téléchargement abîmé (refusé, repris, refusé pour de bon) ; reprise d'un téléchargement interrompu ; lecture pendant l'analyse ; morceau de 4 minutes ; chiffres de durée, de mémoire et de plus longue tâche du fil principal. `FABTICE_ANALYSIS_ONLY=<nom>` n'en lance qu'une partie |
 | `npm run test:separation` | après `build` : les écrans du lot 3 dans Chromium (séparation : fenêtre « Nouveau morceau », panneau, téléchargement, progression, repli, annulation, échec, pistes dans leurs teintes, morceau entier et retour, « Libérer la place » ; réglages avancés ; « Appliquer » ; « Exporter le son » avec un WAV et une archive téléchargés et relus) à 1280 × 800, 960 × 640 et 390 × 844 (dans la fenêtre, au-dessus du transport), puis des instruments de **taille réelle** gardés et rouverts après rechargement (profil persistant). `FABTICE_SEPARATION_OUT` pour les captures, `FABTICE_SEPARATION_ONLY=screens\|flows\|export\|storage` |
 | `npm run test:separation-real` | après `build` : le **vrai** séparateur dans Chromium, sur le processeur (télécharge SCNet, 13 Mo, depuis Hugging Face : réseau nécessaire ; quelques minutes) : 25 s du morceau d'essai de l'analyse importées puis séparées par l'interface (progression qui ne recule pas, temps restant, longueurs exactes, somme des parties comparée au morceau, « Copier le rapport »), deuxième séparation sans téléchargement puis `forgetTools`, annulation en cours de route, repli du chemin « graphique » simulé au segment 3 (`&repli-essai=2`) avec un résultat identique. `FABTICE_SEPARATION_TOOLS=1` : HTDemucs et BS-RoFormer sur 12 s (409 Mo téléchargés) ; `FABTICE_SEPARATION_MEMORY=1` : mémoire de pointe de chaque outil sur un morceau de quatre minutes (long ; `FABTICE_SEPARATION_MEMORY_TOOLS`, `FABTICE_SEPARATION_MEMORY_SECONDS`). `FABTICE_SEPARATION_REAL_ONLY=first\|cancel\|fallback\|tools\|memory` |
@@ -35,6 +35,8 @@ le stockage.
 | `npm run test:render` | après `build`, au premier plan : le vrai rendu (Rubber Band R3 dans un worker) dans Chromium : alignement d'un train de clics à plusieurs tempos et hauteurs, cinq minutes sans dérive, vitesse (secondes de calcul par minute stéréo, gain de plusieurs workers), annulation, binaire chargé au premier rendu seulement et licence servie ; puis « Appliquer » dans l'app avec le vrai moteur (progression réelle, rendu joué tel quel, retour à la préécoute, refus calme d'un appareil trop petit) à 1280 × 800 et 390 × 844. `FABTICE_RENDER_OUT` pour les captures, `FABTICE_RENDER_ONLY=renderer\|app`, `FABTICE_RENDER_QUICK=1` saute les cinq minutes |
 | `npm run test:export-audio` | après `build` : « Exporter le son » avec les vrais encodeurs MP3 et FLAC (WAV, MP3, FLAC relus et comparés, archive, boucle, annulation, encodeur qui ne se charge pas, export à une autre tonalité et un autre tempo par le rendu), vitesses, captures du dialogue |
 | `npm run test:export-memory` | après `build`, au premier plan : la mémoire de l'export de sept pistes de cinq minutes (archive de WAV, de MP3, mélange en WAV, FLAC et MP3), chiffres affichés |
+| `npm run test:metronome` | après `build` (lot 4) : le panneau du métronome (volume, décompte, mesure et regroupement, temps forts et faibles, accélération), ce qui arrive au moteur factice (piste de clics, volume, plan, décompte au moment de Lecture), le palier et le décompte affichés, le panneau dans la fenêtre à 1280 × 800, 960 × 640 et 390 × 844, puis les réglages retrouvés après rechargement (profil persistant). `FABTICE_METRONOME_OUT` pour les captures |
+| `npm run test:markers` | après `build` (lot 4) : boucles gardées (garder, rappeler, renommer, ordonner, supprimer), sections (les lettres de la grille : listées, bouclées, ajoutées, renommées, supprimées, les mêmes dans la grille d'accords), la rangée « Repères » de la règle (clic), le clavier, le téléphone, puis tout retrouvé après rechargement (profil persistant). `FABTICE_MARKERS_OUT` pour les captures |
 | `npm run test:chart` | après `build` : la grille d'accords comparée à la maquette (même balisage des accords, mêmes tailles, sections, boucle, mesure en cours, instruments, états vide et « analyse en cours », téléphone), puis les gestes (clic, glisser, suivi), l'éditeur d'accord (toujours entier et dans la fenêtre, à 1280 × 800 et 960 × 640), tous les panneaux flottants (Tempo, analyse, réglages, Exporter, accord fin, tonalité : dans la fenêtre, au-dessus du transport, dernier bouton cliquable, à 1280 × 800, 1024 × 700 et 960 × 640 ; `ui/useFitPanel.ts` leur donne une hauteur maximale et un défilement propre quand la fenêtre est trop basse), la tonalité, les sections, le clavier, l'autosauvegarde (rechargement d'un morceau gardé), le toucher réel sur téléphone (390 × 844) et l'impression (feuille de style d'impression, PDF A4 et Letter lus avec `pdftotext`, sauts de page) ; panneaux de corrections et d'accordage ; captures de l'app, de la maquette et des pages imprimées dans `FABTICE_CHART_OUT` (`pdftotext`, `pdfinfo` et `pdftoppm` de poppler sont nécessaires pour la partie impression) |
 
 Les fichiers audio de test de `test:import` sont dans `tests/fixtures/` (quelques
@@ -92,9 +94,13 @@ src/
                       traits de mesure et de sous-grille, magnétisme, boucles
                       (loops.ts : sélection et bords calés sur la sous-grille ou
                       libres ; loopText.ts : leur lecture « 2.2 à 4.3 (4e double) »),
-                      clics du métronome, formats d'affichage, « Battre le tempo »,
+                      clics du métronome (metronome.ts, lot 4 : métriques, regroupements,
+                      temps forts et faibles, décompte, paliers d'accélération),
+                      formats d'affichage, « Battre le tempo »,
                       carte de tempo à partir de temps analysés, corrections
                       (× 2, ÷ 2, premier temps), courbe de tempo par mesure
+  markers/            repères (lot 4), purs et testés : sections comme plages, boucles
+                      gardées (liste ordonnée, noms)
   harmony/            accords et tonalités, purs et testés : vocabulaire, lecture
                       (saisie et étiquettes Harte), orthographe par degré,
                       transposition, instruments ; composant <ChordSymbol>
@@ -188,7 +194,9 @@ tests/                vérifications dans Chromium (smoke.mjs, timeline.mjs, imp
   sous-grille 1/2/4/8, triolets, magnétisme, suivi, instrument de la grille), `AppSettings` (notation
   des accords mineurs).
 - Le tempo cible affiché vient de `targetBpm()` (`store/derived.ts`) ; tant que
-  le tempo du morceau n'est pas saisi, le transport parle en pourcentage.
+  le tempo du morceau n'est pas saisi, le transport parle en pourcentage. Depuis
+  le lot 4 il est donné **par temps ressenti** (noire pointée en 6/8 : voir
+  `grid/metronome.ts#feltUnits`).
 
 ### Lot 2 : analyse, corrections, harmonie (document version 2)
 
@@ -946,6 +954,150 @@ continue), `=echec` ; `&rendu=lent` (voir l'attente d'« Appliquer ») ;
 `&export=ouvert`. `window.__fabtice.lot3` (avec `?demo` et `?debug`) donne la
 séparation, le rendu, l'export, le registre, le format 16 bits et le stockage.
 
+### Lot 4 : métronome avancé et repères (document version 4)
+
+#### Modèle
+
+| Donnée | Où | Contenu |
+|---|---|---|
+| Métronome | `AppState.metronome`, `model/metronome.ts#MetronomeSettings` | volume du clic (0…1), décompte (`countInBars` : 0, 1 ou 2 mesures), motifs par métrique (`patterns`, clé « 7/8 » : regroupement et force de chaque temps, `accent`, `normal`, `soft`, `silent` ; seules les métriques que l'utilisateur a changées y sont, les autres suivent `grid/metronome.ts#defaultPattern`), accélération progressive (`acceleration` : en marche, départ, pas, boucles par palier, objectif, en % du tempo réglé). La marche/arrêt du clic reste `playback.metronome` (lot 1) |
+| Repères | `AppState.markers`, `model/markers.ts#Markers` | les **boucles gardées** (`loops` : identifiant, nom de 1 à 40 caractères, zone en **secondes source** comme `LoopState.region`, calée ou libre comme elle l'était), dans l'ordre choisi par l'utilisateur |
+| Sections | `corrections.sections` (lot 2, **inchangé**) | une seule notion de section : les lettres de la grille d'accords. Une section va de sa barre à la barre de la section suivante (ou à la fin du morceau) : `markers/markers.ts#sectionRanges`. Le panneau des repères et la règle les montrent, en ajoutent, les renomment, les suppriment ; la grille d'accords montre les mêmes |
+| Métrique | `tempoMap.meters` (inchangé) | 2 à 12 temps sur 4 ou 8 (5/4, 7/8, 6/8, 12/8…). Un temps de la grille reste l'unité du dénominateur : une mesure de 7/8 a sept croches. Le tempo s'affiche et se tape **par temps ressenti** (`grid/metronome.ts#feltUnits` : la noire en x/4 et dans les autres x/8, la noire pointée en 6/8, 9/8, 12/8), dans le transport, la règle, le panneau « Tempo et mesures » et l'en-tête de la grille |
+
+**Document version 4** (`model/document.ts`) : `metronome` et `markers` en plus.
+Migration 3 → 4 (`storage/documentFormat.ts#MIGRATIONS`) : métronome par
+défaut (volume 0,5, pas de décompte, accents par défaut, pas d'accélération),
+aucune boucle gardée ; rien d'autre ne bouge. Les chaînes 1 → 2 → 3 → 4 et 2 → 4
+sont vérifiées avec un document gardé de chaque version (`store/lot4.test.ts`).
+À la lecture : les boucles gardées sont faites à la main, elles se relisent
+**exactement** (sinon `corrupt`, comme les corrections) ; le métronome ne fait que
+régler des clics, tout champ illisible redevient sa valeur par défaut, champ par
+champ, et un motif qui ne correspond pas à sa métrique est abandonné.
+`store/document.ts#documentChanged` suit `metronome` et `markers` :
+l'autosauvegarde les garde. Un nouveau morceau garde le volume du clic et le
+décompte du morceau d'avant (des habitudes), le reste repart des valeurs par
+défaut.
+
+#### Fonctions pures (`grid/metronome.ts`, `markers/markers.ts`)
+
+- `meterKey`, `feltUnits`, `defaultGrouping` (7/8 : 2+2+3 ; 5/x : 3+2 ; 7/4 :
+  4+3 ; 6/8, 9/8, 12/8 : des trois), `groupingChoices` (rien sous cinq temps,
+  sinon le défaut puis les autres découpes en deux et trois, six au plus),
+  `levelsFromGrouping` (premier temps accentué ; un seul groupe : les autres
+  normaux ; plusieurs : début de groupe normal, le reste faible),
+  `patternFor`, `isValidPattern`, `nextLevel`.
+- `metronomeClickTrack(map, de, à, motifs)` : un clic par temps de la grille,
+  au niveau que sa place dans la mesure a dans le motif de **sa** métrique ; un
+  temps muet n'a pas de clic. Codes `ClickTrack.accents` : 1 accentué, 0
+  normal, 2 faible (le lot 1 n'utilisait que 0 et 1 ; `grid/lines.ts#metronomeClicks`
+  reste pour les tests).
+- `countInClicks(map, départ, mesures, motifs)` : les temps de la grille qui
+  précèdent le départ, sur une ou deux mesures, **au tempo de la mesure qui
+  suit le départ** (moyenne sur cette mesure : un tempo analysé temps par temps
+  ne fait pas trembler le décompte). Un départ entre deux temps garde les temps
+  de la grille : la musique entre là où elle est. Un temps muet du motif est
+  compté quand même, faiblement.
+- `accelerationSteps(plan)` (départ, départ + pas… jusqu'à l'objectif, qui est
+  le dernier palier), `accelerationFactor`, `accelerationStatus`,
+  `stepOfPass(plan, passage)` (le palier entendu pendant le passage n),
+  `clampAcceleration`.
+- `grid/corrections.ts#withMeter(map, métrique)` : correction de la grille ;
+  le premier temps et les temps eux-mêmes ne bougent pas ; entre x/4 et x/8 les
+  temps sont renumérotés pour que le temps ressenti reste sur la musique (4/4 →
+  6/8 : une noire analysée devient une noire pointée, trois croches ; 4/4 →
+  7/8 : une noire reste deux croches).
+- `sectionRanges`, `sectionAt`, `barForNewSection`, `nextSectionLetter`,
+  `cleanName`, `defaultLoopName`, `loopWithRegion`, `withLoopAdded/Renamed/Removed/Moved`.
+
+#### Contrat du moteur (ajouts du lot 4)
+
+- `play({ countIn })` : `CountInClicks` = décalages en **secondes source avant
+  le départ** et codes de son. Le moteur les joue au tempo en direct
+  (accélération comprise) : les clics d'abord, seuls, l'état est `playing` et la
+  position **attend au départ**, puis le départ est entendu exactement un temps
+  après le dernier clic (la latence de Signalsmith est comptée ; sur le rendu
+  appliqué il n'y en a pas). Pause pendant le décompte : arrêt immédiat au
+  départ. Déplacement pendant le décompte : plus de décompte, la lecture part de
+  là. Ignoré si la lecture est déjà en cours.
+- `setMetronomeVolume(0…1)` (0,5 par défaut) : clics et décompte.
+- `setAcceleration({ factors, every } | null)` et `restartAcceleration()` : tant
+  que la boucle est active, le tempo entendu est le tempo en direct ×
+  `factors[palier]` ; chaque passage de la boucle sur le chemin le plus entendu
+  compte, et après `every` passages le palier suivant commence **à la reprise de
+  la boucle** (côté entrée : il s'entend à la reprise entendue), sans lissage à
+  ce moment-là, et les clics du nouveau passage sont placés au nouveau tempo. Le
+  dernier palier reste. Les paliers repartent de zéro quand le plan change,
+  quand la boucle change (ou est activée, désactivée), et sur
+  `restartAcceleration()` ; pas à la pause.
+- `getMetronomeStatus()` : `{ countInLeft, accelerationStep }`, lu à chaque image
+  (bloc partagé : deux `f64` de plus, `SHARED_BYTES` = 48).
+- `audio/connect.ts` envoie au moteur la piste de clics (grille et motifs), le
+  volume et le plan (`accelerationSteps` en facteurs) ; `actions.ts#play`
+  calcule le décompte à la position de la tête.
+
+**Corrections du moteur au passage.** (1) Une boucle qui commence sur un temps
+perdait de temps en temps son clic à la reprise : la fin de la plage parcourue
+par le métronome et le début de la suivante étaient deux calculs en virgule
+flottante différents ; elles sont désormais la même somme (curseur entier +
+fraction), et la reprise du métronome suit exactement celle du curseur
+(`worklet/lot4.test.ts`, « loop wraps »). (2) Un tempo changé pendant la pause
+s'applique d'un coup à la reprise de la lecture, au lieu d'une rampe depuis
+l'ancien tempo (le premier clic tombait quelques millisecondes à côté).
+
+#### « Appliquer » et l'accélération
+
+Un rendu appliqué est fait pour **un** tempo. Pendant l'accélération, chaque
+palier est donc joué en **qualité de prévisualisation** (Signalsmith) ; quand un
+palier retombe exactement sur le tempo du rendu (l'objectif 100 % avec un rendu
+fait au tempo réglé), le moteur repasse de lui-même sur le rendu, comme pour
+tout retour aux valeurs appliquées. Le transport le dit (« appliqué au tempo
+réglé ») et le panneau aussi. Le bouton « Appliquer » reste disponible : il
+calcule le rendu au tempo réglé, c'est-à-dire l'objectif à 100 %.
+
+Avec une **carte de tempo variable** (temps analysés, courbe de tempo), un palier
+est un pourcentage du jeu enregistré : la courbe garde sa forme, accélérée ou
+ralentie d'autant, et les clics restent sur les temps analysés (ils sont en
+temps source). Le tempo réglé dans le transport et les paliers se multiplient :
+changer le tempo pendant l'accélération change la base, le palier en cours
+reste.
+
+#### Écrans
+
+| Où | Quoi |
+|---|---|
+| Transport, à droite (`MetronomePanel.tsx`) | « Clic » reste l'interrupteur d'un seul geste ; à côté, un petit bouton (trois curseurs) ouvre le panneau **Métronome** : interrupteur, volume, décompte (« Aucun », « 1 mesure », « 2 mesures »), mesure (liste des métriques courantes ; la changer corrige la grille), regroupement (5/x, 7/x, 8/8…) ; repliés : « Temps forts et faibles » (un bouton par temps : accentué, normal, faible, muet ; « Rétablir ») et « Accélération progressive » (départ, gain, toutes les n boucles, jusqu'à ; état « Palier 2 sur 7 · 75 % » ou « Objectif atteint », « Recommencer » ; sans boucle, une phrase le dit) |
+| Transport, position | « décompte · 3 » au-dessus du temps pendant le décompte |
+| Transport, tempo | pendant l'accélération, la petite ligne dit le palier entendu (« palier 2/7 · 75 % ») |
+| Transport, au centre (`MarkersPanel.tsx`) | après la boucle, « Repères » (signet ; un point de laiton quand il y en a) ouvre le panneau : « Garder cette boucle » (ou « Cette boucle est gardée : « Pont » »), la liste des boucles gardées (un appui rappelle la boucle : zone et boucle active, la tête suit la règle de toute nouvelle boucle), la liste des sections (un appui boucle la section), « Nouvelle section ici » (au début de la boucle, sinon à la tête de lecture ; lettre suivante libre) ; « Modifier » montre renommer (champ), monter, descendre, supprimer. Flèches haut et bas dans les listes, Entrée rappelle, Échap ferme |
+| Règle des pistes (`timeline/markerLayer.ts`) | une rangée « Repères » (22 px) entre les accords et les mesures, seulement quand le morceau a une section ou une boucle gardée : sections encadrées sur leur barre, boucles gardées par leur nom au-dessus d'un fil de laiton qui couvre la boucle ; ce sont des boutons (clic, clavier) qui rappellent la boucle ou bouclent la section ; un nom qui toucherait le précédent devient une simple languette (titre au survol). L'en-tête « Repères » ouvre le panneau |
+
+`window.__fabtice.lot4` (avec `?demo` et `?debug`) donne les fonctions de
+`grid/metronome.ts`, les actions du métronome et des repères, et de quoi
+fabriquer une grille.
+
+#### Vérifications
+
+- `npm test` : `grid/metronome.test.ts` (métriques, regroupements, niveaux,
+  piste de clics sur une grille fixe et variable, décompte, paliers, correction
+  de métrique), `markers/markers.test.ts`, `store/lot4.test.ts` (migration
+  depuis des documents des versions 1, 2 et 3, aller-retour, lecture
+  indulgente du métronome, lecture stricte des boucles, autosauvegarde,
+  actions, moteur factice), `audio/worklet/lot4.test.ts` (vrai Signalsmith
+  dans Node : décompte à 0,8, 1 et 1,3 — clics espacés d'un temps joué à deux
+  échantillons près, musique un temps après le dernier, métronome qui
+  enchaîne ; boucle qui accélère 80 → 90 → 100 % ; boucle sur un temps à trois
+  tempos ; sons et volume).
+- `npm run test:engine`, sections 19 à 22, vrai worklet dans Chromium : 4/4 avec
+  accent, normal, faible (espacement égal à la grille à deux échantillons près,
+  écart à la pulsation constant, volume) ; 7/8 en 3+2+2 avec un temps muet ;
+  boucle avec décompte ; boucle qui accélère (durée de chaque passage, un clic
+  par temps à chaque palier).
+- `npm run test:metronome` et `npm run test:markers` (moteur factice) : panneaux,
+  ce qui arrive au moteur, la règle, le clavier, 1280 × 800, 960 × 640 et
+  390 × 844, puis réglages et repères retrouvés après rechargement dans un profil
+  persistant. Captures dans `FABTICE_METRONOME_OUT` et `FABTICE_MARKERS_OUT`.
+
 ## Contrats pour la suite
 
 ### Lot 2 : ce qui existe et ce qui reste, par chantier
@@ -1624,9 +1776,11 @@ ligne et « Appliquer » » plus haut),
 `play` (à appeler dans le geste de l'utilisateur la première fois), `pause`,
 `seek`, `getPosition` (position **entendue**, appelée à chaque image : sans
 allocation), `getDuration`, `setLoop`, `setTransposition(demi-tons, cents)`,
-`setTempoRatio`, `setTrackMix`, `setMetronome`, `setClickTrack` (temps des
-clics, calculés par `grid/lines.ts#metronomeClicks`), `on('state' | 'ended' |
-'error')`, `dispose`. Pistes à 48 kHz (`ENGINE_SAMPLE_RATE`), données soit par
+`setTempoRatio`, `setTrackMix`, `setMetronome`, `setClickTrack` (temps et sons
+des clics, calculés par `grid/metronome.ts#metronomeClickTrack` depuis le lot 4),
+`setMetronomeVolume`, `setAcceleration`, `restartAcceleration`,
+`getMetronomeStatus` et `play({ countIn })` (lot 4 : voir « Lot 4 : métronome
+avancé et repères » plus haut), `on('state' | 'ended' | 'error')`, `dispose`. Pistes à 48 kHz (`ENGINE_SAMPLE_RATE`), données soit par
 `pcm` (la forme 16 bits du registre, utilisée telle quelle, sans copie : c'est ce
 que l'app passe depuis le lot 3), soit par `channels` (Float32 par canal,
 converti une fois : tests).
@@ -1926,7 +2080,8 @@ boucler des mesures entières il suffit de glisser d'une barre à l'autre.
 
 **Forme gardée.** Rien n'a changé : la boucle était déjà un intervalle de
 **secondes source** (`LoopState.region`), jamais des numéros de mesure. Le
-document reste en version 3, sans migration ; une boucle gardée par une version
+document est resté en version 3 pour cela, sans migration (la version 4 du lot 4
+ajoute le métronome et les repères ; les boucles gardées ont la même forme) ; une boucle gardée par une version
 précédente (toujours en mesures entières) se relit à l'identique, une boucle
 coupée entre deux temps se relit à l'échantillon près
 (`documentFormat.test.ts`, `restore.test.ts`, `test:timeline` section `loops`

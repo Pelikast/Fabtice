@@ -216,8 +216,11 @@ export interface ManualGridChange {
  */
 export function withManualGrid(map: TempoMap, change: ManualGridChange): TempoMap {
   const meter = map.meters[0]!.meter;
-  const bpm = clamp(change.bpm ?? nominalBpm(map), BPM_MIN, BPM_MAX);
-  const numerator = Math.round(clamp(change.numerator ?? meter.numerator, NUMERATOR_MIN, NUMERATOR_MAX));
+  // Tempos are bounded per beat a musician counts: in 6/8 a grid beat is an eighth (lot 4, `grid/metronome.ts#feltUnits`).
+  const felt = meter.denominator !== 8 ? 1 : meter.numerator >= 6 && meter.numerator % 3 === 0 ? 3 : 2;
+  const bpm = clamp(change.bpm ?? nominalBpm(map), BPM_MIN * felt, BPM_MAX * felt);
+  // A meter set in the metronome panel (up to 12 beats) is kept unless the beats per bar are changed here.
+  const numerator = change.numerator === undefined ? meter.numerator : Math.round(clamp(change.numerator, NUMERATOR_MIN, NUMERATOR_MAX));
   return constantTempoMap({
     bpm,
     firstDownbeat: change.firstDownbeat ?? firstDownbeat(map),

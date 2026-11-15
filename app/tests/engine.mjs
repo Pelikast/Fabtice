@@ -120,6 +120,8 @@ function installHelpers() {
     e.setTempoRatio(1);
     e.setMetronome(false);
     e.setClickTrack({ times: new Float64Array(0), accents: new Uint8Array(0) });
+    e.setMetronomeVolume(0.5);
+    e.setAcceleration(null);
     const tracks = specs.map((s) => ({ id: s.id, channels: s.channels || [s.data], sampleRate: SR }));
     const mixes = Object.fromEntries(specs.map((s) => [s.id, s.mix || { mute: false, solo: false, volume: 1 }]));
     await e.loadTracks(tracks, mixes);
@@ -1127,6 +1129,198 @@ try {
     check('seven stereo tracks applied play without an underrun or a gap', a.inUse && a.d.overBudget === 0 && a.d.missingChunks === 0 && a.maxRun < 64 && (a.us0 < 0 || a.us1 === a.us0) && a.d.applied === 1, `over-budget quanta ${a.d.overBudget}, underrun events ${a.us0} -> ${a.us1}, longest run of exact zeros ${a.maxRun} samples, rendered weight ${a.d.applied}`);
     check('applied costs clearly less processor than the preview', a.avg < p.avg / 4 && p.d.applied === 0 && !p.inUse, `applied ${(a.avg * 100).toFixed(2)} % of the audio-thread budget, preview ${(p.avg * 100).toFixed(2)} % (7 stereo tracks, metronome on; coarse 1 ms timer, averaged over 12 s)`);
     console.log(`      rendered set for these 7 tracks of 120 s at 0.7: ${(r.mem[0] / 1048576).toFixed(0)} MB, next to ${(r.mem[1] / 1048576).toFixed(0)} MB of source`);
+  }
+
+  // ---- 19 to 22 (lot 4): the metronome against the grid, measured on the real worklet's output.
+  // The pulses of the track are on the left only: L - R holds the music alone, R the clicks alone.
+  // The grids and click tracks come from the app's own functions (`grid/metronome.ts`, `window.__fabtice.lot4`).
+  const lot4Helpers = () => {
+    T.onsets = (a, thr, gap = 2000) => {
+      const o = [];
+      let last = -1e9;
+      for (let i = 0; i < a.length; i++) {
+        if (Math.abs(a[i]) > thr) {
+          if (i - last > gap) o.push(i);
+          last = i;
+        }
+      }
+      return o;
+    };
+    T.peakAfter = (a, at, len = 1200) => {
+      let m = 0;
+      for (let i = at; i < Math.min(a.length, at + len); i++) m = Math.max(m, Math.abs(a[i]));
+      return m;
+    };
+  };
+
+  // ---- 19. 4/4 with strong and weak beats: every click on its beat of the grid, three sounds, the volume
+  if (want('19')) {
+    const r = await page.evaluate(async (helpers) => {
+      new Function(`return (${helpers})`)()();
+      const e = T.eng();
+      const L4 = window.__fabtice.lot4;
+      const map = L4.tempoMap.constantTempoMap({ bpm: 100, firstDownbeat: 0.6, meter: { numerator: 4, denominator: 4 }, origin: 'manual' });
+      const patterns = { '4/4': { grouping: [4], levels: ['accent', 'normal', 'soft', 'normal'] } };
+      const track = L4.metronome.metronomeClickTrack(map, 0, 20, patterns);
+      const pulses = T.pulses(20, [...track.times], 0.3);
+      await T.load([{ id: 'p', channels: [pulses, new Float32Array(pulses.length)] }]);
+      e.setTempoRatio(0.9);
+      e.setClickTrack(track);
+      e.setMetronome(true);
+      const run = async (volume) => {
+        e.setMetronomeVolume(volume);
+        e.seek(0.3);
+        const { data, dataR } = await T.record(5500, () => e.play());
+        e.pause();
+        const music = data.map((v, i) => v - dataR[i]);
+        const so = T.onsets(music, 0.05);
+        const co = T.onsets(dataR, 0.001);
+        const t0 = track.times.findIndex((t) => t >= 0.3);
+        // the code of each heard click, in order, and its peak
+        const peaks = co.map((c, i) => ({ code: track.accents[t0 + i], peak: T.peakAfter(dataR, c) }));
+        const n = Math.min(so.length, co.length);
+        const off = [];
+        for (let i = 0; i < n; i++) off.push(co[i] - so[i]);
+        // spacing of the clicks against the grid's beats at the played tempo (both on the output clock)
+        let grid = 0;
+        for (let i = 1; i < co.length; i++) grid = Math.max(grid, Math.abs(co[i] - co[i - 1] - ((track.times[t0 + i] - track.times[t0 + i - 1]) / 0.9) * 48000));
+        return { n, so: so.length, co: co.length, off, peaks, grid };
+      };
+      return { full: await run(0.5), half: await run(0.25) };
+    }, lot4Helpers.toString());
+    const { full, half } = r;
+    const offs = full.off.map((x) => x / 48);
+    const mean = offs.reduce((a, b) => a + b, 0) / offs.length;
+    check('4/4: one click per beat of the grid, none doubled or missing', full.n >= 8 && Math.abs(full.so - full.co) <= 1, `${full.co} clicks, ${full.so} beats`);
+    check('4/4: each click on its beat (same recording), no drift', Math.max(...offs.map((x) => Math.abs(x - mean))) < 1.5 && Math.abs(mean) < 6, `mean ${mean.toFixed(2)} ms, spread ${Math.max(...offs.map((x) => Math.abs(x - mean))).toFixed(2)} ms`);
+    check('4/4: clicks spaced exactly as the grid at 0.9 (within 2 samples)', full.grid <= 2, `${full.grid.toFixed(1)} samples`);
+    const avg = (code, set) => {
+      const xs = set.peaks.filter((p) => p.code === code).map((p) => p.peak);
+      return xs.reduce((a, b) => a + b, 0) / xs.length;
+    };
+    const [ac, no, so] = [avg(1, full), avg(0, full), avg(2, full)];
+    check('three sounds: accent louder than normal, normal clearly louder than soft', ac > no * 1.1 && no > so * 1.8, `accent ${ac.toFixed(3)}, normal ${no.toFixed(3)}, soft ${so.toFixed(3)}`);
+    check('the click volume scales the clicks (0.25 is half of 0.5)', Math.abs(avg(0, half) / no - 0.5) < 0.06, `${(avg(0, half) / no).toFixed(3)}`);
+  }
+
+  // ---- 20. 7/8 grouped 3+2+2 with a silent beat: the clicks fall on the grid's eighths, the silent one has none
+  if (want('20')) {
+    const r = await page.evaluate(async (helpers) => {
+      new Function(`return (${helpers})`)()();
+      const e = T.eng();
+      const L4 = window.__fabtice.lot4;
+      const map = L4.tempoMap.constantTempoMap({ bpm: 300, firstDownbeat: 0.5, meter: { numerator: 7, denominator: 8 }, origin: 'manual' });
+      const patterns = { '7/8': { grouping: [3, 2, 2], levels: ['accent', 'silent', 'soft', 'normal', 'soft', 'normal', 'soft'] } };
+      const track = L4.metronome.metronomeClickTrack(map, 0, 20, patterns);
+      const all = L4.metronome.metronomeClickTrack(map, 0, 20, {});
+      const pulses = T.pulses(20, [...track.times], 0.3);
+      await T.load([{ id: 'p', channels: [pulses, new Float32Array(pulses.length)] }]);
+      e.setTempoRatio(1);
+      e.setClickTrack(track);
+      e.setMetronome(true);
+      e.setMetronomeVolume(0.5);
+      e.seek(0.4);
+      const { data, dataR } = await T.record(5000, () => e.play());
+      e.pause();
+      const music = data.map((v, i) => v - dataR[i]);
+      const so = T.onsets(music, 0.05, 1500);
+      const co = T.onsets(dataR, 0.001, 1500);
+      const t0 = track.times.findIndex((t) => t >= 0.4);
+      let grid = 0;
+      for (let i = 1; i < co.length; i++) grid = Math.max(grid, Math.abs(co[i] - co[i - 1] - (track.times[t0 + i] - track.times[t0 + i - 1]) * 48000));
+      const n = Math.min(so.length, co.length);
+      const off = [];
+      for (let i = 0; i < n; i++) off.push((co[i] - so[i]) / 48);
+      const perBar = track.times.filter((t) => t >= 0.5 && t < 0.5 + 7 * 0.2 - 1e-6).length;
+      const allPerBar = all.times.filter((t) => t >= 0.5 && t < 0.5 + 7 * 0.2 - 1e-6).length;
+      return { n, so: so.length, co: co.length, off, grid, perBar, allPerBar, codes: [...track.accents.slice(track.times.findIndex((t) => t >= 0.5 - 1e-9), track.times.findIndex((t) => t >= 0.5 - 1e-9) + 6)] };
+    }, lot4Helpers.toString());
+    const mean = r.off.reduce((a, b) => a + b, 0) / r.off.length;
+    check('7/8 3+2+2: six clicks per bar of seven eighths (the silent beat has none)', r.perBar === 6 && r.allPerBar === 7 && r.codes.join(',') === '1,2,0,2,0,2', `${r.perBar}/${r.allPerBar}, codes ${r.codes.join(',')}`);
+    check('7/8: clicks spaced exactly as the grid’s eighths (within 2 samples)', r.co >= 12 && r.grid <= 2, `${r.co} clicks, ${r.grid.toFixed(1)} samples`);
+    check('7/8: each click on its beat, none doubled or missing', Math.abs(r.so - r.co) <= 1 && Math.max(...r.off.map((x) => Math.abs(x - mean))) < 1.5, `mean ${mean.toFixed(2)} ms`);
+  }
+
+  // ---- 21. a loop with a count-in: the count at the played tempo, the loop comes in one beat after it, then clicks on every pass
+  if (want('21')) {
+    const r = await page.evaluate(async (helpers) => {
+      new Function(`return (${helpers})`)()();
+      const e = T.eng();
+      const L4 = window.__fabtice.lot4;
+      const map = L4.tempoMap.constantTempoMap({ bpm: 120, firstDownbeat: 0, meter: { numerator: 4, denominator: 4 }, origin: 'manual' });
+      const track = L4.metronome.metronomeClickTrack(map, 0, 20, {});
+      const loopBeats = [...track.times].filter((t) => t >= 2 && t < 4);
+      const pulses = T.pulses(20, loopBeats, 0.3);
+      await T.load([{ id: 'p', channels: [pulses, new Float32Array(pulses.length)] }]);
+      e.setTempoRatio(0.8);
+      e.setClickTrack(track);
+      e.setMetronome(true);
+      e.setMetronomeVolume(0.5);
+      e.setLoop({ start: 2, end: 4 });
+      e.seek(2);
+      const countIn = L4.metronome.countInClicks(map, 2, 1, {});
+      const statuses = [];
+      const { data, dataR } = await T.record(9000, async () => {
+        await e.play({ countIn });
+        for (let k = 0; k < 6; k++) {
+          await T.sleep(250);
+          statuses.push([e.getMetronomeStatus().countInLeft, e.getPosition()]);
+        }
+      });
+      e.pause();
+      e.setLoop(null);
+      const music = data.map((v, i) => v - dataR[i]);
+      const so = T.onsets(music, 0.05);
+      const co = T.onsets(dataR, 0.001);
+      return { so, co, count: countIn.offsets.length, statuses };
+    }, lot4Helpers.toString());
+    const step = (0.5 / 0.8) * 48000;
+    let even = 0;
+    for (let i = 1; i < r.co.length; i++) even = Math.max(even, Math.abs(r.co[i] - r.co[i - 1] - step));
+    const firstMusic = r.so[0];
+    const lastCount = r.co[r.count - 1];
+    check('count-in: four clicks, then one per beat through every pass of the loop, evenly (within 2 samples)', r.count === 4 && r.co.length >= 12 && even <= 2, `${r.co.length} clicks, worst ${even.toFixed(1)} samples`);
+    check('the loop comes in one played beat after the last count-in click', Math.abs(firstMusic - lastCount - step) < 0.003 * 48000, `${((firstMusic - lastCount - step) / 48).toFixed(2)} ms`);
+    check('the clicks after the count-in fall on the loop’s beats, pass after pass', r.so.length >= 8 && r.so.every((s, i) => Math.abs(r.co[r.count + i] - s) < 0.006 * 48000), `${r.so.length} beats heard`);
+    check('during the count-in the position waits at the loop start and the count is reported', r.statuses[0][0] > 0 && Math.abs(r.statuses[0][1] - 2) < 1e-3, JSON.stringify(r.statuses.slice(0, 3)));
+  }
+
+  // ---- 22. an accelerating loop: 80, 90, then 100 %, a step per pass; clicks on the beats at every tempo
+  if (want('22')) {
+    const r = await page.evaluate(async (helpers) => {
+      new Function(`return (${helpers})`)()();
+      const e = T.eng();
+      const L4 = window.__fabtice.lot4;
+      const map = L4.tempoMap.constantTempoMap({ bpm: 120, firstDownbeat: 0, meter: { numerator: 4, denominator: 4 }, origin: 'manual' });
+      const track = L4.metronome.metronomeClickTrack(map, 0, 20, {});
+      const loopBeats = [...track.times].filter((t) => t >= 2 && t < 4);
+      const pulses = T.pulses(20, loopBeats, 0.3);
+      await T.load([{ id: 'p', channels: [pulses, new Float32Array(pulses.length)] }]);
+      e.setTempoRatio(1);
+      e.setClickTrack(track);
+      e.setMetronome(true);
+      e.setMetronomeVolume(0.5);
+      e.setLoop({ start: 2, end: 4 });
+      const plan = { enabled: true, startPercent: 80, stepPercent: 10, everyRepeats: 1, targetPercent: 100 };
+      e.setAcceleration({ factors: Float64Array.from(L4.metronome.accelerationSteps(plan), (p) => p / 100), every: 1 });
+      e.seek(2);
+      const { data, dataR } = await T.record(Math.round((2 / 0.8 + 2 / 0.9 + 2 + 2 + 0.8) * 1000), () => e.play());
+      const step = e.getMetronomeStatus().accelerationStep;
+      e.pause();
+      e.setAcceleration(null);
+      e.setLoop(null);
+      const music = data.map((v, i) => v - dataR[i]);
+      return { so: T.onsets(music, 0.05), co: T.onsets(dataR, 0.001), step };
+    }, lot4Helpers.toString());
+    const starts = r.so.filter((_, i) => i % 4 === 0);
+    const passes = [2 / 0.8, 2 / 0.9, 2];
+    const got = passes.map((_, k) => (starts[k + 1] - starts[k]) / 48000);
+    check('accelerating loop: each pass at its step’s tempo (80, 90, 100 %)', starts.length >= 4 && got.every((g, k) => Math.abs(g - passes[k]) < 0.02), got.map((g) => g.toFixed(3)).join(' s, ') + ' s');
+    const n = Math.min(r.so.length, r.co.length);
+    const off = Array.from({ length: n }, (_, i) => (r.co[i] - r.so[i]) / 48);
+    const med = [...off].sort((a, b) => a - b)[n >> 1];
+    check('accelerating loop: one click per beat at every step, none doubled or missing, on the beat', n >= 14 && Math.abs(r.so.length - r.co.length) <= 1 && off.every((x) => Math.abs(x) < 6 && Math.abs(x - med) < 1.5), `${r.co.length} clicks, ${r.so.length} beats, offsets ${Math.min(...off).toFixed(2)}…${Math.max(...off).toFixed(2)} ms`);
+    check('the step heard is reported (the last one, the target)', r.step === 2, String(r.step));
   }
 
   const errs = errorsOf.get(page);

@@ -5,11 +5,14 @@
 import { getEngine } from '../audio';
 import { clearAudio, engineTrack, registerAudio, toPcmInSlices, type DecodedAudio, type PcmAudio } from '../audio/registry';
 import { clipRange } from '../grid/lines';
+import { countInClicks } from '../grid/metronome';
 import { defaultTempoMap, withManualGrid, type ManualGridChange } from '../grid/tempoMap';
 import type { ImportedPiece } from '../import/types';
 import type { AnalysisResult } from '../model/analysis';
 import { defaultExportPreferences } from '../model/audioExport';
 import { emptyCorrections, type Corrections } from '../model/corrections';
+import { emptyMarkers } from '../model/markers';
+import { defaultMetronome } from '../model/metronome';
 import { emptySeparation } from '../model/separation';
 import type { ProjectDocument } from '../model/document';
 import type {
@@ -113,6 +116,9 @@ export async function openProject(input: NewProjectInput): Promise<void> {
     separationRun: { status: 'idle' },
     render: { status: 'none' },
     exportPrefs: defaultExportPreferences(),
+    // Lot 4: no markers yet; the click's volume and the count-in are habits, kept from the piece before.
+    metronome: { ...defaultMetronome(), volume: s.metronome.volume, countInBars: s.metronome.countInBars },
+    markers: emptyMarkers(),
     loop: { region, enabled: region !== null },
     playback: { ...DEFAULT_PLAYBACK },
     view: { ...s.view, mode: 'pistes' },
@@ -188,6 +194,7 @@ export function closeProject(): void {
     separation: emptySeparation(),
     separationRun: { status: 'idle' },
     render: { status: 'none' },
+    markers: emptyMarkers(),
   });
 }
 
@@ -206,9 +213,19 @@ export function isPlaying(): boolean {
   return get().transport.engine === 'playing';
 }
 
-/** Must run inside the user's gesture (click, key): the engine may start its AudioContext. */
+/**
+ * Must run inside the user's gesture (click, key): the engine may start its
+ * AudioContext. With « Décompte » set (lot 4), one or two bars of clicks come
+ * first, in the rhythm of the grid where playback starts (the playhead: the
+ * loop start after « Retour », or wherever the user put it).
+ */
 export function play(): void {
-  void getEngine().play();
+  const engine = getEngine();
+  const s = get();
+  let start = engine.getPosition();
+  if (start >= engine.getDuration() - 1e-3) start = 0; // the engine starts again from 0 at the end
+  const countIn = s.metronome.countInBars > 0 ? countInClicks(s.tempoMap, start, s.metronome.countInBars, s.metronome.patterns) : null;
+  void engine.play(countIn ? { countIn } : undefined);
 }
 
 export function pause(): void {

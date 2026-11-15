@@ -12,6 +12,7 @@ import { MockEngine } from '../audio/MockEngine';
 import { pcmFromChannels, readPcm } from '../audio/pcm';
 import { clearAudio, getAudio, registryBytes } from '../audio/registry';
 import { crc32, planAudioExport, runAudioExport, ExportError, zipStore } from '../export/audio';
+import { PROJECT_DOCUMENT_VERSION } from '../model/document';
 import { emptySeparation } from '../model/separation';
 import { applyRender, cancelRender, selectApplyState, startRenderWatch } from '../render/controller';
 import { MockRenderer } from '../render/mock';
@@ -74,7 +75,7 @@ describe('document version 3', () => {
   it('a lot 2 document opens « never separated », with the export dialog as it opens the first time', () => {
     const { separation: _s, exportPrefs: _e, ...v2 } = sampleDocument();
     const doc = readDocument(JSON.parse(JSON.stringify({ ...v2, version: 2 })))!;
-    expect(doc.version).toBe(3);
+    expect(doc.version).toBe(PROJECT_DOCUMENT_VERSION);
     expect(doc.separation).toEqual(emptySeparation());
     expect(doc.exportPrefs).toEqual({ what: 'mix', range: 'whole', format: 'wav' });
   });
