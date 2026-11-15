@@ -8,7 +8,7 @@
 // per channel, as in `audio/registry.ts`. Times in the result are source
 // seconds. The result is `model/analysis.ts#AnalysisResult`.
 
-import type { AnalysisResult } from '../model/analysis';
+import type { AnalysedBeats, AnalysisResult } from '../model/analysis';
 import type { Key } from '../model/harmony';
 import type { Seconds } from '../model/project';
 import type { Meter } from '../model/tempoMap';
@@ -61,6 +61,39 @@ export interface AnalysisProgress {
   fraction: number;
   /** Present during `download`. */
   download?: DownloadProgress;
+}
+
+/**
+ * A passage of the piece whose beats the analyser did not believe (a short
+ * tempo accident of the beat network, or bars that had moved) and replaced by
+ * beats at the surrounding tempo (`engine/repair.ts`).
+ */
+export interface RepairedPassage {
+  /** Source times of the two beats kept on either side. */
+  start: Seconds;
+  end: Seconds;
+  /** Beats the network had strictly between them. */
+  found: number;
+  /** Beats put there instead. */
+  placed: number;
+  /** `tempo`: a short deviation of the tempo; `bar`: the downbeats after it had moved. */
+  cause: 'tempo' | 'bar';
+}
+
+/**
+ * The beats of a result of the real analyser. `repaired` is an optional extra
+ * field of `AnalysedBeats` (absent when nothing was repaired, and in results
+ * stored before it existed): the stored format does not change, and the
+ * interface can show those passages later.
+ */
+export interface RepairedBeats extends AnalysedBeats {
+  repaired?: RepairedPassage[];
+}
+
+/** The passages the analysis repaired, if the result says so. */
+export function repairedPassages(result: AnalysisResult): RepairedPassage[] {
+  const r = (result.beats as RepairedBeats).repaired;
+  return Array.isArray(r) ? r : [];
 }
 
 /** A grid the analysis must keep (the user corrected it): only the chords are decoded on it. */

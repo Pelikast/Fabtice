@@ -12,6 +12,7 @@ import { chordFrames, steadyGrid } from './fixtures/inputs.mjs';
 import values from './fixtures/prototype-values.json';
 import { CHORD_QUALITIES } from '../../model/harmony';
 import { ANALYSIS_RESULT_VERSION } from '../../model/analysis';
+import { repairedPassages } from '../types';
 
 const close = (a: ArrayLike<number>, b: readonly number[], digits = 9) => {
   expect(a.length).toBe(b.length);
@@ -211,7 +212,7 @@ describe('mapping to the app\'s model', () => {
   it('maps an analysis to the result of the model', () => {
     const r = toAnalysisResult(base());
     expect(r.version).toBe(ANALYSIS_RESULT_VERSION);
-    expect(r.analyser).toEqual({ id: 'fabtice', version: '1', models: ['beat-this-logmel', 'beat-this-small0', 'crema-chords'] });
+    expect(r.analyser).toEqual({ id: 'fabtice', version: '2', models: ['beat-this-logmel', 'beat-this-small0', 'crema-chords'] });
     expect(r.analysedAt).toBe('2026-11-14T10:00:00.000Z');
     expect(r.duration).toBe(12);
     expect(r.beats).toEqual({ times: grid.beats, downbeat: 0, meter: { numerator: 4, denominator: 4 }, meterConfidence: 0.91 });
@@ -221,6 +222,16 @@ describe('mapping to the app\'s model', () => {
       { time: 0.2, chord: { root: 11, quality: 'maj7', extensions: ['9'], bass: null }, confidence: 0.8, doubtful: false, alternatives: [{ root: 11, quality: 'maj', extensions: [], bass: null }] },
       { time: 2.2, chord: null, confidence: 0.2, doubtful: true, alternatives: [] },
     ]);
+  });
+
+  it('marks the repaired passages in the beats, only when there are some', () => {
+    const repairs = [{ start: 3.1, end: 4.9, found: 1, placed: 3, cause: 'tempo' as const }];
+    const r = toAnalysisResult(base({ repairs }));
+    expect(repairedPassages(r)).toEqual(repairs);
+    expect(r.beats).toEqual({ times: grid.beats, downbeat: 0, meter: { numerator: 4, denominator: 4 }, meterConfidence: 0.91, repaired: repairs });
+    // A result stored before the field existed, or with nothing repaired, has none.
+    expect('repaired' in toAnalysisResult(base({ repairs: [] })).beats).toBe(false);
+    expect(repairedPassages(toAnalysisResult(base()))).toEqual([]);
   });
 
   it('flags a chord as doubtful below the prototype\'s 0.35', () => {

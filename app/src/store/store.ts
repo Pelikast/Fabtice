@@ -116,6 +116,8 @@ export interface UiState {
   separationNotice: string | null;
   /** « Exporter le son » (a dialog). */
   exportAudioOpen: boolean;
+  /** « Imprimer la grille » (a dialog: orientation, size, print or save as PDF). */
+  printOpen: boolean;
 }
 
 export interface TransportState {
@@ -196,6 +198,7 @@ export function initialState(): AppState {
       importStems: [],
       separationNotice: null,
       exportAudioOpen: false,
+      printOpen: false,
     },
   };
 }

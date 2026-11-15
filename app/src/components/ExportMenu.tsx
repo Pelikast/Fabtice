@@ -2,7 +2,7 @@
 // and printing the chart (lot 2), the sound (lot 3: « Exporter le son », a dialog).
 
 import { useCallback, useEffect, useRef, useState, type Ref } from 'react';
-import { PRINT_READY, printChart } from '../chart/print';
+import { PRINT_READY } from '../chart/print';
 import { chartForExport, exportToIRealPro } from '../export';
 import '../export/export.css';
 import { t } from '../i18n';
@@ -10,7 +10,7 @@ import { closePanel, togglePanel } from '../store/actions';
 import { useFitPanel } from '../ui/useFitPanel';
 import { selectHasChords } from '../store/chartSelectors';
 import { getDesktopBridge } from '../platform/desktopBridge';
-import { openExportAudio } from '../store/exportActions';
+import { openExportAudio, openPrint } from '../store/exportActions';
 import { appStore, useApp } from '../store/store';
 import { useOutsideClose } from '../ui/useOutsideClose';
 
@@ -129,7 +129,7 @@ export function ExportItems() {
   const hasChords = useApp(selectHasChords);
   const hasTracks = useApp((s) => s.tracks.length > 0);
   const items: { key: string; label: string; ready: boolean; enabled: boolean; note: string; run: () => void }[] = [
-    { key: 'print', label: t('export.print'), ready: PRINT_READY, enabled: hasChords, note: hasChords ? t('export.soon') : t('export.needsChords'), run: () => void printChart() },
+    { key: 'print', label: t('export.print'), ready: PRINT_READY, enabled: hasChords, note: hasChords ? t('export.soon') : t('export.needsChords'), run: openPrint },
     { key: 'audio', label: t('export.audio'), ready: true, enabled: hasTracks, note: '', run: openExportAudio },
   ];
   return (

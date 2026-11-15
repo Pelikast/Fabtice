@@ -19,6 +19,7 @@ import { CLOSED, reduceEditor, startsChordSymbol, type EditorFocus, type OpenedB
 import { chartLines, loopBars, type ChartBar, type ChartLine } from './layout';
 import { chordStops, moveStop, sameStop, stopKey, type Stop, type StopMove } from './stops';
 import { useChartGestures } from './useChartGestures';
+import { useFitChords } from './useFitChords';
 import { useFollowLine } from './useFollowLine';
 import { usePlayheadBar } from './usePlayheadBar';
 
@@ -41,6 +42,8 @@ export function ChartGrid({ bars, scroller }: { bars: ChartBar[]; scroller: RefO
   const tabStop = (active && stops.find((s) => sameStop(s, active))) ?? (active && stops.find((s) => s.bar === active.bar)) ?? stops[0] ?? null;
 
   usePlayheadBar(root);
+  // The chords are written where their beat is; a long symbol makes its bar's chords smaller (fit.ts).
+  useFitChords(root, [bars, ctx]);
   const follow = useFollowLine(scroller, root);
 
   const focusStop = useCallback((stop: Stop) => {
@@ -150,9 +153,7 @@ function BarCell({
   onKeyboardOpen: (stop: Stop) => void;
 }) {
   const n = bar.chords.length;
-  const cls = ['case', n === 2 ? 'deux' : n > 2 ? 'trois' : '', bar.doubleBar ? 'double' : '', inLoop ? 'dans-boucle' : '', final ? 'finale' : '']
-    .filter(Boolean)
-    .join(' ');
+  const cls = ['case', bar.doubleBar ? 'double' : '', inLoop ? 'dans-boucle' : '', final ? 'finale' : ''].filter(Boolean).join(' ');
   const label = formatBarNumber(bar.bar);
   const stopProps = (index: number) => {
     const stop = { bar: bar.bar, index };
@@ -170,7 +171,7 @@ function BarCell({
     };
   };
   return (
-    <div className={cls} data-mesure={bar.bar} role="group" aria-label={t('chart.bar', { n: label })}>
+    <div className={cls} data-mesure={bar.bar} data-temps={n > 0 ? bar.beats : undefined} data-accords={n} role="group" aria-label={t('chart.bar', { n: label })}>
       {bar.section && <span className="section">{bar.section}</span>}
       <span className="numero">{label}</span>
       {bar.chords.map((c, i) => (
@@ -180,8 +181,10 @@ function BarCell({
           className={`accord-case${c.origin === 'manual' ? ' main' : ''}${editing === i ? ' edite' : ''}`}
           data-origine={c.origin}
           aria-label={t('chart.chordAria', { chord: displayChordText(c.chord, ctx), n: label })}
-          // A chord that does not start on the bar line sits where its beat is.
-          style={i === 0 && c.beatInBar > 0 ? ({ '--debut': c.beatInBar / bar.beats } as CSSProperties) : undefined}
+          // Every chord sits where its beat is: beat 3 of 4 in the middle of the bar, as in a Real Book.
+          data-debut={c.beatInBar}
+          data-rang={i % 2}
+          style={{ '--debut': c.beatInBar / bar.beats } as CSSProperties}
         >
           <ChordSymbol chord={c.chord} ctx={ctx} doubtful={c.doubtful} />
         </button>

@@ -11,12 +11,13 @@
 // ported: the default never uses them.
 
 import { AnalysisError, type AnalysisStep } from '../types';
-import { beatDownProb, beatLogits, logMel, postMinimal, type BeatActivations } from './beats';
+import { beatLogits, downProbAt, logMel, postMinimal, type BeatActivations } from './beats';
 import { cremaFrames, poolSegments, type ChordFrames } from './chords';
 import { buildSegments, decodeChords, type ChordSegment } from './decode';
 import { makeGrid, renumber, type Grid } from './grid';
 import { estimateKey, type KeyEstimate } from './key';
 import { inferMeter, type MeterScore } from './meter';
+import { REPAIR, bestPhase, repairBeats, type DownbeatAt, type RepairOptions, type RepairedPassage } from './repair';
 import { resampleRatio } from './resample';
 import { type OrtLike, type RunControl, type SessionLike } from './session';
 import { estimateTuning, type TuningEstimate } from './tuning';
@@ -27,6 +28,8 @@ export const OPTIONS = {
   /** Resample the audio before the chord network when the recording is not at 440 Hz (|cents| ≥ 5). */
   tuningCorrection: true,
   harmonyPrior: true,
+  /** Repair short tempo accidents and bar shifts of the beat network (`repair.ts`). */
+  repair: true,
 };
 
 /** Shortest piece analysed, in seconds: below it there is nothing to find. */
@@ -74,12 +77,35 @@ export async function chordStage(ort: OrtLike, sessions: Sessions, audio44: Floa
   return { frames, timeScale };
 }
 
-/** From network activations to a grid: peaks, then the meter. */
-export function gridFromActivations(act: BeatActivations): { grid: Grid; meterScores: MeterScore[] } {
-  const { beats } = postMinimal(act);
-  const dp = beatDownProb(act, beats);
+export interface GridFromBeats {
+  grid: Grid;
+  meterScores: MeterScore[];
+  /** Passages whose beats the repair replaced (`repair.ts`). */
+  repairs: RepairedPassage[];
+}
+
+/**
+ * From the picked beats to the grid: a first metre (for the downbeat evidence
+ * of the repair), the repair, then the metre again and ONE bar phase for the
+ * whole piece, the one the app shows (`AnalysedBeats.downbeat`, bars every N
+ * beats from it): the chords are decoded on those same bars. `downAt` is the
+ * network's downbeat probability at a time (null: none, timing alone).
+ */
+export function gridFromBeats(found: readonly number[], downAt: DownbeatAt | null, repair: RepairOptions | null = OPTIONS.repair ? REPAIR : null): GridFromBeats {
+  const flat = () => 0.5;
+  const probs = (beats: readonly number[]) => beats.map((t) => (downAt ?? flat)(t));
+  const first = inferMeter(probs(found), { candidates: OPTIONS.meterCandidates });
+  const { beats, repairs } = repair ? repairBeats(found, first.beatsPerBar, downAt, repair) : { beats: found.slice(), repairs: [] };
+  const dp = probs(beats);
   const m = inferMeter(dp, { candidates: OPTIONS.meterCandidates });
-  return { grid: makeGrid(beats, m.numbers, m.beatsPerBar), meterScores: m.scores };
+  const numbers = beats.length >= 4 ? renumber(beats, m.beatsPerBar, bestPhase(dp, m.beatsPerBar)) : m.numbers;
+  return { grid: makeGrid(beats, numbers, m.beatsPerBar), meterScores: m.scores, repairs };
+}
+
+/** From network activations to a grid: peaks, the repair, then the metre. */
+export function gridFromActivations(act: BeatActivations): GridFromBeats {
+  const { beats } = postMinimal(act);
+  return gridFromBeats(beats, (t) => downProbAt(act, t));
 }
 
 /** The user's grid as the pipeline's grid (numbers counted from their first downbeat). */
