@@ -13,13 +13,15 @@ import type { ChordSegment } from './decode';
 import { firstDownbeat, type Grid } from './grid';
 import type { KeyEstimate } from './key';
 import type { MeterScore } from './meter';
+import type { RepairedPassage } from './repair';
+import type { RepairedBeats } from '../types';
 import type { TuningEstimate } from './tuning';
 
 /** Below this geometric-mean posterior a chord is shown as doubtful (calibrated on GuitarSet). */
 export const DOUBT = 0.35;
 
 /** Version of the analyser's musical logic; bump it when a constant or an algorithm changes. */
-export const ANALYSER_VERSION = '1';
+export const ANALYSER_VERSION = '2';
 
 const APP_EXTENSIONS = new Set<string>(['6', 'b9', '9', '#9', '11', '#11', 'b5', '#5', 'b13', '13', 'alt']);
 
@@ -56,6 +58,8 @@ export interface ResultInput {
   keyIsHint: boolean;
   tuning: TuningEstimate;
   segments: readonly ChordSegment[];
+  /** Passages whose beats the repair replaced (`repair.ts`); none for the user's grid. */
+  repairs?: readonly RepairedPassage[];
   duration: number;
   models: readonly string[];
   now?: Date;
@@ -70,6 +74,13 @@ export function toAnalysisResult(r: ResultInput): AnalysisResult {
         confidence: best.p ?? 0,
         alternatives: r.key.ranked.slice(1).map((k) => ({ ...keyOf(k), confidence: k.p ?? 0 })),
       };
+  const beats: RepairedBeats = {
+    times: [...r.grid.beats],
+    downbeat: r.downbeat ?? firstDownbeat(r.grid),
+    meter: { numerator: r.grid.beatsPerBar, denominator: 4 },
+    meterConfidence: r.gridIsHint ? 1 : (r.meterScores[0]?.prob ?? 0.5),
+  };
+  if (r.repairs?.length) beats.repaired = r.repairs.map((p) => ({ start: p.start, end: p.end, found: p.found, placed: p.placed, cause: p.cause }));
   const chords: AnalysedChord[] = r.segments.map((s) => {
     const suggestions = s.extensions.map((e) => e.name);
     const symbol = symbolOf(s.chord, suggestions, s.bass ? s.bass.pc : null);
@@ -86,12 +97,7 @@ export function toAnalysisResult(r: ResultInput): AnalysisResult {
     analyser: { id: 'fabtice', version: ANALYSER_VERSION, models: [...r.models] },
     analysedAt: (r.now ?? new Date()).toISOString(),
     duration: r.duration,
-    beats: {
-      times: [...r.grid.beats],
-      downbeat: r.downbeat ?? firstDownbeat(r.grid),
-      meter: { numerator: r.grid.beatsPerBar, denominator: 4 },
-      meterConfidence: r.gridIsHint ? 1 : (r.meterScores[0]?.prob ?? 0.5),
-    },
+    beats,
     key,
     tuning: r.tuning.peaks > 0 ? { cents: r.tuning.cents, confidence: r.tuning.confidence } : null,
     chords,

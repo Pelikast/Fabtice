@@ -15,11 +15,13 @@ import { formatNumber, t } from '../i18n';
 import { INSTRUMENTS, type Instrument } from '../model/harmony';
 import { setViewMode } from '../store/actions';
 import { selectAnalysisStatus, selectChartBars, selectDisplayContext } from '../store/chartSelectors';
+import { openPrint } from '../store/exportActions';
 import { setInstrument } from '../store/harmonyActions';
 import { isTempoKnown } from '../store/derived';
 import { useApp } from '../store/store';
 import { runAnalysis } from '../analysis/runner';
 import { AnalysisProgressNote } from '../components/AnalysisStatus';
+import { PrinterIcon } from '../ui/icons';
 import { ChartGrid } from './ChartGrid';
 import { KeyEditor } from './KeyEditor';
 
@@ -34,7 +36,7 @@ export function ChartSheet() {
   return (
     <div className="vue vue-grille" ref={scroller}>
       <div className="feuille">
-        {project && <ChartHeader />}
+        {project && <ChartHeader canPrint={hasChords} />}
         {!project ? (
           <div className="vide-message">
             <p>{t('chart.noPiece')}</p>
@@ -50,7 +52,7 @@ export function ChartSheet() {
 }
 
 /** Title line: title, key as displayed, meter and tempo; the instrument the chart is written for. */
-function ChartHeader() {
+function ChartHeader({ canPrint }: { canPrint: boolean }) {
   const title = useApp((s) => s.project!.title);
   const ctx = useApp(selectDisplayContext);
   const minor = useApp((s) => s.settings.minorNotation);
@@ -69,6 +71,8 @@ function ChartHeader() {
                 {t('chart.keyOf')} {withAccidentals(keyLabel(ctx.key, minor))}
               </KeyEditor>
               {instrument !== 'ut' && ` ${t('chart.forInstrument', { instrument: t(`chart.instrument.${instrument}`) })}`}
+              {/* Paper says for which instrument the chart is written, in C too. */}
+              {instrument === 'ut' && <span className="papier-seul"> {t('chart.forInstrument', { instrument: t('chart.instrument.ut') })}</span>}
               {' · '}
             </>
           ) : (
@@ -81,6 +85,12 @@ function ChartHeader() {
           {bpm !== null && ` · ${t('chart.tempo', { bpm: formatNumber(Math.round(bpm), 0) })}`}
         </p>
         <InstrumentChoice value={instrument} />
+        {canPrint && (
+          <button className="imprimer-bouton" data-testid="imprimer-grille" title={t('chart.printHint')} onClick={openPrint}>
+            <PrinterIcon />
+            <span>{t('chart.print')}</span>
+          </button>
+        )}
       </div>
     </div>
     <p className="aide-doigt">{t('chart.touchHint')}</p>

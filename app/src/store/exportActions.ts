@@ -15,3 +15,12 @@ export function closeExportAudio(): void {
 export function setExportPrefs(patch: Partial<ExportPreferences>): void {
   appStore.setState((s) => ({ exportPrefs: { ...s.exportPrefs, ...patch } }));
 }
+
+/** « Imprimer la grille »: opens its small dialog (orientation, size, « Imprimer… », « Enregistrer en PDF… »). */
+export function openPrint(): void {
+  appStore.setState((s) => ({ ui: { ...s.ui, printOpen: true, panel: 'none' } }));
+}
+
+export function closePrint(): void {
+  appStore.setState((s) => ({ ui: { ...s.ui, printOpen: false } }));
+}

@@ -117,3 +117,23 @@ export function withSection(c: Corrections, map: TempoMap, bar: number, label: s
 export function splitBeat(beats: number): number {
   return Math.max(1, Math.floor(beats / 2));
 }
+
+/**
+ * The beats (0-based) a chord of a bar can be moved to: between the beat of the
+ * chord before it and the beat of the chord after it, so that the chords keep
+ * their order (and their rank in the editor). The beat the chord is on is one of them.
+ */
+export function movableBeats(entries: readonly BarEntry[], index: number, beats: number): number[] {
+  if (index < 0 || index >= entries.length) return [];
+  const before = index > 0 ? entries[index - 1]!.beatInBar + 1 : 0;
+  const after = index < entries.length - 1 ? entries[index + 1]!.beatInBar - 1 : beats - 1;
+  const out: number[] = [];
+  for (let b = Math.max(0, before); b <= Math.min(beats - 1, after); b++) out.push(b);
+  return out;
+}
+
+/** The entries of a bar with the `index`-th chord moved to `beatInBar` (unchanged when that beat is not one it can go to). */
+export function withChordMoved(entries: readonly BarEntry[], index: number, beatInBar: number, beats: number): BarEntry[] {
+  if (!movableBeats(entries, index, beats).includes(beatInBar)) return [...entries];
+  return entries.map((e, i) => (i === index ? { ...e, beatInBar } : e));
+}

@@ -22,6 +22,22 @@
 /* Ut, Si♭, Mi♭: the instrument the chart is written for. */
 .duo.instrument button { min-width: 40px; min-height: 30px; padding: 2px 9px; font-size: 14px; }
 
+/* « Imprimer »: a quiet text button with a small printer, beside the instrument choice. */
+.imprimer-bouton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 2px 8px;
+  border-radius: var(--rayon);
+  color: var(--encre-douce);
+  font-size: 14px;
+  font-weight: 560;
+  transition: background var(--vite) var(--courbe), color var(--vite) var(--courbe);
+}
+.imprimer-bouton svg { width: 18px; height: 18px; }
+.imprimer-bouton:hover { background: var(--papier-fonce); color: var(--encre); }
+
 /* Bars: four per line, ink bar lines. Each line closes with its own bar line. */
 .grille {
   position: relative;
@@ -38,16 +54,25 @@
 .ligne { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .ligne > .case:last-child { border-right: 1.5px solid var(--encre); }
 .case {
+  /* The chords are written where their beat is (chart/fit.ts): --pg is the space from the bar line to
+     beat 1, --pd the space kept at the other end, --haut the room taken by the number and the section
+     letter. --corps is the size of the chords; a bar with long symbols goes down the steps of --r. */
+  --pg: 16px;
+  --pd: 8px;
+  --haut: 14px;
+  --corps: 30px;
+  --r: 1;
+  --rangs: 1;
   position: relative;
   display: flex;
   align-items: center;
   gap: 14px;
   height: 92px;
-  padding: 14px 8px 0 16px;
+  padding: var(--haut) var(--pd) 0 var(--pg);
   border-left: 1.5px solid var(--encre);
   border-bottom: 1px solid var(--trait);
   font-family: var(--titre);
-  font-size: 30px;
+  font-size: calc(var(--corps) * var(--r));
   font-weight: 520;
   font-variation-settings: "opsz" 48, "SOFT" 50;
   white-space: nowrap;
@@ -61,8 +86,13 @@
   .case:hover { background: var(--papier-fonce); }
   .case.dans-boucle:hover { background: rgba(184, 135, 58, 0.26); }
 }
-.case.deux { font-size: 22px; gap: 10px; }
-.case.trois { font-size: 17px; gap: 7px; }
+/* The steps of the size (chart/fit.ts, FIT_RATIOS): 30 px, then 22, 17, 14, 11 on a desktop. */
+.case[data-taille="1"] { --r: 0.73; }
+.case[data-taille="2"] { --r: 0.57; }
+.case[data-taille="3"] { --r: 0.47; }
+.case[data-taille="4"] { --r: 0.38; }
+/* Cramped bars (a phone): the chords go on two rows, one up and one down by turns (fit.ts). */
+.case[data-rangs="2"] { --rangs: 2; }
 .case.dans-boucle { background: var(--laiton-voile); }
 /* Section change: a double bar line. */
 .case.double { border-left-width: 6px; border-left-style: double; }
@@ -118,8 +148,17 @@
 }
 /* The chord being edited: a clear ink ring on a lighter ground, never the ember. */
 .accord-case.edite, .accord-case.edite:hover { background: var(--papier-clair); box-shadow: 0 0 0 1.5px var(--encre); }
-/* A chord that starts after the bar line sits where its beat is. */
-.accord-case[style] { margin-left: calc(var(--debut) * 88% - 5px); }
+/* A chord sits where its beat is: --debut is the beat over the beats of the bar (beat 3 of 4: 0.5, the middle). */
+.case .accord-case[data-debut] {
+  --decal: calc(var(--rang, 0) * (var(--rangs) - 1));
+  position: absolute;
+  /* Centred in its row of the room under the bar number (one row, or two for a cramped bar). */
+  top: calc(var(--haut) + (100% - var(--haut)) / var(--rangs) * (var(--decal) + 0.5));
+  transform: translateY(-50%);
+  left: calc(var(--debut) * (100% - var(--pg) - var(--pd)) + var(--pg) - 5px);
+  margin: 0;
+}
+.case .accord-case[data-rang="1"] { --rang: 1; }
 /* A bar with no chord of its own (a repeat sign, or empty): its chord area is a button too. */
 .accord-case.libre { flex: 1; align-self: center; justify-content: center; min-width: 44px; height: 56px; }
 .section { cursor: pointer; }
@@ -186,6 +225,10 @@
 .editeur-tete { display: flex; align-items: center; gap: 10px; min-height: 40px; margin-bottom: 4px; }
 .editeur-tete h2 { margin: 0; }
 .editeur-accords { flex: none; }
+/* Where in the bar the chord starts: the beats of the bar, as small numbered buttons. */
+.editeur-temps { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 10px; }
+.editeur-temps .duo button { min-width: 34px; min-height: 30px; padding: 2px 8px; font-size: 14px; }
+.editeur-temps .duo button:disabled { color: var(--encre-pale); cursor: default; }
 .editeur-accords button { min-width: 34px; min-height: 30px; padding: 2px 8px; font-size: 14px; }
 .editeur-apercu {
   margin-left: auto;

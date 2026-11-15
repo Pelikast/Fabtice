@@ -19,9 +19,9 @@ import { formatBarNumber } from '../grid/format';
 import { t, type MessageKey } from '../i18n';
 import type { ChordExtension, ChordQuality, PitchClass } from '../model/harmony';
 import { selectChartBars, selectDisplayContext } from '../store/chartSelectors';
-import { confirmBar, mergeBar, removeChord, replaceChord, replaceDisplayedChord, resetBar, setSection, splitBar, writeChordText } from '../store/harmonyActions';
+import { confirmBar, mergeBar, moveChord, removeChord, replaceChord, replaceDisplayedChord, resetBar, setSection, splitBar, writeChordText } from '../store/harmonyActions';
 import { useApp } from '../store/store';
-import { hasBarEdit, SECTION_LABEL_MAX } from './edits';
+import { entriesOf, hasBarEdit, movableBeats, SECTION_LABEL_MAX } from './edits';
 import { EXTENSION_CHOICES, noteChoices, patchChord, QUALITY_CHOICES, type EditorAction, type EditorState } from './editor';
 import { chordGoingOn } from './layout';
 import { placeEditor } from './editorPlacement';
@@ -64,6 +64,13 @@ export function ChordEditor({ state, dispatch, grid, scroller, onClose, onTyped 
   // Null until measured (hidden meanwhile); 'sheet' on a phone, where CSS places it.
   const [, setResized] = useState(0);
   const [placement, setPlacement] = useState<{ left: number; top: number } | 'sheet' | null>(null);
+  // On a phone the sheet opens over the place where the finger just was: the click that follows the tap
+  // must not land on one of its controls. It does not take presses for a moment after it opens.
+  const [settled, setSettled] = useState(false);
+  useEffect(() => {
+    const id = window.setTimeout(() => setSettled(true), 450);
+    return () => window.clearTimeout(id);
+  }, []);
 
   // Another chord, another typed text.
   useEffect(() => {
@@ -193,6 +200,8 @@ export function ChordEditor({ state, dispatch, grid, scroller, onClose, onTyped 
   const roots = noteChoices(ctx);
   const canSplit = chords.length < 2 && (chords.length > 0 || going !== undefined);
   const section = bar.section;
+  // Where in the bar the chord starts: offered when the bar holds several chords or this one is not on the bar line.
+  const beatChoices = current && (chords.length >= 2 || current.beatInBar > 0) ? movableBeats(entriesOf(chords), index, bar.beats) : [];
 
   return (
     <div
@@ -202,7 +211,7 @@ export function ChordEditor({ state, dispatch, grid, scroller, onClose, onTyped 
       aria-label={t('editor.title', { n })}
       tabIndex={-1}
       // Until measured (in the same frame, before paint) it is transparent; `visibility: hidden` would refuse the focus.
-      style={placement === null ? { opacity: 0 } : placement === 'sheet' ? undefined : { left: placement.left, top: placement.top }}
+      style={placement === null ? { opacity: 0 } : placement === 'sheet' ? (settled ? undefined : { pointerEvents: 'none' }) : { left: placement.left, top: placement.top }}
       data-testid="editeur"
       onKeyDown={onKeyDown}
     >
@@ -244,6 +253,28 @@ export function ChordEditor({ state, dispatch, grid, scroller, onClose, onTyped 
         </div>
       )}
       {!current && going && <p className="editeur-note">{t('editor.goesOn')}</p>}
+
+      {beatChoices.length > 0 && current && (
+        <div className="editeur-temps">
+          <span className="libelle" id="editeur-temps-nom" title={t('editor.beatHint')}>
+            {t('editor.beat')}
+          </span>
+          <div className="duo" role="group" aria-labelledby="editeur-temps-nom">
+            {Array.from({ length: bar.beats }, (_, b) => (
+              <button
+                key={b}
+                data-temps={b + 1}
+                aria-pressed={current.beatInBar === b}
+                aria-label={t('editor.beatOf', { n: b + 1 })}
+                disabled={!beatChoices.includes(b)}
+                onClick={() => moveChord(bar.bar, index, b)}
+              >
+                {b + 1}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <form
         className="editeur-saisie"

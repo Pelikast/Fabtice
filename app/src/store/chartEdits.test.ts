@@ -10,6 +10,7 @@ import { replaceEngine } from '../audio';
 import { MockEngine } from '../audio/MockEngine';
 import { hasBarEdit, SECTION_LABEL_MAX } from '../chart/edits';
 import { chordGoingOn } from '../chart/layout';
+import { chartForExport } from '../export';
 import { chord } from '../harmony/chord';
 import { displayChordText } from '../harmony/display';
 import { fakeClock } from '../test/fakeClock';
@@ -115,6 +116,29 @@ describe('two chords in a bar, or one', () => {
     expect(stored(3)).toEqual([first]);
     harmony.mergeBar(3);
     expect(stored(3)).toEqual([first]);
+  });
+
+  it('the second chord goes on beat 3 (the middle), and can be moved to beat 2 or 4; the chord can never pass its neighbour', () => {
+    harmony.splitBar(3);
+    const beats = () => selectBarChords(get(), 3).chords.map((c) => c.beatInBar);
+    expect(beats()).toEqual([0, 2]);
+    harmony.moveChord(3, 1, 3);
+    expect(beats()).toEqual([0, 3]);
+    harmony.moveChord(3, 1, 1);
+    expect(beats()).toEqual([0, 1]);
+    harmony.moveChord(3, 1, 0); // the first chord's beat: refused
+    expect(beats()).toEqual([0, 1]);
+    harmony.moveChord(3, 0, 2); // past the second chord: refused
+    expect(beats()).toEqual([0, 1]);
+    harmony.moveChord(3, 1, 9); // out of the bar: refused
+    expect(beats()).toEqual([0, 1]);
+  });
+
+  it('the iReal Pro export writes the chords of a split bar on the beats they are drawn on', () => {
+    harmony.splitBar(3);
+    expect(chartForExport(get())!.bars[3]!.chords.map((c) => c.beat)).toEqual([0, 2]);
+    harmony.moveChord(3, 1, 3);
+    expect(chartForExport(get())!.bars[3]!.chords.map((c) => c.beat)).toEqual([0, 3]);
   });
 
   it('what chord goes on at a bar', () => {
