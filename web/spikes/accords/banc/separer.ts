@@ -9,9 +9,9 @@
 // ONNX Runtime process on the processor (banc/separer_ort.py): the WebAssembly
 // build would take hours here.
 //
-//   node dist/separer.mjs [--only id1,id2] [--conditions propre,disque] [--threads 4]
+//   node dist/separer.mjs [--tool htdemucs-6s|bs-roformer-sw] [--only id1,id2] [--conditions propre,disque] [--threads 4]
 //
-// Output: data/separes/htdemucs-6s/<piece>/<condition>/<stem>.flac (16 bits,
+// Output: data/separes/<tool>/<piece>/<condition>/<stem>.flac (16 bits,
 // as the app keeps its tracks), plus timing.json. Existing files are kept.
 
 import { spawn, execFileSync, type ChildProcessWithoutNullStreams } from 'node:child_process';
@@ -26,7 +26,7 @@ import { decodeAudio } from './networks';
 import { DATA, ROOT } from './paths';
 import { loadCorpus } from './truth';
 
-const TOOL = 'htdemucs-6s';
+
 
 function args(): Record<string, string> {
   const out: Record<string, string> = {};
@@ -112,12 +112,14 @@ function writeFlac(file: string, channels: Float32Array[], sampleRate: number): 
 }
 
 const opt = args();
+/** The app's tool: `htdemucs-6s` (default) or `bs-roformer-sw` (what an Apple-chip Mac uses). */
+const TOOL = opt.tool ?? 'htdemucs-6s';
 const only = opt.only ? new Set(opt.only.split(',')) : null;
 const conditions = (opt.conditions ?? 'disque,propre').split(',');
 const threads = Number(opt.threads ?? 4);
 const entry = modelsJson.models.find((m) => m.id === TOOL)!;
 const cfg = parseConfig(entry.config as unknown as Record<string, unknown>);
-const modelFile = join(DATA, 'modeles', 'htdemucs_6s_fp16.onnx');
+const modelFile = join(DATA, 'modeles', entry.file.url.split('/').pop()!);
 if (!existsSync(modelFile)) {
   execFileSync('curl', ['-sSfL', '--retry', '3', '-o', `${modelFile}.part`, entry.file.url], { stdio: ['ignore', 'ignore', 'inherit'] });
   renameSync(`${modelFile}.part`, modelFile);

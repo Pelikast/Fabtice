@@ -530,14 +530,25 @@ Tenu à jour à chaque étape fusionnée. Sous-branches : `accords-banc`,
   Le seuil de refus a été relevé après avoir vu un cas de la moitié de
   contrôle. La fiabilité n'a pas encore été réétalonnée avec l'indice de
   basse. Seulement 11 standards dans le banc, tous fabriqués.
-- **Instruments séparés : pas branché, et à ne pas brancher tel quel.** Avec
-  des instruments parfaits le gain est net (vieux disque : 66 → 77 % sur huit
-  morceaux), mais avec la vraie séparation (HTDemucs 6 sources) il disparaît
-  et le vieux disque fait pire (66 → 60 %) : la basse d'un vieux disque est
-  presque vide après séparation, et les parties sont souvent mal étiquetées.
-  Résultats : `web/spikes/accords/resultats/separation-reelle/`. À refaire
-  avec BS-RoFormer (le modèle du M1) avant de conclure ; le moyen 1 de
-  `CLAUDE.md` reste donc ouvert.
+- **Instruments séparés : mesurés deux fois, pas branchés.** Avec des
+  instruments parfaits le gain existe (vieux disque, quatre morceaux : 73 →
+  79 %). Avec la vraie séparation il se perd presque entièrement : HTDemucs
+  6 sources fait pire que sans instruments (70 %) — basse presque vide,
+  parties mal étiquetées ; **BS-RoFormer SW**, le modèle du M1, sépare bien
+  mieux les vieux disques mais ne donne que 75 % (+2 points : trois morceaux
+  en hausse de 3 à 4 points, le swing chargé en baisse de 2), et en son
+  propre +1 point avec un morceau qui en perd 15 (les voix harmonisées partent
+  dans « Autres », seule la voix principale reste dans « Voix »). La basse
+  séparée d'un vieux disque est trop faible pour servir : la lire dans le
+  grave du morceau entier reste meilleur. Petit échantillon (quatre morceaux,
+  le calcul prend 7 à 11 fois la durée ici). Détail :
+  `web/spikes/accords/resultats/separation-reelle/` (`bs-roformer.md`).
+  Pour aller plus loin : 8 à 12 vieux disques de plus, l'essai avec le modèle
+  détaillé, et ne brancher que si le gain atteint 3 points sans qu'aucun
+  morceau ne s'effondre (câblage décrit dans ce compte rendu : choix des
+  parties qui portent l'harmonie, remix sans batterie ni soliste, basse lue
+  dans le grave du morceau). Le moyen 1 de `CLAUDE.md` reste ouvert, et le
+  propriétaire y tient.
 - **Étape 2 : un second modèle d'accords, au choix** (Réglages → Réglages
   avancés → « Modèle d'accords » : « Rapide : CREMA », par défaut, ou
   « Détaillé : Tsumugi-Chords »). Préférence de l'appareil
@@ -566,9 +577,8 @@ Tenu à jour à chaque étape fusionnée. Sous-branches : `accords-banc`,
   nouvelle analyse complète les refait). Les modèles légers essayés (Jiang
   2019, BTC, ChordMini) n'apportent rien de fiable : détail dans
   `web/spikes/accords/modeles/RECHERCHE.md`.
-- **Reste à faire dans le programme « accords »** : remesurer l'écoute des
-  instruments séparés avec BS-RoFormer (le propriétaire y tient ; ne brancher
-  que ce qui améliore les chiffres) ; réétalonner la fiabilité avec l'indice
+- **Reste à faire dans le programme « accords »** : élargir la mesure des
+  instruments séparés avec BS-RoFormer (voir plus haut) ; réétalonner la fiabilité avec l'indice
   de basse et pour le modèle détaillé ; proposer les extensions du modèle
   détaillé comme suggestions ; faire décoder le son du banc comme le
   navigateur pour que ses chiffres soient exactement ceux de l'app.
