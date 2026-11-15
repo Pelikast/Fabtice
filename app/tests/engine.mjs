@@ -1519,6 +1519,51 @@ try {
     console.log(`      audio journal (last lines):\n${r.text.split('\n').slice(-6).map((l) => `        ${l}`).join('\n')}`);
   }
 
+  // ---- 23b. separated instruments and a kept « Appliquer » render survive a release (tracks added, mixed and
+  // rendered while the output is released, as a separation or a revived kept render does)
+  if (want('23') || want('23b')) {
+    const r = await page.evaluate(async () => {
+      const e = T.eng();
+      const out = {};
+      const levels = async (freqs) => {
+        T.rec = null;
+        const { data } = await T.record(900);
+        const from = Math.round(0.3 * 48000);
+        return Object.fromEntries(freqs.map((f) => [f, T.amp(data, from, data.length, f)]));
+      };
+      await T.load([
+        { id: 'voix', data: T.sine(440, 20, 0.2) },
+        { id: 'piano', data: T.sine(550, 20, 0.2) },
+      ]);
+      e.setIdleReleaseDelay(1e9);
+      e.releaseDevice('idle');
+      // a separation finishing while the output is released: a new track, then the mix changes
+      await e.addTrack({ id: 'basse', channels: [T.sine(770, 20, 0.2)], sampleRate: 48000 }, { mute: false, solo: false, volume: 1 });
+      e.setTrackMix('voix', { mute: true, solo: false, volume: 1 });
+      out.heldWhileAdding = e.deviceState().held;
+      e.seek(2);
+      await e.play();
+      out.preview = await levels([440, 550, 770]);
+      out.active = e.diagnostics()?.activeTracks;
+      e.pause();
+      // the kept render revived while released (every track, other frequencies so that it cannot be mistaken)
+      e.releaseDevice('sleep');
+      await T.applySet(1, { voix: T.sine(330, 20, 0.2), piano: T.sine(660, 20, 0.2), basse: T.sine(880, 20, 0.2) });
+      out.inUse = e.isRenderedInUse();
+      e.seek(2);
+      await e.play();
+      out.applied = await levels([330, 660, 880, 550, 770]);
+      out.weight = e.diagnostics()?.applied;
+      e.pause();
+      await e.setRenderedTracks(null);
+      return out;
+    });
+    const p = r.preview;
+    check('separated tracks added and mixed while released are heard after (muted one silent)', !r.heldWhileAdding && p[440] < 0.01 && p[550] > 0.1 && p[770] > 0.1 && r.active === 2, `440 ${p[440].toFixed(3)}, 550 ${p[550].toFixed(3)}, 770 ${p[770].toFixed(3)}, ${r.active} tracks computed`);
+    const a = r.applied;
+    check('a kept render revived while released is what is heard after (mute kept, no preview)', r.inUse && r.weight === 1 && a[330] < 0.01 && a[660] > 0.1 && a[880] > 0.1 && a[550] < 0.01 && a[770] < 0.01, Object.entries(a).map(([f, v]) => `${f} ${v.toFixed(3)}`).join(', ') + `, weight ${r.weight}`);
+  }
+
 
   const errs = errorsOf.get(page);
   check('no page errors with the real engine', errs.length === 0, errs.join(' | '));
