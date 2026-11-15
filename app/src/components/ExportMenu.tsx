@@ -129,6 +129,7 @@ export function ExportItems() {
   const hasChords = useApp(selectHasChords);
   const hasTracks = useApp((s) => s.tracks.length > 0);
   const hasProject = useApp((s) => s.project !== null && s.project.source.kind !== 'demo');
+  const isDemo = useApp((s) => s.project?.source.kind === 'demo');
   const items: { key: string; label: string; ready: boolean; enabled: boolean; note: string; run: () => void }[] = [
     { key: 'print', label: t('export.print'), ready: PRINT_READY, enabled: hasChords, note: hasChords ? t('export.soon') : t('export.needsChords'), run: openPrint },
     { key: 'audio', label: t('export.audio'), ready: true, enabled: hasTracks, note: '', run: openExportAudio },
@@ -147,7 +148,7 @@ export function ExportItems() {
         }}
       >
         <span>{t('export.saveProject')}</span>
-        <small>{t('export.saveProjectNote')}</small>
+        <small>{isDemo ? t('export.saveProjectDemo') : t('export.saveProjectNote')}</small>
       </button>
       <IRealEntries enabled={hasChords} />
       {items.map((it) => {

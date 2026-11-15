@@ -396,7 +396,7 @@ export const fr = {
   'new.dropHint': 'Vous pouvez aussi déposer le fichier dans la fenêtre.',
   'new.close': 'Fermer',
   'drop.overlay': 'Déposez le fichier audio',
-  'drop.formats': 'mp3, wav, aiff, m4a ou flac',
+  'drop.formats': 'mp3, wav, aiff, m4a ou flac ; ou un projet Fabtice (.fabtice)',
 
   // Import progress and errors
   'new.updateOffer': 'Une version plus récente de l’outil d’import est disponible.',
@@ -730,6 +730,7 @@ export const fr = {
   'new.openProjectLead': 'Déjà un projet enregistré ?',
   'export.saveProject': 'Enregistrer le projet…',
   'export.saveProjectNote': 'un fichier .fabtice',
+  'export.saveProjectDemo': 'pas pour la démonstration',
   'saveProject.title': 'Enregistrer le projet',
   'saveProject.lead': 'Un seul fichier qui garde tout : le morceau tel qu’importé, la grille, les accords, vos corrections, les boucles et les repères, le métronome. Vous pouvez le copier, l’envoyer, et le rouvrir avec « Ouvrir un projet ».',
   'saveProject.instruments': 'Avec les instruments séparés',
