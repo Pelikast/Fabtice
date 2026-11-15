@@ -33,6 +33,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { startServer } from './serve.mjs';
+import { playlistFile } from './standards-fixtures.mjs';
 
 const require = createRequire(process.env.PLAYWRIGHT_MODULE_DIR || '/opt/node-tools/');
 const { chromium } = require('playwright');
@@ -152,11 +153,11 @@ async function importFile(page, file) {
  * Imports a piece of `seconds` made in the page by repeating the demo file (a
  * 16-bit mono WAV, handed to the file picker like a real file would be).
  */
-async function importLong(page, seconds) {
-  await page.evaluate(async ([secs, mp3]) => {
+async function importLong(page, seconds, name = 'long.wav', loopSeconds = 0) {
+  await page.evaluate(async ([secs, mp3, fileName, loop]) => {
     const data = await (await fetch(mp3)).arrayBuffer();
     const decoded = await new OfflineAudioContext(1, 1, 44100).decodeAudioData(data);
-    const one = decoded.getChannelData(0);
+    const one = loop ? decoded.getChannelData(0).subarray(0, Math.round(loop * 44100)) : decoded.getChannelData(0);
     const n = Math.round(secs * 44100);
     const wav = new DataView(new ArrayBuffer(44 + n * 2));
     const text = (o, t) => [...t].forEach((c, i) => wav.setUint8(o + i, c.charCodeAt(0)));
@@ -166,11 +167,11 @@ async function importLong(page, seconds) {
     text(36, 'data'); wav.setUint32(40, n * 2, true);
     for (let i = 0; i < n; i++) wav.setInt16(44 + i * 2, Math.max(-1, Math.min(1, one[i % one.length])) * 32767, true);
     const dt = new DataTransfer();
-    dt.items.add(new File([wav.buffer], 'long.wav', { type: 'audio/wav' }));
+    dt.items.add(new File([wav.buffer], fileName, { type: 'audio/wav' }));
     const input = document.querySelector('.accueil input[type="file"]');
     input.files = dt.files;
     input.dispatchEvent(new Event('change', { bubbles: true }));
-  }, [seconds, '/spikes/analyse/demo/demo-swing.mp3']);
+  }, [seconds, '/spikes/analyse/demo/demo-swing.mp3', name, loopSeconds]);
   await page.waitForFunction(() => {
     const s = window.__fabtice.store.getState();
     return s.project && s.transport.engine === 'ready' && s.ui.import.kind === 'idle' && !s.ui.newPieceOpen;
@@ -791,6 +792,54 @@ scenarios.long = async () => {
   check('4 minutes: main thread stays fluid (no task over 200 ms)', mt.longestTask < 200 && mt.worstLag < 200);
   check('4 minutes: no console error', errors.length === 0, errors.join(' | '));
   await context.close();
+};
+
+
+/**
+ * Known chart (CLAUDE.md, analysis, means 3), end to end: a small invented library is kept on the
+ * device; a piece whose title is in it gets the chart fitted and used (`evidence.knownChart`), with
+ * the form found by its repeats; a title whose chart does not match the audio is rejected.
+ */
+scenarios.charts = async () => {
+  const context = await browser.newContext();
+  const { page, errors } = await open(context, { query: '?debug&analyse=reel' });
+  // The demo's 20 bars as a lead sheet (B major), and an unrelated blues.
+  const demo = '[T44B^7   |Co7   |C#-7   |F#7   |E-7   |A7   |B^7   |B^7   |B7   |E7   |B7   |B7   |E7   |E7   |B7   |B7   |E-7   |A7   |B^7   |B^7   Z';
+  const blues = '[T44F7   |Bb7   |F7   |F7   |Bb7   |Bb7   |F7   |F7   |G-7   |C7   |F7   |C7   Z';
+  const other = '[T44C^7   |A-7   |D-7   |G7   |E-7   |A7   |D-7   |G7   Z';
+  const html = playlistFile([
+    { title: 'Fixture Swing Tune', key: 'B', chart: demo },
+    { title: 'Fixture Wrong Tune', key: 'F', chart: blues },
+    ...Array.from({ length: 12 }, (_, i) => ({ title: `Fixture Filler ${i + 1}`, chart: i % 2 ? blues : other })),
+  ], 'Fixture Book');
+  const kept = await page.evaluate(async (text) => {
+    const r = await window.__fabtice.standards.importStandardsFile({ name: 'fixture-book.html', size: text.length, text: async () => text });
+    return r.ok ? r.tunes : -1;
+  }, html);
+  check('charts: the invented library is kept on the device', kept === 14, `${kept} tunes`);
+  const run = async (name) => {
+    // The demo's 20 bars end at 35.65 s: looped there, the piece is the form played three times.
+    await importLong(page, 3 * 35.649581, name, 35.649581);
+    await analysisEnded(page);
+    return page.evaluate(() => {
+      const a = window.__fabtice.store.getState().analysis;
+      return a ? { evidence: a.evidence ?? null, version: a.analyser.version, chords: a.chords.length } : null;
+    });
+  };
+  const right = await run('Fixture Swing Tune.wav');
+  check('charts: the title found, the chart accepted and used', right?.evidence?.knownChart?.title === 'Fixture Swing Tune', JSON.stringify(right?.evidence));
+  check('charts: the collection is named', typeof right?.evidence?.knownChart?.collection === 'string', String(right?.evidence?.knownChart?.collection));
+  check('charts: the bass line is listened to (band of the mix)', right?.evidence?.bass === 'band');
+  check('charts: analyser version 3', right?.version === '3', String(right?.version));
+  await page.evaluate(() => window.__fabtice.actions.openPanel('analysis'));
+  const line = await page.locator('[data-testid="analyse-ecoute"]').innerText({ timeout: 5000 }).catch(() => '');
+  check('charts: the analysis panel says what was used', line.includes('Grille connue : Fixture Swing Tune (Fixture Book)'), line);
+  await page.evaluate(() => window.__fabtice.actions.closePanel());
+  note(`charts: form found by the repeats: ${right?.evidence?.formBars} bars (the demo's 20 bars, played three times)`);
+  await openDialog(page);
+  const wrong = await run('Fixture Wrong Tune.wav');
+  check('charts: a chart that does not match the audio is rejected', !!wrong?.evidence && wrong.evidence.knownChart === null, JSON.stringify(wrong?.evidence));
+  check('charts: no console error', errors.length === 0, errors.join(' | '));
 };
 
 // ---------------------------------------------------------------------- main

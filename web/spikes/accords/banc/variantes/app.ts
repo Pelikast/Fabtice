@@ -8,20 +8,39 @@
 
 import type { KnownCharts } from '../../../../../app/src/analysis/engine/chart';
 import { resultFromOutputs } from '../../../../../app/src/analysis/engine/analyse';
-import { findChartCandidates, referenceCharts } from '../../../../../app/src/analysis/engine/knownChart';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { chartsForAnalysis } from '../../../../../app/src/standards/forAnalysis';
+import { MemoryCollectionStore } from '../../../../../app/src/standards/libraryStore';
+import { DATA } from '../paths';
 import { modelsFor } from '../../../../../app/src/analysis/models';
-import { normalizeTitle } from '../../../../../app/src/standards/match';
 import { lowAudio } from '../ecoute';
 import { harmonyOf, stemsOf } from '../ecoute-variante';
-import { standards } from '../structure/commun';
 import type { Variant } from '../types';
 
-export function knownFor(title: string): KnownCharts | null {
-  const lib = standards();
-  const candidates = title ? findChartCandidates(lib.index, title) : [];
-  if (!candidates.length) return null;
-  const own = new Set(candidates.map((c) => normalizeTitle(c.chart.title)));
-  return { candidates, references: referenceCharts(lib.charts, 60, (c) => own.has(normalizeTitle(c.title))) };
+let store: MemoryCollectionStore | null = null;
+
+/** The playlists of $BANC_DATA/recueils/ as the app keeps them (one record per collection, its links). */
+function libraryStore(): MemoryCollectionStore {
+  if (store) return store;
+  store = new MemoryCollectionStore();
+  const dir = join(DATA, 'recueils');
+  const names: Record<string, string> = { 'jazz-1460': 'Jazz 1460', 'blues-50': 'Blues 50', 'latin-50': 'Latin 50' };
+  if (existsSync(dir)) {
+    for (const f of readdirSync(dir).filter((x) => x.endsWith('.txt')).sort()) {
+      const id = f.replace(/\.txt$/, '');
+      const links = readFileSync(join(dir, f), 'utf8');
+      void store.put({ id, name: names[id] ?? id, tunes: (links.match(/irealb:\/\//g) ?? []).length, source: `file:${f}`, date: '2026-11-15', links });
+    }
+  }
+  return store;
+}
+
+/** Exactly what the app's runner hands the worker: `chartsForAnalysis(title)`, then a structured clone (the message). */
+export async function knownFor(title: string): Promise<KnownCharts | null> {
+  const r = await chartsForAnalysis(title, { store: libraryStore() });
+  if (!r || !r.candidates.length) return null;
+  return structuredClone({ candidates: r.candidates, references: r.references });
 }
 
 const app: Variant = async (input, ctx) => {
@@ -38,10 +57,11 @@ const app: Variant = async (input, ctx) => {
     outputs: { ...o, listening: { harmony, bass } },
     grid: h ? { times: h.times, downbeat: h.downbeat, meter: { numerator: h.beatsPerBar, denominator: 4 } } : null,
     key: null,
-    known: knownFor(input.title),
+    known: await knownFor(input.title),
     duration: net.duration,
     models: modelsFor('light').map((m) => m.id),
   });
+  if (process.env.BANC_DEBUG) process.stderr.write(`${input.id} ${input.condition}: ${JSON.stringify((result as { evidence?: unknown }).evidence)}\n`);
   return {
     chords: result.chords.map((c) => ({ time: c.time, chord: c.chord, confidence: c.confidence, doubtful: c.doubtful })),
     beats: { times: result.beats.times, downbeat: result.beats.downbeat, beatsPerBar: result.beats.meter.numerator },

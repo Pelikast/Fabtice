@@ -8,6 +8,7 @@ import { join } from 'node:path';
 import { stemFeatures } from '../../../../../app/src/analysis/engine/listen';
 import { beatUnits, chartFromGrid } from '../../../../../app/src/analysis/engine/pipeline';
 import { listen } from '../ecoute';
+import { stemsOf } from '../ecoute-variante';
 import { output, prepare } from '../lib';
 import { DATA } from '../paths';
 import type { StemName, Variant } from '../types';
@@ -17,7 +18,8 @@ const diag: Variant = async (input, ctx) => {
   const o = p.net.outputs;
   const mixUnits = beatUnits(o.frames, o.timeScale, p.grid);
   const rows: Record<string, unknown>[] = [];
-  for (const [name, path] of Object.entries(input.stemPaths) as [StemName, string][]) {
+  const stems = process.env.BANC_TIGES === 'reelles' ? stemsOf(input, 'reelles') : input.stemPaths;
+  for (const [name, path] of Object.entries(stems) as [StemName, string][]) {
     if (name === 'drums') continue;
     const l = await listen({ paths: [path] }, o.tuning);
     const f = stemFeatures(l.frames, l.rms, beatUnits(l.frames, l.timeScale, p.grid), mixUnits, p.grid.numbers);
@@ -27,7 +29,7 @@ const diag: Variant = async (input, ctx) => {
     mkdirSync(join(DATA, 'diag'), { recursive: true });
     appendFileSync(
       join(DATA, 'diag', 'tiges.jsonl'),
-      JSON.stringify({ id: input.id, condition: input.condition, truth: input.meta.harmonyStems, rows }) + '\n',
+      JSON.stringify({ id: input.id, condition: input.condition, stems: process.env.BANC_TIGES ?? 'ideales', truth: input.meta.harmonyStems, rows }) + '\n',
     );
   }
   return output(input, p, chartFromGrid(o.frames, o.timeScale, p.grid, null));
