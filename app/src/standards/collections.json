@@ -1,0 +1,297 @@
+{
+  "version": 1,
+  "updated": "2026-11-15",
+  "collections": [
+    {
+      "id": "jazz-1460",
+      "name": "Jazz 1460",
+      "summary": "Les 1 460 standards de jazz de la liste principale d'iReal Pro : le plus complet pour retrouver la grille d'un morceau connu.",
+      "tunes": 1460,
+      "minTunes": 1100,
+      "playlistName": "Jazz 1460",
+      "genres": ["jazz"],
+      "recommended": true,
+      "sourcePage": "https://www.irealpro.com/main-playlists/",
+      "licence": "aucune licence publiée ; grilles d'accords déposées par les utilisateurs d'iReal Pro, droits réservés par défaut",
+      "licenceUnclear": true,
+      "pages": [
+        {
+          "url": "https://www.irealpro.com/main-playlists/",
+          "kind": "html-with-ireal-links",
+          "role": "official",
+          "host": "irealpro.com",
+          "verified": false,
+          "followAttachments": false,
+          "note": "Page officielle des listes principales. Elle est supposée porter les listes sous forme de liens irealb:// (trois projets libres la citent comme source) ; non vérifié ici (accès refusé par le réseau du bac à sable)."
+        },
+        {
+          "url": "https://forums.irealpro.com/threads/12753/",
+          "kind": "html-with-ireal-links",
+          "role": "forum",
+          "host": "forums.irealpro.com",
+          "verified": false,
+          "followAttachments": true,
+          "note": "Fil « Jazz 1460 Standards » du forum (le numéro 12753 vient du fil « Jazz 1300 Standards » de l'ancien forum). La liste y est en pièce jointe .html ; non vérifié ici."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/infojunkie/ireal-musicxml/3101d352e97ba196122362b17be5d13e7bf3473e/test/data/jazz1460.txt",
+          "kind": "ireal-url-file",
+          "role": "mirror",
+          "host": "GitHub",
+          "verified": true,
+          "followAttachments": false,
+          "note": "Copie de la liste officielle dans le dépôt de test d'un projet libre (figée à une révision). Téléchargée et lue ici : 1 460 morceaux, nom « Jazz 1460 »."
+        }
+      ]
+    },
+    {
+      "id": "brazilian-220",
+      "name": "Brésil 220",
+      "summary": "Bossa nova, samba, choro et chansons brésiliennes : 220 morceaux de la liste principale d'iReal Pro.",
+      "tunes": 220,
+      "minTunes": 170,
+      "playlistName": "Brazilian 220",
+      "genres": ["bossa-nova", "brazilian"],
+      "recommended": true,
+      "sourcePage": "https://www.irealpro.com/main-playlists/",
+      "licence": "aucune licence publiée ; grilles d'accords déposées par les utilisateurs d'iReal Pro, droits réservés par défaut",
+      "licenceUnclear": true,
+      "pages": [
+        {
+          "url": "https://www.irealpro.com/main-playlists/",
+          "kind": "html-with-ireal-links",
+          "role": "official",
+          "host": "irealpro.com",
+          "verified": false,
+          "followAttachments": false,
+          "note": "Même page que Jazz 1460 : la liste est repérée par son nom dans le lien. Non vérifié ici."
+        },
+        {
+          "url": "https://forums.irealpro.com/threads/4414/",
+          "kind": "html-with-ireal-links",
+          "role": "forum",
+          "host": "forums.irealpro.com",
+          "verified": false,
+          "followAttachments": true,
+          "note": "Fil « Brazilian 220 » du forum ; non vérifié ici."
+        }
+      ]
+    },
+    {
+      "id": "latin-50",
+      "name": "Latin 50",
+      "summary": "Cinquante morceaux latins (salsa, boléro, cha-cha, tango…) de la liste principale d'iReal Pro.",
+      "tunes": 50,
+      "minTunes": 40,
+      "playlistName": "Latin 50",
+      "genres": ["latin"],
+      "recommended": true,
+      "sourcePage": "https://www.irealpro.com/main-playlists/",
+      "licence": "aucune licence publiée ; grilles d'accords déposées par les utilisateurs d'iReal Pro, droits réservés par défaut",
+      "licenceUnclear": true,
+      "pages": [
+        {
+          "url": "https://www.irealpro.com/main-playlists/",
+          "kind": "html-with-ireal-links",
+          "role": "official",
+          "host": "irealpro.com",
+          "verified": false,
+          "followAttachments": false,
+          "note": "Même page que Jazz 1460 ; non vérifié ici."
+        },
+        {
+          "url": "https://forums.irealpro.com/threads/8482/",
+          "kind": "html-with-ireal-links",
+          "role": "forum",
+          "host": "forums.irealpro.com",
+          "verified": false,
+          "followAttachments": true,
+          "note": "Fil « Latin 50 » du forum ; non vérifié ici."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/smashub/choco/5fe168fd55be5c84512abcfbc4e6f1b1f8f0092a/partitions/ireal-pro/raw/playlists/latin_playlist.txt",
+          "kind": "ireal-url-file",
+          "role": "mirror",
+          "host": "GitHub",
+          "verified": true,
+          "followAttachments": false,
+          "note": "Copie dans un jeu de données de recherche (figée à une révision). Téléchargée et lue ici : 50 morceaux, nom « Latin 50 »."
+        }
+      ]
+    },
+    {
+      "id": "blues-50",
+      "name": "Blues 50",
+      "summary": "Cinquante blues de la liste principale d'iReal Pro : blues de douze mesures et variantes.",
+      "tunes": 50,
+      "minTunes": 40,
+      "playlistName": "Blues 50",
+      "genres": ["blues"],
+      "recommended": true,
+      "sourcePage": "https://www.irealpro.com/main-playlists/",
+      "licence": "aucune licence publiée ; grilles d'accords déposées par les utilisateurs d'iReal Pro, droits réservés par défaut",
+      "licenceUnclear": true,
+      "pages": [
+        {
+          "url": "https://www.irealpro.com/main-playlists/",
+          "kind": "html-with-ireal-links",
+          "role": "official",
+          "host": "irealpro.com",
+          "verified": false,
+          "followAttachments": false,
+          "note": "Même page que Jazz 1460 ; non vérifié ici."
+        },
+        {
+          "url": "https://forums.irealpro.com/threads/4782/",
+          "kind": "html-with-ireal-links",
+          "role": "forum",
+          "host": "forums.irealpro.com",
+          "verified": false,
+          "followAttachments": true,
+          "note": "Fil « Blues 50 » du forum ; non vérifié ici."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/infojunkie/ireal-musicxml/3101d352e97ba196122362b17be5d13e7bf3473e/test/data/blues50.txt",
+          "kind": "ireal-url-file",
+          "role": "mirror",
+          "host": "GitHub",
+          "verified": true,
+          "followAttachments": false,
+          "note": "Copie dans le dépôt de test d'un projet libre (figée à une révision). Téléchargée et lue ici : 54 morceaux, nom « Blues 50 »."
+        }
+      ]
+    },
+    {
+      "id": "dixieland-trad",
+      "name": "Dixieland et jazz traditionnel",
+      "summary": "Les listes du forum pour le jazz ancien : Nouvelle-Orléans, Dixieland, ragtime, swing des années vingt à quarante.",
+      "tunes": null,
+      "minTunes": 50,
+      "playlistName": null,
+      "genres": ["dixieland", "trad-jazz", "early-jazz"],
+      "recommended": true,
+      "sourcePage": "https://forums.irealpro.com/threads/10591/",
+      "licence": "aucune licence publiée ; listes déposées par des membres du forum, droits réservés par défaut",
+      "licenceUnclear": true,
+      "pages": [
+        {
+          "url": "https://forums.irealpro.com/threads/10591/",
+          "kind": "html-with-ireal-links",
+          "role": "forum",
+          "host": "forums.irealpro.com",
+          "verified": false,
+          "followAttachments": true,
+          "note": "Fil « Dixieland Trad Playlists » (numéro 10591 repris de l'ancien forum) : plusieurs listes en pièces jointes .html, avec des doublons d'une liste à l'autre. Non vérifié ici."
+        }
+      ]
+    },
+    {
+      "id": "gypsy-jazz",
+      "name": "Jazz manouche",
+      "summary": "La liste du forum pour le jazz manouche : standards joués par le Hot Club et ses héritiers.",
+      "tunes": null,
+      "minTunes": 50,
+      "playlistName": null,
+      "genres": ["gypsy-jazz"],
+      "recommended": false,
+      "sourcePage": "https://forums.irealpro.com/threads/215/",
+      "licence": "aucune licence publiée ; listes déposées par des membres du forum, droits réservés par défaut",
+      "licenceUnclear": true,
+      "pages": [
+        {
+          "url": "https://forums.irealpro.com/threads/215/",
+          "kind": "html-with-ireal-links",
+          "role": "forum",
+          "host": "forums.irealpro.com",
+          "verified": false,
+          "followAttachments": true,
+          "note": "Fil « Gypsy Jazz » (numéro 215 repris de l'ancien forum) ; non vérifié ici."
+        }
+      ]
+    },
+    {
+      "id": "pop-400",
+      "name": "Pop 400",
+      "summary": "Quatre cents chansons pop et rock de la liste principale d'iReal Pro (utile surtout si vous travaillez aussi des chansons).",
+      "tunes": 400,
+      "minTunes": 320,
+      "playlistName": "Pop 400",
+      "genres": ["pop", "rock"],
+      "recommended": false,
+      "sourcePage": "https://www.irealpro.com/main-playlists/",
+      "licence": "aucune licence publiée ; grilles d'accords déposées par les utilisateurs d'iReal Pro, droits réservés par défaut",
+      "licenceUnclear": true,
+      "pages": [
+        {
+          "url": "https://www.irealpro.com/main-playlists/",
+          "kind": "html-with-ireal-links",
+          "role": "official",
+          "host": "irealpro.com",
+          "verified": false,
+          "followAttachments": false,
+          "note": "Même page que Jazz 1460 ; non vérifié ici."
+        },
+        {
+          "url": "https://forums.irealpro.com/threads/8483/",
+          "kind": "html-with-ireal-links",
+          "role": "forum",
+          "host": "forums.irealpro.com",
+          "verified": false,
+          "followAttachments": true,
+          "note": "Fil « Pop 400 » du forum ; non vérifié ici."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/infojunkie/ireal-musicxml/3101d352e97ba196122362b17be5d13e7bf3473e/test/data/pop400.txt",
+          "kind": "ireal-url-file",
+          "role": "mirror",
+          "host": "GitHub",
+          "verified": true,
+          "followAttachments": false,
+          "note": "Copie dans le dépôt de test d'un projet libre (figée à une révision). Téléchargée et lue ici : 403 morceaux, nom « Pop 400 »."
+        }
+      ]
+    },
+    {
+      "id": "country-50",
+      "name": "Country 50",
+      "summary": "Cinquante chansons country de la liste principale d'iReal Pro.",
+      "tunes": 50,
+      "minTunes": 40,
+      "playlistName": "Country 50",
+      "genres": ["country"],
+      "recommended": false,
+      "sourcePage": "https://www.irealpro.com/main-playlists/",
+      "licence": "aucune licence publiée ; grilles d'accords déposées par les utilisateurs d'iReal Pro, droits réservés par défaut",
+      "licenceUnclear": true,
+      "pages": [
+        {
+          "url": "https://www.irealpro.com/main-playlists/",
+          "kind": "html-with-ireal-links",
+          "role": "official",
+          "host": "irealpro.com",
+          "verified": false,
+          "followAttachments": false,
+          "note": "Même page que Jazz 1460 ; non vérifié ici."
+        },
+        {
+          "url": "https://forums.irealpro.com/threads/6102/",
+          "kind": "html-with-ireal-links",
+          "role": "forum",
+          "host": "forums.irealpro.com",
+          "verified": false,
+          "followAttachments": true,
+          "note": "Fil « Country 50 » du forum ; non vérifié ici."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/infojunkie/ireal-musicxml/3101d352e97ba196122362b17be5d13e7bf3473e/test/data/country.txt",
+          "kind": "ireal-url-file",
+          "role": "mirror",
+          "host": "GitHub",
+          "verified": true,
+          "followAttachments": false,
+          "note": "Copie dans le dépôt de test d'un projet libre (figée à une révision). Téléchargée et lue ici : 50 morceaux, nom « Country 50 »."
+        }
+      ]
+    }
+  ]
+}
