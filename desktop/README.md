@@ -118,6 +118,19 @@ Ouvrez ensuite Fabtice normalement.
    morceau ». Le morceau ouvert est remplacé comme par un import ; si le
    fichier est abîmé, une phrase le dit et rien ne change. Format :
    `app/src/project/FORMAT.md`.
+7. **Le son ne démarre plus ?** Menu **Aide > Diagnostic…**, puis **Copier le
+   journal audio** (il est aussi dans « Copier le diagnostic ») et collez le
+   texte dans la conversation. Il donne, avec l’heure, ce que Fabtice a fait de
+   la sortie audio (ouverte, mise en sommeil, rendue au système, rouverte,
+   reprise après une panne), les mises en veille et sorties de veille du Mac,
+   les changements de périphériques audio et l’arrêt éventuel d’un processus
+   de Chromium. Il est gardé après un redémarrage du Mac. Fabtice rend la
+   sortie audio au système après 45 secondes sans lecture et dès que le Mac
+   se met en veille ; il n’empêche jamais la mise en veille. Si le son de tout
+   le Mac est bloqué (même l’aperçu du Finder reste muet), il n’est en général
+   pas nécessaire de redémarrer : ouvrir **Moniteur d’activité**, chercher
+   `coreaudiod`, le sélectionner puis **Forcer à quitter** (mot de passe
+   demandé) ; macOS le relance aussitôt.
 
 L’app utilise yt-dlp tel quel, depuis la connexion de l’utilisateur, sans
 aucun moyen de contourner les protections de YouTube. Si YouTube refuse, le
@@ -126,6 +139,19 @@ diagnostic montre simplement le message d’erreur.
 ## Pour le développement
 
 Fonctionnement :
+
+- **Sortie audio et veille** : `src/power-events.js` écoute `powerMonitor`
+  (veille, réveil, verrouillage de l’écran, température, arrêt) et
+  `child-process-gone` / `render-process-gone` (arrêt du service audio, du
+  processus graphique ou d’une page) ; il écrit dans le journal et transmet
+  veille, réveil et verrouillage aux fenêtres (`fabtice:power`, `onPower` du
+  pont), dont le moteur rend alors la sortie audio. `src/audio-journal.js`
+  garde les 200 derniers événements (ceux de l’interface arrivent par
+  `audioJournalAdd`, la source est déduite de l’adresse de l’expéditeur) dans
+  `audio-journal.json` du dossier de données ; `audioJournal()` le rend en
+  texte pour la fenêtre de diagnostic. Le lecteur de la fenêtre de diagnostic
+  ferme lui aussi son contexte 30 s après la dernière pause et à la veille.
+  L’app n’utilise jamais `powerSaveBlocker` (un test le vérifie).
 
 - L’interface est construite par `app/` (`npm run build:desktop`) dans
   `desktop/ui/` (non versionné) et embarquée dans l’app. Elle est servie par

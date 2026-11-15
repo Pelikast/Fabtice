@@ -1970,12 +1970,61 @@ vrai moteur (pas d'AudioWorklet, pas d'isolation COOP/COEP donc pas de
   sait en revanche **jouer le rendu tel quel** (lot 3 : voir « Rendu hors ligne et
   « Appliquer » » plus haut, `setRenderedTracks`).
 - **Contexte forcé à 48 kHz** (`ENGINE_SAMPLE_RATE`) quel que soit le réglage de
-  la machine ; créé (suspendu) par `loadTracks()`, **repris à l'intérieur de
+  la machine ; créé par le premier `loadTracks()`, **repris à l'intérieur de
   `play()`**, appelé de façon synchrone avant tout `await` : `play()` doit donc
-  partir du geste de l'utilisateur. Après une pause le contexte est remis en
-  sommeil au bout de 0,4 s (la tablette ne reste pas allumée) ; `play()` le
-  réveille. Une interruption du système (appel, autre app) ramène le moteur à
-  `ready` à la position où il était.
+  partir du geste de l'utilisateur. Voir « Cycle de vie de la sortie audio »
+  juste après.
+- **Cycle de vie de la sortie audio** (retours du 15 novembre : sur le Mac Intel
+  du propriétaire, le son de tout le Mac s'est bloqué après que Fabtice était
+  resté ouvert longtemps sans jouer). Le moteur ne garde la sortie que lorsqu'il
+  s'en sert :
+  - après une pause (ou la fin du morceau), le contexte est mis en **sommeil**
+    au bout de 0,4 s ; un contexte qui se met à tourner sans lecture (l'app Mac
+    autorise la lecture automatique : il démarre seul à sa création) y est
+    renvoyé aussi ;
+  - après **45 s sans lecture** (`IDLE_RELEASE_MS`), il est **fermé**
+    (`close()`, pas seulement `suspend()` : c'est le seul moyen sûr de rendre le
+    flux CoreAudio au système ; avec la suspension seule, Chromium peut garder
+    le flux ouvert côté service audio) ;
+  - `releaseDevice(raison)` fait la même chose tout de suite, en mettant en
+    pause si besoin (fondu de 8 ms entendu avant la fermeture).
+    `audio/deviceLifecycle.ts` l'appelle quand le Mac se met en veille ou en
+    sort (`powerMonitor` de l'app Mac, par le pont : `onPower`), quand l'écran
+    est verrouillé sans lecture, quand les périphériques audio changent
+    (`devicechange`, une seule fois par rafale ; la lecture en cours est mise
+    en pause, comme le font les lecteurs du Mac quand on débranche un casque ;
+    elle ne repart pas seule), quand la page est masquée sans lecture
+    (`visibilitychange`) et quand elle est quittée (`pagehide`). La version
+    web a donc le même comportement, sans les événements de veille ;
+  - le `play()` suivant crée un nouveau contexte **dans le geste**, recharge le
+    worklet et le wasm (en cache : rien n'est retéléchargé) et lui redonne
+    tout : pistes (les mêmes blocs partagés, sans copie), rendu « Appliquer »,
+    mélange, boucle, tonalité, tempo, clics et volume du métronome, étape et
+    passages de l'accélération, position. Mesuré ici (`test:engine`, section
+    23) : premier son environ 230 ms après l'appui contre 175 ms quand le
+    contexte n'était que suspendu, soit **environ 50 ms de plus** ;
+  - **reprise seule, une fois** : si le contexte ne démarre pas (`resume()`
+    rejeté, état autre que `running`, rien au bout de 8 s), il est jeté et
+    refait une fois ; pendant la lecture, un chien de garde vérifie que le
+    worklet publie sa position (au moins toutes les 2,5 s), sinon le moteur est
+    refait et la lecture repart où elle était entendue ; un contexte fermé ou
+    interrompu par le système ramène le moteur à `ready` et rend la sortie. Un
+    deuxième échec (ou une deuxième panne dans la minute) n'est pas réessayé :
+    la sortie est rendue, le moteur passe en `error` (`context` ou `runtime`)
+    et l'interface affiche `engine.errorDevice` ; « Lecture » reste offert et
+    un nouvel appui est un nouvel essai. Jamais de boucle d'essais ;
+  - **journal audio** (`audio/journal.ts`) : les 200 derniers événements datés
+    (contexte ouvert avec sa fréquence et sa latence de base, fermé et
+    pourquoi, états imposés par le système, veilles, changements de
+    périphériques — le nombre de sorties seulement, jamais leurs noms, qui
+    peuvent contenir celui d'une personne —, échecs, chien de garde,
+    reprises) et la dernière lecture réussie à part. Dans l'app Mac, chaque
+    événement part au processus principal, qui le garde avec les siens après
+    un redémarrage (Aide → Diagnostic…) ; dans la version web il est gardé
+    dans ce navigateur et se copie depuis les réglages avancés (« Copier le
+    journal audio »). `?debug` : `window.__fabtice.audioJournal`.
+  - Aides de test hors contrat : `deviceState()`, `setIdleReleaseDelay(ms)`,
+    `debugFailResumes(n)`, `debugStall()`.
 - **Mémoire** (conception du prototype) : pistes en blocs de 16 bits de 32 768
   images dans des `SharedArrayBuffer`, pistes mono (canaux identiques à un pas
   de 16 bits près) stockées une seule fois. Un morceau stéréo de 5 minutes
