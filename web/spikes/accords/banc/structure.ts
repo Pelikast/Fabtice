@@ -188,7 +188,7 @@ const add = (key: Key, c: Counts, k: Kinds) => {
   counts.set(key, addCounts(counts.get(key) ?? emptyCounts(), c));
   kinds.set(key, addKinds(kinds.get(key) ?? emptyKinds(), k));
 };
-const acceptance: { id: string; half: string; condition: string; scenario: string; title: string; standard: boolean; accepted: boolean; matched: string | null; z: number | null; nullZ: number | null; agree: number | null; reason: string | null; transpose: number | null; scale: number | null; formLength: number | null }[] = [];
+const acceptance: { colour: number; colourBase: number; chartTruth: number | null; id: string; half: string; condition: string; scenario: string; title: string; standard: boolean; accepted: boolean; matched: string | null; z: number | null; nullZ: number | null; agree: number | null; reason: string | null; transpose: number | null; scale: number | null; formLength: number | null }[] = [];
 const chartTruth = new Map<string, { beats: number; root: number; colour: number }>();
 const forms: { id: string; condition: string; truthForm: number; found: number | null; lags: number[]; choruses: number }[] = [];
 const rel: { half: string; condition: string; config: string; f: ReliabilityFeatures; beats: number; right: number; oldDoubt: boolean }[] = [];
@@ -250,9 +250,13 @@ for (const t of corpus) {
         ? [['titre exact', t.title], ['titre bruité', noisy], ['titre d’un autre morceau', wrongTitle(t)]]
         : [['sans titre', ''], ['titre d’un autre morceau', wrongTitle(t)]];
       for (const [scenario, title] of scenarios) {
-        const run = analyse(input, net, { repeats: null, chart: overrides.chart, title });
+        const run = analyse(input, net, { repeats: null, chart: overrides.chart, title, chartKey });
         const fit = run.chart;
+        const colour = rates(scorePiece(t, condition, run.out)).beat.couleur;
+        const colourBase = rates(scorePiece(t, condition, analyse(input, net, { repeats: null, chart: null }).out)).beat.couleur;
+        const vt = chartVsTruth(t, condition, run);
         acceptance.push({
+          colour, colourBase, chartTruth: vt.beats ? vt.colour / vt.beats : null,
           id: t.id, half: h, condition, scenario, title, standard: t.standard && scenario !== 'titre d’un autre morceau',
           accepted: !!fit?.accepted, matched: fit?.chart?.title ?? null, z: fit?.best?.z ?? null, nullZ: fit?.best?.nullZ ?? null, agree: fit?.best?.agree ?? null,
           reason: fit?.reason ?? null, transpose: fit?.best?.transpose ?? null, scale: fit?.best?.scale ?? null,
@@ -311,11 +315,11 @@ if (acceptance.length) {
     }
   }
   lines.push('\nDétail (z : écart de la meilleure position aux autres ; accord : part des temps où la grille et le réseau sont d’accord) :\n');
-  lines.push('| Morceau | Son | Scénario | Titre | Grille trouvée | z | z contre d’autres morceaux | Accord | Transp. | Échelle | Décision |');
-  lines.push('|---|---|---|---|---|---|---|---|---|---|---|');
+  lines.push('| Morceau | Son | Scénario | Titre | Grille trouvée | z | z contre d’autres morceaux | Accord | Transp. | Échelle | Décision | Grille vs vérité (couleur) | Couleur sans → avec |');
+  lines.push('|---|---|---|---|---|---|---|---|---|---|---|---|---|');
   for (const r of acceptance) {
     if (!r.matched) continue;
-    lines.push(`| ${r.id} | ${r.condition} | ${r.scenario} | ${r.title} | ${r.matched} | ${r.z?.toFixed(1)} | ${r.nullZ?.toFixed(1)} | ${r.agree !== null ? pct(r.agree) : ''} | ${r.transpose} | ${r.scale} | ${r.accepted ? 'acceptée' : `refusée (${r.reason})`} |`);
+    lines.push(`| ${r.id} | ${r.condition} | ${r.scenario} | ${r.title} | ${r.matched} | ${r.z?.toFixed(1)} | ${r.nullZ?.toFixed(1)} | ${r.agree !== null ? pct(r.agree) : ''} | ${r.transpose} | ${r.scale} | ${r.accepted ? 'acceptée' : `refusée (${r.reason})`} | ${r.chartTruth !== null ? pct(r.chartTruth) : ''} | ${pct(r.colourBase)} → ${pct(r.colour)} |`);
   }
 }
 if (chartTruth.size) {
@@ -331,6 +335,11 @@ lines.push(`\nTemps de calcul par variante (décodage compris, réseaux en cache
 let relOut: unknown = null;
 if (opt.fit && rel.length) {
   const train = rel.filter((r) => r.half === 'dev' && r.config === (opt.fitConfig ?? 'les-deux'));
+  // each condition weighs the same in the fit (the synthetic pieces have five times the beats of GuitarSet)
+  const condBeats = new Map<string, number>();
+  for (const r of train) condBeats.set(r.condition, (condBeats.get(r.condition) ?? 0) + r.beats);
+  const meanBeats = [...condBeats.values()].reduce((a, b) => a + b, 0) / (condBeats.size || 1);
+  const rowW = (r: (typeof rel)[number]) => (opt.balance === 'false' ? 1 : meanBeats / condBeats.get(r.condition)!);
   const names = FEATURE_NAMES;
   const X = (f: ReliabilityFeatures) => [1, ...names.map((n) => f[n])];
   // logistic regression by Newton steps, rows weighted by their beats, small ridge
@@ -345,8 +354,9 @@ if (opt.fit && rel.length) {
       const p = 1 / (1 + Math.exp(-z));
       // binomial: right of beats
       for (let i = 0; i < d; i++) {
-        g[i]! += (r.right - r.beats * p) * x[i]!;
-        for (let j = 0; j < d; j++) H[i]![j]! += r.beats * p * (1 - p) * x[i]! * x[j]!;
+        const rw = rowW(r);
+        g[i]! += rw * (r.right - r.beats * p) * x[i]!;
+        for (let j = 0; j < d; j++) H[i]![j]! += rw * r.beats * p * (1 - p) * x[i]! * x[j]!;
       }
     }
     for (let i = 1; i < d; i++) {
@@ -428,18 +438,23 @@ if (opt.fit && rel.length) {
       }
     }
   }
-  const held = rel.filter((r) => r.half === 'controle' && r.config === (opt.fitConfig ?? 'les-deux'));
-  const curve = evalRows(held, (r) => predict(r.f)).curve;
-  const curveOld = evalRows(held, oldP).curve;
-  res.curveControle = curve;
-  res.curveControleAncienne = curveOld;
-  rows.push('\nCourbe de fiabilité sur « contrôle » (toutes conditions) : probabilité annoncée → part réellement juste (temps).\n');
-  rows.push('| Tranche | Temps | Annoncé | Observé | Ancienne confiance : temps | annoncé | observé |');
-  rows.push('|---|---|---|---|---|---|---|');
-  curve.forEach((c, i) => {
-    const o2 = curveOld[i]!;
-    rows.push(`| ${c.bin} | ${c.beats} | ${c.predicted !== null ? pct(c.predicted) : '—'} | ${c.observed !== null ? pct(c.observed) : '—'} | ${o2.beats} | ${o2.predicted !== null ? pct(o2.predicted) : '—'} | ${o2.observed !== null ? pct(o2.observed) : '—'} |`);
-  });
+  const heldAll = rel.filter((r) => r.half === 'controle' && r.config === (opt.fitConfig ?? 'les-deux'));
+  for (const [label, sel] of [
+    ['toutes conditions', heldAll],
+    ['synthèse (propre et vieux disque)', heldAll.filter((r) => r.condition === 'propre' || r.condition === 'disque')],
+    ['GuitarSet (réel et vieux disque)', heldAll.filter((r) => r.condition === 'reel' || r.condition === 'reel-disque')],
+  ] as const) {
+    const ev = evalRows([...sel], (r) => predict(r.f));
+    const evOld = evalRows([...sel], oldP);
+    res[`curve|${label}`] = { nouveau: ev.curve, ancienneConfiance: evOld.curve };
+    rows.push(`\nCourbe de fiabilité sur « contrôle », ${label} (Brier ${ev.brier.toFixed(3)}, écart moyen ${pct(ev.ece)} ; ancienne confiance ${evOld.brier.toFixed(3)}, ${pct(evOld.ece)}) : probabilité annoncée → part réellement juste (temps).\n`);
+    rows.push('| Tranche | Temps | Annoncé | Observé | Ancienne confiance : temps | annoncé | observé |');
+    rows.push('|---|---|---|---|---|---|---|');
+    ev.curve.forEach((c, i) => {
+      const o2 = evOld.curve[i]!;
+      rows.push(`| ${c.bin} | ${c.beats} | ${c.predicted !== null ? pct(c.predicted) : '—'} | ${c.observed !== null ? pct(c.observed) : '—'} | ${o2.beats} | ${o2.predicted !== null ? pct(o2.predicted) : '—'} | ${o2.observed !== null ? pct(o2.observed) : '—'} |`);
+    });
+  }
   lines.push(...rows);
   relOut = res;
 }

@@ -18,10 +18,14 @@
 //    wrong on a third of the synthetic pieces. The loop costs F² per
 //    transposition and scale (F beats in the form), whatever the piece's
 //    length (beats are summed by position in the form first).
-// 3. Verification: the best alignment must fit clearly better than the
-//    same chart does at its other transpositions and offsets (a z-score of
-//    the best against all the alignments tried), and agree with the
-//    network's own best reading on enough beats. Otherwise the chart is
+// 3. Verification: the best alignment must fit clearly better than OTHER
+//    TUNES do on the same recording (reference charts spread over the
+//    library, each at its own best transposition, scale and offset: the
+//    chart's score in their standard deviations, `minNullZ`), stand out from
+//    the chart's other alignments (`minZ`), and agree with the network's own
+//    best reading on enough beats (`minAgree`). The comparison with other
+//    tunes is what tells a chart from a lucky one: any jazz chart finds some
+//    alignment that fits a ii-V-I piece a little. Otherwise the chart is
 //    rejected: a wrong chart (another tune of the same title, a contrafact, a
 //    very free version) is worse than none.
 // 4. Evidence: per beat, a distribution centred on the chart's chord (some
@@ -86,7 +90,7 @@ export const CHART_DEFAULTS: ChartOptions = {
   keyWeight: 0.05,
   minZ: 2,
   minAgree: 0.25,
-  minNullZ: 2,
+  minNullZ: 2.5,
   weight: 4,
   doubtPower: 1,
   window: 2,
