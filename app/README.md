@@ -1212,6 +1212,95 @@ chantiers suivent, chacun dans son dossier.
   résultat) ; un réglage avancé pour le grand réseau de temps ; les extensions
   d'accord et la basse restent des suggestions (peu fiables, mesuré).
 
+##### Preuves de structure : reprises, grille connue, fiabilité (`engine/{evidence,repeats,knownChart,reliability}.ts`)
+
+Les moyens 2 et 3 du programme « accords » (CLAUDE.md, analyse) et le calcul de
+fiabilité qui les réunit. Fonctions **pures**, pas encore branchées dans
+`pipeline.ts` ni dans le worker (ce sera fait à l'intégration) ; mesurées sur le banc
+(`web/spikes/accords/resultats/structure.md`).
+
+- **Le contrat commun** (`evidence.ts`). Chaque source donne, par temps, une
+  distribution (en log) sur les 169 classes d'accords et un **poids** ; on l'ajoute à
+  ce que le réseau a entendu : `logp' = log softmax(logp_réseau + Σ poids × L_source)`.
+  Un poids nul ne change rien ; une source ne remplace jamais le réseau : là où il
+  est sûr, elle le déplace à peine ; là où il hésite, elle décide. `applyEvidence`
+  fait la somme et rend des `PooledUnit` que `decodeChords` prend tels quels. Les
+  instruments séparés et la basse (l'autre chantier) entreront de la même façon.
+- **Reprises** (`repeats.ts`, `findRepeats(units, numbers)`). Chaque mesure est
+  décrite par ce que le réseau entend à chaque temps, ramené à fondamentale ×
+  famille (un maj7 joué en 6, une 9 ajoutée à la reprise restent « pareils ») ;
+  similarité de toutes les paires de mesures, mesurée depuis le fond propre au
+  morceau. Pour chaque décalage (en mesures), la similarité moyenne : la forme
+  ressort comme un **pic** au-dessus des décalages voisins (12 pour un blues, 32
+  pour un AABA, 8 à l'intérieur) ; un vamp ou une simple décroissance n'en font pas.
+  Deux mesures à un décalage retenu (ou un multiple de la forme, ± 1 mesure pour un
+  temps perdu ou ajouté) sont **partenaires** quand leurs **voisines** se
+  ressemblent (la mesure elle-même est laissée de côté : une mesure mal entendue
+  reçoit quand même l'aide des autres grilles ; une introduction, une coda, un tag
+  n'en reçoivent pas). Chaque temps reçoit le **mélange** de sa propre lecture et de
+  celle de ses partenaires au même temps de la mesure : comme sa propre lecture en
+  fait partie, une mesure **réharmonisée qui s'entend clairement garde son accord**
+  (la pénalité de désaccord est bornée par log(1 + partenaires)) ; une mesure qui
+  hésite suit les autres grilles. Pas de forme (une seule grille, morceau sans
+  reprise, moins de 6 décalages mesurables : GuitarSet) → aucun effet. Rend aussi la
+  longueur de forme, les débuts de grille et, par mesure, les partenaires.
+- **Grille connue** (`knownChart.ts`). `findChartCandidates(index, titre)` (titres
+  bruités, sur l'index de `standards/match.ts`) ; plusieurs grilles d'un même
+  morceau sont toutes candidates, l'ajustement choisit. `fitKnownChart(units,
+  numbers, bpb, tonalité, candidates, options, références)` aligne la grille, vue
+  comme une boucle de sa forme, sur les temps de l'enregistrement : **transposition**
+  (12), **échelle** (1 temps enregistré par temps de grille ; 2 : temps trouvés deux
+  fois plus vite, jeu en double ; ½), **décalage** (n'importe quel temps : intro de
+  toute longueur, premier temps mal placé). Score : moyenne du log de la probabilité
+  (fondamentale × famille) de l'accord de la grille, plus un petit a priori pour la
+  tonalité détectée (a priori seulement : elle est fausse sur un tiers des morceaux
+  de synthèse). Coût F² par transposition et par échelle (F temps dans la forme),
+  quelle que soit la durée du morceau. **Vérification** : la grille doit faire
+  nettement mieux que **d'autres morceaux** sur ce même enregistrement
+  (`referenceCharts` : 60 grilles réparties dans les recueils, chacune à sa meilleure
+  position ; seuil 2,5 écarts-types), se détacher de ses autres positions et être
+  d'accord avec le réseau sur au moins un quart des temps ; sinon elle est
+  **refusée** (une mauvaise grille est pire que rien). Le décalage global peut ne pas
+  tenir partout (un temps perdu ou ajouté par la grille des temps, des sections
+  jouées dans un autre ordre, un tag) : **alignement par morceaux**, par mesure l'un
+  des 6 meilleurs décalages ou « aucun », par Viterbi avec un coût de 12 nats pour
+  changer (seul un changement qui tient quelques mesures est pris) ; les premières
+  et dernières mesures en désaccord sont une intro, une coda. Acceptée, elle donne
+  par temps une distribution centrée sur son accord (la moitié sur l'accord, 30 % sur
+  ses autres couleurs, 5 % sur la substitution tritonique d'une dominante ; la part
+  de l'accord exact est multipliée par la part des temps où, fondamentale et famille
+  d'accord, la couleur de la grille est aussi celle qu'entend le réseau : une grille
+  qui écrit des 7 là où l'orchestre joue des accords parfaits ne prête que ses
+  fondamentales) avec un poids
+  = 4 × accord local × (1 − meilleure probabilité du réseau) : il grandit où le
+  réseau doute et s'efface où il est sûr ; l'accord local (mesures voisines, la
+  mesure elle-même exclue) l'éteint dans une intro, une coda ou une grille jouée
+  librement. Rend aussi l'**alignement** (mesure de la forme, grille, lettre de
+  section de chaque mesure enregistrée), la tonalité qu'elle implique (décoder dans
+  cette tonalité quand la grille est acceptée aide : mesuré) et, par temps, son
+  accord. Les recueils ne sont jamais dans le dépôt : les tests utilisent de
+  minuscules grilles écrites à la main.
+- **Fiabilité** (`reliability.ts`). `reliabilityFeatures(segments, unitsDuRéseau,
+  reprises, grille)` puis `reliability(f)` : probabilité que l'accord soit juste
+  (fondamentale et couleur), modèle logistique réglé sur la moitié « dev » du banc
+  et vérifié sur l'autre. Entrées : la confiance du réseau (moyenne géométrique,
+  avant toute preuve de structure), le marginal du décodeur, la marge du réseau sur
+  le second accord, l'accord des autres grilles, l'accord de la grille connue (pondéré
+  par son accord local), la longueur du segment. Une source absente vaut 0. **Douteux
+  = plus probablement faux que juste** (`RELIABILITY_DOUBT` = 0,5).
+- **Comment le pipeline doit les appeler** (dans `chartFromGrid`, après
+  `poolSegments` et la tonalité) : `rep = findRepeats(units, grid.numbers)` ; si le
+  projet a un titre et que les recueils sont là, `fit = fitKnownChart(units,
+  grid.numbers, grid.beatsPerBar, key, candidats, {}, références)` ; `adj =
+  applyEvidence(units, [rep.source, ...(fit?.accepted ? [fit.source] : [])])` ; si la
+  grille est acceptée et que la tonalité n'est pas celle de l'utilisateur,
+  décoder dans `fit.key` ; `decodeChords(adj, …)` puis `buildSegments(adj, …)` ;
+  enfin `confidence = reliability(f)`, `doubtful = confidence < RELIABILITY_DOUBT`
+  avec `f = reliabilityFeatures(segments, units, rep, fit?.accepted ? fit : null)`.
+  Le worker n'a pas les recueils : le fil principal (qui connaît le titre) lui passe
+  les candidates et les références (quelques Ko chacune). Une correction à la main
+  reste intouchable (ces preuves ne servent qu'à l'analyse).
+
 #### Grille d'accords — `src/chart/`
 
 Tout est en place : la feuille fidèle à la maquette, et ce qu'un musicien fait
