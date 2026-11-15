@@ -9,3 +9,6 @@ __pycache__/
 /web/index.html
 /web/assets/
 /desktop/ui/
+
+# Screenshots of the browser checks (a local folder, never committed).
+/app/tests/out/
