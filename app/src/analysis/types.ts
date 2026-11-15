@@ -57,10 +57,15 @@ export interface DownloadProgress {
   total: number;
 }
 
-/** The fine chord model's windows (30 s each): « fenêtre 3 sur 12 ». */
+/** The fine chord model's windows (30 s each): 3 done out of 12. */
 export interface ChordWindowProgress {
   done: number;
   total: number;
+  /**
+   * Steady progress of the whole chord step, 0…1 (never going back): the windows done plus an
+   * estimate of the current one. Added by the analyser (`windowClock.ts`), not by the worker.
+   */
+  fraction?: number;
 }
 
 export interface AnalysisProgress {

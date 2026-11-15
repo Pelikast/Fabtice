@@ -897,7 +897,7 @@ scenarios.fin = async () => {
     window.__windows = [];
     setInterval(() => {
       const w = document.querySelector('[data-testid="analyse-etat"]')?.textContent ?? '';
-      if (/fenêtre/.test(w) && window.__windows[window.__windows.length - 1]?.text !== w) window.__windows.push({ text: w, t: performance.now() });
+      if (/écoute fine/.test(w) && window.__windows[window.__windows.length - 1]?.text !== w) window.__windows.push({ text: w, t: performance.now() });
     }, 50);
   });
   await page.waitForFunction(() => {
@@ -912,7 +912,10 @@ scenarios.fin = async () => {
   check('fine: its weights came from Hugging Face', requests.some((u) => u.endsWith('chord-model.safetensors')), requests.map((u) => path.basename(u)).join(', '));
   const texts = await page.evaluate(() => window.__texts);
   const windows = await page.evaluate(() => window.__windows);
-  check('fine: progress per window, in French', texts.some((x) => /Accords : écoute fine, fenêtre 1 sur 2/.test(x)) && texts.some((x) => /fenêtre 2 sur 2/.test(x)), texts.filter((x) => /fenêtre/.test(x)).join(' | '));
+  // A steady percentage of the step (not one per window): in French, whole numbers, 0 to 100, never going back.
+  const percents = windows.map((w) => /^Accords : écoute fine, (\d+) %$/.exec(w.text)).filter(Boolean).map((m) => Number(m[1]));
+  check('fine: steady percentage in French, never going back', percents.length >= 3 && percents.every((p, i) => p >= 0 && p <= 100 && (i === 0 || p >= percents[i - 1])), windows.map((w) => w.text).join(' | '));
+  check('fine: the percentage moves between windows (more steps than the 2 windows)', new Set(percents).size > 3, percents.join(' '));
   const r = await result(page);
   const c = compare(r);
   check('fine: the result records the fine model', r.analyser.models.includes('tsumugi-chords') && !r.analyser.models.includes('crema-chords') && r.chordModel?.id === 'tsumugi-chords' && !r.chordModel.fallback, JSON.stringify([r.analyser.models, r.chordModel]));

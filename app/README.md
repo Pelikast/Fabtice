@@ -1629,7 +1629,14 @@ gardés (règle de toujours, testée dans `chordModel.test.ts`).
   deux), rééchantillonné à 25,6 kHz (`tsumugiFeatures.ts#resampleTo25600`), en
   fenêtres de 30 s dont il garde les 20 s du milieu, avec les temps, premiers
   temps et la tonalité que l'analyse vient de trouver (ou ceux de l'utilisateur).
-  Progression par fenêtre : « Accords : écoute fine, fenêtre 3 sur 12 » ;
+  Progression : le worker ne signale qu'une fenêtre terminée ; `windowClock.ts`
+  (pur, testé) estime l'avance dans la fenêtre en cours à partir de la durée des
+  fenêtres précédentes (la première : la durée mesurée par l'analyse précédente de
+  la session, sinon 45 s par défaut, corrigée dès qu'une fenêtre est finie), sans
+  jamais reculer ni atteindre la fenêtre suivante avant son signal. `fabtice.ts`
+  en tire la fraction continue et `chordWindow.fraction`. Texte : « Accords :
+  écoute fine, 37 % » dans la barre du haut, et dans le panneau « … 37 % ·
+  fenêtre 3 sur 12 » (le décompte en information secondaire) ;
   l'annulation est lue entre deux fenêtres ; la session est libérée à la fin.
   Ses 745 classes sont ramenées aux 169 accords de l'app (`tsumugiVocab.ts`,
   généré par `gen_tsumugi_vocab.py`, le même repli que sur le banc), avec ses
