@@ -13,6 +13,7 @@
 //   ?analyse=aucune    no automatic analysis after an import (`analysis/runner.ts`)
 //   ?modele=complet    the real analyser with the full Beat This! network (83 MB)
 //                      instead of the light one (10 MB), for comparisons
+//   ?echec-accords=memoire|session   the fine chord model fails on purpose (its fallback)
 // Test pages (`?moteur=factice`, the silent engine, or `?debug`, which opens
 // the store to the tests) get the mock unless they ask `?analyse=reel`: the
 // existing suites import files all the time and must neither download models
@@ -45,7 +46,8 @@ function mockByDefault(): boolean {
 
 function realAnalyzer(): Analyzer {
   if (!analysisSupported()) return new MockAnalyzer();
-  return new FabticeAnalyzer({ beatModel: search()?.get('modele') === 'complet' ? 'full' : 'light' });
+  const q = search();
+  return new FabticeAnalyzer({ beatModel: q?.get('modele') === 'complet' ? 'full' : 'light', simulateChordFailure: q?.get('echec-accords') ?? null });
 }
 
 export function createAnalyzer(mode: string | null = param()): Analyzer {

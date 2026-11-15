@@ -1,12 +1,8 @@
-// node --experimental-strip-types --no-warnings --test ts/tsumugi-features.test.ts
-// Unit tests, plus parity with the author's Python on the fixtures of make_fixtures.py
-// (skipped when ../out/ts-fixtures/ is empty).
+// The input side of the Tsumugi-Chords model. Parity with the author's Python on bench
+// files is checked in web/spikes/accords/modeles/ts/ (make_fixtures.py, ts_parity.py).
 
 import assert from 'node:assert/strict';
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { test } from 'node:test';
-import { fileURLToPath } from 'node:url';
+import { test } from 'vitest';
 import {
   BEAT_FEATURES,
   KEY_FEATURES,
@@ -19,9 +15,8 @@ import {
   stitch,
   windowPlan,
   windowWave,
-} from './tsumugi-features.ts';
+} from './tsumugiFeatures';
 
-const here = dirname(fileURLToPath(import.meta.url));
 
 test('key index as the author writes it', () => {
   assert.equal(keyIndex('E:major'), 4);
@@ -99,25 +94,3 @@ test('resampler: a 1 kHz tone at 48 kHz stays a 1 kHz tone at 25.6 kHz', () => {
   for (let j = 2000; j < 23_000; j++) peak = Math.max(peak, Math.abs(z[j]!));
   assert.ok(peak < 1e-3, `alias ${peak}`);
 });
-
-const fx = join(here, '..', 'out', 'ts-fixtures');
-const files = existsSync(fx) ? readdirSync(fx).filter((f) => f.endsWith('.json')) : [];
-for (const file of files) {
-  test(`parity with the author's Python: ${file}`, () => {
-    const d = JSON.parse(readFileSync(join(fx, file), 'utf8'));
-    const plan = windowPlan(d.samples);
-    assert.equal(plan.frames, d.frames);
-    assert.equal(plan.windows.length, d.windows.length);
-    let maxBeat = 0;
-    for (let i = 0; i < plan.windows.length; i++) {
-      const w = plan.windows[i]!;
-      const ref = d.windows[i];
-      assert.deepEqual([w.start, w.keepFrom, w.keepTo], [ref.start, ref.keepFrom, ref.keepTo]);
-      const b = beatFeatures(d.beats, d.downbeats, w.start / 25);
-      const k = keyFeatures(d.keySpans, w.start / 25);
-      for (let j = 0; j < b.length; j++) maxBeat = Math.max(maxBeat, Math.abs(b[j]! - ref.beats[j]));
-      assert.deepEqual([...k], ref.keys);
-    }
-    assert.ok(maxBeat < 1e-6, `beat features differ by ${maxBeat}`);
-  });
-}

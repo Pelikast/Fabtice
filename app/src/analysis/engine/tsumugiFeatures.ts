@@ -1,9 +1,9 @@
-// What the JavaScript side must compute to run the Tsumugi-Chords graph (see
-// ../RECHERCHE.md and ../convert_tsumugi.py): the audio at 25.6 kHz in stereo, cut into
+// What the app must compute to run the Tsumugi-Chords graph (see
+// web/spikes/accords/modeles/RECHERCHE.md and convert_tsumugi.py there): the audio at 25.6 kHz in stereo, cut into
 // 30 s windows of which the middle 20 s are kept, and for every window the beat and key
 // features at 25 frames per second. Pure functions, no dependencies, ported line by line
 // from the author's tsumugi_chords/note_chords.py (MIT) and checked against it
-// (tsumugi-features.test.ts, parity.mjs).
+// (tsumugiFeatures.test.ts here; bench files in web/spikes/accords/modeles/ts/).
 
 export const RATE = 25_600; // samples per second the graph reads
 export const FRAME_RATE = 25; // output frames per second
@@ -157,8 +157,9 @@ export function stitch(song: Float32Array, windowOut: Float32Array, w: WindowPla
 /**
  * Resample to RATE with a polyphase windowed-sinc (Kaiser) low-pass, for any integer input
  * rate (48 kHz in the app: up 8, down 15). Cut-off at 0.475 x the lower rate, `zeros` zero
- * crossings each side. Not the author's resampler (torchaudio's): parity.mjs measures what it
- * changes in the model's output.
+ * crossings each side. Not the author's resampler (torchaudio's): ts_parity.py measures what it
+ * changes in the model's output
+ * (web/spikes/accords/modeles/ts/ts_parity.py: 56 to 71 dB, the same chords).
  */
 export function resampleTo25600(x: Float32Array, rate: number, zeros = 32, beta = 8.6): Float32Array {
   if (rate === RATE) return x.slice();

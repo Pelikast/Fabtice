@@ -18,7 +18,7 @@
 import type { AnalysisResult } from '../model/analysis';
 import { mixToMono } from './engine/resample';
 import type { NetworkOutputs } from './engine/pipeline';
-import { modelsFor, type BeatModelChoice } from './models';
+import { CHORD_MODEL_ID, modelsFor, type BeatModelChoice, type ChordModelChoice } from './models';
 import { openModelStore } from './models/store';
 import {
   AnalysisError,
@@ -28,6 +28,7 @@ import {
   type AnalysisRequest,
   type AnalysisStep,
   type Analyzer,
+  resultChordModel,
 } from './types';
 import type { AnalyseRequestMessage, DecodeRequestMessage, FromWorker, ToWorker } from './worker/protocol';
 
@@ -44,6 +45,17 @@ export const STEP_WEIGHTS: Record<Exclude<AnalysisStep, 'download'>, number> = {
   chords: 0.12,
   finish: 0.05,
 };
+/**
+ * With the fine chord model the chords take most of the time (30 s windows, several minutes
+ * per piece on a computer): its shares instead.
+ */
+export const FINE_STEP_WEIGHTS: Record<Exclude<AnalysisStep, 'download'>, number> = {
+  prepare: 0.03,
+  tuning: 0.01,
+  beats: 0.08,
+  chords: 0.86,
+  finish: 0.02,
+};
 /** The first download takes this share of the progress when there is one. */
 export const DOWNLOAD_SHARE = 0.3;
 
@@ -57,6 +69,8 @@ export interface FabticeAnalyzerOptions {
   beatModel?: BeatModelChoice;
   /** The worker (replaceable in tests). */
   createWorker?: () => Worker;
+  /** Test hook: make the fine chord model fail (`memoire`, `session`), to check the fallback. */
+  simulateChordFailure?: string | null;
 }
 
 function defaultWorker(): Worker {
@@ -75,19 +89,21 @@ export class FabticeAnalyzer implements Analyzer {
   private readonly beatModel: BeatModelChoice;
   private readonly createWorker: () => Worker;
   private readonly injected: boolean;
+  private readonly simulateChordFailure: string | null;
   /** The analysis in progress (its signal tells when it is being given up: a new one may then start at once). */
   private active: { signal?: AbortSignal } | null = null;
   private current: Worker | null = null;
-  private kept: { audioId: string; outputs: NetworkOutputs; duration: number; models: string[] } | null = null;
+  private kept: { audioId: string; outputs: NetworkOutputs; duration: number; models: string[]; chordId: string } | null = null;
 
   constructor(options: FabticeAnalyzerOptions = {}) {
     this.beatModel = options.beatModel ?? 'light';
     this.createWorker = options.createWorker ?? defaultWorker;
     this.injected = !!options.createWorker;
+    this.simulateChordFailure = options.simulateChordFailure ?? null;
   }
 
-  async models(): Promise<AnalysisModelInfo[]> {
-    const specs = modelsFor(this.beatModel);
+  async models(chordModel: ChordModelChoice = 'crema'): Promise<AnalysisModelInfo[]> {
+    const specs = modelsFor(this.beatModel, chordModel);
     let has: (id: string, bytes: number, sha: string) => Promise<boolean> = async () => false;
     try {
       const store = await openModelStore();
@@ -114,7 +130,10 @@ export class FabticeAnalyzer implements Analyzer {
     this.active = mine;
     try {
       const duration = length / sampleRate;
-      const reuse = this.kept && this.kept.audioId === request.audioId && (request.grid || request.key) ? this.kept : null;
+      const chordModel = request.chordModel ?? 'crema';
+      // Outputs kept from another chord model (or from a fine run that fell back) are recomputed.
+      const reuse =
+        this.kept && this.kept.audioId === request.audioId && (request.grid || request.key) && this.kept.chordId === CHORD_MODEL_ID[chordModel] ? this.kept : null;
       if (!reuse) this.kept = null;
       let message: ToWorker;
       let transfer: Transferable[] = [];
@@ -122,20 +141,25 @@ export class FabticeAnalyzer implements Analyzer {
         message = { type: 'decode', outputs: reuse.outputs, duration: reuse.duration, models: reuse.models, grid: request.grid ?? null, key: request.key ?? null, known: request.knownCharts ?? null } satisfies DecodeRequestMessage;
       } else {
         const mono = await this.mix(channels, length, signal);
+        // The fine model listens in stereo: its own copies of the channels (the request's are not ours).
+        const stereo = chordModel === 'fine' ? channels.slice(0, 2).map((c) => c.slice()) : [];
         message = {
           type: 'analyse',
           mono,
+          stereo,
           sampleRate,
           duration,
           beatModel: this.beatModel,
+          chordModel,
+          simulateChordFailure: this.simulateChordFailure,
           grid: request.grid ?? null,
           key: request.key ?? null,
           known: request.knownCharts ?? null,
         } satisfies AnalyseRequestMessage;
-        transfer = [mono.buffer];
+        transfer = [mono.buffer, ...stereo.map((c) => c.buffer)];
       }
       const { result, outputs, models } = await this.talk(message, transfer, duration, request);
-      if (outputs) this.kept = { audioId: request.audioId, outputs, duration, models };
+      if (outputs) this.kept = { audioId: request.audioId, outputs, duration, models, chordId: resultChordModel(result).id };
       return result;
     } finally {
       if (this.active === mine) this.active = null;
@@ -194,13 +218,15 @@ export class FabticeAnalyzer implements Analyzer {
       let stepStarted = performance.now();
       let latest = 0;
       let download: AnalysisProgress['download'];
+      let chordWindow: AnalysisProgress['chordWindow'];
+      const weights = request.chordModel === 'fine' ? FINE_STEP_WEIGHTS : STEP_WEIGHTS;
       const share = (s: AnalysisStep): [number, number] => {
         const scale = downloadBytes > 0 ? 1 - DOWNLOAD_SHARE : 1;
         if (s === 'download') return [0, DOWNLOAD_SHARE];
         let base = downloadBytes > 0 ? DOWNLOAD_SHARE : 0;
         for (const k of ['prepare', 'tuning', 'beats', 'chords', 'finish'] as const) {
-          if (k === s) return [base, STEP_WEIGHTS[k] * scale];
-          base += STEP_WEIGHTS[k] * scale;
+          if (k === s) return [base, weights[k] * scale];
+          base += weights[k] * scale;
         }
         return [1, 0];
       };
@@ -208,13 +234,13 @@ export class FabticeAnalyzer implements Analyzer {
         const [base, weight] = share(step);
         let f = stepFraction;
         // The chord network gives no news while it runs: advance on the clock, never to the end.
-        if (step === 'chords' && f === 0) {
+        if (step === 'chords' && f === 0 && !chordWindow) {
           const expected = Math.max(1, duration * CHORD_SECONDS_PER_SECOND);
           f = Math.min(0.95, 1 - Math.exp(-(performance.now() - stepStarted) / 1000 / expected));
         }
         latest = Math.max(latest, Math.min(1, base + weight * f));
         try {
-          request.onProgress?.({ step, fraction: latest, ...(download ? { download } : {}) });
+          request.onProgress?.({ step, fraction: latest, ...(download ? { download } : {}), ...(chordWindow ? { chordWindow } : {}) });
         } catch {
           // a failing listener never breaks the analysis
         }
@@ -251,6 +277,7 @@ export class FabticeAnalyzer implements Analyzer {
             step = m.step;
             stepFraction = m.fraction;
             download = m.download;
+            if (m.chordWindow) chordWindow = m.chordWindow;
             report();
             break;
           case 'result':

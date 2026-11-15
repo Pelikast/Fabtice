@@ -13,15 +13,16 @@
 // The status (`AppState.analysisRun`) is what the interface shows; the
 // result goes to `AppState.analysis`.
 
-import { pcmToMonoInSlices } from '../audio/pcm';
+import { pcmToChannels, pcmToMonoInSlices } from '../audio/pcm';
 import { getAudio } from '../audio/registry';
 import { beatGridOf } from '../grid/beats';
 import { applyAnalysis, setAnalysisRun } from '../store/analysisActions';
 import { appStore, type AppState } from '../store/store';
+import { chordModelChoice } from './chordModel';
 import { autoAnalysisDisabled, getAnalyzer } from './index';
 import { knownChartsFor } from './knownCharts';
 import { analysisProgressStore, setAnalysisProgress } from './progress';
-import { AnalysisError, type AnalysisProgress, type AnalysisRequest } from './types';
+import { AnalysisError, resultChordModel, type AnalysisProgress, type AnalysisRequest } from './types';
 
 let running: { projectId: string; abort: AbortController } | null = null;
 
@@ -60,7 +61,7 @@ export async function runAnalysis(): Promise<void> {
   running = mine;
   const stillMine = () => running === mine && store.getState().project?.id === project.id;
 
-  setAnalysisProgress({ fraction: 0, download: null });
+  setAnalysisProgress({ fraction: 0, download: null, chordWindow: null, fallback: null });
   setAnalysisRun({ status: 'running', projectId: project.id, step: 'prepare' });
   let step: AnalysisProgress['step'] = 'prepare';
   const onProgress = (p: AnalysisProgress) => {
@@ -72,15 +73,18 @@ export async function runAnalysis(): Promise<void> {
     }
     const prev = analysisProgressStore.getState();
     const fraction = Math.min(1, Math.max(Math.max(0, p.fraction), prev.fraction));
-    if (fraction - prev.fraction >= 0.002 || (p.download?.loaded ?? 0) !== (prev.download?.loaded ?? 0)) {
-      setAnalysisProgress({ fraction, download: p.download ?? null });
+    const windowChanged = (p.chordWindow?.done ?? -1) !== (prev.chordWindow?.done ?? -1);
+    if (fraction - prev.fraction >= 0.002 || (p.download?.loaded ?? 0) !== (prev.download?.loaded ?? 0) || windowChanged) {
+      setAnalysisProgress({ fraction, download: p.download ?? null, chordWindow: p.chordWindow ?? null });
     }
   };
 
   const userGrid = s.tempoMap.origin === 'manual' || s.tempoMap.origin === 'corrected';
-  // The analysis listens in mono anyway ((l + r) / 2, its own mix): one transient Float32 copy,
-  // made from the registry's 16-bit samples a slice at a time, let go once the analyser has it.
-  const mono = await pcmToMonoInSlices(audio);
+  // CREMA listens in mono ((l + r) / 2, its own mix): one transient Float32 copy, made from the
+  // registry's 16-bit samples a slice at a time, let go once the analyser has it. The fine chord
+  // model (Réglages avancés) listens in stereo: both channels then.
+  const chordModel = chordModelChoice();
+  const channels = chordModel === 'fine' ? pcmToChannels(audio) : [await pcmToMonoInSlices(audio)];
   if (!stillMine()) {
     if (running === mine) running = null;
     return;
@@ -91,7 +95,8 @@ export async function runAnalysis(): Promise<void> {
     return;
   }
   const request: AnalysisRequest = {
-    channels: [mono],
+    channels,
+    chordModel,
     sampleRate: audio.sampleRate,
     audioId: track.audio.id,
     grid: userGrid ? beatGridOf(s.tempoMap, project.duration) : null,
@@ -102,7 +107,10 @@ export async function runAnalysis(): Promise<void> {
   };
   try {
     const result = await getAnalyzer().analyse(request);
-    if (stillMine()) applyAnalysis(result);
+    if (stillMine()) {
+      setAnalysisProgress({ chordWindow: null, fallback: resultChordModel(result).fallback ?? null });
+      applyAnalysis(result);
+    }
   } catch (e) {
     if (!stillMine()) return;
     const code = e instanceof AnalysisError ? e.code : 'failed';

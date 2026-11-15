@@ -8,10 +8,10 @@
 
 import type { AnalysisResult } from '../../model/analysis';
 import type { Key } from '../../model/harmony';
-import type { BeatModelChoice } from '../models';
+import type { BeatModelChoice, ChordModelChoice } from '../models';
 import type { KnownCharts } from '../engine/chart';
 import type { NetworkOutputs } from '../engine/pipeline';
-import type { AnalysisErrorCode, AnalysisStep, DownloadProgress, GridHint } from '../types';
+import type { AnalysisErrorCode, AnalysisStep, ChordWindowProgress, DownloadProgress, GridHint } from '../types';
 
 export interface AnalyseRequestMessage {
   type: 'analyse';
@@ -19,6 +19,14 @@ export interface AnalyseRequestMessage {
   mono: Float32Array;
   sampleRate: number;
   beatModel: BeatModelChoice;
+  chordModel: ChordModelChoice;
+  /**
+   * With the fine chord model: both channels of the piece at `sampleRate` (TRANSFERRED; one
+   * entry for a mono piece). Empty with CREMA, which listens to `mono` only.
+   */
+  stereo: Float32Array[];
+  /** Test hook only (`?echec-accords=memoire|session`): the fine chord model fails on purpose. */
+  simulateChordFailure?: string | null;
   grid: GridHint | null;
   key: Key | null;
   known: KnownCharts | null;
@@ -45,6 +53,6 @@ export type FromWorker =
   /** A step began. */
   | { type: 'step'; step: AnalysisStep }
   /** Progress inside the current step, 0…1; `download` in the download step. */
-  | { type: 'progress'; step: AnalysisStep; fraction: number; download?: DownloadProgress }
+  | { type: 'progress'; step: AnalysisStep; fraction: number; download?: DownloadProgress; chordWindow?: ChordWindowProgress }
   | { type: 'result'; result: AnalysisResult; outputs: NetworkOutputs | null; models: string[] }
   | { type: 'error'; code: AnalysisErrorCode; message: string };
