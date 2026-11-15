@@ -27,8 +27,10 @@ aucune technique de contournement des protections de YouTube.
    récent, ou en créer un.
    - **Projets `.fab`** (décisions du propriétaire) : un projet s'enregistre
      et se recharge en un fichier `.fab`. L'audio y est en FLAC (sans perte)
-     plutôt qu'en WAV, pour prendre moins de place ; le FLAC est à employer
-     autant que possible pour tout ce que l'app garde sur l'appareil. Le
+     plutôt qu'en WAV, pour prendre moins de place. Sur l'appareil, les
+     pistes restent sans compression (blocs 16 bits), pour une réouverture en
+     une à trois secondes : le FLAC est réservé au fichier `.fab` (décision du
+     propriétaire après mesure, 15 novembre 2026). Le
      projet contient les pistes séparées ; s'il y a eu plusieurs séparations
      avec plusieurs outils, **toutes** y sont, pour passer de l'une à l'autre
      dans les réglages sans rien recalculer.

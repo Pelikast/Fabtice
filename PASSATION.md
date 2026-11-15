@@ -658,12 +658,13 @@ lisibilité du panneau sur iPhone.
   icônes tirées du logo (jamais dans l'app Mac) ; taille, source et licence
   des outils ; « Place sur cet appareil ».
 
+**Validé par le propriétaire (15 novembre).** Sur l'appareil, les pistes
+restent en blocs 16 bits sans compression ; le FLAC est réservé au fichier
+`.fab`. Mesuré : 4 minutes à six instruments, 277 Mo relus en 1 s, contre
+162 Mo en FLAC à décoder en 6 s ; 12 minutes, 830 Mo en 3,4 s contre 477 Mo
+et 20 s.
+
 **Choix faits, à faire valider par le propriétaire.**
-- **Sur l'appareil, les pistes restent en blocs 16 bits, pas en FLAC**
-  (mesuré : 4 minutes à six instruments, 277 Mo relus en 1 s, contre 162 Mo
-  en FLAC à décoder en 6 s ; 12 minutes, 830 Mo en 3,4 s contre 477 Mo et
-  20 s). La réouverture rapide a primé ; le FLAC sert au fichier qu'on garde
-  et qu'on envoie. S'il préfère la place à la vitesse, le décodeur existe.
 - L'original reste tel qu'importé (un mp3 reste un mp3).
 - Plus de case « sans les instruments » : le projet les contient toujours.
 - Sur le web, pas de liste de projets récents (seul Chrome le permettrait,
