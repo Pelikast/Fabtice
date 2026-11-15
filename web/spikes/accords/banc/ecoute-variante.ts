@@ -12,6 +12,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { bassBeats } from '../../../../app/src/analysis/engine/bassline';
 import { applyBassCue, blendUnits, selectHarmony, stemFeatures, type BassCueOptions, type StemFeatures } from '../../../../app/src/analysis/engine/listen';
+import type { DecodeOptions } from '../../../../app/src/analysis/engine/decode';
 import { beatUnits, chartFromUnits, frameChroma } from '../../../../app/src/analysis/engine/pipeline';
 import { listen, lowAudio } from './ecoute';
 import { output, prepare, segmentsOf } from './lib';
@@ -27,6 +28,7 @@ export interface ListeningConfig {
   bass: 'aucune' | 'tige' | 'bande' | 'auto';
   bassOptions?: Partial<BassCueOptions>;
   stems?: 'ideales' | 'reelles';
+  decode?: Partial<DecodeOptions>;
 }
 
 const ALL: StemName[] = ['drums', 'bass', 'piano', 'guitar', 'other', 'vocals'];
@@ -71,6 +73,6 @@ export function listening(cfg: ListeningConfig): Variant {
       const b = bassBeats(await lowAudio({ paths: [input.mixPath], transform: 'bass' }), segmentsOf(p.grid), o.tuning.cents);
       units = applyBassCue(units, b, p.grid.numbers, p.grid.beatsPerBar, cfg.bassOptions);
     }
-    return output(input, p, chartFromUnits(units, p.grid, frameChroma(o.frames), null));
+    return output(input, p, chartFromUnits(units, p.grid, frameChroma(o.frames), null, cfg.decode));
   };
 }

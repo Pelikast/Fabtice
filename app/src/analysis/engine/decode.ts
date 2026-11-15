@@ -108,11 +108,14 @@ export function keyFit(c: number, tonic: number, minor: boolean): number {
   return 0;
 }
 
+/** Change probabilities on beat 1, on the middle beat of an even bar, and on the other beats (the prototype's). */
+export const CHANGE: readonly [number, number, number] = [0.55, 0.25, 0.04];
+
 /** Change probability by position in the bar (1-based beat number). */
-export function changeProb(beatNumber: number, beatsPerBar: number): number {
-  if (beatNumber === 1) return 0.55;
-  if (beatsPerBar % 2 === 0 && beatNumber === beatsPerBar / 2 + 1) return 0.25;
-  return 0.04;
+export function changeProb(beatNumber: number, beatsPerBar: number, change: readonly [number, number, number] = CHANGE): number {
+  if (beatNumber === 1) return change[0];
+  if (beatsPerBar % 2 === 0 && beatNumber === beatsPerBar / 2 + 1) return change[1];
+  return change[2];
 }
 
 export interface DecodeOptions {
@@ -120,9 +123,13 @@ export interface DecodeOptions {
   beta: number;
   kappa: number;
   priorOn: boolean;
+  /** See `CHANGE`. */
+  change: readonly [number, number, number];
+  /** Added to the (gamma-scaled) evidence of every chord of a quality, in nats: a vocabulary prior. */
+  qualityBias: Readonly<Partial<Record<EngineQuality, number>>>;
 }
 
-export const DEFAULTS: DecodeOptions = { gamma: 3, beta: 1, kappa: 1.5, priorOn: true };
+export const DEFAULTS: DecodeOptions = { gamma: 3, beta: 1, kappa: 1.5, priorOn: true, change: CHANGE, qualityBias: {} };
 
 interface TonalCentre {
   tonic: number;
@@ -169,9 +176,11 @@ export function decodeChords(
   if (!n) return { path: [], post: [] };
   const M = transitionMatrix(key, opts);
   const S = N_CHORDS;
+  const bias = new Float64Array(S);
+  for (let c = 0; c < NO_CHORD; c++) bias[c] = opts.qualityBias[chordQual(c)!] ?? 0;
   const em = units.map((u) => {
     const e = new Float64Array(S);
-    for (let c = 0; c < S; c++) e[c] = opts.gamma * u.logp[c]!;
+    for (let c = 0; c < S; c++) e[c] = opts.gamma * u.logp[c]! + bias[c]!;
     return e;
   });
   const logM = M.map((v) => Math.log(v + 1e-300));
@@ -179,7 +188,7 @@ export function decodeChords(
   let delta = Float64Array.from(em[0]!, (v) => v - Math.log(S));
   const bp: Int16Array[] = [];
   for (let i = 1; i < n; i++) {
-    const pc = opts.priorOn ? changeProb(numbers[i]!, bpb) : 0.2;
+    const pc = opts.priorOn ? changeProb(numbers[i]!, bpb, opts.change) : 0.2;
     const ls = Math.log(1 - pc);
     const lc = Math.log(pc);
     const nd = new Float64Array(S);
@@ -221,7 +230,7 @@ export function decodeChords(
   A.push(a);
   const pcs = [0];
   for (let i = 1; i < n; i++) {
-    const pc = opts.priorOn ? changeProb(numbers[i]!, bpb) : 0.2;
+    const pc = opts.priorOn ? changeProb(numbers[i]!, bpb, opts.change) : 0.2;
     pcs.push(pc);
     const na = new Float64Array(S);
     for (let x = 0; x < S; x++) {

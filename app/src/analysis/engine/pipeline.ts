@@ -13,7 +13,7 @@
 import { AnalysisError, type AnalysisStep } from '../types';
 import { beatLogits, downProbAt, logMel, postMinimal, type BeatActivations } from './beats';
 import { cremaFrames, poolSegments, type ChordFrames, type PooledUnit } from './chords';
-import { buildSegments, decodeChords, type ChordSegment } from './decode';
+import { buildSegments, decodeChords, type ChordSegment, type DecodeOptions } from './decode';
 import { makeGrid, renumber, type Grid } from './grid';
 import { estimateKey, type KeyEstimate } from './key';
 import { inferMeter, type MeterScore } from './meter';
@@ -144,8 +144,14 @@ export function frameChroma(frames: ChordFrames): number[] {
  * adjusted between pooling and decoding (other listenings, structural priors):
  * `units` must be one per beat of `grid`.
  */
-export function chartFromUnits(units: readonly PooledUnit[], grid: Grid, chroma: readonly number[], fixedKey: TonalHint | null = null): Chart {
-  const prior = { priorOn: OPTIONS.harmonyPrior };
+export function chartFromUnits(
+  units: readonly PooledUnit[],
+  grid: Grid,
+  chroma: readonly number[],
+  fixedKey: TonalHint | null = null,
+  decode: Partial<DecodeOptions> = {},
+): Chart {
+  const prior = { ...decode, priorOn: OPTIONS.harmonyPrior };
   let key: Chart['key'];
   if (fixedKey) key = { best: { tonic: fixedKey.tonic, minor: fixedKey.minor }, ranked: [] };
   else {
