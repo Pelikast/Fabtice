@@ -2085,8 +2085,8 @@ vrai moteur (pas d'AudioWorklet, pas d'isolation COOP/COEP donc pas de
     tout : pistes (les mêmes blocs partagés, sans copie), rendu « Appliquer »,
     mélange, boucle, tonalité, tempo, clics et volume du métronome, étape et
     passages de l'accélération, position. Mesuré ici (`test:engine`, section
-    23) : premier son environ 230 ms après l'appui contre 175 ms quand le
-    contexte n'était que suspendu, soit **environ 50 ms de plus** ;
+    23, deux passages) : premier son 230 à 275 ms après l'appui contre 175 ms quand le
+    contexte n'était que suspendu, soit **50 à 100 ms de plus** selon la charge ;
   - **reprise seule, une fois** : si le contexte ne démarre pas (`resume()`
     rejeté, état autre que `running`, rien au bout de 8 s), il est jeté et
     refait une fois ; pendant la lecture, un chien de garde vérifie que le
