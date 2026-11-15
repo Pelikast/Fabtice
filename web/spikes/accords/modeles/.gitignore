@@ -1,0 +1,11 @@
+# Model weights, upstream code clones and outputs are never committed.
+cache/
+out/
+src/
+*.onnx
+*.npz
+*.pt
+*.pth
+*.sdict
+*.safetensors
+__pycache__/
