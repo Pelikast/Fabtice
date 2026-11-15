@@ -56,7 +56,7 @@
 .case {
   /* The chords are written where their beat is (chart/fit.ts): --pg is the space from the bar line to
      beat 1, --pd the space kept at the other end, --haut the room taken by the number and the section
-     letter. --corps is the size of the chords; a bar with long symbols goes down the steps of --r. */
+     letter. --corps is the size of the chords; the whole chart goes down the steps of --r together. */
   --pg: 16px;
   --pd: 8px;
   --haut: 14px;
@@ -92,7 +92,7 @@
 .case[data-taille="2"] { --r: 0.57; }
 .case[data-taille="3"] { --r: 0.47; }
 .case[data-taille="4"] { --r: 0.38; }
-/* Cramped bars (a phone): the chords go on two rows, one up and one down by turns (fit.ts). */
+/* Crowded bars: the chords go on two rows, one up and one down by turns (fit.ts). */
 .case[data-rangs="2"] { --rangs: 2; }
 .case.dans-boucle { background: var(--laiton-voile); }
 /* A loop that starts or ends inside a bar veils that part of the bar only (--boucle-de / --boucle-a, fractions of its width). */
@@ -171,7 +171,7 @@
   /* Centred in its row of the room under the bar number (one row, or two for a cramped bar). */
   top: calc(var(--haut) + (100% - var(--haut)) / var(--rangs) * (var(--decal) + 0.5));
   transform: translateY(-50%);
-  left: calc(var(--debut) * (100% - var(--pg) - var(--pd)) + var(--pg) - 5px);
+  left: calc(var(--debut) * (100% - var(--pg) - var(--pd)) + var(--pg) - 5px + var(--pousse, 0px));
   margin: 0;
 }
 .case .accord-case[data-rang="1"] { --rang: 1; }

@@ -3,25 +3,31 @@
 //
 // A chord is written AT THE PLACE OF ITS BEAT, as in a Real Book: in 4/4 beat 1
 // at the bar line, beat 3 in the middle of the bar, beats 2 and 4 at a quarter
-// and three quarters. Chords therefore never sit side by side by default; but a
-// long symbol can reach the next chord (« C♯m7♭5 » then « F♯7♭9 »), and the bar
-// is only so wide. The size of the bar's chords then goes down by steps (the
-// steps of the chart: 30 px, then 22, 17…), the same for every chord of the bar,
-// until no chord touches the next one or leaves the bar.
+// and three quarters.
 //
-// On a phone a bar is a quarter of 360 px, and three or four chords do not fit
-// side by side at a size one can read. Before going below `READABLE_STEP`, the
-// chords go on two rows, one up and one down by turns (the way a cramped bar
-// is written by hand): each row is then checked on its own.
+// ONE size for the whole chart (screen and paper alike), never one per bar: a
+// bar with two chords is not written smaller than its neighbours. The rules,
+// in this order, for a given size:
+//   1. A chord that would run past the end bar line is pushed back (to the
+//      left) against it, and so is the chord before it if they would touch:
+//      « D♭7♯11 » on beat 4 is written against the end bar line, not smaller.
+//      A chord that would touch the one before it moves a little to its right.
+//   2. If the chords of the bar do not fit side by side even so (or the first
+//      would be pushed past the start of the bar), they go on two rows at the
+//      same size, one up and one down by turns; each row is pushed the same way.
+//   3. Only when some bar still does not fit on two rows is the size of the
+//      whole chart lowered one step (the steps of the chart: 30 px, 22, 17…),
+//      the same for every bar, until every bar fits. If nothing fits at the
+//      smallest step, that step is used and the bars that do not fit are
+//      written as well as they can be, never with a hidden chord.
+// `fitChart` also says which bar forced the step down (`limitedBy`), so that
+// the rule that decides can be named.
 //
 // The widths come from the screen (`useFitChords.ts` measures each symbol once,
 // in em: a symbol is as wide as its size times that number, whatever the size).
 
 /** Size of the chords of a bar, as a fraction of the normal one, step by step (30, 22, 17, 14, 11 px on a desktop). */
 export const FIT_RATIOS: readonly number[] = [1, 0.73, 0.57, 0.47, 0.38];
-
-/** The smallest step used before the chords of a bar go on two rows (17 px on a desktop, 12 px on a phone). */
-export const READABLE_STEP = 2;
 
 /** Height of a line of chords, in em (a raised extension reaches above the line). */
 export const FIT_LINE_EM = 1.2;
@@ -65,47 +71,76 @@ export function chordStart(frac: number, g: FitGeometry): number {
   return g.padLeft + frac * (g.width - g.padLeft - g.padRight);
 }
 
-/** How a bar's chords are written: at which step, on one row or two. */
-export interface FitResult {
-  step: number;
+/** How the chords of one bar are written at a size: on one row or two, each moved by `push` px from its beat (negative: pushed back to the left, positive: moved right of the chord before it). */
+export interface BarFit {
   rows: 1 | 2;
+  push: number[];
+  /** False only in the last resort: the bar does not fit at this size even on two rows. */
+  fits: boolean;
 }
 
 /**
- * True when every chord fits at `ratio` on `rows` rows (the chords go to the rows by turns): clear of the
- * next one on its row, inside the bar, and with the rows not taller than the room.
+ * Places the chords of one row. Left to right, a chord that would touch the one before it moves
+ * right of it; then, right to left, any chord that would run past the end bar line (or into the
+ * next one) is pushed back to the left against it. `fits` is false when the first would have to
+ * start before the bar's own left margin: the row is too full for this size.
  */
-export function fitsAt(chords: readonly FitChord[], g: FitGeometry, ratio: number, rows: 1 | 2 = 1): boolean {
+function pushRow(ideal: number[], widths: number[], g: FitGeometry, size: number): { pos: number[]; fits: boolean } {
+  const pos = ideal.slice();
+  for (let k = 1; k < pos.length; k++) pos[k] = Math.max(pos[k]!, pos[k - 1]! + widths[k - 1]! + FIT_GAP_EM * size);
+  let limit = g.width - Math.max(g.padRight, FIT_MIN_RIGHT);
+  for (let k = pos.length - 1; k >= 0; k--) {
+    pos[k] = Math.min(pos[k]!, limit - widths[k]!);
+    limit = pos[k]! - FIT_GAP_EM * size;
+  }
+  return { pos, fits: pos.length === 0 || pos[0]! >= g.padLeft - 0.01 };
+}
+
+/** One bar at `ratio`: the first arrangement that fits (one row, then two), or the two-row one with `fits` false. */
+export function fitBar(chords: readonly FitChord[], g: FitGeometry, ratio: number): BarFit {
   const size = g.base * ratio;
-  if (rows === 2 && size * FIT_LINE_EM * 2 > g.room + 0.01) return false;
-  for (let i = 0; i < chords.length; i++) {
-    const c = chords[i]!;
-    const start = chordStart(c.frac, g);
-    const end = start + c.em * size;
-    const next = chords[i + rows];
-    const limit = next ? chordStart(next.frac, g) - FIT_GAP_EM * size : g.width - Math.max(g.padRight, FIT_MIN_RIGHT);
-    if (end > limit + 0.01) return false;
-  }
-  return true;
+  const ideal = chords.map((c) => chordStart(c.frac, g));
+  const widths = chords.map((c) => c.em * size);
+  const attempt = (rows: 1 | 2): BarFit => {
+    const push = new Array<number>(chords.length).fill(0);
+    let fits = rows === 1 || size * FIT_LINE_EM * 2 <= g.room + 0.01;
+    for (let r = 0; r < rows; r++) {
+      const idx = chords.map((_, i) => i).filter((i) => i % rows === r);
+      const placed = pushRow(idx.map((i) => ideal[i]!), idx.map((i) => widths[i]!), g, size);
+      idx.forEach((i, k) => (push[i] = placed.pos[k]! - ideal[i]!));
+      if (!placed.fits) fits = false;
+    }
+    return { rows, push, fits };
+  };
+  const one = attempt(1);
+  if (one.fits || chords.length < 2) return one;
+  return attempt(2);
 }
 
-/**
- * How the chords of a bar are written: the largest step at which they fit on one row, down to
- * `READABLE_STEP`; then on two rows down to the same step; then smaller steps, one row then two.
- * When nothing fits (a symbol too long for its place at any size the chart allows) the smallest
- * step on two rows is the least bad choice, never a hidden chord.
- */
-export function fitLayout(chords: readonly FitChord[], g: FitGeometry): FitResult {
-  const order: FitResult[] = [];
-  for (const [from, to] of [[0, READABLE_STEP], [READABLE_STEP + 1, FIT_RATIOS.length - 1]] as const) {
-    for (const rows of [1, 2] as const) {
-      for (let step = from; step <= to; step++) order.push({ step, rows });
-    }
+export interface ChartBar {
+  chords: readonly FitChord[];
+  geometry: FitGeometry;
+}
+
+export interface ChartFit {
+  /** Step of `FIT_RATIOS` for every bar of the chart. */
+  step: number;
+  bars: BarFit[];
+  /** Index (in the input) of a bar that did not fit one step larger, and so decided the size; null at step 0. */
+  limitedBy: number | null;
+  /** True when even the smallest step leaves a bar that does not fit. */
+  lastResort: boolean;
+}
+
+/** The one size of the chart: the largest step at which every bar fits (rows apart), see the header. */
+export function fitChart(bars: readonly ChartBar[]): ChartFit {
+  let limitedBy: number | null = null;
+  for (let step = 0; step < FIT_RATIOS.length; step++) {
+    const fitted = bars.map((b) => (b.chords.length ? fitBar(b.chords, b.geometry, FIT_RATIOS[step]!) : ({ rows: 1, push: [], fits: true } as BarFit)));
+    const bad = fitted.findIndex((f) => !f.fits);
+    if (bad < 0) return { step, bars: fitted, limitedBy, lastResort: false };
+    if (step === FIT_RATIOS.length - 1) return { step, bars: fitted, limitedBy: bad, lastResort: true };
+    limitedBy = bad;
   }
-  // One row at every readable step, then two rows at every readable step, then the same below.
-  for (const r of order) {
-    if (r.rows === 2 && chords.length < 2) continue;
-    if (fitsAt(chords, g, FIT_RATIOS[r.step]!, r.rows)) return r;
-  }
-  return { step: FIT_RATIOS.length - 1, rows: chords.length > 1 ? 2 : 1 };
+  return { step: 0, bars: [], limitedBy: null, lastResort: false };
 }

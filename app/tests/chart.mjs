@@ -74,11 +74,13 @@ const geometry = (page, printed = false) =>
         const problems = [];
         chords.forEach((ch, i) => {
           const expected = r.left + c.clientLeft + pg + (ch.beat / beats) * inner;
-          if (Math.abs(ch.box.left - expected) > 2.5) problems.push(`chord ${i} at ${(ch.box.left - expected).toFixed(1)} px from its beat`);
+          // At its beat, or moved: back from the bar line, or to the right of a long chord before it (never far).
+          if (Math.abs(ch.box.left - expected) > 2.5 && ch.box.left - expected > 0 && chords[i - 1] === undefined) problems.push(`chord ${i} at ${(ch.box.left - expected).toFixed(1)} px from its beat`);
           if (ch.box.right > r.right + 0.5 || ch.box.left < r.left) problems.push(`chord ${i} leaves the bar`);
           if (i >= rows && ch.box.left < chords[i - rows].box.right - 0.01) problems.push(`chord ${i} touches chord ${i - rows}`);
         });
-        return { bar: c.dataset.mesure, n: chords.length, problems, size: st.fontSize, rows };
+        const pushed = chords.map((ch) => Math.round(r.left + c.clientLeft + pg + (ch.beat / beats) * inner - ch.box.left)).filter((x) => Math.abs(x) > 2);
+        return { bar: c.dataset.mesure, n: chords.length, problems, size: st.fontSize, rows, pushed: pushed.length };
       }),
     printed,
   );
@@ -295,8 +297,13 @@ try {
       6: [[2, C(5, 'maj7')]],
       7: [[0, C(10, '7', ['b13'])], [3, C(3, 'maj7')]],
       8: [[0, C(11, 'min7', ['b5'])], [1, C(4, '7', ['#9', 'b13'])], [2, C(9, 'min7')], [3, C(2, '7', ['b9'])]],
+      // Long fine-model symbols late in the bar (the owner's bar 31): a chord on beat 4, on beat 2, a slash bass, two long ones.
+      9: [[0, C(2, 'min7', ['9'])], [3, C(1, '7', ['#11'])]],
+      10: [[0, C(7, 'min7', ['9', '11'])], [1, C(3, '7', ['9', '#11', '13'])]],
+      11: [[0, C(10, '7', ['b9', 'b13'])], [3, { root: 10, quality: '7', extensions: ['b9', 'b13'], bass: 3 }]],
+      12: [[1, C(9, '7', ['#9', 'b13'])], [3, C(5, 'maj7', ['9', '13'])]],
     };
-    for (const [label, viewport] of [['desktop', { width: 1280, height: 800 }], ['phone', { width: 390, height: 844 }]]) {
+    for (const [label, viewport] of [['desktop', { width: 1280, height: 800 }], ['laptop', { width: 960, height: 640 }], ['phone', { width: 390, height: 844 }]]) {
       const { page, errors } = await open('?demo&moteur=factice&vue=grille', viewport);
       await sleep(200);
       const demo = await geometry(page);
@@ -307,11 +314,16 @@ try {
       await sleep(400);
       const g = await geometry(page);
       const mine = g.filter((b) => Number(b.bar) in BARS);
-      check(`${label}: one to four chords, long symbols, a late chord: each at the place of its beat, none touching, none leaving the bar`, mine.length === 9 && mine.every((b) => b.problems.length === 0), mine.filter((b) => b.problems.length).map((b) => `bar ${b.bar}: ${b.problems.join(', ')}`).join(' ; '));
+      check(`${label}: one to four chords, long symbols, a late chord: each at the place of its beat, none touching, none leaving the bar`, mine.length === Object.keys(BARS).length && mine.every((b) => b.problems.length === 0), mine.filter((b) => b.problems.length).map((b) => `bar ${b.bar}: ${b.problems.join(', ')}`).join(' ; '));
       const sizes = Object.fromEntries(mine.map((b) => [b.bar, `${parseFloat(b.size).toFixed(0)}px${b.rows === 2 ? '×2 rows' : ''}`]));
       console.log(`      sizes (${label}): ${JSON.stringify(sizes)}`);
+      // ONE size for the whole chart: every bar with chords has the same font size, whatever its chords.
+      const allSizes = [...new Set(g.filter((b) => b.n > 0).map((b) => b.size))];
+      check(`${label}: one size for every chord of the chart (long symbols on beats 2 and 4 included)`, allSizes.length === 1, allSizes.join(' / '));
+      const late = mine.find((b) => b.bar === '9');
+      check(`${label}: bar 9, a long chord on beat 4, is written at the same size as the others (pushed back or on two rows)`, late.size === mine[0].size && (late.pushed > 0 || late.rows === 2), JSON.stringify(late));
       const base = parseFloat(await css(page, '.case[data-mesure="0"]', 'font-size'));
-      check(`${label}: a lone chord keeps the normal size${label === 'desktop' ? ', and so do two short chords' : ''}`, parseFloat(mine[0].size) === base && (label !== 'desktop' || parseFloat(mine[1].size) === base), `${mine[0].size} ${mine[1].size}`);
+      check(`${label}: a lone chord keeps the normal size${label === 'desktop' ? ', and so do two short chords' : ''}`, parseFloat(mine[0].size) === base && (label === 'phone' || parseFloat(mine[1].size) === base), `${mine[0].size} ${mine[1].size}`);
       const mid = await page.evaluate(() => {
         const c = document.querySelector('.case[data-mesure="1"]');
         const [a, b] = [...c.querySelectorAll('.ch')].map((e) => e.getBoundingClientRect());
@@ -1323,14 +1335,18 @@ try {
         4: [[0, C(1, 'min7', ['b5'])], [2, C(6, '7', ['b9'])]],
         5: [[0, C(1, 'min7', ['b5'])], [1, C(6, '7', ['b9'])]],
         8: [[0, C(11, 'min7', ['b5'])], [1, C(4, '7', ['#9', 'b13'])], [2, C(9, 'min7')], [3, C(2, '7', ['b9'])]],
+        9: [[0, C(2, 'min7', ['9'])], [3, C(1, '7', ['#11'])]],
+        10: [[0, C(7, 'min7', ['9', '11'])], [1, C(3, '7', ['9', '#11', '13'])]],
+        11: [[0, C(10, '7', ['b9', 'b13'])], [3, { root: 10, quality: '7', extensions: ['b9', 'b13'], bass: 3 }]],
+        12: [[1, C(9, '7', ['#9', 'b13'])], [3, C(5, 'maj7', ['9', '13'])]],
       });
       await sleep(300);
       for (const [orientation, width] of [['portrait', 695], ['paysage', 1024]]) {
         await page.setViewportSize({ width, height: 900 });
         await page.emulateMedia({ media: 'print' });
         await sleep(300);
-        const g = (await geometry(page, true)).filter((b) => [0, 1, 2, 3, 4, 5, 8].includes(Number(b.bar)));
-        check(`${orientation} on paper: chords at the place of their beat, none touching, none leaving the bar`, g.length === 7 && g.every((b) => b.problems.length === 0), g.filter((b) => b.problems.length).map((b) => `bar ${b.bar}: ${b.problems.join(', ')}`).join(' ; '));
+        const g = (await geometry(page, true)).filter((b) => [0, 1, 2, 3, 4, 5, 8, 9, 10, 11, 12].includes(Number(b.bar)));
+        check(`${orientation} on paper: one size, chords at the place of their beat, none touching, none leaving the bar`, g.length === 11 && g.every((b) => b.problems.length === 0) && new Set(g.map((b) => b.size)).size === 1, g.filter((b) => b.problems.length).map((b) => `bar ${b.bar}: ${b.problems.join(', ')}`).join(' ; '));
         await page.emulateMedia({ media: 'screen' });
       }
       await page.setViewportSize({ width: 1280, height: 800 });

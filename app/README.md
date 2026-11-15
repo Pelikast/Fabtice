@@ -1682,7 +1682,7 @@ Chromium (`npm run test:chart`).
 | Fichier | Rôle |
 |---|---|
 | `layout.ts`, `edits.ts` | mise en page et corrections pures (accords en vigueur, mesures, répétition « 𝄎 », sections et doubles barres, lignes de quatre mesures ; réécriture d'une mesure entière, retour à l'analyse, `hasBarEdit`, `mergedEntries`, `movableBeats` et `withChordMoved` : mettre un accord sur un autre temps) |
-| `fit.ts`, `useFitChords.ts` | la place et la taille des accords dans une mesure : chaque accord est écrit **à la place de son temps** ; quand deux symboles se rencontreraient, la taille de la mesure descend par paliers (`FIT_RATIOS`), puis les accords passent sur deux rangées (téléphone) ; fonctions pures testées, et le crochet qui mesure l'écran |
+| `fit.ts`, `useFitChords.ts` | la place et la taille des accords : chaque accord est écrit **à la place de son temps** ; **une seule taille pour toute la grille** : un symbole tardif est repoussé contre la barre de fin, puis deux rangées à la même taille, et seulement en dernier recours toute la grille descend d'un palier (`FIT_RATIOS`) ; fonctions pures testées, et le crochet qui mesure l'écran |
 | `ChartSheet.tsx` | la feuille : en-tête (titre, tonalité, métrique, tempo, choix Ut / Si♭ / Mi♭) et états vide, « analyse en cours », échec, aucun accord |
 | `ChartGrid.tsx` | les mesures et tout ce qui se fait dessus : gestes, clavier, suivi, éditeur |
 | `gesture.ts` | les gestes de la souris et du doigt comme une petite machine à états pure (clic, glisser, appui long) |
@@ -1781,18 +1781,28 @@ trois places ; les autres métriques en proportion. Un accord qui commence au mi
 mesure dont l'accord précédent continue reste à son temps (comme avant). Chaque accord est un
 bouton posé en `position: absolute`, sa place `--debut` = temps dans la mesure sur temps de la
 mesure ; le signe de répétition et le style des accords douteux ne changent pas. Quand deux
-symboles se rencontreraient (« C♯m7♭5 » puis « F♯7♭9 »), `useFitChords` mesure la largeur de
-chaque symbole (en em, une fois) et `fit.ts` choisit le premier palier qui tient, le même pour
-tous les accords de la mesure : 30 px, puis 22, 17 (les paliers qui existaient déjà), 14 et
-11 px en dernier recours ; sur une mesure de téléphone (91 px) où trois ou quatre accords ne
-tiennent pas côte à côte à une taille lisible, les accords passent sur **deux rangées** (un en
-haut, un en bas, tour à tour) avant de descendre sous 17 px (12 px sur téléphone). Le palier
-est écrit sur la mesure (`data-taille`, `data-rangs`) et recalculé à chaque changement de
+symboles se rencontreraient ou qu'un symbole long dépasserait la barre de fin (« D♭7♯11 » au
+temps 4), `useFitChords` mesure la largeur de chaque symbole (en em, une fois) et `fit.ts`
+applique, à **une seule taille pour toute la grille** (écran et papier : jamais une taille par
+mesure), ces règles dans l'ordre : 1. un accord qui dépasserait la barre de fin est **repoussé
+vers la gauche** contre elle (et le précédent avec lui s'ils se touchent) ; un accord qui
+toucherait le précédent glisse un peu à sa droite ; 2. si cela ne suffit pas, les accords de la
+mesure passent sur **deux rangées à la même taille** (un en haut, un en bas, tour à tour) ;
+3. seulement si une mesure ne tient pas même ainsi, toute la grille descend d'un palier
+(30 px, puis 22, 17, 14, 11) jusqu'à ce que toutes tiennent ; `fitChart` dit quelle mesure a
+décidé (`limitedBy`). Cause du rétrécissement observé (mesure 31 de l'essai du 15 novembre) :
+l'ancien calcul ne savait que réduire la taille de la mesure ; un symbole long au temps 4
+(45 px de place avant la barre de fin) la faisait passer à 11 px, alors que des mesures voisines
+restaient à 30 px. Le décalage est écrit sur chaque accord (`--pousse`, `--pousse-p` pour le
+papier, en 206e de mesure), la taille sur les mesures (`data-taille`, identique partout) et les
+rangées sur celles qui en ont besoin (`data-rangs`) ; tout est recalculé à chaque changement de
 largeur de la feuille, de polices ou d'accords, avant la peinture. Aucun accord ne se
-chevauche ni ne sort de la mesure ; ce que `test:chart` vérifie sur le morceau de démonstration,
-sur une grille d'essai (un à quatre accords, symboles longs, accord tardif) à 1280 et 390 px,
-et sur papier. Si rien ne tient à aucun palier (symbole démesuré), le plus petit palier est
-pris : un accord n'est jamais caché.
+chevauche ni ne sort de la mesure ; ce que `test:chart` vérifie sur le morceau de démonstration
+et sur une grille d'essai (un à quatre accords, symboles longs de l'écoute fine aux temps 2 et 4,
+basse en slash) à 1280, 960 et 390 px, et sur papier (portrait et paysage, sans outil externe).
+Si rien ne tient au plus petit palier (symbole démesuré), il est pris : un accord n'est jamais
+caché. Sur téléphone, une mesure de quatre longs symboles peut ainsi faire descendre toute la
+grille d'un palier (c'est la règle 3, la dernière).
 
 **Impression** (`print.ts`, `PrintDialog.tsx`, `styles/print.css`) :
 
