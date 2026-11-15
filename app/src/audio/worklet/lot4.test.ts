@@ -79,6 +79,26 @@ describe('count-in', () => {
   }, T);
 });
 
+describe('loop wraps', () => {
+  it.each([0.8, 0.75, 1.1])('rate %f: a loop that starts on a beat clicks on every pass (no click lost to rounding at the wrap)', async (rate) => {
+    const core = await makeCore();
+    addTrack(core, new Float32Array(SR * 6), undefined, { volume: 0 });
+    const all = Array.from({ length: 12 }, (_, i) => i * 0.5);
+    core.setClicks(Float64Array.from(all.map((b) => b * SR)), Uint8Array.from(all.map(() => 0)));
+    core.setMetronome(true);
+    core.setRate(rate);
+    core.setLoop(true, 2 * SR, 4 * SR);
+    core.seek(2 * SR);
+    core.play();
+    const sec = 12;
+    const { R } = run(core, quanta(sec));
+    const c = onsets(R, 0.001);
+    const step = (0.5 / rate) * SR;
+    for (let i = 1; i < c.length; i++) expect(Math.abs(c[i]! - c[i - 1]! - step)).toBeLessThanOrEqual(2);
+    expect(c.length).toBeGreaterThanOrEqual(Math.floor((sec * SR - c[0]!) / step));
+  }, T);
+});
+
 describe('progressive acceleration', () => {
   it('the loop plays at 80, 90 then 100 %, stepping at the wraps; the clicks stay on the beats, none doubled or missing', async () => {
     const core = await makeCore();

@@ -476,6 +476,7 @@ export class PlayerCore {
     }
     this.ended = false;
     if (!this.playing) {
+      this.rate = this.rateTarget; // nothing is audible yet: the tempo set while paused applies at once, no ramp
       this.mg = this.immediate ? 1 : 0;
       this.path = this.wantedPath(); // nothing is audible yet: the route changes without a crossfade
       this.settleRoute();
@@ -985,14 +986,17 @@ export class PlayerCore {
     // metronome: map the source span consumed by this quantum onto output frames
     if (this.metro.enabled) {
       if (this.scanPath === 0) {
+        // The span scanned ends exactly where the next quantum's starts (the same sum of the integer cursor and its
+        // fraction), and wraps exactly when the cursor does: a beat on a boundary is scanned once, never twice and
+        // never zero times (a loop that starts on a beat would otherwise lose its click to rounding now and then).
         const c0 = ip + accBefore;
-        const span = N * rate;
-        if (loopActive && c0 + span >= L.end) {
+        const nip = ip + nIn;
+        if (loopActive && nip >= L.end) {
           const k = (L.end - c0) / rate; // output frames before the wrap
           this.scanBeats(c0, L.end, 0, rate);
           // the next pass may start a new acceleration step: its beats are fed (and so heard) at that tempo
-          this.scanBeats(L.start, L.start + (c0 + span - L.end), k, this.rateAfterWrap(rate));
-        } else this.scanBeats(c0, c0 + span, 0, rate);
+          this.scanBeats(L.start, nip - L.len + this.acc, k, this.rateAfterWrap(rate));
+        } else this.scanBeats(c0, pv ? nip + this.acc : c0 + N * rate, 0, rate);
       } else {
         // the rendered audio has no latency: a beat is heard when the read position reaches it
         const ar = this.readRatio;
@@ -1000,7 +1004,8 @@ export class PlayerCore {
         if (loopActiveA && a0 + span >= L.end) {
           const k = (L.end - a0) / ar;
           this.scanBeats(a0, L.end, 0, ar, 0);
-          this.scanBeats(L.start, L.start + (a0 + span - L.end), k, ar, 0);
+          // the same expression as the next quantum's wrapped read position (`na - L.len`)
+          this.scanBeats(L.start, a0 + span - L.len, k, ar, 0);
         } else this.scanBeats(a0, a0 + span, 0, ar, 0);
       }
     }

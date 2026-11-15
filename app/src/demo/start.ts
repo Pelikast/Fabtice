@@ -40,6 +40,10 @@ import * as separationActions from '../store/separationActions';
 import { appStore } from '../store/store';
 import * as standardsLibrary from '../standards/library';
 import * as actions from '../store/actions';
+import * as gridMetronome from '../grid/metronome';
+import { beatToTime, constantTempoMap, variableTempoMap } from '../grid/tempoMap';
+import * as markerActions from '../store/markerActions';
+import * as metronomeActions from '../store/metronomeActions';
 import * as analysisActions from '../store/analysisActions';
 import * as gridActions from '../store/gridActions';
 import * as harmonyActions from '../store/harmonyActions';
@@ -56,6 +60,8 @@ declare global {
       lot2?: { analysis: typeof analysisActions; grid: typeof gridActions; harmony: typeof harmonyActions };
       /** Lot 3: separation, « Appliquer », audio export, the audio registry and the storage. */
       lot3?: typeof lot3Handle;
+      /** Lot 4: the metronome's pure functions and actions, the markers' actions. */
+      lot4?: typeof lot4Handle;
       /** The library of known chord charts (`?debug`): `findStandard`, `standardsStatus`… */
       standards?: typeof standardsLibrary;
       ready: Promise<void>;
@@ -64,6 +70,13 @@ declare global {
 }
 
 export const lot2Actions = { analysis: analysisActions, grid: gridActions, harmony: harmonyActions };
+
+/** Lot 4 handles for the browser checks (`?demo`, `?debug`). */
+export const lot4Handle = {
+  metronome: { ...gridMetronome, ...metronomeActions },
+  tempoMap: { constantTempoMap, variableTempoMap, beatToTime },
+  markers: markerActions,
+};
 
 /** Lot 3 handles for the browser checks (`?demo`, `?debug`). */
 export const lot3Handle = {
@@ -135,6 +148,6 @@ export function startDemo(params: URLSearchParams): Promise<void> {
     else if (separation === 'lente' || separation === 'repli' || separation === 'echec') void separationRunner.startSeparation();
     if (params.get('export') === 'ouvert') exportActions.openExportAudio();
   })();
-  window.__fabtice = { store: appStore, engine: getEngine(), actions, lot2: lot2Actions, lot3: lot3Handle, ready };
+  window.__fabtice = { store: appStore, engine: getEngine(), actions, lot2: lot2Actions, lot3: lot3Handle, lot4: lot4Handle, ready };
   return ready;
 }
