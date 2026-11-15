@@ -72,3 +72,13 @@
 }
 .voile-standards .accueil { transform: none; animation: monte var(--pose) var(--courbe); }
 @keyframes monte { from { transform: translateY(10px); } }
+
+/* Compact card of the opening dialog: below the instruments, never in the way of the import. */
+.standards-compact { margin-top: 18px; padding: 12px 16px 6px; }
+.standards-compact .standards-phrase { margin: 0 0 8px; font-size: 14px; }
+.standards-compact .standards-actions { margin-top: 0; }
+.standards-compact .recueils-plus { margin-top: 0; }
+.standards-compact .import-etat .phase { margin-bottom: 8px; }
+.standards-compact .standards-bilan { font-size: 16px; margin-bottom: 6px; }
+.standards-compact .stems-note { margin: 0 0 6px; }
+.standards-compact .jauge { margin-bottom: 6px; }
