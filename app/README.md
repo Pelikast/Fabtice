@@ -1247,9 +1247,18 @@ fiabilité qui les réunit. Fonctions **pures**, pas encore branchées dans
   (`referenceCharts` : 60 grilles réparties dans les recueils, chacune à sa meilleure
   position ; seuil 2,5 écarts-types), se détacher de ses autres positions et être
   d'accord avec le réseau sur au moins un quart des temps ; sinon elle est
-  **refusée** (une mauvaise grille est pire que rien). Acceptée, elle donne par temps
-  une distribution centrée sur son accord (la moitié sur l'accord, 30 % sur ses
-  autres couleurs, 5 % sur la substitution tritonique d'une dominante) avec un poids
+  **refusée** (une mauvaise grille est pire que rien). Le décalage global peut ne pas
+  tenir partout (un temps perdu ou ajouté par la grille des temps, des sections
+  jouées dans un autre ordre, un tag) : **alignement par morceaux**, par mesure l'un
+  des 6 meilleurs décalages ou « aucun », par Viterbi avec un coût de 12 nats pour
+  changer (seul un changement qui tient quelques mesures est pris) ; les premières
+  et dernières mesures en désaccord sont une intro, une coda. Acceptée, elle donne
+  par temps une distribution centrée sur son accord (la moitié sur l'accord, 30 % sur
+  ses autres couleurs, 5 % sur la substitution tritonique d'une dominante ; la part
+  de l'accord exact est multipliée par la part des temps où, fondamentale et famille
+  d'accord, la couleur de la grille est aussi celle qu'entend le réseau : une grille
+  qui écrit des 7 là où l'orchestre joue des accords parfaits ne prête que ses
+  fondamentales) avec un poids
   = 4 × accord local × (1 − meilleure probabilité du réseau) : il grandit où le
   réseau doute et s'efface où il est sûr ; l'accord local (mesures voisines, la
   mesure elle-même exclue) l'éteint dans une intro, une coda ou une grille jouée

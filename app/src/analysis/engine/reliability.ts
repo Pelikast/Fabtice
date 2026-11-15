@@ -36,10 +36,26 @@ export interface ReliabilityFeatures {
 
 export const FEATURE_NAMES: (keyof ReliabilityFeatures)[] = ['logNet', 'logPost', 'margin', 'hasRepeats', 'repeatAgree', 'hasChart', 'chartExact', 'chartFamily', 'logBeats'];
 
-/** Coefficients of the logistic model (intercept first, then FEATURE_NAMES), fitted on the bench's development half. */
+/**
+ * Coefficients of the logistic model, fitted on the development half of the bench (banc/partage.json,
+ * shared with the other chord work; repeats and known chart both on; each of the four conditions —
+ * synthetic clean, synthetic old record, GuitarSet, GuitarSet old record — weighing the same; small
+ * ridge), by `node dist/structure.mjs --fit`. On the held-out half: Brier 0.177 (the network's
+ * geometric mean read as a probability: 0.257), mean calibration gap 4.3 % (13.6 %).
+ */
 export const RELIABILITY_MODEL: { intercept: number; coef: Record<keyof ReliabilityFeatures, number> } = {
-  intercept: 0,
-  coef: { logNet: 1, logPost: 0, margin: 0, hasRepeats: 0, repeatAgree: 0, hasChart: 0, chartExact: 0, chartFamily: 0, logBeats: 0 },
+  intercept: 0.7313,
+  coef: {
+    logNet: 0.2113,
+    logPost: 0.99,
+    margin: 0.5034,
+    hasRepeats: -0.2914,
+    repeatAgree: 1.0482,
+    hasChart: -0.245,
+    chartExact: 4.8626,
+    chartFamily: -0.2177,
+    logBeats: -0.5324,
+  },
 };
 
 /** Features of each segment. `raw`: the network's units before any structural evidence. */

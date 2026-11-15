@@ -28,6 +28,11 @@
 //    alignment that fits a ii-V-I piece a little. Otherwise the chart is
 //    rejected: a wrong chart (another tune of the same title, a contrafact, a
 //    very free version) is worse than none.
+// 3b. Piecewise: the global offset may not hold everywhere (the grid lost or
+//    added a beat, the band plays the sections in another order, a tag): per
+//    bar, one of the best offsets or « none », by Viterbi with a cost for
+//    switching, so only a change that holds for a few bars is taken. The
+//    first and last bars that disagree with the chart are an intro / a coda.
 // 4. Evidence: per beat, a distribution centred on the chart's chord (some
 //    mass on its other colours and, for a dominant, on its tritone
 //    substitute), with a weight = weight × local fit × doubt^doubtPower. The
@@ -35,7 +40,10 @@
 //    (the bar itself left out); intros, codas, tags and choruses played
 //    freely get little or no weight. The doubt is 1 − the network's top
 //    probability on that beat: where the network is sure, the chart barely
-//    moves it, so a reharmonisation the audio supports survives.
+//    moves it, so a reharmonisation the audio supports survives. The chart's
+//    exact colours count as far as they hold on this recording (where chart
+//    and network agree on root and family, how often on the colour too): a
+//    chart that writes 7ths where the band plays triads only lends its roots.
 //
 // Pure (no I/O): the caller reads the playlists and passes the candidates.
 
