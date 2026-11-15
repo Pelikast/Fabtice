@@ -1,29 +1,37 @@
 // The last safety net of the beat grid: the owner's rule enforced by
-// construction (CLAUDE.md, analysis, « Tempo »: a brutal and brief variation
+// construction (the brief, analysis, « Tempo »: a brutal and brief variation
 // that comes back is never believed; a small tolerance for light or
 // progressive movements).
 //
 // After everything else (`pipeline.ts#gridFromBeats`), on the grid as the app
-// will show it (bars every m beats from one downbeat), the bars are cut into
-// runs at every abrupt change between neighbouring bars (bar lengths differing
-// by `jump` or more, |ln|). A run of at least `support` bars is a stable
-// support. Between two supports at the same level (their facing bars within
-// `jump` of each other), what lies between them lasts fewer than `brief` bars:
-// it is not believed. It is re-gridded from the last downbeat of the first
-// support to the first downbeat of the second (widened by up to `pad` bars of
-// each support so that a remainder is spread thinly): a whole number of bars
-// (the span divided by the supports' bar length, rounded), their lengths going
-// smoothly from one support's to the other's, m beats per bar, each beat on a
-// found beat when one is within `snap` of a beat of its place. The second
-// support's downbeats stay where they were heard: the bar phase after the
-// passage is theirs.
+// will show it (bars every m beats from one downbeat). A passage breaks the
+// rule (`briefPassages`) when, after a support (`support` bars at one level,
+// with even beats), a bar is `jump` or more away from that level, and fewer
+// than `brief` bars later the bars come back to it abruptly (a step of `jump`
+// or more) for another support. It is re-gridded between the two supports
+// (widened by up to `pad` bars of each so that a remainder is spread thinly),
+// with a whole number of beats: evenly, or going smoothly from one support's
+// beat to the other's, or keeping the found beats that lie a whole number of
+// beats apart and filling the gaps evenly; each new beat on a found beat when
+// one is within `snap` of a beat. A way is kept when its bars make no step of
+// `jump` with the bars around and at least `heard` of its beats are found
+// beats (otherwise the net would invent a pulse); the one on the most found
+// beats wins. Whole bars by default (the bar phase holds on both sides); a
+// number of beats that holds a part of a bar when the downbeats heard over
+// the whole piece agree with it better, the bar phase then being the one they
+// agree with (before or after the passage). The net passes again on its own
+// result while it finds passages and makes no more abrupt changes.
 //
-// What stays: a change that lasts (`brief` bars or more at the new level, or no
-// return), a ritardando or a progressive accelerando (no abrupt step), a free
-// introduction or a slowed ending (no support on one side: nothing is
-// invented). An isolated fermata between two stable stretches becomes a whole
-// number of bars at the neighbouring tempo (the hand corrections of the bar
-// menu remain the way back). Pure; thresholds measured (app/README.md).
+// What stays: a change that lasts (no return within `brief` bars, or a new
+// tempo held evenly for `plateau` bars), a ritardando or a progressive
+// accelerando, a rubato (it comes back by degrees), a free introduction (no
+// support before), the ends of the piece (no support after: nothing is
+// invented), and a passage where the downbeats heard speak clearly against
+// every re-gridding (`AGAINST`). An isolated fermata between two steady
+// stretches becomes a whole number of beats at the neighbouring tempo, unless
+// the downbeats heard after it say the bars go on (the hand corrections of the
+// bar menu remain the way back). Pure; thresholds measured (app/README.md,
+// « Le dernier filet »).
 
 import type { RepairedPassage } from '../types';
 import { phaseScores } from './repair';
@@ -46,9 +54,8 @@ export interface SteadyOptions {
   /** A beat stays on a found beat within this fraction of a beat of its place. */
   snap: number;
   /**
-   * `bars`: the span holds a whole number of bars at the supports' bar length (the phase after is the one
-   * heard there); `beats`: a whole number of beats at their beat, the bar phase then chosen again from the
-   * downbeats of the whole piece.
+   * `bars`: the span holds a whole number of bars; `beats`: also a number of beats that holds a part of a bar,
+   * when the downbeats heard over the whole piece agree with it better.
    */
   count: 'bars' | 'beats';
 }

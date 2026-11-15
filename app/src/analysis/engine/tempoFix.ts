@@ -28,6 +28,7 @@
 import type { GridHint } from '../types';
 import { downProbAt, pickPeaks, refinePeak, type BeatActivations } from './beats';
 import { gridFromBeats } from './pipeline';
+import { bestPhase } from './repair';
 
 export type TempoFixKind = 'continuity' | 'fresh';
 
@@ -58,6 +59,20 @@ export interface TempoFixOptions {
   toEnd: boolean;
   /** Intervals before the chosen bar that give its tempo (at least two). */
   context: number;
+  /** Bars in a row, each within `steadyRatio` of the one before, for a stretch to give the tempo. */
+  steadyBars: number;
+  /** |ln| between neighbouring bars of a steady stretch. */
+  steadyRatio: number;
+  /** `follow`: beat by beat, peaks far from where a beat is due ignored; `dp`: the best path over the whole rest. */
+  tracker: 'follow' | 'dp';
+  /** Following: a network peak is taken for the next beat only within this share of a beat of where it is due. */
+  near: number;
+  /** Following: how much of each beat's lateness or earliness goes into the beat length held. */
+  gain: number;
+  /** Following: weakest network peak (logit) taken for a beat. */
+  floor: number;
+  /** After handing back, a bar of the grid in force this far (|ln|) from the tempo held takes the tracking again. */
+  retake: number;
 }
 
 export const TEMPO_FIX: TempoFixOptions = {
@@ -70,6 +85,13 @@ export const TEMPO_FIX: TempoFixOptions = {
   rejoinBars: 8,
   toEnd: false,
   context: 8,
+  steadyBars: 4,
+  steadyRatio: Math.log(1.1),
+  tracker: 'follow',
+  near: 0.2,
+  gain: 0.1,
+  floor: -2,
+  retake: Math.log(1.2),
 };
 
 const TOL = 0.07;
@@ -94,6 +116,50 @@ export function periodBefore(times: readonly number[], at: number, context: numb
   if (d.length >= 2) return median(d);
   // The chosen bar is the first one: the usual beat of the whole grid in force.
   return median(times.slice(1).map((t, i) => t - times[i]!));
+}
+
+/** Bar lengths of the grid in force, and where a steady stretch ends (bars k − steadyBars + 1 … k). */
+function stretches(grid: GridHint, o: TempoFixOptions) {
+  const m = grid.meter.numerator;
+  const t = grid.times;
+  const starts: number[] = [];
+  for (let i = grid.downbeat; i + m < t.length; i += m) starts.push(i);
+  const L = starts.map((i) => t[i + m]! - t[i]!);
+  const steady = L.map((_, k) => {
+    if (k < o.steadyBars - 1) return false;
+    for (let q = k - o.steadyBars + 2; q <= k; q++) if (Math.abs(Math.log(L[q]! / L[q - 1]!)) >= o.steadyRatio) return false;
+    return true;
+  });
+  return { starts, L, steady };
+}
+
+/** The bars just before the chosen bar are a steady stretch (`steadyBars` bars, each within `steadyRatio` of the one before). */
+export function steadyBefore(grid: GridHint, fromIdx: number, o: TempoFixOptions = TEMPO_FIX): boolean {
+  const { starts, steady } = stretches(grid, o);
+  const bar = starts.findIndex((i) => i >= fromIdx);
+  const at = bar < 0 ? steady.length : bar;
+  return at >= 1 && steady[at - 1]!;
+}
+
+/**
+ * The tempo to hold from the chosen bar (beat period, s): the bars just before it when they are a steady
+ * stretch; else the nearest steady stretch before it, else the nearest after it, else the usual beat of the
+ * whole grid. Never a quarter away from the piece's usual beat (the bars before may be at another level).
+ */
+export function referencePeriod(grid: GridHint, fromIdx: number, o: TempoFixOptions = TEMPO_FIX): number {
+  const m = grid.meter.numerator;
+  const t = grid.times;
+  const usual = median(t.slice(1).map((x, i) => x - t[i]!));
+  const { starts, L, steady } = stretches(grid, o);
+  const bar = starts.findIndex((i) => i >= fromIdx);
+  const at = bar < 0 ? L.length : bar; // bars 0 … at − 1 lie before the chosen bar
+  const period = (k: number) => median(L.slice(k - o.steadyBars + 1, k + 1)) / m;
+  let p = NaN;
+  if (steadyBefore(grid, fromIdx, o)) p = periodBefore(t, fromIdx, o.context);
+  for (let k = at - 2; !(p > 0) && k >= 0; k--) if (steady[k]) p = period(k);
+  for (let k = at + o.steadyBars - 1; !(p > 0) && k < L.length; k++) if (steady[k]) p = period(k);
+  if (!(p > 0)) p = usual;
+  return Math.abs(Math.log(p / usual)) < Math.log(1.25) ? p : usual;
 }
 
 /**
@@ -214,6 +280,34 @@ export function placeTracked(act: BeatActivations, frames: readonly number[], o:
 }
 
 /**
+ * Beats from `t0` (a beat) to about `tEnd`, the tempo `period` (s) held: each
+ * beat is due one beat length after the one before; the strongest network
+ * peak within `near` of a beat of that place is taken for it, otherwise it
+ * falls where it is due. The beat length held moves by `gain` of each
+ * beat's lateness or earliness, and stays within `window` of `period`. A
+ * peak further away is ignored, not followed: a row of strong off-beats (a
+ * swung eighth on a worn record) cannot draw the beats onto it, and a slow
+ * drift is still followed.
+ */
+export function followBeats(act: BeatActivations, t0: number, tEnd: number, period: number, o: TempoFixOptions = TEMPO_FIX): number[] {
+  const peaks = pickPeaks(act.beat).filter((f) => act.beat[f]! >= o.floor).map((f) => ({ t: refinePeak(act.beat, f) / act.fps, v: act.beat[f]! }));
+  const out = [t0];
+  let d = period;
+  let j = 0;
+  while (out[out.length - 1]! < tEnd - 0.5 * d) {
+    const last = out[out.length - 1]!;
+    const due = last + d;
+    while (j < peaks.length && peaks[j]!.t < due - o.near * d) j++;
+    let best: { t: number; v: number } | null = null;
+    for (let q = j; q < peaks.length && peaks[q]!.t <= due + o.near * d; q++) if (!best || peaks[q]!.v > best.v) best = peaks[q]!;
+    const t = best ? best.t : due;
+    d = Math.min(period * (1 + o.window), Math.max(period / (1 + o.window), d + o.gain * (t - due)));
+    out.push(t);
+  }
+  return out;
+}
+
+/**
  * Where the tracked beats (from the chosen bar, `m` beats per bar) agree with
  * the grid in force for `bars` bars in the same bar phase: the index in
  * `tracked` from which the grid in force is kept (null: never).
@@ -258,18 +352,49 @@ export function applyTempoFix(act: BeatActivations, req: TempoFixRequest, o: Tem
   const P = periodBefore(grid.times, fromIdx, o.context);
   if (!(P > 0)) return grid;
   if (req.kind === 'continuity') {
-    const frames = trackBeats(act.beat, Math.round(t0 * act.fps), Math.round(last * act.fps), P * act.fps, o);
-    const tracked = placeTracked(act, frames, o);
-    tracked[0] = t0;
-    if (!o.toEnd) {
-      const k = rejoinIndex(tracked, grid, fromIdx, o.rejoinBars);
-      if (k !== null && k > 0) {
-        const at = tracked[k]!;
-        const j = grid.times.findIndex((t) => Math.abs(t - at) <= TOL);
-        if (j > fromIdx) return merged(prefix, [...tracked.slice(0, k), ...grid.times.slice(j)], grid, fromIdx);
+    const held = referencePeriod(grid, fromIdx, o);
+    if (!(held > 0)) return grid;
+    // Track from the chosen bar; hand back to the grid in force where they agree for `rejoinBars` bars; take the
+    // tracking again at the next bar of the grid in force that is away from the tempo held, and so on.
+    let out = prefix.slice();
+    let start = fromIdx;
+    let t = t0;
+    for (let round = 0; round < 32; round++) {
+      // From the beat before the bar (it stays): the bar's own start is followed too, it may be the beat that
+      // went wrong (an off-beat taken for the downbeat).
+      const track = (from: number) =>
+        o.tracker === 'follow' ? followBeats(act, from, last, held, o) : placeTracked(act, trackBeats(act.beat, Math.round(from * act.fps), Math.round(last * act.fps), held * act.fps, o), o).map((x, i) => (i ? x : from));
+      const tracked = out.length ? track(out[out.length - 1]!).slice(1) : track(t);
+      if (!tracked.length) break;
+      const k = o.toEnd ? null : rejoinIndex(tracked, grid, start, o.rejoinBars);
+      const j = k !== null && k > 0 ? grid.times.findIndex((x) => Math.abs(x - tracked[k]!) <= TOL) : -1;
+      if (j <= start) {
+        out = [...out, ...tracked];
+        break;
       }
+      out = [...out, ...tracked.slice(0, k!)];
+      // The grid in force from j on, until a bar of it is away from the tempo held.
+      let next = -1;
+      for (let i = j; i + m < grid.times.length; i += m) {
+        if (Math.abs(Math.log((grid.times[i + m]! - grid.times[i]!) / (m * held))) >= o.retake) {
+          next = i;
+          break;
+        }
+      }
+      if (next < 0) {
+        out = [...out, ...grid.times.slice(j)];
+        break;
+      }
+      out = [...out, ...grid.times.slice(j, next)];
+      start = next;
+      t = grid.times[next]!;
     }
-    return merged(prefix, tracked, grid, fromIdx);
+    const result = merged(out.slice(0, fromIdx), out.slice(fromIdx), grid, fromIdx);
+    if (steadyBefore(grid, fromIdx, o)) return result;
+    // Too little steady history before the bar to trust its bar lines either: the bar phase the downbeats
+    // heard over the whole piece agree with best.
+    const d = bestPhase(result.times.map((x) => downProbAt(act, x)), m);
+    return { ...result, downbeat: d };
   }
   // Fresh: the analysis of the beats from the chosen bar on, as if the piece began there.
   const downAt = (t: number) => (t < t0 - 0.1 ? 0.02 : downProbAt(act, t));
