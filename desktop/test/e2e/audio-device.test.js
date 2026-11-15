@@ -78,11 +78,18 @@ test('sleep and wake give the audio output back; the audio journal reaches the d
 
     // Kept on disk, for after a restart.
     const file = path.join(userData, 'audio-journal.json');
+    // (written at once when the Mac goes to sleep, then at most once a second)
+    const read = () => {
+      try {
+        return JSON.parse(fs.readFileSync(file, 'utf8'));
+      } catch {
+        return null;
+      }
+    };
+    const complete = (k) => k && k.entries.some((e) => e.event === 'sleep') && k.entries.some((e) => e.source === 'page' && e.event === 'release');
     const deadline = Date.now() + 10000;
-    while (!fs.existsSync(file) && Date.now() < deadline) await new Promise((r) => setTimeout(r, 200));
-    const kept = JSON.parse(fs.readFileSync(file, 'utf8'));
-    assert.ok(kept.entries.some((e) => e.event === 'sleep'));
-    assert.ok(kept.entries.some((e) => e.source === 'page' && e.event === 'release'));
+    while (!complete(read()) && Date.now() < deadline) await new Promise((r) => setTimeout(r, 200));
+    assert.ok(complete(read()), 'the journal file holds the sleep and the page’s release');
   } finally {
     await app.close().catch(() => {});
     fs.rmSync(userData, { recursive: true, force: true });
