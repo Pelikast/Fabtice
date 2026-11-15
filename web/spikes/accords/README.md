@@ -113,6 +113,26 @@ audio et des outils : ensuite, une variante qui ne change que le décodage
 relit tout le corpus en quelques secondes (2 à 7 s). Une variante qui fait tourner les
 réseaux sur les instruments séparés paie ces calculs une fois par fichier.
 
+**Banc des temps** (`banc/temps.ts`) : la grille de l'app (ou une autre
+manière de tirer les temps des sorties du réseau) sur tout le corpus, contre
+les vrais temps — temps trouvés, premiers temps, sauts de tempo d'une mesure à
+l'autre (×1,3 ou plus), zigzags de la courbe (une mesure plus rapide ou plus
+lente que ses deux voisines de 5 % ou plus), et les passages où la grille est à
+un autre niveau que la vérité (`--runs`). C'est lui qui a montré les passages à
+la moitié du tempo et mesuré la réparation par les mesures (app/README.md,
+« Temps menés par les premiers temps »).
+
+```sh
+node dist/temps.mjs --methods old,app             # avant (version 3) et maintenant, par condition
+node dist/temps.mjs --methods app --split dev      # la partie développement seule (ou test)
+node dist/temps.mjs --only blues-bird --chains blues-bird.disque   # chaînes de mesures d'un morceau
+node dist/temps.mjs --only saints --peaks saints.disque:20:30      # pics du réseau entre 20 et 30 s
+BARS_OPTS='{"minRight":4}' node dist/temps.mjs --methods tune --split dev   # essayer un réglage
+```
+
+`--fixture <fichier> --fixture-ids id.condition,…` écrit les sorties du réseau
+de ces morceaux pour les tests de l'app (`tempo.bench.test.ts`).
+
 ## Ajouter une variante
 
 Une variante est un fichier `banc/variantes/<nom>.ts` dont l'export par défaut

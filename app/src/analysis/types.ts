@@ -91,8 +91,13 @@ export interface RepairedPassage {
   found: number;
   /** Beats put there instead. */
   placed: number;
-  /** `tempo`: a short deviation of the tempo; `bar`: the downbeats after it had moved. */
-  cause: 'tempo' | 'bar';
+  /**
+   * `tempo`: a short deviation of the tempo; `bar`: the downbeats after it had moved;
+   * `level`: bars of the network's downbeats that held another number of beats
+   * (half or double tempo, a lost or an extra beat), re-gridded (`engine/bars.ts`);
+   * `shift`: a run of beats placed early or late that came back, moved into place (`engine/displaced.ts`).
+   */
+  cause: 'tempo' | 'bar' | 'level' | 'shift';
 }
 
 /**

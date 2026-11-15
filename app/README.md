@@ -1591,6 +1591,180 @@ chantiers suivent, chacun dans son dossier.
     Panneau « Tempo et mesures » : « Analyser de nouveau ». Si la grille a été
     corrigée à la main, d'abord « Revenir à l'analyse » (sinon la grille de
     l'utilisateur est gardée et seuls les accords sont refaits dessus).
+- **Temps menés par les premiers temps, temps déplacés** (version 4 de l'analyse,
+  `engine/bars.ts`, `engine/displaced.ts` ; ordre dans `pipeline.ts#gridFromBeats` :
+  pics du réseau → réparation par les mesures → réparation des temps ci-dessus →
+  temps déplacés → métrique et phase unique ; `OPTIONS.bars` et `OPTIONS.displaced`
+  les coupent).
+  - *Le défaut, mesuré* (deuxième rapport du propriétaire, 15 novembre : « tempo lu
+    à la moitié pendant un moment, puis tout décalé »). Nouveau banc des temps
+    (`web/spikes/accords/banc/temps.ts`, les 98 enregistrements du banc des
+    accords, sorties du réseau en cache, vrais temps) : le réseau tombe à la
+    **moitié du tempo** pendant des passages de 2 à plus de 100 temps (il ne garde
+    que les temps 1 et 3), surtout aux tempos rapides et sur le « vieux disque » :
+    *Anatole* (212) 50 temps au début et 35 à la fin, *Blues for Bird* (196) quatre
+    passages dont un de 23 temps doubles, le II-V mineur rapide (236) les 102
+    derniers temps, *Blue Bossa* vieux disque, *Saints* vieux disque… La réparation
+    de la version 3 s'arrête à 16 temps et à un compte entier au tempo d'alentour :
+    ces passages lui échappent (quatre mesures à la moitié font déjà 16 temps). Le
+    point décisif : **pendant ces mêmes passages, la sortie « premiers temps » du
+    réseau continue de marquer les vraies mesures**, une par mesure, à longueur de
+    mesure constante (vérifié pic par pic sur ces morceaux) ; ce sont les temps qui
+    sautent.
+  - *Les autres voies, mesurées et écartées.* Le DBN du prototype (`dbn`, suivi de
+    temps à état de tempo) et le mode `joint` (temps et mesures ensemble, façon
+    madmom) suppriment bien les sauts de tempo, mais en choisissant le mauvais
+    niveau : temps trouvés 95,2 → 85,8 % (`dbn`) et 89,0 % (`joint`) sur les rendus
+    propres, 93,9 → 86,2 et 89,0 % sur le vieux disque ; en serrant la continuité
+    (λ = 1000 au lieu de 100), 66 et 60 %. À 50 images/s, un pas d'une image vaut
+    déjà 7 % de tempo à 200 à la noire : le modèle ne suit plus le rubato. Traiter à
+    part les rapports simples sur les seuls intervalles (sans les premiers temps)
+    ne dit pas quel niveau est le bon quand la moitié du morceau est fausse (le II-V
+    rapide est faux sur 60 % de sa durée). Les premiers temps le disent.
+  - *La règle, par les mesures* (`bars.ts`). Les pics de premier temps (probabilité
+    ≥ 0,5, posés sur le temps trouvé le plus proche à 0,35 temps près, deux pics
+    aussi proches n'en font qu'un) sont enchaînés en **chaînes de mesures de longueur
+    régulière** : la mesure suivante est à une longueur de mesure (à 15 % près,
+    longueur = moyenne des deux dernières), ou à deux (un premier temps manqué, à 8 %
+    près : trois mesures d'un tempo plus vif ne doivent pas passer pour deux) ; une
+    chaîne commence par la plus courte mesure qui tient au moins 4 mesures (au plus
+    4,6 intervalles de temps du quartile haut, et au plus 8 temps trouvés par
+    mesure : jamais un multiple de mesures). Un point d'orgue, un passage libre, un
+    vrai changement de tempo **brisent la chaîne** : rien n'y est fait. La métrique
+    est celle que tiennent exactement le plus de mesures (m temps réguliers ; une
+    mesure à la moitié ou à qui il manque un temps ne vote pas). Puis, mesure par
+    mesure : une mesure qui a le bon nombre de temps n'est **jamais touchée**
+    (rubato, swing, note tenue) ; une mesure dont les temps sont réguliers à son
+    propre niveau mais pas au bon nombre est gardée (ce sont les premiers temps qui
+    se trompent, ou un point d'orgue) ; une mesure avec moins de temps, pas à un
+    rapport simple et dont des temps tombent hors des positions, est gardée (note
+    tenue) ; une mesure qui a moins de 30 % de ses temps est gardée (le réseau
+    n'entend rien : fin de disque) ; sinon elle est **re-quadrillée** : ses temps
+    qui tombent sur les m positions régulières (à un quart de temps près) sont
+    gardés tels quels, les autres ôtés, les positions vides placées entre les temps
+    gardés. Les premiers temps de la mesure restent : la **phase est continue avant
+    ET après** le passage, quelle que soit sa longueur. Une chaîne doit tenir la
+    métrique sur au moins 3 mesures et 10 % des siennes (sinon elle est tout
+    entière à un autre niveau : laissée, voir plus bas) ; une chaîne dont les
+    premiers temps viennent une mesure sur deux compte des mesures doubles. Entre
+    deux chaînes qui tiennent la métrique à la même longueur de mesure (à 10 % près),
+    un trou d'au plus 16 mesures qui dure un nombre entier de mesures (à 0,12 près)
+    est re-quadrillé de même (premiers temps perdus un moment). Les réparations
+    de la version 3 passent ensuite (mesuré : les garder fait mieux que les
+    couper dans les chaînes, 90,0 contre 87,1 % de premiers temps sur le vieux
+    disque, partie développement).
+  - *Ce que « dure » veut dire maintenant.* Ce n'est plus une durée : c'est la
+    **longueur des mesures**. Un passage où les temps vont à la moitié, au double,
+    à 2/3 ou 3/2 pendant que les premiers temps gardent la même longueur de mesure
+    est une erreur de niveau du réseau, réparée quelle que soit sa longueur (1 à 32
+    mesures mesurées, et au-delà) : même un vrai « double-time feel » garde ses
+    mesures, c'est la longueur de mesure que la grille d'étude doit garder. Pour
+    2/3 et 3/2 (et 4/3, 3/4), il faut de plus que la métrique revienne après le
+    passage (ou qu'il commence ou finisse le morceau) : un rapport de ce genre qui
+    va jusqu'au bout d'une chaîne est cru. Un **vrai changement de tempo**, même à
+    un rapport simple et même à la moitié exacte, change la longueur des mesures :
+    la chaîne se brise, rien n'est réparé, le nouveau tempo est gardé aussi
+    longtemps qu'il dure (mesuré : 120 → 160, 150 → 100, 132 → 66, 96 → 128 pendant
+    16 mesures puis retour, 100 → 135, accelerando, ritardando, rien ne bouge). Un
+    morceau **entièrement** à la moitié (aucune mesure à la bonne métrique,
+    *Bill Bailey* et *Saints* en rendu propre) est laissé tel quel : rien ne dit
+    lequel des deux niveaux est voulu (une ballade à 72 lue au double aurait l'air
+    pareille) ; l'utilisateur a « tempo doublé ».
+  - *Temps déplacés* (`displaced.ts`, d'après la photo de la courbe envoyée par le
+    propriétaire : courbe plate, puis une dizaine de mesures qui ondulent). Sur le
+    vieux disque, le réseau se cale parfois quelques mesures sur la croche swing
+    d'avant le temps : le compte reste juste, mais tous les temps du passage sont en
+    avance d'un tiers de temps environ, d'où une mesure trop rapide à l'entrée et
+    une trop lente à la sortie. Mesuré (*So What* vieux disque, 13 à 21 s) : à la
+    vraie place, la sortie du réseau est basse (logit −2 à −6), elle ne peut pas
+    trancher ; c'est le temps qui tranche. Une suite de 1 à 32 temps est remise en
+    place, d'un bloc, quand l'intervalle d'entrée est trop court (ou long) de δ et
+    celui de sortie trop long (ou court) du même δ (à 35 % près), les temps entre
+    les deux réguliers (10 %), le tempo le même des deux côtés, **et** que tous les
+    temps de la suite sont décalés d'environ δ par rapport à la droite que tracent
+    les 12 temps de chaque côté (deux temps bousculés par hasard loin l'un de
+    l'autre ne font pas un passage décalé) ; δ ≥ 15 % d'un temps (25 % pour un
+    temps seul : un temps isolé en avance est plus souvent le musicien), et ≥ 5 fois
+    le bruit de placement local. Un vrai étirement (rubato, note tenue) n'est pas
+    suivi de l'intervalle inverse : les temps d'après restent où ils sont, rien
+    n'est fait. La courbe de tempo affichée vient de la grille corrigée (pas de
+    lissage de la courbe seule).
+  - *Marques* : `beats.repaired` porte deux causes de plus, `level` (mesures
+    re-quadrillées) et `shift` (temps remis en place) ; champ facultatif, les
+    analyses enregistrées restent lisibles. `ANALYSER_VERSION` passe à 4.
+  - *Jeu de cas* (`engine/tempo.cases.ts`, `tempo.eval.test.ts` ; jeu complet avec
+    `FABTICE_REPAIR_FULL=1`, un tiers sinon). 4 608 passages de niveau (moitié,
+    double, 2/3, 3/2 ; 1, 2, 4, 8, 16, 24, 32 mesures ; au début, au milieu, à la
+    fin, deux fois ; 12 et 25 ms de flou ; swing 120, dérive 100 → 116, rapide 200,
+    ballade 72, valse 150 à 3/4, rubato ±6 % ; premiers temps nets, faibles,
+    perdus pendant le passage, absents), 800 suites décalées (1 à 16 temps, 8 à
+    33 % d'un temps, en avance et en retard, depuis un premier temps ou non ;
+    swing 140, ballade 72, valse, dérive), 180 négatifs (les suites propres de la
+    version 3, plus les changements de tempo qui durent, une ballade avec fin
+    rubato et note tenue). Partie réglage : swing 120 et dérive (niveau), swing 140
+    (décalés), suites de la version 3 ; le reste est mis de côté. Avant → après,
+    jeu complet :
+
+    | | réglage | mis de côté |
+    |---|---|---|
+    | mesures en place après le passage (premiers temps nets) | 86,8 → 100,0 % | 87,3 → 99,3 % |
+    | premiers temps justes après le passage (nets) | 92,9 → 99,8 % | 94,8 → 99,8 % |
+    | temps trouvés (F, nets) | 93,7 → 99,1 % | 93,7 → 98,8 % |
+    | sauts de tempo ≥ ×1,3 entre mesures (nets) | 635 → 38 | 1 368 → 120 |
+    | mesures en place (premiers temps faibles) | 87,3 → 87,5 % | 87,4 → 88,5 % |
+    | mesures en place (premiers temps perdus pendant le passage) | 87,5 → 89,6 % | 87,2 → 89,1 % |
+    | sans premiers temps | inchangé (85,0 %) | inchangé (84,6 %) |
+    | suites décalées : écart moyen au vrai temps | 53 → 46 ms | 70 → 50 ms |
+    | suites décalées : zigzags ≥ 5 % de la courbe | 728 → 697 | 2 434 → 2 290 |
+    | négatifs changés | 0 sur 180 (1 l'était déjà avant) | |
+
+    Les sauts restants avec des premiers temps nets sont presque tous à la
+    **dernière mesure** d'un passage qui finit le morceau (aucun premier temps
+    après elle pour la borner). Les seuils réglés dessus : `openEnds` (ne pas
+    re-quadriller une suite qui atteint le bout d'une chaîne au milieu du morceau :
+    premiers temps faibles, cassés 15 → 5), `minFound` 0,3 (à la moitié en 3/4,
+    une mesure sur deux n'a qu'un temps), la métrique par mesures exactes (un
+    passage à 3 pour 2 faisait passer un 4/4 en 3/4), la plus courte mesure d'abord
+    (une chaîne de mesures doubles gagnait dans le rubato), les seuils des temps
+    déplacés (avec 25 ms de flou, la première version déplaçait 34 suites propres),
+    un trou entre chaînes dont les temps sont réguliers d'un bout à l'autre n'est
+    pas recompté (dans un rubato, la longueur de mesure des deux côtés se trompait
+    d'un temps). Le jeu de la version 3 (`repair.eval.test.ts`, complet, mesures en
+    place après le défaut) : preuve nette 97,9 → 98,6 %, faible 96,9 → 96,8 %
+    (3 cas sur 2 622 que la version 3 réparait et qui ne le sont plus, aucun cassé),
+    aucune 64,1 % ; cassés 0, 0, 20 comme avant ; suites propres : aucune changée.
+  - *Vrais morceaux* (`tempo.bench.test.ts`, 15 morceaux du banc dont les sorties du
+    réseau sont dans `fixtures/network-cases/bench-cases.json`, logits au dixième ;
+    à refaire avec `temps.ts --fixture`) : *Anatole* propre 87,3 → 99,9 % des temps,
+    67,7 → 100 % des premiers temps, sauts 4 → 0 ; vieux disque 72,3 → 95,1 %
+    (premiers temps 46,9 → 95,8 %) ; *Blues for Bird* propre 88,8 → 99,9 % (42,9 →
+    100 %) ; *Blues Basie* propre 94,7 → 99,8 % ; II-V mineur rapide 80,3 → 99,7 %
+    (56,3 → 100 %) ; *Blue Bossa* vieux disque 96,1 → 100 % (78,8 → 100 %, sauts
+    11 → 0) ; *Saints* vieux disque 96,0 → 99,5 % (83,3 → 100 %) ; *So What* vieux
+    disque, premiers temps 78,1 → 90,6 %. Inchangés à la note près : valse, *Autumn
+    Leaves* propre, *Georgia* et *Satin Doll* vieux disque, la ballade de cuivres
+    vieux disque, *Bill Bailey* propre (entièrement à la moitié, voir plus haut).
+    Banc des temps entier, temps trouvés / premiers temps / sauts, avant → après :
+    rendu propre 95,2 → 97,2 % / 91,3 → 96,0 % / 16 → 0 ; vieux disque 93,9 → 94,9 %
+    / 81,6 → 84,5 % / 50 → 23 ; GuitarSet 91,0 → 91,8 % / 78,8 → 80,6 % / 16 → 6 ;
+    GuitarSet vieux disque 79,7 → 79,1 % / 56,9 → 57,9 % / 23 → 14. Partie mise de
+    côté seule : propre 97,1 → 99,8 % / 93,5 → 100 % / 12 → 0 ; vieux disque
+    92,5 → 91,8 % / 78,5 → 78,2 % / 29 → 23 ; GuitarSet 91,5 → 92,0 % / 75,5 →
+    77,1 % ; GuitarSet vieux disque 80,4 → 79,3 % / 57,8 → 59,0 %. Banc des accords
+    (grille détectée) : fondamentale et couleur 71 → 73 % propre, 61 → 61 % vieux
+    disque, 70 → 70 % et 67 → 67 % GuitarSet ; temps trouvés 95/94/92/81 →
+    97/95/93/81 % ; premiers temps 89/79/79/58 → 95/83/81/59 %.
+  - *Limites.* Sans premiers temps nets, peu de chose change (premiers temps
+    faibles : chaînes trop courtes). Deux morceaux mis de côté perdent un peu :
+    *Blues for Bird* vieux disque (premiers temps 64 → 48 % : un passage de
+    11 mesures où les premiers temps du réseau sont décalés d'un temps reste
+    entre deux parties justes, la phase unique choisit la mauvaise) et un
+    enregistrement GuitarSet vieux disque (temps trouvés 100 → 81 % à 70 ms : le
+    réseau y est en avance de 150 ms, la réparation de la version 3 replaçait les
+    temps au tempo d'alentour, les mesures re-quadrillées gardent ceux du réseau).
+    Les temps déplacés ne se voient presque pas sur le banc (le réseau y est plus
+    souvent perdu que décalé) : leur effet est mesuré sur le jeu de cas. Le cas du
+    propriétaire n'a pas pu être écouté ici.
 - **Reste à faire** : décider de l'hébergement des conversions ONNX (copie sous un
   compte du projet, voir PASSATION) ; mesurer la mémoire sur iPhone et, si besoin,
   rogner (tranches plus courtes pour le réseau de temps, au prix d'un autre

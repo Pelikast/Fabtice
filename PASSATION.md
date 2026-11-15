@@ -681,6 +681,34 @@ d'abord le hors-ligne et les en-têtes d'isolation.** Un projet de 20 minutes
 navigateur. Enregistrer un `.fab` prend du temps pour un long morceau
 (environ 30 s pour 12 minutes à six instruments ici, pourcentage affiché).
 
+## Temps, version 4 de l'analyse (retours du 15 novembre)
+
+Cause des « bosses » de tempo : le réseau de temps tombe à la moitié du tempo
+pendant de longs passages (jusqu'à plus de 100 temps, surtout à tempo rapide
+et sur les vieux disques), alors que sa sortie « premiers temps » continue de
+marquer les vraies mesures. L'ancienne réparation s'arrêtait à 16 temps.
+Nouvelle réparation menée par les mesures (`engine/bars.ts`) : les premiers
+temps sont enchaînés en mesures de longueur régulière, et chaque mesure qui
+n'a pas le bon nombre de temps est requadrillée sans déplacer ses premiers
+temps (phase continue avant et après, quelle que soit la longueur du
+passage). Un vrai changement de tempo change la longueur des mesures : la
+chaîne se rompt et il est gardé ; « dure » veut donc dire « la longueur de
+mesure change et tient ». Un morceau entièrement à la moitié est laissé
+(correction « tempo doublé »). Les suites de temps décalées qui reviennent
+en place sont remises d'un bloc (`engine/displaced.ts`).
+
+Mesuré sur le banc des temps (`web/spikes/accords/banc/temps.ts`) et sur un
+jeu de cas avec une partie mise de côté (`tempo.cases.ts`). Sauts de tempo
+brutaux sur le banc : 16 → 0 en son propre, 50 → 23 en vieux disque.
+Premiers temps justes sur le banc des accords : 89, 79, 79 et 58 % → 95, 83,
+81 et 59 %. Accords inchangés ou meilleurs (71 → 73 % en son propre).
+
+**Limites.** Quand le réseau marque mal les premiers temps, le gain est
+faible. Les ondulations de la courbe (un temps posé trop tôt ou trop tard)
+sont peu améliorées. Deux morceaux en vieux disque de la moitié de contrôle
+perdent un peu (un blues : premiers temps 64 → 48 %). Détail :
+`app/README.md`, « Temps menés par les premiers temps ».
+
 ## Sortie audio rendue au système (retours du 15 novembre)
 
 Sur le Mac Intel, le son de tout le Mac s'est bloqué après que Fabtice était
