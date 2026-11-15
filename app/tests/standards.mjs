@@ -216,10 +216,11 @@ try {
     const advanced = page.locator('[data-testid="reglages-avances"]');
     check('« Réglages avancés » is there', (await advanced.count()) === 1);
     await advanced.click();
+    await sleep(500);
     await shot(page, '3a-reglages-avances');
     check('the settings say that nothing is on the device', (await page.locator('[data-testid="standards-etat"]').innerText()).includes('Aucune grille sur cet appareil'));
     await page.locator('[data-testid="standards-gerer"]').click();
-    await page.waitForSelector('[data-testid="standards-fenetre"].ouverte');
+    await page.waitForSelector('[data-testid="standards-fenetre"]');
     await shot(page, '3-fenetre-reglages');
     await page.locator('[data-testid="standards-fenetre"] [data-testid="standards-telecharger"]').click();
     await page.waitForSelector('[data-testid="standards-fenetre"] [data-testid="standards-resultat"]', { timeout: 20000 });
@@ -233,7 +234,7 @@ try {
     await page.waitForFunction(() => !document.querySelector('[data-testid="standards-gardees"]'));
     check('everything can be removed, after a confirmation', (await records(page)).length === 0);
     await page.keyboard.press('Escape');
-    await page.waitForFunction(() => !document.querySelector('[data-testid="standards-fenetre"].ouverte'));
+    await page.waitForFunction(() => !document.querySelector('[data-testid="standards-fenetre"]'));
     check('Escape closes the window', true);
     check('no page errors (settings)', errors.length === 0, errors.join(' | '));
     await context.close();

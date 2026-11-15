@@ -41,7 +41,7 @@
 .accueil .standards-bilan { margin: 0 0 10px; font-family: var(--titre); font-size: 18px; font-weight: 480; color: var(--encre); }
 .standards-echecs { margin: 6px 0 4px; padding-left: 18px; font-size: 13.5px; color: var(--encre); }
 .standards-echecs li + li { margin-top: 3px; }
-.standards-gardees { margin: 0 0 18px; padding-bottom: 12px; border-bottom: 1px solid var(--trait-fin); }
+.standards-gardees { margin: 14px 0 18px; padding-bottom: 12px; border-bottom: 1px solid var(--trait-fin); }
 .accueil .standards-suite { margin-bottom: 8px; }
 .standards-gardees .recueils-etat { margin-top: 4px; }
 .standards-gardees .lien { min-height: 36px; font-size: 13.5px; }
@@ -57,3 +57,18 @@
   .recueils-etat .recueil-detail { padding-left: 0; }
   .standards-actions { gap: 4px 18px; }
 }
+
+/* The settings window: the opening dialog's look (`.voile`, `.accueil`), but a page of its own so that
+   the opening dialog stays the only `.voile`. */
+.voile-standards {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(43, 31, 23, 0.34);
+  animation: apparait var(--pose) var(--courbe);
+}
+.voile-standards .accueil { transform: none; animation: monte var(--pose) var(--courbe); }
+@keyframes monte { from { transform: translateY(10px); } }

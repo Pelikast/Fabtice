@@ -300,42 +300,41 @@ export function StandardsDialog() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [open]);
+  // Not in the page at all while closed: the opening dialog stays the only `.voile` of the page.
+  if (!open) return null;
   return (
     <div
-      className={`voile${open ? ' ouverte' : ''}`}
+      className="voile-standards"
       role="dialog"
       aria-modal="true"
       aria-labelledby="standards-fenetre-titre"
-      aria-hidden={!open}
       data-testid="standards-fenetre"
       onPointerDown={(e) => {
         if (e.target === e.currentTarget) closeStandardsPanel();
       }}
     >
-      {open && (
-        <div className="accueil">
-          <div className="accueil-entete">
-            <h2 id="standards-fenetre-titre">{t('standards.title')}</h2>
-            <button className="fermer" aria-label={t('standards.close')} onClick={closeStandardsPanel}>
-              <CloseIcon />
-            </button>
-          </div>
-          {kind === 'running' ? (
-            <Running />
-          ) : kind === 'done' ? (
-            <Result />
-          ) : (
-            <>
-              {hasKept ? <Kept /> : null}
-              <p className={hasKept ? 'standards-suite' : undefined}>{t(hasKept ? 'standards.manageMore' : 'standards.offer')}</p>
-              <Collections locked={false} />
-              <Actions />
-              <FileImport showWhere />
-              <p className="stems-note">{t('standards.keptOnDevice')}</p>
-            </>
-          )}
+      <div className="accueil">
+        <div className="accueil-entete">
+          <h2 id="standards-fenetre-titre">{t('standards.title')}</h2>
+          <button className="fermer" aria-label={t('standards.close')} onClick={closeStandardsPanel}>
+            <CloseIcon />
+          </button>
         </div>
-      )}
+        {kind === 'running' ? (
+          <Running />
+        ) : kind === 'done' ? (
+          <Result />
+        ) : (
+          <>
+            {hasKept ? <Kept /> : null}
+            <p className={hasKept ? 'standards-suite' : undefined}>{t(hasKept ? 'standards.manageMore' : 'standards.offer')}</p>
+            <Collections locked={false} />
+            <Actions />
+            <FileImport showWhere />
+            <p className="stems-note">{t('standards.keptOnDevice')}</p>
+          </>
+        )}
+      </div>
     </div>
   );
 }
