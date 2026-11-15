@@ -30,6 +30,8 @@ export interface Colors {
   barre: string;
   /** Bar ticks inside the loop band. */
   barreBoucle: string;
+  /** Marks of the manual tempo actions (brass). */
+  laiton: string;
 }
 
 export const DEFAULT_COLORS: Colors = {
@@ -41,6 +43,7 @@ export const DEFAULT_COLORS: Colors = {
   encreDouce: '#6a5646',
   barre: 'rgba(43, 31, 23, 0.26)',
   barreBoucle: 'rgba(43, 31, 23, 0.25)',
+  laiton: '#b8873a',
 };
 
 /** Reads the design tokens (they never change at run time, so once is enough). */
@@ -56,6 +59,7 @@ export function readColors(el: Element): Colors {
     encreDouce: get('--encre-douce', DEFAULT_COLORS.encreDouce),
     barre: get('--barre', DEFAULT_COLORS.barre),
     barreBoucle: DEFAULT_COLORS.barreBoucle,
+    laiton: get('--laiton', DEFAULT_COLORS.laiton),
   };
 }
 
@@ -209,6 +213,8 @@ export interface RulerParams extends ViewFrame {
   /** Stride of the chord row (`chordRow.ts`): its bar lines follow it, so no line cuts through a label. */
   chordStride?: number;
   mesuresTop: number;
+  /** Source times where a manual tempo action starts: a small brass mark on the bar line. */
+  tempoFixes?: readonly Seconds[];
 }
 
 export function drawRuler(ctx: CanvasRenderingContext2D, p: RulerParams): void {
@@ -216,6 +222,24 @@ export function drawRuler(ctx: CanvasRenderingContext2D, p: RulerParams): void {
   drawTempoRow(ctx, p);
   if (p.accordsTop !== null) drawChordsRow(ctx, p, p.accordsTop);
   drawBarsRow(ctx, p);
+  drawTempoFixMarks(ctx, p);
+}
+
+/** A small brass triangle at the foot of the bar line where a manual tempo action starts (the bar menu undoes it). */
+function drawTempoFixMarks(ctx: CanvasRenderingContext2D, p: RulerParams): void {
+  if (!p.tempoFixes?.length) return;
+  const bottom = p.mesuresTop + RULER_ROW_HEIGHT.mesures;
+  ctx.fillStyle = p.colors.laiton;
+  for (const time of p.tempoFixes) {
+    const x = (time - p.t0) * p.pps;
+    if (x < -6 || x > p.w + 6) continue;
+    ctx.beginPath();
+    ctx.moveTo(x - 4, bottom);
+    ctx.lineTo(x + 4, bottom);
+    ctx.lineTo(x, bottom - 6);
+    ctx.closePath();
+    ctx.fill();
+  }
 }
 
 // ---------------------------------------------------------------- tempo curve

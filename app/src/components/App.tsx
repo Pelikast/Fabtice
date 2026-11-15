@@ -17,6 +17,7 @@ import { SeparationPanelHost } from './SeparationPanel';
 import { StandardsDialog } from './StandardsOffer';
 import { StorageNotice } from './StorageNotice';
 import { TopBar } from './TopBar';
+import { TempoFixMenu } from './TempoFixMenu';
 import { TracksView } from './TracksView';
 import { Transport } from './Transport';
 
@@ -49,6 +50,7 @@ export function App() {
       <PrintDialog />
       <SaveProjectDialog />
       <ApplyWaiting />
+      <TempoFixMenu />
       {dragging && (
         <div className="depot" aria-hidden="true">
           <div>

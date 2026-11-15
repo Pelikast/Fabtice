@@ -159,6 +159,14 @@ function checkCorrections(c: unknown): void {
   if (!Array.isArray(k.chords) || !k.chords.every((x: unknown) => isRec(x) && isNum(x.time) && isChordOrNone(x.chord))) corrupt('hand chords');
   if (!Array.isArray(k.handSpans) || !k.handSpans.every((x: unknown) => isRec(x) && isNum(x.start) && isNum(x.end) && x.end > x.start)) corrupt('hand spans');
   if (!Array.isArray(k.sections) || !k.sections.every((x: unknown) => isRec(x) && isNum(x.time) && isStr(x.label))) corrupt('sections');
+  // Version 5, added before it was published: absent means none.
+  if (k.tempoFixes !== undefined) {
+    if (!Array.isArray(k.tempoFixes)) corrupt('tempo fixes');
+    for (const f of k.tempoFixes as unknown[]) {
+      if (!isRec(f) || !isNum(f.time) || (f.kind !== 'continuity' && f.kind !== 'fresh')) corrupt('tempo fix');
+      checkTempoMap((f as Rec).previous);
+    }
+  }
 }
 
 // ---------------------------------------------------------------- version 3: separation, export
@@ -295,6 +303,8 @@ export function readDocument(raw: unknown, migrations: Migrations = MIGRATIONS, 
   checkCorrections(doc.corrections);
   checkSeparation(doc);
   checkMarkers(doc.markers);
+  const corrections = doc.corrections as Rec;
+  if (corrections.tempoFixes === undefined) doc = { ...doc, corrections: { ...corrections, tempoFixes: [] } };
   doc = { ...doc, analysis: readAnalysis(doc.analysis), exportPrefs: readExportPrefs(doc.exportPrefs), metronome: readMetronome(doc.metronome), keptRender: readKeptRender(doc.keptRender) };
   const view = doc.view as Rec;
   if (!INSTRUMENTS.includes(view.instrument as never)) doc = { ...doc, view: { ...view, instrument: 'ut' } };

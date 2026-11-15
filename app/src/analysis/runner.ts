@@ -16,7 +16,11 @@
 import { pcmToChannels, pcmToMonoInSlices } from '../audio/pcm';
 import { getAudio } from '../audio/registry';
 import { beatGridOf } from '../grid/beats';
+import { barStartTime } from '../grid/tempoMap';
+import type { TempoMap } from '../model/tempoMap';
 import { applyAnalysis, setAnalysisRun } from '../store/analysisActions';
+import { applyTempoFix } from '../store/tempoFixActions';
+import type { TempoFixKind, TempoFixRequest } from './engine/tempoFix';
 import { appStore, type AppState } from '../store/store';
 import { chordModelChoice } from './chordModel';
 import { autoAnalysisDisabled, getAnalyzer } from './index';
@@ -48,7 +52,34 @@ export function isAnalysing(): boolean {
  * Analyses the open piece. Resolves when done, failed or cancelled (never
  * rejects): the outcome is in the store.
  */
-export async function runAnalysis(): Promise<void> {
+export function runAnalysis(): Promise<void> {
+  return launch(null);
+}
+
+/**
+ * A manual tempo action of the bar menu (« Corriger un changement de tempo
+ * indésirable »: `continuity`, « Réanalyser le tempo à partir de cette
+ * mesure »: `fresh`) from bar `bar` (index of the grid in force). It runs on
+ * the networks' outputs kept for this audio (a fraction of a second); when
+ * they are gone (the piece was reopened), the networks run once again, with
+ * the usual progress. Everything before the bar stays as it is; the result is
+ * a correction of the grid by hand (`store/tempoFixActions.ts`).
+ */
+export function runTempoFix(kind: TempoFixKind, bar: number): Promise<void> {
+  const s = appStore.getState();
+  if (!s.project || !s.analysis) return Promise.resolve();
+  const from = barStartTime(s.tempoMap, bar);
+  const grid = beatGridOf(s.tempoMap, s.project.duration);
+  if (!grid.times.some((t) => Math.abs(t - from) < 1e-3)) return Promise.resolve();
+  return launch({ kind, from, grid, bar, previous: s.tempoMap });
+}
+
+interface TempoFixRun extends TempoFixRequest {
+  bar: number;
+  previous: TempoMap;
+}
+
+async function launch(fix: TempoFixRun | null): Promise<void> {
   const store = appStore;
   const s = store.getState();
   const project = s.project;
@@ -62,14 +93,15 @@ export async function runAnalysis(): Promise<void> {
   const stillMine = () => running === mine && store.getState().project?.id === project.id;
 
   setAnalysisProgress({ fraction: 0, download: null, chordWindow: null, fallback: null });
-  setAnalysisRun({ status: 'running', projectId: project.id, step: 'prepare' });
+  const tempoBar = fix ? fix.bar : undefined;
+  setAnalysisRun({ status: 'running', projectId: project.id, step: 'prepare', tempoBar });
   let step: AnalysisProgress['step'] = 'prepare';
   const onProgress = (p: AnalysisProgress) => {
     if (!stillMine()) return;
     // The app store hears of step changes only; the fine progress has its own store.
     if (p.step !== step) {
       step = p.step;
-      setAnalysisRun({ status: 'running', projectId: project.id, step });
+      setAnalysisRun({ status: 'running', projectId: project.id, step, tempoBar });
     }
     const prev = analysisProgressStore.getState();
     const fraction = Math.min(1, Math.max(Math.max(0, p.fraction), prev.fraction));
@@ -99,17 +131,20 @@ export async function runAnalysis(): Promise<void> {
     chordModel,
     sampleRate: audio.sampleRate,
     audioId: track.audio.id,
-    grid: userGrid ? beatGridOf(s.tempoMap, project.duration) : null,
-    key: s.corrections.key,
+    grid: fix ? fix.grid : userGrid ? beatGridOf(s.tempoMap, project.duration) : null,
+    // A tempo action keeps the key in force, so that the chords from its bar are read in the same key.
+    key: fix ? (s.corrections.key ?? (s.analysis?.key ? { tonic: s.analysis.key.tonic, mode: s.analysis.key.mode } : null)) : s.corrections.key,
     knownCharts,
     onProgress,
     signal: abort.signal,
+    tempoFix: fix ? { kind: fix.kind, from: fix.from, grid: fix.grid } : null,
   };
   try {
     const result = await getAnalyzer().analyse(request);
     if (stillMine()) {
       setAnalysisProgress({ chordWindow: null, fallback: resultChordModel(result).fallback ?? null });
-      applyAnalysis(result);
+      if (fix) applyTempoFix(result, { time: fix.from, kind: fix.kind, previous: fix.previous });
+      else applyAnalysis(result, { keptGrid: userGrid });
     }
   } catch (e) {
     if (!stillMine()) return;

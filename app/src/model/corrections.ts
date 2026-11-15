@@ -15,6 +15,24 @@
 
 import type { ChordSymbol, Key } from './harmony';
 import type { Seconds, TimeRange } from './project';
+import type { TempoMap } from './tempoMap';
+
+/**
+ * A manual tempo action of the bar menu (« Corriger un changement de tempo
+ * indésirable », « Réanalyser le tempo à partir de cette mesure »): from the
+ * bar starting at `time`, the grid was computed again. The grid itself is the
+ * tempo map in force (origin `corrected`); this keeps where the action starts
+ * (a mark on the ruler) and the grid as it was just before, so that the action
+ * can be undone (« Revenir à l'analyse » on that bar).
+ */
+export interface TempoFix {
+  /** Source time of the chosen bar's start (a downbeat, before and after). */
+  time: Seconds;
+  /** `continuity`: the tempo before goes on; `fresh`: analysed again from there. */
+  kind: 'continuity' | 'fresh';
+  /** The grid in force just before the action. */
+  previous: TempoMap;
+}
 
 /** A chord written by hand: it starts at `time` and lasts until the next chord. */
 export interface HandChord {
@@ -53,8 +71,13 @@ export interface Corrections {
   handSpans: TimeRange[];
   /** Section letters, ascending by time, at most one per bar line. */
   sections: SectionMark[];
+  /**
+   * Manual tempo actions, in the order they were made (each one computed on the
+   * grid the one before left). Dropped with the grid corrections.
+   */
+  tempoFixes: TempoFix[];
 }
 
 export function emptyCorrections(): Corrections {
-  return { key: null, tuningCents: null, tuningOfferDismissed: false, chords: [], handSpans: [], sections: [] };
+  return { key: null, tuningCents: null, tuningOfferDismissed: false, chords: [], handSpans: [], sections: [], tempoFixes: [] };
 }

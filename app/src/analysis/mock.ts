@@ -6,6 +6,7 @@
 // Grid and key hints are honoured as the real analyser must.
 
 import { tempoMapFromBeats } from '../grid/beats';
+import type { TempoFixRequest } from './engine/tempoFix';
 import type { AnalysisResult } from '../model/analysis';
 import { demoSwingResult } from './fromDemoSwing';
 import { ANALYSIS_MODELS } from './models';
@@ -16,6 +17,7 @@ import {
   type AnalysisRequest,
   type AnalysisStep,
   type Analyzer,
+  type GridHint,
 } from './types';
 
 export interface MockAnalyzerOptions {
@@ -120,9 +122,25 @@ export class MockAnalyzer implements Analyzer {
   }
 }
 
+/**
+ * The mock's stand-in for a manual tempo action: the grid in force before the
+ * bar, then beats at the tempo of the bars before it to the end (both actions).
+ */
+export function mockTempoFix(fix: TempoFixRequest): GridHint {
+  const { grid, from } = fix;
+  const idx = grid.times.findIndex((t) => t >= from - 1e-6);
+  if (idx < 0) return grid;
+  const p = idx >= 2 ? grid.times[idx]! - grid.times[idx - 1]! : grid.times[1]! - grid.times[0]!;
+  const last = grid.times[grid.times.length - 1]!;
+  const times = grid.times.slice(0, idx);
+  for (let t = grid.times[idx]!; t <= last + 1e-6; t += p) times.push(t);
+  return { times, downbeat: grid.downbeat < idx ? grid.downbeat : idx, meter: grid.meter };
+}
+
 /** The user's grid and key, when given, replace what the fixture says (as the real analyser must do). */
 function honourHints(result: AnalysisResult, request: AnalysisRequest): AnalysisResult {
   let out = result;
+  if (request.tempoFix) request = { ...request, grid: mockTempoFix(request.tempoFix) };
   if (request.grid) {
     // Validate the hint the way the app will read it back.
     tempoMapFromBeats(request.grid.times, request.grid.downbeat, request.grid.meter);

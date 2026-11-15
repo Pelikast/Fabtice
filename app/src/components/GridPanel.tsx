@@ -151,6 +151,7 @@ export function GridPanel({ ref }: { ref: Ref<HTMLDivElement> }) {
       <p className="panneau-note origine" data-testid="grille-origine">
         {status === 'running' ? t('grid.analysing') : origin}
       </p>
+      {hasAnalysis && <p className="panneau-note">{t('grid.tempoMenuHint')}</p>}
       <div className="panneau-actions">
         {hasAnalysis && map.origin !== 'analysis' && (
           <button className="lien" onClick={resetGridToAnalysis}>

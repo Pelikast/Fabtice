@@ -11,7 +11,7 @@ import { enterLoop, seek, setLoopRegion } from '../store/actions';
 import { appStore } from '../store/store';
 import { onFrame } from '../ui/frameLoop';
 import { barAtPoint, type CellBox } from './hit';
-import { HOLD_MS, IDLE, stepGesture, type Effect, type GestureEvent, type GestureState, type Hit } from './gesture';
+import { HOLD_MS, IDLE, MENU_HOLD_MS, stepGesture, type Effect, type GestureEvent, type GestureState, type Hit } from './gesture';
 import type { OpenedBy } from './editor';
 
 /** Distance from the top or bottom edge of the sheet where a drag scrolls it, and the fastest scroll (px per frame). */
@@ -29,6 +29,8 @@ export interface GestureOptions {
   onSeek?: () => void;
   /** A selection starts: nothing to do with the editor, so it closes. */
   onSelect?: () => void;
+  /** The bar menu, at a viewport point (right click, or a long hold of a finger). */
+  onMenu?: (bar: number, x: number, y: number) => void;
 }
 
 /** What is under the pointer, read from the markup (`data-mesure`, `.accord-case`, `.section`). */
@@ -56,6 +58,9 @@ export function useChartGestures(opts: GestureOptions): void {
     let state: GestureState = IDLE;
     let by: OpenedBy = 'mouse';
     let holdTimer = 0;
+    let menuTimer = 0;
+    /** The loop when the gesture began (a hold that opens the menu puts it back). */
+    let loopBefore = appStore.getState().loop;
     let boxes: CellBox[] | null = null;
     let last = { x: 0, y: 0 };
     let stopAuto: (() => void) | null = null;
@@ -75,7 +80,7 @@ export function useChartGestures(opts: GestureOptions): void {
     };
 
     const run = (effects: Effect[]) => {
-      const { onEdit, onSeek, onSelect } = latest.current;
+      const { onEdit, onSeek, onSelect, onMenu } = latest.current;
       for (const e of effects) {
         const { tempoMap } = appStore.getState();
         switch (e.type) {
@@ -96,6 +101,12 @@ export function useChartGestures(opts: GestureOptions): void {
             break;
           case 'scroll':
             break;
+          case 'unselect':
+            appStore.setState({ loop: loopBefore });
+            break;
+          case 'menu':
+            onMenu?.(e.bar, last.x, last.y);
+            break;
         }
       }
     };
@@ -103,6 +114,8 @@ export function useChartGestures(opts: GestureOptions): void {
     const stopAll = () => {
       window.clearTimeout(holdTimer);
       holdTimer = 0;
+      window.clearTimeout(menuTimer);
+      menuTimer = 0;
       stopAuto?.();
       stopAuto = null;
       boxes = null;
@@ -156,6 +169,7 @@ export function useChartGestures(opts: GestureOptions): void {
       const touch = e.pointerType === 'touch';
       by = touch ? 'touch' : 'mouse';
       last = { x: e.clientX, y: e.clientY };
+      loopBefore = appStore.getState().loop;
       boxes = null;
       feed({ type: 'down', pointerId: e.pointerId, touch, x: e.clientX, y: e.clientY, at: e.timeStamp, hit: hitOf(grid, e.target) });
       if ((state as GestureState).kind !== 'press') return;
@@ -165,6 +179,7 @@ export function useChartGestures(opts: GestureOptions): void {
       if (touch) {
         const pointerId = e.pointerId;
         holdTimer = window.setTimeout(() => feed({ type: 'hold', pointerId }), HOLD_MS);
+        menuTimer = window.setTimeout(() => feed({ type: 'menu', pointerId }), MENU_HOLD_MS);
       }
     };
 
@@ -172,9 +187,16 @@ export function useChartGestures(opts: GestureOptions): void {
     const onTouchMove = (e: TouchEvent) => {
       if (state.kind === 'select' && e.cancelable) e.preventDefault();
     };
-    // A long press must not open the system menu or select text.
-    const onContextMenu = (e: Event) => {
-      if (state.kind !== 'idle') e.preventDefault();
+    // A long press must not open the system menu or select text. A right click on a bar opens the bar menu.
+    const onContextMenu = (e: MouseEvent) => {
+      if (state.kind !== 'idle') {
+        e.preventDefault();
+        return;
+      }
+      const hit = hitOf(grid, e.target);
+      if (!hit) return;
+      e.preventDefault();
+      latest.current.onMenu?.(hit.bar, e.clientX, e.clientY);
     };
 
     grid.addEventListener('pointerdown', onDown);

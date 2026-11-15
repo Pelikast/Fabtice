@@ -10,6 +10,8 @@
 import { useCallback, useMemo, useReducer, useRef, useState, type CSSProperties, type KeyboardEvent, type RefObject } from 'react';
 import { formatBarNumber } from '../grid/format';
 import { ChordSymbol } from '../harmony/ChordSymbol';
+import { tempoFixBars } from '../components/TempoFixMenu';
+import { isMenuKey, openTempoMenu } from '../ui/tempoMenu';
 import { displayChordText, type DisplayContext } from '../harmony/display';
 import { t } from '../i18n';
 import { selectDisplayContext } from '../store/chartSelectors';
@@ -58,7 +60,13 @@ export function ChartGrid({ bars, scroller }: { bars: ChartBar[]; scroller: RefO
     onEdit: (bar, index, focus, by) => open({ bar, index }, by, focus === 'section' ? 'section' : 'panel'),
     onSeek: follow.resume,
     onSelect: () => dispatch({ type: 'close' }),
+    onMenu: (bar, x, y) => {
+      dispatch({ type: 'close' });
+      openTempoMenu(bar, x, y, root.current?.querySelector<HTMLElement>(`[data-mesure="${bar}"] [data-stop]`) ?? null);
+    },
   });
+  // Bars where a manual tempo action starts: a discreet mark by their number (as one string: no re-render loop).
+  const fixed = new Set(useApp((s) => tempoFixBars(s).join(',')).split(',').filter(Boolean).map(Number));
 
   const closeEditor = useCallback(
     (refocus: boolean) => {
@@ -87,6 +95,13 @@ export function ChartGrid({ bars, scroller }: { bars: ChartBar[]; scroller: RefO
     if (!el || e.ctrlKey || e.metaKey || e.altKey) return;
     const [barPart, indexPart] = el.dataset.stop!.split(':');
     const here: Stop = { bar: Number(barPart), index: Number(indexPart) };
+    if (isMenuKey(e)) {
+      // The bar menu from the keyboard, under the focused chord.
+      e.preventDefault();
+      const r = el.getBoundingClientRect();
+      openTempoMenu(here.bar, r.left, r.bottom, el);
+      return;
+    }
     const move = ARROWS[e.key];
     if (move) {
       e.preventDefault();
@@ -116,6 +131,7 @@ export function ChartGrid({ bars, scroller }: { bars: ChartBar[]; scroller: RefO
               ctx={ctx}
               looped={loopedPart(loop, b.bar)}
               final={b.bar === last}
+              tempoFixed={fixed.has(b.bar)}
               tabStop={tabStop}
               editing={editor.target?.bar === b.bar ? editor.target.index : null}
               onFocusStop={setActive}
@@ -138,8 +154,11 @@ function BarCell({
   editing,
   onFocusStop,
   onKeyboardOpen,
+  tempoFixed,
 }: {
   bar: ChartBar;
+  /** A manual tempo action starts at this bar. */
+  tempoFixed: boolean;
   ctx: DisplayContext;
   /** The part of the bar inside the loop, as fractions of its width (the whole bar: 0 to 1), or null. */
   looped: { from: number; to: number } | null;
@@ -180,7 +199,9 @@ function BarCell({
       style={looped && looped.to - looped.from < 1 ? ({ '--boucle-de': looped.from, '--boucle-a': looped.to } as CSSProperties) : undefined}
     >
       {bar.section && <span className="section">{bar.section}</span>}
-      <span className="numero">{label}</span>
+      <span className={tempoFixed ? 'numero tempo-corrige' : 'numero'} title={tempoFixed ? t('tempoMenu.mark', { bar: label }) : undefined}>
+        {label}
+      </span>
       {bar.chords.map((c, i) => (
         <button
           key={i}

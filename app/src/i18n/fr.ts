@@ -65,6 +65,19 @@ export const fr = {
   'grid.origin.corrected': 'Grille de l’analyse, corrigée à la main.',
   'grid.analysing': 'Analyse en cours…',
   'grid.backToAnalysis': 'Revenir à l’analyse',
+  'grid.tempoMenuHint': 'Tempo faux à partir d’une mesure ? Clic droit (ou appui long) sur cette mesure, dans la règle ou dans la grille.',
+
+  // The bar menu: the two manual tempo actions
+  'tempoMenu.label': 'Tempo à partir de la mesure {bar}',
+  'tempoMenu.continuity': 'Corriger un changement de tempo indésirable',
+  'tempoMenu.continuityHint': 'Le tempo et la longueur des mesures d’avant continuent, avec de petits écarts progressifs. Un vrai changement de tempo après cette mesure serait effacé.',
+  'tempoMenu.fresh': 'Réanalyser le tempo à partir de cette mesure',
+  'tempoMenu.freshHint': 'Nouvelle analyse des temps depuis cette mesure, comme si le morceau commençait là. Rien n’est supposé.',
+  'tempoMenu.undo': 'Revenir à l’analyse',
+  'tempoMenu.undoHint': 'Annule la correction du tempo faite depuis cette mesure (et celles faites après elle).',
+  'tempoMenu.needsAnalysis': 'Possible une fois le morceau analysé.',
+  'tempoMenu.busy': 'Une analyse est en cours.',
+  'tempoMenu.mark': 'Tempo corrigé à la main depuis la mesure {bar}',
 
   // Transport
   'pos.bar': 'mesure',
@@ -312,6 +325,7 @@ export const fr = {
   // Analysis
   'analysis.title': 'Analyse du morceau',
   'analysis.statusRunning': 'Analyse · {n} %',
+  'analysis.statusTempo': 'Tempo depuis la mesure {bar} · {n} %',
   'analysis.statusDownload': 'Outils d’analyse · {n} %',
   'analysis.statusError': 'Analyse interrompue',
   'analysis.statusFine': 'Accords : écoute fine, {n} %',

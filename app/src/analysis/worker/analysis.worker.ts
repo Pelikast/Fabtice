@@ -19,6 +19,7 @@ import { TSUMUGI_WEIGHTS_LOCATION, runTsumugi, tsumugiAudio, tsumugiChordFrames,
 import type { AnalysisResult } from '../../model/analysis';
 import type { ChordFrames } from '../engine/chords';
 import { resultFromOutputs } from '../engine/analyse';
+import { applyTempoFix, type TempoFixRequest } from '../engine/tempoFix';
 import type { KnownCharts } from '../engine/chart';
 import { runNetworks, type NetworkOutputs, type Sessions, type StepControl } from '../engine/pipeline';
 import { resampleRatioAsync } from '../engine/resample';
@@ -89,6 +90,11 @@ const asSession = (s: ort.InferenceSession) => s as unknown as SessionLike;
 /** Grid, key and chords on the networks' outputs. Cheap. */
 function decode(outputs: NetworkOutputs, grid: GridHint | null, key: Key | null, known: KnownCharts | null, base: { duration: number; models: string[] }) {
   return resultFromOutputs({ outputs, grid, key, known, ...base });
+}
+
+/** The grid the chords are decoded on: the user's, or the one a manual tempo action computes from the outputs. */
+function gridFor(outputs: NetworkOutputs, grid: GridHint | null, fix: TempoFixRequest | null | undefined): GridHint | null {
+  return fix ? applyTempoFix(outputs.act, fix) : grid;
 }
 
 /** The piece at 22.05 kHz (Beat This!) and 44.1 kHz (CREMA); the 48 kHz mono copy is dropped on the way. */
@@ -181,6 +187,7 @@ async function analyse(msg: AnalyseRequestMessage): Promise<void> {
 
     const set: Sessions = { logmel: asSession(logmel), beat: asSession(beat), crema: asSession(crema) };
     let outputs = await runNetworks(ort as unknown as OrtLike, set, a22, a44, ctl);
+    msg.grid = gridFor(outputs, msg.grid, msg.tempoFix);
     a22 = null;
     a44 = null;
     // The sessions are no longer needed: free their memory before decoding.
@@ -274,7 +281,7 @@ async function fineChords(
 async function decodeOnly(msg: DecodeRequestMessage): Promise<void> {
   const ctl = control();
   ctl.step('finish');
-  const result = decode(msg.outputs, msg.grid, msg.key, msg.known, { duration: msg.duration, models: msg.models });
+  const result = decode(msg.outputs, gridFor(msg.outputs, msg.grid, msg.tempoFix), msg.key, msg.known, { duration: msg.duration, models: msg.models });
   post({ type: 'result', result, outputs: null, models: msg.models });
 }
 
