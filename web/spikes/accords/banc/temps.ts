@@ -79,9 +79,9 @@ const TOL = 0.07;
 const LAMBDA = Number(process.env.LAMBDA ?? 100);
 
 /** Per-bar tempo (BPM) of a grid: bars every `bpb` beats from `downbeat`. */
-export function barTempi(times: readonly number[], downbeat: number, bpb: number): number[] {
+export function barTempi(times: readonly number[], downbeat: number, bpb: number, span: [number, number] = [-Infinity, Infinity]): number[] {
   const out: number[] = [];
-  for (let i = downbeat; i + bpb < times.length; i += bpb) out.push((60 * bpb) / (times[i + bpb]! - times[i]!));
+  for (let i = downbeat; i + bpb < times.length; i += bpb) if (times[i]! >= span[0] - 0.07 && times[i + bpb]! <= span[1] + 0.07) out.push((60 * bpb) / (times[i + bpb]! - times[i]!));
   return out;
 }
 
@@ -91,11 +91,36 @@ export function jumps(tempi: readonly number[], ratio = 1.3): number {
   return n;
 }
 
+/** Bars faster than both neighbours, or slower than both, by `ratio` or more: the curve's zigzags. */
+export function reversals(tempi: readonly number[], ratio = 1.05): number {
+  let n = 0;
+  for (let i = 1; i + 1 < tempi.length; i++) {
+    const a = tempi[i - 1]!;
+    const b = tempi[i]!;
+    const c = tempi[i + 1]!;
+    if ((b >= a * ratio && b >= c * ratio) || (b * ratio <= a && b * ratio <= c)) n++;
+  }
+  return n;
+}
+
+/** Total variation of the per-bar tempo, in log units per bar. */
+export function variation(tempi: readonly number[]): number {
+  let s = 0;
+  for (let i = 1; i < tempi.length; i++) s += Math.abs(Math.log(tempi[i]! / tempi[i - 1]!));
+  return s / Math.max(1, tempi.length - 1);
+}
+
 export interface BeatScore {
   beatF: number;
   downbeats: number;
   jumps: number;
   truthJumps: number;
+  /** Zigzags of 5 % or more, found and true. */
+  rev: number;
+  truthRev: number;
+  /** Mean bar-to-bar tempo change (log), found and true. */
+  tv: number;
+  truthTv: number;
   found: number;
   truth: number;
 }
@@ -120,8 +145,12 @@ export function scoreGrid(truth: { times: number[]; downbeat: number; meter: num
   return {
     beatF: p + r ? (2 * p * r) / (p + r) : 0,
     downbeats: dh / Math.max(1, tdowns.length),
-    jumps: jumps(barTempi(found, g.downbeat, bpb)),
+    jumps: jumps(barTempi(found, g.downbeat, bpb, [tb[0]!, tb[tb.length - 1]!])),
     truthJumps: jumps(barTempi(tb, truth.downbeat, truth.meter)),
+    rev: reversals(barTempi(found, g.downbeat, bpb, [tb[0]!, tb[tb.length - 1]!])),
+    truthRev: reversals(barTempi(tb, truth.downbeat, truth.meter)),
+    tv: variation(barTempi(found, g.downbeat, bpb, [tb[0]!, tb[tb.length - 1]!])),
+    truthTv: variation(barTempi(tb, truth.downbeat, truth.meter)),
     found: found.length,
     truth: tb.length,
   };
@@ -169,7 +198,7 @@ if (process.argv[1]?.endsWith('temps.mjs')) {
   const wanted = opt.conditions ? opt.conditions.split(',') : null;
   const fixtureIds = opt['fixture-ids'] ? new Set(opt['fixture-ids'].split(',')) : null;
   const fixture: Record<string, unknown> = {};
-  const totals = new Map<string, { n: number; f: number; d: number; jumps: number; truthJumps: number; perfect: number }>();
+  const totals = new Map<string, { n: number; f: number; d: number; jumps: number; truthJumps: number; perfect: number; rev: number; truthRev: number; tv: number; truthTv: number }>();
   const partage = JSON.parse(readFileSync(join(ROOT, 'banc', 'partage.json'), 'utf8')) as { dev: string[]; test: string[] };
   const inList = (id: string, list: string[]) => list.some((p) => (p.endsWith('*') ? id.startsWith(p.slice(0, -1)) : p === id));
   for (const t of loadCorpus()) {
@@ -185,7 +214,11 @@ if (process.argv[1]?.endsWith('temps.mjs')) {
         const g = METHODS[m]!(act);
         const s = scoreGrid(truth, g);
         const key = `${condition}|${m}`;
-        const tot = totals.get(key) ?? { n: 0, f: 0, d: 0, jumps: 0, truthJumps: 0, perfect: 0 };
+        const tot = totals.get(key) ?? { n: 0, f: 0, d: 0, jumps: 0, truthJumps: 0, perfect: 0, rev: 0, truthRev: 0, tv: 0, truthTv: 0 };
+        tot.rev += s.rev;
+        tot.truthRev += s.truthRev;
+        tot.tv += s.tv;
+        tot.truthTv += s.truthTv;
         tot.n++;
         tot.f += s.beatF;
         tot.d += s.downbeats;
@@ -193,7 +226,7 @@ if (process.argv[1]?.endsWith('temps.mjs')) {
         tot.truthJumps += s.truthJumps;
         tot.perfect += +(s.beatF > 0.97 && s.downbeats > 0.97);
         totals.set(key, tot);
-        cells.push(`${m} F ${(100 * s.beatF).toFixed(1).padStart(5)} D ${(100 * s.downbeats).toFixed(1).padStart(5)} J ${String(s.jumps).padStart(2)} n ${s.found}`);
+        cells.push(`${m} F ${(100 * s.beatF).toFixed(1).padStart(5)} D ${(100 * s.downbeats).toFixed(1).padStart(5)} J ${String(s.jumps).padStart(2)} n ${s.found} Z ${s.rev}/${s.truthRev} V ${(100 * s.tv).toFixed(1)}/${(100 * s.truthTv).toFixed(1)}`);
         if (opt.runs && m === methods[methods.length - 1]) cells.push(`\n    ${levelRuns(truth.times, g.times)}`);
       }
       console.log(`${t.id.padEnd(24)} ${condition.padEnd(11)} truth n ${truth.times.length} J ${scoreGrid(truth, { times: truth.times, downbeat: truth.downbeat, beatsPerBar: truth.meter }).jumps} | ${cells.join(' | ')}`);
@@ -203,10 +236,10 @@ if (process.argv[1]?.endsWith('temps.mjs')) {
       }
     }
   }
-  console.log('\ncondition    method   pieces  beat F   downbeats  spurious jumps  right (F, D > 97 %)');
+  console.log('\ncondition    method   pieces  beat F   downbeats  spurious jumps  right (F, D > 97 %)  zigzags ≥5 % (true)  bar-to-bar change % (true)');
   for (const [k, v] of [...totals.entries()].sort()) {
     const [c, m] = k.split('|');
-    console.log(`${c!.padEnd(12)} ${m!.padEnd(8)} ${String(v.n).padStart(6)}  ${((100 * v.f) / v.n).toFixed(1).padStart(5)} %  ${((100 * v.d) / v.n).toFixed(1).padStart(6)} %  ${String(v.jumps).padStart(8)}        ${v.perfect}`);
+    console.log(`${c!.padEnd(12)} ${m!.padEnd(8)} ${String(v.n).padStart(6)}  ${((100 * v.f) / v.n).toFixed(1).padStart(5)} %  ${((100 * v.d) / v.n).toFixed(1).padStart(6)} %  ${String(v.jumps).padStart(8)}        ${String(v.perfect).padStart(3)}               ${v.rev} (${v.truthRev})            ${((100 * v.tv) / v.n).toFixed(2)} (${((100 * v.truthTv) / v.n).toFixed(2)})`);
   }
   if (opt.chains) {
     // --chains id.condition — the bar chains of the bar-led repair, with each bar's beat count and the true bars.
@@ -221,6 +254,23 @@ if (process.argv[1]?.endsWith('temps.mjs')) {
     const tdowns = tr.times.filter((_, i) => (((i - tr.downbeat) % tr.meter) + tr.meter) % tr.meter === 0);
     const fixed = repairByBars(beats, downAt, [3, 4], 4);
     console.log('meter', fixed.meter);
+    for (const name of ['old', 'app']) {
+      const g = METHODS[name]!(act);
+      const downs = g.times.filter((_, i) => (((i - g.downbeat) % g.beatsPerBar) + g.beatsPerBar) % g.beatsPerBar === 0);
+      const tds = tr.times.filter((_, i) => (((i - tr.downbeat) % tr.meter) + tr.meter) % tr.meter === 0);
+      console.log(name.padEnd(4), 'true downbeats hit:', tds.map((x) => (downs.some((v) => Math.abs(v - x) <= 0.07) ? '1' : '.')).join(''));
+      console.log('     downbeats', downs.slice(0, 8).map((x) => x.toFixed(2)).join(' '), '| true', tds.slice(0, 8).map((x) => x.toFixed(2)).join(' '), '| meter', g.beatsPerBar);
+      // Zigzags of the bar tempo: the bar, its neighbours' tempi, and how far each beat around is from the nearest true beat (ms).
+      const bt = barTempi(g.times, g.downbeat, g.beatsPerBar);
+      const err = (x: number) => Math.round(1000 * (x - tr.times[Math.max(0, Math.min(tr.times.length - 1, tr.times.findIndex((v) => v > x) - 0.5 < 0 ? 0 : tr.times.reduce((bi, v, i) => (Math.abs(v - x) < Math.abs(tr.times[bi]! - x) ? i : bi), 0)))]!));
+      for (let b = 1; b + 1 < bt.length; b++) {
+        const [a, c, d] = [bt[b - 1]!, bt[b]!, bt[b + 1]!];
+        if (!((c >= a * 1.05 && c >= d * 1.05) || (c * 1.05 <= a && c * 1.05 <= d))) continue;
+        const i0 = g.downbeat + b * g.beatsPerBar;
+        const around = g.times.slice(Math.max(0, i0 - g.beatsPerBar), i0 + 2 * g.beatsPerBar + 1);
+        console.log(`     zigzag bar at ${g.times[i0]!.toFixed(2)}: ${a.toFixed(0)} ${c.toFixed(0)} ${d.toFixed(0)} BPM; beat errors ms ${around.map(err).join(' ')}`);
+      }
+    }
     for (const r of fixed.repairs) {
       const show = (a: readonly number[]) => a.filter((x) => x >= r.start - 1e-6 && x <= r.end + 1e-6).map((x) => x.toFixed(2)).join(' ');
       console.log(`repaired ${r.start.toFixed(2)}–${r.end.toFixed(2)}\n  found ${show(beats)}\n  now   ${show(fixed.beats)}\n  true  ${show(tr.times)}`);

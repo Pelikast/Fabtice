@@ -55,6 +55,12 @@ export interface BarOptions {
   maxOddBars: number;
   /** Fastest tempo (BPM) the re-gridding may produce. */
   maxBpm: number;
+  /** A gap between two chains is refilled when their bar lengths agree within this (|ln|)… */
+  gapBack: number;
+  /** …it lasts at most this many bars… */
+  maxGapBars: number;
+  /** …and a whole number of them within this fraction of a bar. */
+  gapFit: number;
   /** See `regularAtLevel`: the bar's beats are at its own level within this ratio (|ln|)… */
   level: number;
   /** …and each interval within this ratio of their median. */
@@ -70,10 +76,13 @@ export const BARS: BarOptions = {
   downSnap: 0.35,
   minFound: 0.5,
   minDown: 0.5,
-  minRight: 4,
-  minRightShare: 0.2,
+  minRight: 3,
+  minRightShare: 0.1,
   maxOddBars: 8,
   maxBpm: 260,
+  gapBack: Math.log(1.1),
+  maxGapBars: 16,
+  gapFit: 0.12,
   level: Math.log(1.25),
   irregular: Math.log(1.4),
 };
@@ -344,6 +353,8 @@ export function repairByBars(beats: readonly number[], downAt: DownbeatAt, candi
   });
   const m = chainMeter(beats, counts, candidates, fallback, o.snap);
   const replace: { t0: number; t1: number; inner: number[]; found: number }[] = [];
+  /** The chains that hold the metre, with their bar unit (1, or 2 when their downbeats come every other bar). */
+  const holding: { chain: ChainBar[]; scale: number }[] = [];
   chains.forEach((_, chain) => {
     const bars = counts.filter((x) => x.chain === chain);
     const right = bars.filter((x) => perBar(x) === m).length;
@@ -351,6 +362,7 @@ export function repairByBars(beats: readonly number[], downAt: DownbeatAt, candi
     // Downbeats every other bar along this chain: its bars are two bars long.
     const scale = twice > right && twice >= bars.length / 2 ? 2 : 1;
     if (scale === 1 && right < Math.max(o.minRight, o.minRightShare * bars.length)) return; // the chain does not hold the metre: left as found
+    holding.push({ chain: chains[chain]!, scale });
     // Each bar: right, left alone, or to re-grid (with the simple ratio its beats run at, when regular).
     const kinds = bars.map(({ bar, idx }) => {
       const target = bar.n * scale * m;
@@ -394,6 +406,28 @@ export function repairByBars(beats: readonly number[], downAt: DownbeatAt, candi
       i = j + 1;
     }
   });
+  // Between two chains that hold the metre at the same bar length (the tempo comes back), where the
+  // downbeats were lost for a while: the gap lasts a whole number of bars, so it holds that many bars of beats.
+  holding.sort((a, b) => a.chain[0]!.t0 - b.chain[0]!.t0);
+  for (let k = 0; k + 1 < holding.length; k++) {
+    const a = holding[k]!;
+    const b = holding[k + 1]!;
+    const g0 = a.chain[a.chain.length - 1]!.t1;
+    const g1 = b.chain[0]!.t0;
+    if (g1 <= g0 + EPS) continue;
+    const unit = (c: { chain: ChainBar[]; scale: number }, bars: ChainBar[]) => bars.reduce((s, x) => s + (x.t1 - x.t0) / (x.n * c.scale), 0) / bars.length;
+    const before = unit(a, a.chain.slice(-4));
+    const after = unit(b, b.chain.slice(0, 4));
+    if (Math.abs(Math.log(after / before)) > o.gapBack) continue;
+    const B = (before + after) / 2;
+    const bars = Math.round((g1 - g0) / B);
+    if (bars < 1 || bars > o.maxGapBars || Math.abs((g1 - g0) / B - bars) > o.gapFit) continue;
+    const target = bars * m;
+    const idx = beatsIn(beats, g0, g1);
+    const own = idx.filter((i) => Math.abs(beats[i]! - g0) > EPS);
+    if (idx.length === target || idx.length < o.minFound * target) continue;
+    replace.push({ t0: g0, t1: g1, inner: regridBar(own.map((i) => beats[i]!), g0, g1, target, o.snap), found: own.length });
+  }
   if (!replace.length) return { beats: beats.slice(), repairs: [], meter: m };
   // Rebuild: beats outside the replaced bars as found; each replaced bar is its downbeat and its inner beats.
   const out: number[] = [];
