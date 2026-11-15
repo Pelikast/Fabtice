@@ -538,10 +538,40 @@ Tenu à jour à chaque étape fusionnée. Sous-branches : `accords-banc`,
   Résultats : `web/spikes/accords/resultats/separation-reelle/`. À refaire
   avec BS-RoFormer (le modèle du M1) avant de conclure ; le moyen 1 de
   `CLAUDE.md` reste donc ouvert.
-- **Autres modèles** (`web/spikes/accords/modeles/RECHERCHE.md`) : candidat
-  sérieux, Tsumugi-Chords (poids CC BY-NC, 68 Mo, lent, 2 Go de mémoire) ;
-  la mesure sur le banc a été interrompue (branche `accords-modeles`), à
-  reprendre.
+- **Étape 2 : un second modèle d'accords, au choix** (Réglages → Réglages
+  avancés → « Modèle d'accords » : « Rapide : CREMA », par défaut, ou
+  « Détaillé : Tsumugi-Chords »). Préférence de l'appareil
+  (`analysis/chordModel.ts`), pas du projet. Le modèle rapide passe toujours
+  d'abord (temps, mesures, tonalité, et repli immédiat) ; le modèle détaillé
+  écoute ensuite par fenêtres de 30 s et ses lectures remplacent celles du
+  modèle rapide avant l'étape A, qui s'applique telle quelle
+  (`engine/tsumugi.ts`, `engine/tsumugiFeatures.ts`). Ses poids (68 Mo,
+  licence CC BY-NC 4.0, non commerciale) se téléchargent depuis Hugging Face
+  à la demande ; l'app n'embarque que la description du réseau, sans aucun
+  poids (`analysis/assets/`, 1,4 Mo, empreinte figée). Si le téléchargement,
+  la mémoire ou l'ouverture du réseau échouent, les accords du modèle rapide
+  sont gardés et le panneau le dit.
+  Banc (22 morceaux, fondamentale et couleur) : son propre 67 → 88 %, vieux
+  disque 55 → 79 %, guitare réelle façon vieux disque 77 → 86 % ; **guitare
+  réelle en son propre : 84 → 79 %, une perte**. Basse 63–78 → 86–92 %,
+  accord complet en son propre 34 → 65 %, deuxième accord manqué 40–54 →
+  15–28 %. Coût mesuré ici (quatre cœurs chargés) : environ 30 s par fenêtre
+  de 30 s, soit 6 minutes pour 4 minutes de musique ; 3 Go de mémoire en
+  pointe pour le navigateur ou l'app : pas pour un téléphone. À mesurer sur
+  les Mac du propriétaire.
+  Limites : les morceaux fabriqués peuvent flatter un modèle entraîné sur de
+  la musique de studio ; la fiabilité (« douteux ») n'a pas été réétalonnée
+  pour ce modèle et signale moins d'erreurs ; après une correction de la
+  grille, les lectures gardées du modèle détaillé sont réemployées (une
+  nouvelle analyse complète les refait). Les modèles légers essayés (Jiang
+  2019, BTC, ChordMini) n'apportent rien de fiable : détail dans
+  `web/spikes/accords/modeles/RECHERCHE.md`.
+- **Reste à faire dans le programme « accords »** : remesurer l'écoute des
+  instruments séparés avec BS-RoFormer (le propriétaire y tient ; ne brancher
+  que ce qui améliore les chiffres) ; réétalonner la fiabilité avec l'indice
+  de basse et pour le modèle détaillé ; proposer les extensions du modèle
+  détaillé comme suggestions ; faire décoder le son du banc comme le
+  navigateur pour que ses chiffres soient exactement ceux de l'app.
 
 ## Lot 4 (feu vert donné, après le programme « accords »)
 
