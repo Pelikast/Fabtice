@@ -12,7 +12,7 @@
 
 import { AnalysisError, type AnalysisStep } from '../types';
 import { beatLogits, downProbAt, logMel, postMinimal, type BeatActivations } from './beats';
-import { cremaFrames, poolSegments, type ChordFrames } from './chords';
+import { cremaFrames, poolSegments, type ChordFrames, type PooledUnit } from './chords';
 import { buildSegments, decodeChords, type ChordSegment } from './decode';
 import { makeGrid, renumber, type Grid } from './grid';
 import { estimateKey, type KeyEstimate } from './key';
@@ -127,23 +127,41 @@ export interface Chart {
   segments: ChordSegment[];
 }
 
-/** Chords on the grid, key estimate and chart. Cheap: also re-run after a grid correction. */
-export function chartFromGrid(frames: ChordFrames, timeScale: number, grid: Grid, fixedKey: TonalHint | null = null): Chart {
-  const segs = beatSegments(grid.beats);
-  const units = poolSegments(frames, segs, timeScale);
+/** The chord network's evidence pooled over each beat of the grid. */
+export function beatUnits(frames: ChordFrames, timeScale: number, grid: Grid): PooledUnit[] {
+  return poolSegments(frames, beatSegments(grid.beats), timeScale);
+}
+
+/** Sum of the pitch-class output over every frame: what the key profile is matched against. */
+export function frameChroma(frames: ChordFrames): number[] {
+  const chroma = new Array<number>(12).fill(0);
+  for (let f = 0; f < frames.T; f++) for (let k = 0; k < 12; k++) chroma[k]! += frames.pitch[f * 12 + k]!;
+  return chroma;
+}
+
+/**
+ * Key estimate and chart from per-beat evidence. The entry point for evidence
+ * adjusted between pooling and decoding (other listenings, structural priors):
+ * `units` must be one per beat of `grid`.
+ */
+export function chartFromUnits(units: readonly PooledUnit[], grid: Grid, chroma: readonly number[], fixedKey: TonalHint | null = null): Chart {
   const prior = { priorOn: OPTIONS.harmonyPrior };
   let key: Chart['key'];
   if (fixedKey) key = { best: { tonic: fixedKey.tonic, minor: fixedKey.minor }, ranked: [] };
   else {
     const first = decodeChords(units, grid.numbers, grid.beatsPerBar, null, { ...prior, kappa: 0 });
     const chordSegs = first.path.map((c, i) => ({ chord: c, dur: units[i]!.t1 - units[i]!.t0 }));
-    const chroma = new Array<number>(12).fill(0);
-    for (let f = 0; f < frames.T; f++) for (let k = 0; k < 12; k++) chroma[k]! += frames.pitch[f * 12 + k]!;
     key = estimateKey(chroma, chordSegs);
   }
   const dec = decodeChords(units, grid.numbers, grid.beatsPerBar, key.best, prior);
-  const times = grid.beats.concat([segs[segs.length - 1]?.[1] ?? 0]);
+  const last = units[units.length - 1];
+  const times = grid.beats.concat([last ? last.t1 : 0]);
   return { key, segments: buildSegments(units, times, dec.path, dec.post) };
+}
+
+/** Chords on the grid, key estimate and chart. Cheap: also re-run after a grid correction. */
+export function chartFromGrid(frames: ChordFrames, timeScale: number, grid: Grid, fixedKey: TonalHint | null = null): Chart {
+  return chartFromUnits(beatUnits(frames, timeScale, grid), grid, frameChroma(frames), fixedKey);
 }
 
 /** Everything the networks do, with the steps announced to `ctl`. */
