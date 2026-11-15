@@ -479,8 +479,8 @@ avec les nuances du propriétaire : les lire avant tout. Ce qui est décidé :
 ### Avancement du programme « accords » (branche `accords`)
 
 Tenu à jour à chaque étape fusionnée. Sous-branches : `accords-banc`,
-`accords-modeles`, `accords-recueils`, `accords-recueils-app` (fusionnées),
-`accords-ecoute` et `accords-structure` (en cours).
+`accords-modeles`, `accords-recueils`, `accords-recueils-app`, `accords-structure`,
+`accords-ecoute` (fusionnées jusqu'à l'étape A).
 
 - **Banc de mesure** (`web/spikes/accords/`, voir son `README.md`) : 25
   morceaux de jazz fabriqués (son propre et « vieux disque », instruments
@@ -506,13 +506,42 @@ Tenu à jour à chaque étape fusionnée. Sous-branches : `accords-banc`,
   Brésil 220, Dixieland et jazz manouche n'ont pas de copie : import d'un
   fichier. À faire valider par le propriétaire : garder ou non ces copies
   tenues par des tiers.
+- **Étape A, dans l'app** (`ANALYSER_VERSION` 3 ; `engine/analyse.ts` et
+  `engine/chart.ts`, le seul point d'entrée du worker et de la variante `app`
+  du banc) : indice de basse pris dans le grave du morceau (40–300 Hz),
+  reprises de la forme (`engine/repeats.ts`), grille connue retrouvée par le
+  titre du morceau et **vérifiée contre l'enregistrement** avant d'être crue
+  (`engine/knownChart.ts`, candidats préparés par
+  `standards/forAnalysis.ts`), le tout réuni comme indices souples
+  (`engine/evidence.ts`), puis fiabilité étalonnée (`engine/reliability.ts`) :
+  « douteux » veut dire « plus probablement faux que juste ». Le panneau
+  d'analyse dit ce qui a servi (grille connue, forme, basse).
+  Banc, fondamentale et couleur justes par temps, tout le corpus : son propre
+  57 → 71 %, vieux disque 49 → 61 %, guitare réelle 70 → 70 %, guitare façon
+  vieux disque 64 → 67 % ; deuxième accord d'une mesure manqué 64 → 34 % et
+  66 → 49 % ; un peu plus d'accords en trop (11 → 17 %, 13 → 15 %) ; tonalité
+  68 → 84 % et 60 → 76 %. Sur la moitié de contrôle : 56 → 70 % et 47 → 59 %.
+- **Limites connues de l'étape A** : le banc décode l'audio avec ffmpeg,
+  l'app avec Chromium ; sur un vieux disque instable la grille de temps peut
+  différer et une bonne grille connue être refusée de peu (vu sur Blue Bossa
+  façon vieux disque : alors rien ne change, et corriger les mesures à la
+  main puis « Analyser de nouveau » la fait accepter). Une grille iReal qui
+  diffère de ce qui est joué peut coûter quelques points (St. Louis Blues).
+  Le seuil de refus a été relevé après avoir vu un cas de la moitié de
+  contrôle. La fiabilité n'a pas encore été réétalonnée avec l'indice de
+  basse. Seulement 11 standards dans le banc, tous fabriqués.
+- **Instruments séparés : pas branché, et à ne pas brancher tel quel.** Avec
+  des instruments parfaits le gain est net (vieux disque : 66 → 77 % sur huit
+  morceaux), mais avec la vraie séparation (HTDemucs 6 sources) il disparaît
+  et le vieux disque fait pire (66 → 60 %) : la basse d'un vieux disque est
+  presque vide après séparation, et les parties sont souvent mal étiquetées.
+  Résultats : `web/spikes/accords/resultats/separation-reelle/`. À refaire
+  avec BS-RoFormer (le modèle du M1) avant de conclure ; le moyen 1 de
+  `CLAUDE.md` reste donc ouvert.
 - **Autres modèles** (`web/spikes/accords/modeles/RECHERCHE.md`) : candidat
   sérieux, Tsumugi-Chords (poids CC BY-NC, 68 Mo, lent, 2 Go de mémoire) ;
-  mesure sur le banc en cours.
-- **En cours** : accords sur les instruments séparés, indice de basse et
-  décodage réglé pour le jazz, relance après une séparation
-  (`accords-ecoute`) ; reprises et grille connue comme indices souples
-  (`accords-structure`).
+  la mesure sur le banc a été interrompue (branche `accords-modeles`), à
+  reprendre.
 
 ## Lot 4 (feu vert donné, après le programme « accords »)
 
