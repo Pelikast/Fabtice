@@ -289,3 +289,18 @@
   }
   .commandes { gap: 16px; }
 }
+
+/* Lot 4: « Place sur cet appareil » in the advanced settings. */
+.place-lignes { list-style: none; margin: 4px 0 0; padding: 0; width: 100%; }
+.place-lignes li {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 36px;
+  font-size: 13px;
+  border-top: 1px solid var(--trait-fin);
+}
+.place-lignes li:first-child { border-top: 0; }
+.place-taille { color: var(--encre-douce); font-variant-numeric: tabular-nums; }
+.place-lignes .lien { min-height: 32px; font-size: 13px; }
