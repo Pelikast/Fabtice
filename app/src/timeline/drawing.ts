@@ -2,13 +2,8 @@
 // that paint the visible time range [t0, t0 + w / pps] on a canvas already
 // scaled by the device pixel ratio (coordinates are CSS pixels).
 
-import {
-  MAX_LINES,
-  barsOfRange,
-  isSubGridVisible,
-  subGridLines,
-  type SubGridOptions,
-} from '../grid/lines';
+import { MAX_LINES, isSubGridVisible, subGridLines, type SubGridOptions } from '../grid/lines';
+import { loopCoverage } from '../grid/loops';
 import { barStartTime, nominalBpm, timeToBar } from '../grid/tempoMap';
 import { tempoCurve, type TempoPoint } from '../grid/tempoCurve';
 import type { Seconds, TimeRange } from '../model/project';
@@ -380,8 +375,10 @@ function drawBarsRow(ctx: CanvasRenderingContext2D, p: RulerParams): void {
   const gap = minBarGapPx(bars, pps);
   const tickStride = barStride(gap, MIN_BAR_LINE_GAP_PX);
   const labelStride = Math.max(tickStride, barStride(gap, MIN_BAR_LABEL_GAP_PX));
-  const loopBars = p.loop && p.loopEnabled ? barsOfRange(map, p.loop) : null;
-  const inLoop = (bar: number) => loopBars !== null && bar >= loopBars.first && bar <= loopBars.last;
+  const covered = p.loop && p.loopEnabled ? loopCoverage(map, p.loop) : null;
+  // A bar's number is in full ink when any of the bar is looped; its line when the loop reaches that line.
+  const inLoop = (bar: number) => covered !== null && bar >= covered.first && bar <= covered.last;
+  const lineInLoop = (bar: number) => covered !== null && bar <= covered.last && (bar > covered.first || (bar === covered.first && covered.from === 0));
 
   ctx.font = RULER_FONT;
   ctx.textBaseline = 'middle';
@@ -390,7 +387,7 @@ function drawBarsRow(ctx: CanvasRenderingContext2D, p: RulerParams): void {
     if (x > w) break;
     if (!barKept(bar, tickStride)) continue;
     if (time >= ta) {
-      ctx.fillStyle = inLoop(bar) ? p.colors.barreBoucle : p.colors.trait;
+      ctx.fillStyle = lineInLoop(bar) ? p.colors.barreBoucle : p.colors.trait;
       vline(ctx, x, top, top + h, dpr);
     }
     if (!barKept(bar, labelStride)) continue;

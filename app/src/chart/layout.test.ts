@@ -8,7 +8,7 @@ import { chord, chordText } from '../harmony/chord';
 import { emptyCorrections } from '../model/corrections';
 import type { AnalysedChord } from '../model/analysis';
 import { addSpan, removeSpan, splitBeat, withBarChords, withoutBarEdit, withSection } from './edits';
-import { barProgress, chartBars, chartLines, loopBars, resolveChords, sectionBar } from './layout';
+import { barProgress, chartBars, chartLines, loopBars, loopedPart, loopFromKey, loopKey, resolveChords, sectionBar } from './layout';
 
 const map = constantTempoMap({ bpm: 120, firstDownbeat: 0, meter: { numerator: 4, denominator: 4 }, origin: 'manual' });
 const an = (time: number, c = chord(0, 'maj7'), extra: Partial<AnalysedChord> = {}): AnalysedChord => ({ time, chord: c, confidence: 0.8, doubtful: false, alternatives: [], ...extra });
@@ -82,9 +82,36 @@ describe('bars of the chart', () => {
   });
 
   it('the loop and the current bar', () => {
-    expect(loopBars(map, { start: 2 * B, end: 4 * B }, true)).toEqual({ first: 2, last: 3 });
+    expect(loopBars(map, { start: 2 * B, end: 4 * B }, true)).toEqual({ first: 2, last: 3, from: 0, to: 1 });
     expect(loopBars(map, { start: 2 * B, end: 4 * B }, false)).toBeNull();
     expect(barProgress(map, 3 * B + 0.5)).toEqual({ bar: 3, progress: 0.25 });
+  });
+});
+
+describe('a loop that is not made of whole bars', () => {
+  // From beat 2 of bar 2 to the fourth sixteenth of beat 3 of bar 4 (indices 1 to 3).
+  const loop = loopBars(map, { start: 1 * B + 0.5, end: 3 * B + 1 + 0.375 }, true);
+
+  it('veils the first and last bars for the part inside, the bars between whole', () => {
+    expect(loop).toMatchObject({ first: 1, last: 3, from: 0.25 });
+    expect(loop!.to).toBeCloseTo(0.6875, 3);
+    expect(loopedPart(loop, 0)).toBeNull();
+    expect(loopedPart(loop, 1)).toEqual({ from: 0.25, to: 1 });
+    expect(loopedPart(loop, 2)).toEqual({ from: 0, to: 1 });
+    expect(loopedPart(loop, 3)).toEqual({ from: 0, to: loop!.to });
+    expect(loopedPart(loop, 4)).toBeNull();
+    expect(loopedPart(null, 1)).toBeNull();
+  });
+
+  it('a loop inside one bar veils the part of that bar', () => {
+    const one = loopBars(map, { start: 1 * B + 0.5, end: 1 * B + 1.5 }, true);
+    expect(loopedPart(one, 1)).toEqual({ from: 0.25, to: 0.75 });
+    expect(loopedPart(one, 2)).toBeNull();
+  });
+
+  it('survives the string a selector returns', () => {
+    expect(loopFromKey(loopKey(loop))).toEqual(loop);
+    expect(loopFromKey(loopKey(null))).toBeNull();
   });
 });
 

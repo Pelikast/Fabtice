@@ -147,6 +147,8 @@
   align-items: center;
   justify-content: center;
   min-width: 84px;
+  /* « Appliquer » over « meilleure qualité »: two lines, never wider than that. */
+  max-width: 124px;
   padding: 0 12px;
   border-radius: var(--rayon);
   font-size: 13.5px;
@@ -231,7 +233,7 @@
   .separer .long { display: none; }
   .separer .court { display: inline; }
   .panneau-separation { position: fixed; top: 50px; left: 10px; right: 10px; width: auto; max-width: none; }
-  .appliquer, .applique { min-width: 0; flex: 0 1 auto; padding: 0 8px; font-size: 12.5px; }
+  .appliquer, .applique { min-width: 0; max-width: 92px; flex: 0 1 auto; padding: 0 4px; font-size: 11px; }
   .applique { font-size: 11px; }
   .choix-export { grid-template-columns: 1fr; }
   .stems-choix { margin-top: 18px; }

@@ -186,6 +186,49 @@ try {
     await page.evaluate(() => window.__fabtice.actions.toggleLoop());
     await sleep(80); // React rewrote the cells' classes: the frame loop puts the current-bar mark back on the next frame
 
+    // A loop that does not start or end on a bar line veils only the part of the bars inside it.
+    {
+      const timeOfBeat = (beat) =>
+        page.evaluate((b) => {
+          const segs = window.__fabtice.store.getState().tempoMap.segments;
+          const seg = segs.findLast((x) => x.beat <= b);
+          return seg.time + ((b - seg.beat) * 60) / seg.bpm;
+        }, beat);
+      // From beat 2 of bar 6 to the 4th sixteenth of beat 3 of bar 8 (indices 5 and 7, four beats a bar).
+      const a = await timeOfBeat(5 * 4 + 1);
+      const b = await timeOfBeat(7 * 4 + 2.75);
+      await page.evaluate(([x, y]) => window.__fabtice.actions.setLoopRegion({ start: x, end: y }), [a, b]);
+      await sleep(350); // the cells' background transition (140 ms) has to finish
+      const veils = await page.$$eval('.case.dans-boucle', (els) =>
+        els.map((e) => ({
+          bar: Number(e.dataset.mesure),
+          partial: e.classList.contains('partielle'),
+          from: e.style.getPropertyValue('--boucle-de'),
+          to: e.style.getPropertyValue('--boucle-a'),
+          width: e.getBoundingClientRect().width,
+          bg: getComputedStyle(e).backgroundColor,
+          before: { left: getComputedStyle(e, '::before').left, right: getComputedStyle(e, '::before').right, bg: getComputedStyle(e, '::before').backgroundColor },
+        })),
+      );
+      check('partial loop: bars 6 to 8 are in the loop, no others', veils.map((v) => v.bar).join(',') === '5,6,7', veils.map((v) => v.bar).join(','));
+      const [first, middle, last] = veils;
+      check('partial loop: the first bar is veiled from beat 2 (a quarter in), the last up to 0.6875', first.partial && Math.abs(Number(first.from) - 0.25) < 0.001 && first.to === '1' && last.partial && last.from === '0' && Math.abs(Number(last.to) - 0.6875) < 0.001, JSON.stringify([first.from, first.to, last.from, last.to]));
+      check('partial loop: the bar between is veiled whole, like before', !middle.partial && middle.bg === BRASS_VEIL && middle.from === '' && middle.to === '');
+      check('partial loop: a partly veiled bar has no veil of its own, only the brass strip over its part', first.bg === 'rgba(0, 0, 0, 0)' && first.before.bg === BRASS_VEIL && last.bg === 'rgba(0, 0, 0, 0)' && last.before.bg === BRASS_VEIL);
+      const px = (s) => Number.parseFloat(s);
+      check(
+        'partial loop: the strip starts a quarter into the first bar and stops at 69 % of the last',
+        Math.abs(px(first.before.left) - first.width * 0.25) < 1.5 && px(first.before.right) < 1.5 && px(last.before.left) < 1.5 && Math.abs(px(last.before.right) - last.width * (1 - 0.6875)) < 1.5,
+        JSON.stringify([first.before, last.before, first.width]),
+      );
+      await page.screenshot({ path: path.join(out, 'app-grille-boucle-partielle-1280.png') });
+      // The whole-bar loop is back as it was.
+      await page.evaluate(([x, y]) => window.__fabtice.actions.setLoopRegion({ start: x, end: y }), [await timeOfBeat(16), await timeOfBeat(32)]);
+      await sleep(120);
+      const whole = await page.$$eval('.case.dans-boucle', (els) => els.map((e) => [Number(e.dataset.mesure), e.classList.contains('partielle')]));
+      check('whole bars after a partial loop: the veil is whole again on bars 5–8', whole.map((x) => x[0]).join(',') === '4,5,6,7' && whole.every((x) => !x[1]), JSON.stringify(whole));
+    }
+
     // Current bar: an ember hairline driven by the frame loop
     check('current bar: bar 5 at the start of the loop', (await page.$$eval('.case.jouee', (els) => els.map((e) => e.dataset.mesure))).join(',') === '4');
     check('the hairline is ember', (await css(page, '.case.jouee', 'background-color', '::after')) === EMBER);

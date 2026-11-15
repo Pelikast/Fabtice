@@ -16,7 +16,7 @@ import { selectDisplayContext } from '../store/chartSelectors';
 import { useApp } from '../store/store';
 import { ChordEditor } from './ChordEditor';
 import { CLOSED, reduceEditor, startsChordSymbol, type EditorFocus, type OpenedBy } from './editor';
-import { chartLines, loopBars, type ChartBar, type ChartLine } from './layout';
+import { chartLines, loopBars, loopedPart, loopFromKey, loopKey, type ChartBar, type ChartLine } from './layout';
 import { chordStops, moveStop, sameStop, stopKey, type Stop, type StopMove } from './stops';
 import { useChartGestures } from './useChartGestures';
 import { useFitChords } from './useFitChords';
@@ -29,11 +29,8 @@ export function ChartGrid({ bars, scroller }: { bars: ChartBar[]; scroller: RefO
   const root = useRef<HTMLDivElement>(null);
   const ctx = useApp(selectDisplayContext);
   // As one string: a new object each time would re-render forever.
-  const loopKey = useApp((s) => {
-    const l = loopBars(s.tempoMap, s.loop.region, s.loop.enabled);
-    return l ? `${l.first}:${l.last}` : '';
-  });
-  const loop = loopKey ? { first: Number(loopKey.split(':')[0]), last: Number(loopKey.split(':')[1]) } : null;
+  const loopText = useApp((s) => loopKey(loopBars(s.tempoMap, s.loop.region, s.loop.enabled)));
+  const loop = loopFromKey(loopText);
   const [editor, dispatch] = useReducer(reduceEditor, CLOSED);
   const [active, setActive] = useState<Stop | null>(null);
 
@@ -117,7 +114,7 @@ export function ChartGrid({ bars, scroller }: { bars: ChartBar[]; scroller: RefO
               key={b.bar}
               bar={b}
               ctx={ctx}
-              inLoop={loop !== null && b.bar >= loop.first && b.bar <= loop.last}
+              looped={loopedPart(loop, b.bar)}
               final={b.bar === last}
               tabStop={tabStop}
               editing={editor.target?.bar === b.bar ? editor.target.index : null}
@@ -135,7 +132,7 @@ export function ChartGrid({ bars, scroller }: { bars: ChartBar[]; scroller: RefO
 function BarCell({
   bar,
   ctx,
-  inLoop,
+  looped,
   final,
   tabStop,
   editing,
@@ -144,7 +141,8 @@ function BarCell({
 }: {
   bar: ChartBar;
   ctx: DisplayContext;
-  inLoop: boolean;
+  /** The part of the bar inside the loop, as fractions of its width (the whole bar: 0 to 1), or null. */
+  looped: { from: number; to: number } | null;
   final: boolean;
   tabStop: Stop | null;
   /** Rank of the chord being edited in this bar, or null. */
@@ -153,7 +151,7 @@ function BarCell({
   onKeyboardOpen: (stop: Stop) => void;
 }) {
   const n = bar.chords.length;
-  const cls = ['case', bar.doubleBar ? 'double' : '', inLoop ? 'dans-boucle' : '', final ? 'finale' : ''].filter(Boolean).join(' ');
+  const cls = ['case', bar.doubleBar ? 'double' : '', looped ? (looped.from === 0 && looped.to === 1 ? 'dans-boucle' : 'dans-boucle partielle') : '', final ? 'finale' : ''].filter(Boolean).join(' ');
   const label = formatBarNumber(bar.bar);
   const stopProps = (index: number) => {
     const stop = { bar: bar.bar, index };
@@ -171,7 +169,16 @@ function BarCell({
     };
   };
   return (
-    <div className={cls} data-mesure={bar.bar} data-temps={n > 0 ? bar.beats : undefined} data-accords={n} role="group" aria-label={t('chart.bar', { n: label })}>
+    <div
+      className={cls}
+      data-mesure={bar.bar}
+      data-temps={n > 0 ? bar.beats : undefined}
+      data-accords={n}
+      role="group"
+      aria-label={t('chart.bar', { n: label })}
+      // A loop that starts or ends inside the bar veils that part only (styles/chart.css).
+      style={looped && looped.to - looped.from < 1 ? ({ '--boucle-de': looped.from, '--boucle-a': looped.to } as CSSProperties) : undefined}
+    >
       {bar.section && <span className="section">{bar.section}</span>}
       <span className="numero">{label}</span>
       {bar.chords.map((c, i) => (

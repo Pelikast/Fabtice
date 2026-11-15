@@ -9,6 +9,7 @@ import { ENGINE_SAMPLE_RATE } from '../audio/AudioEngine';
 import { connectEngine } from '../audio/connect';
 import { replaceEngine } from '../audio';
 import { MockEngine } from '../audio/MockEngine';
+import { formatLoop } from '../grid/loopText';
 import { firstDownbeat, nominalBpm, barStartTime } from '../grid/tempoMap';
 import { chord } from '../harmony/chord';
 import { displayChordText } from '../harmony/display';
@@ -176,6 +177,36 @@ describe('grid corrections', () => {
     grid.moveDownbeat(1);
     const { chords } = selectBarChords(get(), 1);
     expect(chords.map((c) => c.beatInBar)).toEqual([3]);
+  });
+});
+
+describe('a loop when the grid is corrected', () => {
+  beforeEach(async () => {
+    await openPiece();
+    applyAnalysis(result());
+  });
+
+  it('stays on the music: the same seconds, whatever the correction; only its reading in bars and beats changes', () => {
+    // Bars 5 to 8 of the analysed grid, then a cut between beats.
+    const beats = result().beats.times;
+    actions.setLoopRegion({ start: beats[16]!, end: beats[32]! });
+    expect(formatLoop(get().tempoMap, get().loop.region!)).toMatchObject({ whole: true, text: '5–8' });
+    const kept = { ...get().loop.region! };
+    grid.moveDownbeat(1);
+    expect(get().loop.region).toEqual(kept);
+    // One beat later the first bar line is one beat further: the same music reads as an offset loop.
+    expect(formatLoop(get().tempoMap, get().loop.region!)).toMatchObject({ whole: false, text: '4.4 à 8.4' });
+    grid.moveDownbeat(-1);
+    grid.doubleTheTempo();
+    expect(get().loop.region).toEqual(kept);
+    expect(get().loop.enabled).toBe(true);
+    grid.halveTheTempo();
+    expect(formatLoop(get().tempoMap, get().loop.region!)).toMatchObject({ whole: true, text: '5–8' });
+    // A loop cut between beats keeps its exact seconds too.
+    const odd = { start: beats[17]! + 0.0371, end: beats[29]! + 0.0113 };
+    actions.setLoopRegion(odd);
+    grid.setBeatsPerBar(3);
+    expect(get().loop.region).toEqual(odd);
   });
 });
 
