@@ -22,6 +22,9 @@
 }
 .ou { color: var(--encre-douce); font-size: 12.5px; white-space: nowrap; }
 .ou b { color: var(--encre); font-weight: 600; }
+/* A loop that is not made of whole bars reads longer (« 2.2 à 4.3 (4e double) »): its own line under the position, outside the row's layout. */
+.position { position: relative; }
+.boucle-texte.hors-ligne { position: absolute; left: 0; top: 100%; margin-top: 3px; white-space: nowrap; }
 
 .reglage-nom {
   font-size: 10.5px;

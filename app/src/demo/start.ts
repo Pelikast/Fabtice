@@ -17,7 +17,8 @@
 //   &rendu=lent             « Appliquer » slow enough to see its waiting screen
 //   &export=ouvert          opens « Exporter le son »
 
-import { MockAnalyzer, replaceAnalyzer } from '../analysis';
+import { MockAnalyzer, getAnalyzer, replaceAnalyzer } from '../analysis';
+import { knownChartsFor, setKnownChartsProvider } from '../analysis/knownCharts';
 import { getEngine } from '../audio';
 import { pcmFromChannels, readPcm } from '../audio/pcm';
 import { audioSeconds, getAudio, registryBytes, type DecodedAudio } from '../audio/registry';
@@ -73,6 +74,8 @@ export const lot3Handle = {
   registry: { getAudio, registryBytes },
   pcm: { pcmFromChannels, readPcm },
   storage: getProjectStorage,
+  /** The analyser in use and the known charts it would be given for a title (browser checks of the chord analysis). */
+  analysis: { analyzer: getAnalyzer, knownChartsFor, setKnownChartsProvider },
 };
 
 /** The demo's instruments mixed into one track: the piece as an import would give it. */

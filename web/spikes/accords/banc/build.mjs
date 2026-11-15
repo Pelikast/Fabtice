@@ -13,7 +13,7 @@ const root = join(here, '..');
 const variants = readdirSync(join(here, 'variantes')).filter((f) => f.endsWith('.ts')).map((f) => join(here, 'variantes', f));
 
 await build({
-  entryPoints: ['run.ts', 'verif-demo.ts'].map((f) => join(here, f)).filter((f) => existsSync(f)).concat(variants),
+  entryPoints: ['run.ts', 'verif-demo.ts', 'separer.ts', 'sonde-app.ts'].map((f) => join(here, f)).filter((f) => existsSync(f)).concat(variants),
   outdir: join(root, 'dist'),
   outbase: here,
   bundle: true,

@@ -7,8 +7,8 @@
 // A variant is banc/variantes/<name>.ts (see types.ts). Results go to
 // resultats/<name>.json and resultats/<name>.md (or --out).
 
-import { mkdirSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { networks } from './networks';
 import { DATA, ROOT, RESULTS } from './paths';
@@ -33,11 +33,17 @@ const name = opt.variant ?? 'base';
 const grids = opt.grid === 'detected' ? ['detected'] : opt.grid === 'truth' ? ['truth'] : ['detected', 'truth'];
 const wanted = opt.conditions ? opt.conditions.split(',') : null;
 const only = opt.only ? new Set(opt.only.split(',')) : null;
-const outDir = opt.out ? join(process.cwd(), opt.out) : RESULTS;
+const outDir = opt.out ? resolve(process.cwd(), opt.out) : RESULTS;
+
+/** The fixed dev / held-out split (banc/partage.json): tune on dev only. */
+const partage = JSON.parse(readFileSync(join(ROOT, 'banc', 'partage.json'), 'utf8')) as { dev: string[]; test: string[] };
+const inList = (id: string, list: string[]) => list.some((p) => (p.endsWith('*') ? id.startsWith(p.slice(0, -1)) : p === id));
+export const splitOf = (id: string): 'dev' | 'test' => (inList(id, partage.dev) ? 'dev' : inList(id, partage.test) ? 'test' : (() => { throw new Error(`${id} is in no split`); })());
+const wantedSplit = opt.split && opt.split !== 'all' ? opt.split : null;
 
 const mod = (await import(pathToFileURL(join(ROOT, 'dist', 'variantes', `${name}.mjs`)).href)) as { default: Variant };
 const variant = mod.default;
-const corpus = loadCorpus().filter((t) => !only || only.has(t.id));
+const corpus = loadCorpus().filter((t) => (!only || only.has(t.id)) && (!wantedSplit || splitOf(t.id) === wantedSplit));
 if (!corpus.length) {
   console.error('Corpus vide : lancer d’abord la préparation (voir README).');
   process.exit(1);
@@ -100,12 +106,13 @@ for (const t of corpus) {
 
 // sums by condition, by style, overall
 type Group = Record<string, Counts>;
-const groups: Record<string, Group> = { condition: {}, style: {}, total: {} };
+const groups: Record<string, Group> = { condition: {}, split: {}, style: {}, total: {} };
 for (const s of scores) {
   const add = (g: Group, k: string) => {
     g[k] = addCounts(g[k] ?? emptyCounts(), s.counts);
   };
   add(groups.condition!, `${s.grid}|${s.condition}`);
+  add(groups.split!, `${s.grid}|${splitOf(s.id)}|${s.condition}`);
   add(groups.style!, `${s.grid}|${s.condition}|${s.style}`);
   add(groups.total!, `${s.grid}|${s.source === 'synthese' ? 'synthese' : 'reel'}`);
   add(groups.total!, `${s.grid}|tout`);
@@ -121,7 +128,7 @@ const result = {
   groups: Object.fromEntries(
     Object.entries(groups).map(([g, v]) => [g, Object.fromEntries(Object.entries(v).map(([k, c]) => [k, { rates: rates(c), counts: c }]))]),
   ),
-  perPiece: scores.map((s) => ({ id: s.id, condition: s.condition, grid: s.grid, style: s.style, rates: rates(s.counts) })),
+  perPiece: scores.map((s) => ({ id: s.id, split: splitOf(s.id), condition: s.condition, grid: s.grid, style: s.style, rates: rates(s.counts) })),
 };
 mkdirSync(outDir, { recursive: true });
 writeFileSync(join(outDir, `${name}.json`), JSON.stringify(result, null, 1));

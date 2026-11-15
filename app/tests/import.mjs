@@ -357,7 +357,7 @@ try {
     const trackId = (await state(page)).tracks[0].id;
     await page.evaluate((tid) => {
       const a = window.__fabtice.actions;
-      a.setLoopRegion({ start: 4, end: 12 });
+      a.setLoopRegion({ start: 4.123456789, end: 12.3456789012 }); // between beats, to the digit
       a.stepSemitones(1);
       a.stepSemitones(1);
       a.stepSemitones(1);
@@ -378,7 +378,7 @@ try {
     const saved = await storedDocument(page);
     check('autosave: settings reach the device shortly after (loop, key, cents, tempo, grid, view, mix)',
       saved && saved.playback.semitones === 3 && saved.playback.cents === -20 && near(saved.playback.tempoRatio, 0.8, 1e-9) &&
-        saved.loop.region.start === 4 && saved.loop.region.end === 12 && saved.tempoMap.segments[0].bpm === 96 && saved.tempoMap.meters[0].meter.numerator === 3 &&
+        saved.loop.region.start === 4.123456789 && saved.loop.region.end === 12.3456789012 && saved.tempoMap.segments[0].bpm === 96 && saved.tempoMap.meters[0].meter.numerator === 3 &&
         saved.view.subdivision === 4 && saved.view.triplets === true && near(saved.tracks[0].volume, 0.6, 1e-9),
       JSON.stringify(saved && saved.playback));
     check('stored: one project, its original file once', saved.project.id === id && (await storedAudioCount(page)) === 1);
@@ -403,7 +403,7 @@ try {
     check('restore: the loop shows in the transport', (await text(page, '.ou')).includes('boucle'), await text(page, '.ou'));
     check('restore: engine got the settings back', await page.evaluate(() => {
       const snap = window.__fabtice.engine.snapshot();
-      return snap.semitones === 3 && snap.cents === -33 && snap.loop && snap.loop.start === 4 && snap.state === 'ready';
+      return snap.semitones === 3 && snap.cents === -33 && snap.loop && Math.abs(snap.loop.start - 4.123456789) < 1e-12 && Math.abs(snap.loop.end - 12.3456789012) < 1e-12 && snap.state === 'ready';
     }));
     await page.screenshot({ path: path.join(out, 'import-restored.png') });
 

@@ -12,6 +12,7 @@ import type { AnalysedBeats, AnalysisResult } from '../model/analysis';
 import type { Key } from '../model/harmony';
 import type { Seconds } from '../model/project';
 import type { Meter } from '../model/tempoMap';
+import type { KnownCharts } from './engine/chart';
 
 /** One downloadable model (shown to the user before and during the first download). */
 export interface AnalysisModelInfo {
@@ -96,6 +97,33 @@ export function repairedPassages(result: AnalysisResult): RepairedPassage[] {
   return Array.isArray(r) ? r : [];
 }
 
+/**
+ * What the chord analysis listened to besides the mix, for one line in the
+ * interface: the separated parts heard as carrying the harmony, where the
+ * bass line was read, the length of the form when its repeats were found, the
+ * known chart used. An optional extra field of the result (absent in results
+ * stored before it existed); the stored format does not change.
+ */
+export interface AnalysisEvidence {
+  /** Parts of the separation judged harmony-carrying and listened to (empty: the mix only). */
+  harmonyStems: string[];
+  /** `stem`: the separated bass; `band`: the bass register of the mix; null: not used. */
+  bass: 'stem' | 'band' | null;
+  /** Bars of the form, when its repeats were found. */
+  formBars: number | null;
+  knownChart: { title: string; collection: string | null } | null;
+}
+
+export interface ListenedResult extends AnalysisResult {
+  evidence?: AnalysisEvidence;
+}
+
+/** What the analysis listened to, if the result says so. */
+export function analysisEvidence(result: AnalysisResult): AnalysisEvidence | null {
+  const e = (result as ListenedResult).evidence;
+  return e && typeof e === 'object' ? e : null;
+}
+
 /** A grid the analysis must keep (the user corrected it): only the chords are decoded on it. */
 export interface GridHint {
   times: Seconds[];
@@ -118,6 +146,8 @@ export interface AnalysisRequest {
   grid?: GridHint | null;
   /** Keep this key (the user's) for the chord decoding; the result's `key` must be it. */
   key?: Key | null;
+  /** Known charts whose title matches the piece's (`knownCharts.ts`): plain data, a few kB. */
+  knownCharts?: KnownCharts | null;
   /** Called often (at least every few hundred ms while working). Never throws into the analyser. */
   onProgress?: (p: AnalysisProgress) => void;
   /** Aborts the analysis: `analyse()` then rejects with `AnalysisError('cancelled')` quickly. */

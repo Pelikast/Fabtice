@@ -411,19 +411,35 @@ vrai succès ». Ses mesures de séparation sont dans `CLAUDE.md` (« Essais du
 propriétaire ») et dans `app/src/separation/models.json`. Ses demandes, toutes
 inscrites dans `CLAUDE.md` :
 
-| Demande | Où c'est traité |
+| Demande | Ce qui a été fait (fusionné dans `retours-lot-3`, publié le 15 novembre) |
 |---|---|
-| Le clic droit ne fait rien dans l'app Mac (coller un lien) | branche `retours-grille` |
-| Le magnétisme doit aussi valoir pour les boucles (sous-grille, ou libre) | branche `retours-boucles` ; peut changer la forme gardée d'une boucle et la version du document |
-| « Appliquer » → « Appliquer meilleure qualité » | branche `retours-boucles` |
-| Fausse variation de tempo brève, puis grille décalée d'un temps (enregistrement de 1945) | branche `retours-tempo` (`app/src/analysis/**`) |
-| Deux accords dans une mesure : le second au milieu (temps 3) | branche `retours-grille` |
-| Imprimer la grille avec options, export PDF | branche `retours-grille` |
+| Le clic droit ne fait rien dans l'app Mac | menu Couper, Copier, Coller, Tout sélectionner dans les champs, Copier sur un texte sélectionné (`desktop/src/context-menu.js`) |
+| Le magnétisme doit aussi valoir pour les boucles | sélection et bords de boucle calés sur la sous-grille, libres sans magnétisme (`app/src/grid/loops.ts`) ; lecture « 2.2 à 4.3 (4e double) » (`grid/loopText.ts`) ; la boucle était déjà gardée en secondes : pas de nouvelle version du document |
+| « Appliquer » → « Appliquer meilleure qualité » | fait, sur deux lignes ; état « meilleure qualité appliquée » |
+| Fausse variation de tempo brève, puis grille décalée d'un temps | réparation des temps (`app/src/analysis/engine/repair.ts`) et une seule phase de mesure pour tout le morceau ; `ANALYSER_VERSION` 2 |
+| Deux accords dans une mesure : le second au milieu | chaque accord à la place de son temps (`app/src/chart/fit.ts`) ; « Place dans la mesure » dans l'éditeur d'accord |
+| Imprimer la grille avec options, export PDF | bouton « Imprimer » dans l'en-tête de la grille, fenêtre (portrait ou paysage, telle quelle ou sur une page), PDF écrit par le processus principal dans l'app Mac (`desktop/src/printing.js`) |
 | Accords : un sur deux faux | programme « accords », ci-dessous |
 
-Ces trois branches partent de `retours-lot-3` et y sont fusionnées par la
-session d'origine, qui publie ensuite sur `main`. L'export mp3 n'a pas encore
-été essayé par lui.
+À savoir sur ces corrections :
+
+- Avec le magnétisme, on ne sélectionne plus des mesures entières d'office :
+  on glisse d'une barre de mesure à une autre (ce sont des lignes de la
+  sous-grille). Quand la grille est corrigée ensuite, la boucle reste sur la
+  même musique ; seule sa lecture en mesures change.
+- L'ancienne impression (`window.print()`) gelait la fenêtre dans l'app
+  (constaté sur la version Linux d'essai) : c'est sans doute pourquoi le
+  propriétaire ne l'avait pas trouvée utilisable.
+- Sur une mesure étroite (téléphone), trois ou quatre accords passent sur
+  deux rangées plutôt que de devenir illisibles.
+- Une analyse déjà gardée n'est jamais refaite seule : « Analyser de
+  nouveau » (et « Revenir à l'analyse » d'abord si la grille a été corrigée
+  à la main). Limites de la réparation des temps : un point d'orgue d'exactement
+  deux ou trois temps sans premiers temps clairs peut être comblé ; un rubato
+  fort et rapide peut être mal compté ; non essayé sur son enregistrement de
+  1945 (inaccessible d'ici).
+- Non vérifiable ici : la vraie fenêtre d'impression de macOS, un vrai clic
+  droit sur un Mac. L'export mp3 n'a pas encore été essayé par lui.
 
 ## Programme « accords » (feu vert donné, à faire avant le lot 4)
 
@@ -459,6 +475,73 @@ avec les nuances du propriétaire : les lire avant tout. Ce qui est décidé :
 - La branche `retours-tempo` modifie `app/src/analysis/**` : partir de
   `retours-lot-3` une fois cette branche fusionnée (ou de `main` après la
   publication) avant de toucher à ce dossier.
+
+### Avancement du programme « accords » (branche `accords`)
+
+Tenu à jour à chaque étape fusionnée. Sous-branches : `accords-banc`,
+`accords-modeles`, `accords-recueils`, `accords-recueils-app`, `accords-structure`,
+`accords-ecoute` (fusionnées jusqu'à l'étape A).
+
+- **Banc de mesure** (`web/spikes/accords/`, voir son `README.md`) : 25
+  morceaux de jazz fabriqués (son propre et « vieux disque », instruments
+  séparés, reprises réharmonisées) et 24 prises réelles de guitare (GuitarSet,
+  CC BY 4.0). Rien d'audio dans le dépôt : `./preparer.sh` refabrique tout.
+  Chiffre de départ (fondamentale et couleur justes, par temps) : 57 % en son
+  propre, **49 % en vieux disque**, 70 % et 64 % sur la guitare réelle. La
+  grille de mesures n'y est pour rien (un point de mieux avec la vraie
+  grille). Erreurs dominantes : confusion ii–V (Dm7 lu G7), deuxième accord
+  d'une mesure manqué deux fois sur trois, septièmes simplifiées, tonalité
+  prise à la dominante. Aucun enregistrement de jazz ancien annoté n'est
+  téléchargeable d'ici (JAAH : audio commercial).
+- **Recueils iReal Pro** (`app/src/standards/`, `app/README.md` « Grilles de
+  standards ») : lecteur du format (Jazz 1460 lu en entier), recherche par
+  titre bruité, transposition, liste distante `collections.json`,
+  téléchargement en un clic (processus principal dans l'app Mac, appel du pont
+  `standardsFetchText` limité à une liste d'hôtes), bibliothèque gardée dans
+  IndexedDB (`fabtice-standards`), proposition dans « Nouveau morceau » et
+  dans Réglages avancés, import d'un fichier. **Les adresses officielles
+  (irealpro.com, forum) n'ont pas pu être vérifiées d'ici** (hôtes bloqués) :
+  elles sont marquées `verified: false` ; des copies publiques sur GitHub
+  (jazz 1460, latin, blues, pop, country) servent de secours et fonctionnent.
+  Brésil 220, Dixieland et jazz manouche n'ont pas de copie : import d'un
+  fichier. À faire valider par le propriétaire : garder ou non ces copies
+  tenues par des tiers.
+- **Étape A, dans l'app** (`ANALYSER_VERSION` 3 ; `engine/analyse.ts` et
+  `engine/chart.ts`, le seul point d'entrée du worker et de la variante `app`
+  du banc) : indice de basse pris dans le grave du morceau (40–300 Hz),
+  reprises de la forme (`engine/repeats.ts`), grille connue retrouvée par le
+  titre du morceau et **vérifiée contre l'enregistrement** avant d'être crue
+  (`engine/knownChart.ts`, candidats préparés par
+  `standards/forAnalysis.ts`), le tout réuni comme indices souples
+  (`engine/evidence.ts`), puis fiabilité étalonnée (`engine/reliability.ts`) :
+  « douteux » veut dire « plus probablement faux que juste ». Le panneau
+  d'analyse dit ce qui a servi (grille connue, forme, basse).
+  Banc, fondamentale et couleur justes par temps, tout le corpus : son propre
+  57 → 71 %, vieux disque 49 → 61 %, guitare réelle 70 → 70 %, guitare façon
+  vieux disque 64 → 67 % ; deuxième accord d'une mesure manqué 64 → 34 % et
+  66 → 49 % ; un peu plus d'accords en trop (11 → 17 %, 13 → 15 %) ; tonalité
+  68 → 84 % et 60 → 76 %. Sur la moitié de contrôle : 56 → 70 % et 47 → 59 %.
+- **Limites connues de l'étape A** : le banc décode l'audio avec ffmpeg,
+  l'app avec Chromium ; sur un vieux disque instable la grille de temps peut
+  différer et une bonne grille connue être refusée de peu (vu sur Blue Bossa
+  façon vieux disque : alors rien ne change, et corriger les mesures à la
+  main puis « Analyser de nouveau » la fait accepter). Une grille iReal qui
+  diffère de ce qui est joué peut coûter quelques points (St. Louis Blues).
+  Le seuil de refus a été relevé après avoir vu un cas de la moitié de
+  contrôle. La fiabilité n'a pas encore été réétalonnée avec l'indice de
+  basse. Seulement 11 standards dans le banc, tous fabriqués.
+- **Instruments séparés : pas branché, et à ne pas brancher tel quel.** Avec
+  des instruments parfaits le gain est net (vieux disque : 66 → 77 % sur huit
+  morceaux), mais avec la vraie séparation (HTDemucs 6 sources) il disparaît
+  et le vieux disque fait pire (66 → 60 %) : la basse d'un vieux disque est
+  presque vide après séparation, et les parties sont souvent mal étiquetées.
+  Résultats : `web/spikes/accords/resultats/separation-reelle/`. À refaire
+  avec BS-RoFormer (le modèle du M1) avant de conclure ; le moyen 1 de
+  `CLAUDE.md` reste donc ouvert.
+- **Autres modèles** (`web/spikes/accords/modeles/RECHERCHE.md`) : candidat
+  sérieux, Tsumugi-Chords (poids CC BY-NC, 68 Mo, lent, 2 Go de mémoire) ;
+  la mesure sur le banc a été interrompue (branche `accords-modeles`), à
+  reprendre.
 
 ## Lot 4 (feu vert donné, après le programme « accords »)
 

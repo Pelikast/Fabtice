@@ -396,7 +396,29 @@ try {
     let same = w.samples.length === s.length;
     for (let i = 0; i < s.length && same; i++) if (w.samples[i] !== s[i]) same = false;
     check('loop only: exactly the loop in frames, and its samples', w.frames === loopFrames && same, `${w.frames} frames, expected ${loopFrames}`);
-    check('loop only: the name says so, one track is one file', r.name === `${TITLE} – ${(await page.evaluate(() => window.__fabtice.store.getState().tracks[1].name))} – boucle.wav`, r.name);
+    const trackName = await page.evaluate(() => window.__fabtice.store.getState().tracks[1].name);
+    const mapInfo = await page.evaluate(() => JSON.stringify(window.__fabtice.store.getState().tempoMap.segments[0]));
+    check('loop only: the name says so, one track is one file', r.name.startsWith(`${TITLE} – ${trackName} – boucle `) && r.name.endsWith('.wav'), `${r.name} (grid ${mapInfo})`);
+  }
+  // A loop that is not made of whole bars: the same exactness, and the name says where it is.
+  {
+    const free = { start: 2.2837, end: 4.6291 };
+    await page.evaluate((r) => window.__fabtice.actions.setLoopRegion(r), free);
+    const fStart = Math.round(free.start * SR);
+    const fFrames = Math.round(free.end * SR) - fStart;
+    const r = await exp(page, { what: 'tracks', range: 'loop', format: 'wav' }, [ids[1]]);
+    const w = readWav(r.buf);
+    const s = await source(page, 1, fStart, fFrames);
+    let same = w.samples.length === s.length;
+    for (let i = 0; i < s.length && same; i++) if (w.samples[i] !== s[i]) same = false;
+    check('free loop (not on the grid): exactly its length in frames, to the sample', w.frames === fFrames && same, `${w.frames} frames, expected ${fFrames}`);
+    check('free loop: the name carries where it is (bar.beat with « ≈ »)', / – boucle ≈\d+\.\d/.test(r.name), r.name);
+    // On the grid at 120 BPM (a beat is 0.5 s): beat 2 of bar 2 to the 4th sixteenth of beat 3 of bar 4.
+    await page.evaluate(() => window.__fabtice.actions.setLoopRegion({ start: 2.5, end: 7.375 }));
+    const g = await exp(page, { what: 'tracks', range: 'loop', format: 'wav' }, [ids[1]]);
+    const gw = readWav(g.buf);
+    check('sub-grid loop: exactly 4.875 s, and the name reads « boucle 2.2 à 4.3 (4e double) »', gw.frames === Math.round(7.375 * SR) - Math.round(2.5 * SR) && g.name.includes(' – boucle 2.2 à 4.3 (4e double).wav'), `${gw.frames} frames, ${g.name}`);
+    await page.evaluate(() => window.__fabtice.actions.setLoopRegion({ start: 2.0, end: 4.5 }));
   }
 
   // ------------------------------------------------------------ the formats
@@ -645,6 +667,20 @@ try {
     await page.waitForSelector('[data-testid="export-son"]');
     const formats = await page.$$eval('.formats-export button', (bs) => bs.map((b) => ({ text: b.textContent, disabled: b.disabled })));
     check(`${tag}: the dialog offers WAV, MP3 and FLAC, none disabled, no « bientôt »`, formats.length === 3 && formats.every((f) => !f.disabled && !/bientôt/.test(f.text)), JSON.stringify(formats));
+    // The loop line of the dialog: whole bars as before, any other loop with its two points.
+    const note = () => page.locator('.choix-export .choix:has-text("La boucle seulement")').innerText();
+    check(`${tag}: the dialog says « mesures 5–8 » for the demo's loop of whole bars`, (await note()).includes('mesures 5–8'), await note());
+    await page.evaluate(() => {
+      const f = window.__fabtice;
+      const segs = f.store.getState().tempoMap.segments;
+      const at = (b) => {
+        const seg = segs.findLast((x) => x.beat <= b);
+        return seg.time + ((b - seg.beat) * 60) / seg.bpm;
+      };
+      f.actions.setLoopRegion({ start: at(5), end: at(14.75) }); // beat 2 of bar 2, the 4th sixteenth of beat 3 of bar 4
+    });
+    await page.waitForFunction(() => document.querySelector('.choix-export')?.textContent.includes('de 2.2 à 4.3 (4e double)'), null, { timeout: 3000 }).catch(() => {});
+    check(`${tag}: … and « de 2.2 à 4.3 (4e double) » for a loop between beats`, (await note()).includes('de 2.2 à 4.3 (4e double)'), await note());
     await page.screenshot({ path: path.join(out, `dialogue-formats-${tag}.png`) });
     // An mp3 encoder whose wasm cannot be fetched: a calm sentence, a way back, and the other formats still work.
     await page.route(/mp3-.*\.wasm/, (route) => route.abort());

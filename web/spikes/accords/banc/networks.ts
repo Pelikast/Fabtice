@@ -48,7 +48,7 @@ async function modelBytes(spec: ModelSpec): Promise<Uint8Array> {
 
 let sessionsPromise: Promise<Sessions> | null = null;
 
-function openSessions(): Promise<Sessions> {
+export function openSessions(): Promise<Sessions> {
   sessionsPromise ??= (async () => {
     ort.env.wasm.numThreads = Math.max(1, Number(process.env.BANC_THREADS ?? 4));
     ort.env.logLevel = 'error';

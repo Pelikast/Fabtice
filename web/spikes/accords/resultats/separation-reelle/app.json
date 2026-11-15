@@ -1,0 +1,1971 @@
+{
+ "variant": "app",
+ "date": "2026-11-15T02:18:09.842Z",
+ "seconds": 13,
+ "networkRuns": 0,
+ "networkSeconds": 0,
+ "pieces": 8,
+ "groups": {
+  "condition": {
+   "detected|propre": {
+    "rates": {
+     "pieces": 8,
+     "beat": {
+      "fondamentale": 0.8699596774193549,
+      "famille": 0.8508064516129032,
+      "couleur": 0.7928427419354839,
+      "complet": 0.4339717741935484,
+      "basse": 0.8356854838709677
+     },
+     "time": {
+      "fondamentale": 0.8657188870994613,
+      "famille": 0.8467262731160105,
+      "couleur": 0.7903593047148331,
+      "complet": 0.40634197811962014,
+      "basse": 0.8310101627144999
+     },
+     "missing": 0.12631578947368421,
+     "extra": 0.20947630922693267,
+     "doubtfulShare": 0.1436491935483871,
+     "errorIfDoubtful": 0.47368421052631576,
+     "errorIfSure": 0.16244849911712772,
+     "errorsFlagged": 0.3284671532846715,
+     "beatF": 0.9476467477525119,
+     "downbeats": 0.9032258064516129,
+     "meter": 1,
+     "key": 0.875
+    },
+    "counts": {
+     "beats": 1984,
+     "beat": {
+      "fondamentale": 1726,
+      "famille": 1688,
+      "couleur": 1573,
+      "complet": 861,
+      "basse": 1658
+     },
+     "samples": 18007,
+     "time": {
+      "fondamentale": 15589,
+      "famille": 15247,
+      "couleur": 14232,
+      "complet": 7317,
+      "basse": 14964
+     },
+     "twoChordBars": 95,
+     "missing": 12,
+     "oneChordBars": 401,
+     "extra": 84,
+     "doubtful": 285,
+     "doubtfulWrong": 135,
+     "sureWrong": 276,
+     "wrong": 411,
+     "flagged": 135,
+     "beatTruth": 1984,
+     "beatFound": 1798,
+     "beatHits": 1792,
+     "downTruth": 496,
+     "downHits": 448,
+     "meterRight": 8,
+     "keyRight": 7,
+     "pieces": 8,
+     "errors": {
+      "fondamentale à la quinte / quarte": 99,
+      "bonne fondamentale, septième ou sixte fausse": 113,
+      "accord voisin (décalé d’un temps ou plus)": 69,
+      "fondamentale à un demi-ton": 21,
+      "bonne fondamentale, famille fausse": 34,
+      "fondamentale à une tierce (mineure)": 25,
+      "fondamentale à une tierce (majeure)": 16,
+      "fondamentale au triton": 26,
+      "fondamentale à un ton": 3,
+      "aucun accord": 5
+     },
+     "qualityPairs": {
+      "7 → maj7": 2,
+      "dim7 → dim": 14,
+      "m7 → m7b5": 2,
+      "7 → maj": 3,
+      "m7 → m": 10,
+      "m7 → 7": 14,
+      "m6 → m7": 44,
+      "m6 → 6": 4,
+      "7 → +": 1,
+      "6 → maj7": 17,
+      "maj7 → 6": 2,
+      "m6 → maj7": 1,
+      "7 → m7": 2,
+      "m7b5 → dim": 4,
+      "m6 → m": 7,
+      "m → maj": 2,
+      "maj7 → 7": 6,
+      "m7b5 → m7": 4,
+      "+7 → 7": 4,
+      "6 → 7": 4
+     }
+    }
+   },
+   "detected|disque": {
+    "rates": {
+     "pieces": 8,
+     "beat": {
+      "fondamentale": 0.7903225806451613,
+      "famille": 0.7686491935483871,
+      "couleur": 0.6829637096774194,
+      "complet": 0.3654233870967742,
+      "basse": 0.7464717741935484
+     },
+     "time": {
+      "fondamentale": 0.7821031064843015,
+      "famille": 0.7584030123484136,
+      "couleur": 0.6745113239935766,
+      "complet": 0.3394429370397032,
+      "basse": 0.7416800487291655
+     },
+     "missing": 0.23157894736842105,
+     "extra": 0.18453865336658354,
+     "doubtfulShare": 0.265625,
+     "errorIfDoubtful": 0.5863377609108159,
+     "errorIfSure": 0.21962937542896363,
+     "errorsFlagged": 0.4912559618441971,
+     "beatF": 0.9149634115569013,
+     "downbeats": 0.8689516129032258,
+     "meter": 1,
+     "key": 0.75
+    },
+    "counts": {
+     "beats": 1984,
+     "beat": {
+      "fondamentale": 1568,
+      "famille": 1525,
+      "couleur": 1355,
+      "complet": 725,
+      "basse": 1481
+     },
+     "samples": 18059,
+     "time": {
+      "fondamentale": 14124,
+      "famille": 13696,
+      "couleur": 12181,
+      "complet": 6130,
+      "basse": 13394
+     },
+     "twoChordBars": 95,
+     "missing": 22,
+     "oneChordBars": 401,
+     "extra": 74,
+     "doubtful": 527,
+     "doubtfulWrong": 309,
+     "sureWrong": 320,
+     "wrong": 629,
+     "flagged": 309,
+     "beatTruth": 1984,
+     "beatFound": 1979,
+     "beatHits": 1813,
+     "downTruth": 496,
+     "downHits": 431,
+     "meterRight": 8,
+     "keyRight": 6,
+     "pieces": 8,
+     "errors": {
+      "fondamentale à la quinte / quarte": 134,
+      "bonne fondamentale, septième ou sixte fausse": 162,
+      "bonne fondamentale, famille fausse": 40,
+      "accord voisin (décalé d’un temps ou plus)": 82,
+      "fondamentale à un demi-ton": 19,
+      "fondamentale à une tierce (majeure)": 32,
+      "fondamentale à une tierce (mineure)": 71,
+      "fondamentale au triton": 16,
+      "fondamentale à un ton": 26,
+      "aucun accord": 47
+     },
+     "qualityPairs": {
+      "7 → 6": 2,
+      "m6 → m7": 29,
+      "7 → +": 2,
+      "dim7 → dim": 27,
+      "m7 → m": 12,
+      "m7 → 7": 21,
+      "7 → m7": 6,
+      "maj7 → maj": 8,
+      "7 → maj": 34,
+      "6 → maj7": 14,
+      "7 → maj7": 1,
+      "6 → maj": 12,
+      "m6 → maj": 2,
+      "m6 → m": 13,
+      "m7b5 → dim": 10,
+      "m → maj": 1,
+      "m7b5 → m7": 4,
+      "+7 → 7": 4
+     }
+    }
+   }
+  },
+  "split": {
+   "detected|test|propre": {
+    "rates": {
+     "pieces": 4,
+     "beat": {
+      "fondamentale": 0.8771551724137931,
+      "famille": 0.8577586206896551,
+      "couleur": 0.7489224137931034,
+      "complet": 0.3286637931034483,
+      "basse": 0.8297413793103449
+     },
+     "time": {
+      "fondamentale": 0.8757628094415659,
+      "famille": 0.8591824985607369,
+      "couleur": 0.758664363845711,
+      "complet": 0.3378238341968912,
+      "basse": 0.834887737478411
+     },
+     "missing": 0,
+     "extra": 0.2560386473429952,
+     "doubtfulShare": 0.21336206896551724,
+     "errorIfDoubtful": 0.5,
+     "errorIfSure": 0.18356164383561643,
+     "errorsFlagged": 0.4248927038626609,
+     "beatF": 0.9983862291554599,
+     "downbeats": 1,
+     "meter": 1,
+     "key": 0.75
+    },
+    "counts": {
+     "beats": 928,
+     "beat": {
+      "fondamentale": 814,
+      "famille": 796,
+      "couleur": 695,
+      "complet": 305,
+      "basse": 770
+     },
+     "samples": 8685,
+     "time": {
+      "fondamentale": 7606,
+      "famille": 7462,
+      "couleur": 6589,
+      "complet": 2934,
+      "basse": 7251
+     },
+     "twoChordBars": 25,
+     "missing": 0,
+     "oneChordBars": 207,
+     "extra": 53,
+     "doubtful": 198,
+     "doubtfulWrong": 99,
+     "sureWrong": 134,
+     "wrong": 233,
+     "flagged": 99,
+     "beatTruth": 928,
+     "beatFound": 931,
+     "beatHits": 928,
+     "downTruth": 232,
+     "downHits": 232,
+     "meterRight": 4,
+     "keyRight": 3,
+     "pieces": 4,
+     "errors": {
+      "fondamentale à la quinte / quarte": 50,
+      "bonne fondamentale, septième ou sixte fausse": 100,
+      "accord voisin (décalé d’un temps ou plus)": 15,
+      "fondamentale à un demi-ton": 7,
+      "bonne fondamentale, famille fausse": 18,
+      "fondamentale au triton": 18,
+      "fondamentale à une tierce (mineure)": 13,
+      "fondamentale à une tierce (majeure)": 10,
+      "fondamentale à un ton": 2
+     },
+     "qualityPairs": {
+      "7 → maj7": 2,
+      "m7 → m": 8,
+      "dim7 → dim": 11,
+      "m6 → m7": 44,
+      "m6 → 6": 2,
+      "7 → +": 1,
+      "6 → maj7": 14,
+      "m7 → 7": 7,
+      "m7b5 → dim": 4,
+      "m6 → m": 7,
+      "maj7 → 7": 6,
+      "m7b5 → m7": 4,
+      "+7 → 7": 4,
+      "6 → 7": 4
+     }
+    }
+   },
+   "detected|test|disque": {
+    "rates": {
+     "pieces": 4,
+     "beat": {
+      "fondamentale": 0.7952586206896551,
+      "famille": 0.771551724137931,
+      "couleur": 0.6551724137931034,
+      "complet": 0.27478448275862066,
+      "basse": 0.7413793103448276
+     },
+     "time": {
+      "fondamentale": 0.8010889712696941,
+      "famille": 0.7774559777571826,
+      "couleur": 0.6643883225208527,
+      "complet": 0.283595922150139,
+      "basse": 0.7544022242817423
+     },
+     "missing": 0.12,
+     "extra": 0.15942028985507245,
+     "doubtfulShare": 0.38146551724137934,
+     "errorIfDoubtful": 0.5734463276836158,
+     "errorIfSure": 0.2038327526132404,
+     "errorsFlagged": 0.634375,
+     "beatF": 0.8538713195201745,
+     "downbeats": 0.7887931034482759,
+     "meter": 1,
+     "key": 0.75
+    },
+    "counts": {
+     "beats": 928,
+     "beat": {
+      "fondamentale": 738,
+      "famille": 716,
+      "couleur": 608,
+      "complet": 255,
+      "basse": 688
+     },
+     "samples": 8632,
+     "time": {
+      "fondamentale": 6915,
+      "famille": 6711,
+      "couleur": 5735,
+      "complet": 2448,
+      "basse": 6512
+     },
+     "twoChordBars": 25,
+     "missing": 3,
+     "oneChordBars": 207,
+     "extra": 33,
+     "doubtful": 354,
+     "doubtfulWrong": 203,
+     "sureWrong": 117,
+     "wrong": 320,
+     "flagged": 203,
+     "beatTruth": 928,
+     "beatFound": 906,
+     "beatHits": 783,
+     "downTruth": 232,
+     "downHits": 183,
+     "meterRight": 4,
+     "keyRight": 3,
+     "pieces": 4,
+     "errors": {
+      "fondamentale à la quinte / quarte": 59,
+      "bonne fondamentale, septième ou sixte fausse": 105,
+      "bonne fondamentale, famille fausse": 22,
+      "fondamentale à une tierce (mineure)": 44,
+      "fondamentale à une tierce (majeure)": 18,
+      "accord voisin (décalé d’un temps ou plus)": 14,
+      "fondamentale à un ton": 9,
+      "fondamentale à un demi-ton": 6,
+      "aucun accord": 35,
+      "fondamentale au triton": 8
+     },
+     "qualityPairs": {
+      "7 → 6": 2,
+      "m6 → m7": 29,
+      "7 → +": 2,
+      "maj7 → maj": 4,
+      "m7 → m": 6,
+      "7 → maj": 6,
+      "dim7 → dim": 19,
+      "6 → maj7": 11,
+      "7 → maj7": 1,
+      "m7 → 7": 12,
+      "m6 → m": 13,
+      "m7b5 → dim": 10,
+      "m7b5 → m7": 4,
+      "+7 → 7": 4,
+      "6 → maj": 4
+     }
+    }
+   },
+   "detected|dev|propre": {
+    "rates": {
+     "pieces": 4,
+     "beat": {
+      "fondamentale": 0.8636363636363636,
+      "famille": 0.8446969696969697,
+      "couleur": 0.8314393939393939,
+      "complet": 0.5265151515151515,
+      "basse": 0.8409090909090909
+     },
+     "time": {
+      "fondamentale": 0.8563612958592577,
+      "famille": 0.8351212186226131,
+      "couleur": 0.8198884359579489,
+      "complet": 0.47017807337481227,
+      "basse": 0.8273975541729243
+     },
+     "missing": 0.17142857142857143,
+     "extra": 0.15979381443298968,
+     "doubtfulShare": 0.08238636363636363,
+     "errorIfDoubtful": 0.41379310344827586,
+     "errorIfSure": 0.14654282765737875,
+     "errorsFlagged": 0.20224719101123595,
+     "beatF": 0.8985959438377535,
+     "downbeats": 0.8181818181818182,
+     "meter": 1,
+     "key": 1
+    },
+    "counts": {
+     "beats": 1056,
+     "beat": {
+      "fondamentale": 912,
+      "famille": 892,
+      "couleur": 878,
+      "complet": 556,
+      "basse": 888
+     },
+     "samples": 9322,
+     "time": {
+      "fondamentale": 7983,
+      "famille": 7785,
+      "couleur": 7643,
+      "complet": 4383,
+      "basse": 7713
+     },
+     "twoChordBars": 70,
+     "missing": 12,
+     "oneChordBars": 194,
+     "extra": 31,
+     "doubtful": 87,
+     "doubtfulWrong": 36,
+     "sureWrong": 142,
+     "wrong": 178,
+     "flagged": 36,
+     "beatTruth": 1056,
+     "beatFound": 867,
+     "beatHits": 864,
+     "downTruth": 264,
+     "downHits": 216,
+     "meterRight": 4,
+     "keyRight": 4,
+     "pieces": 4,
+     "errors": {
+      "accord voisin (décalé d’un temps ou plus)": 54,
+      "bonne fondamentale, septième ou sixte fausse": 13,
+      "fondamentale à un demi-ton": 14,
+      "bonne fondamentale, famille fausse": 16,
+      "fondamentale à la quinte / quarte": 49,
+      "fondamentale à une tierce (mineure)": 12,
+      "fondamentale à une tierce (majeure)": 6,
+      "fondamentale au triton": 8,
+      "fondamentale à un ton": 1,
+      "aucun accord": 5
+     },
+     "qualityPairs": {
+      "dim7 → dim": 3,
+      "m7 → m7b5": 2,
+      "7 → maj": 3,
+      "m7 → m": 2,
+      "m7 → 7": 7,
+      "maj7 → 6": 2,
+      "m6 → maj7": 1,
+      "7 → m7": 2,
+      "m6 → 6": 2,
+      "m → maj": 2,
+      "6 → maj7": 3
+     }
+    }
+   },
+   "detected|dev|disque": {
+    "rates": {
+     "pieces": 4,
+     "beat": {
+      "fondamentale": 0.7859848484848485,
+      "famille": 0.7660984848484849,
+      "couleur": 0.7073863636363636,
+      "complet": 0.44507575757575757,
+      "basse": 0.7509469696969697
+     },
+     "time": {
+      "fondamentale": 0.7647183621512676,
+      "famille": 0.7409568261376897,
+      "couleur": 0.6837806301050176,
+      "complet": 0.3905802482231887,
+      "basse": 0.7300307627028747
+     },
+     "missing": 0.2714285714285714,
+     "extra": 0.211340206185567,
+     "doubtfulShare": 0.16382575757575757,
+     "errorIfDoubtful": 0.6127167630057804,
+     "errorIfSure": 0.22989807474518686,
+     "errorsFlagged": 0.343042071197411,
+     "beatF": 0.9675904180366369,
+     "downbeats": 0.9393939393939394,
+     "meter": 1,
+     "key": 0.75
+    },
+    "counts": {
+     "beats": 1056,
+     "beat": {
+      "fondamentale": 830,
+      "famille": 809,
+      "couleur": 747,
+      "complet": 470,
+      "basse": 793
+     },
+     "samples": 9427,
+     "time": {
+      "fondamentale": 7209,
+      "famille": 6985,
+      "couleur": 6446,
+      "complet": 3682,
+      "basse": 6882
+     },
+     "twoChordBars": 70,
+     "missing": 19,
+     "oneChordBars": 194,
+     "extra": 41,
+     "doubtful": 173,
+     "doubtfulWrong": 106,
+     "sureWrong": 203,
+     "wrong": 309,
+     "flagged": 106,
+     "beatTruth": 1056,
+     "beatFound": 1073,
+     "beatHits": 1030,
+     "downTruth": 264,
+     "downHits": 248,
+     "meterRight": 4,
+     "keyRight": 3,
+     "pieces": 4,
+     "errors": {
+      "accord voisin (décalé d’un temps ou plus)": 68,
+      "bonne fondamentale, septième ou sixte fausse": 57,
+      "fondamentale à un demi-ton": 13,
+      "fondamentale à une tierce (majeure)": 14,
+      "fondamentale à la quinte / quarte": 75,
+      "fondamentale à une tierce (mineure)": 27,
+      "bonne fondamentale, famille fausse": 18,
+      "fondamentale au triton": 8,
+      "fondamentale à un ton": 17,
+      "aucun accord": 12
+     },
+     "qualityPairs": {
+      "dim7 → dim": 8,
+      "m7 → m": 6,
+      "m7 → 7": 9,
+      "7 → m7": 6,
+      "6 → maj": 8,
+      "maj7 → maj": 4,
+      "m6 → maj": 2,
+      "7 → maj": 28,
+      "m → maj": 1,
+      "6 → maj7": 3
+     }
+    }
+   }
+  },
+  "style": {
+   "detected|propre|ballad": {
+    "rates": {
+     "pieces": 2,
+     "beat": {
+      "fondamentale": 0.92578125,
+      "famille": 0.90234375,
+      "couleur": 0.88671875,
+      "complet": 0.41796875,
+      "basse": 0.92578125
+     },
+     "time": {
+      "fondamentale": 0.9219019462921902,
+      "famille": 0.8999753633899975,
+      "couleur": 0.8839615668883961,
+      "complet": 0.41685144124168516,
+      "basse": 0.9219019462921902
+     },
+     "missing": 0,
+     "extra": 0.2222222222222222,
+     "doubtfulShare": 0.125,
+     "errorIfDoubtful": 0.25,
+     "errorIfSure": 0.09375,
+     "errorsFlagged": 0.27586206896551724,
+     "beatF": 0.9980506822612086,
+     "downbeats": 1,
+     "meter": 1,
+     "key": 0.5
+    },
+    "counts": {
+     "beats": 256,
+     "beat": {
+      "fondamentale": 237,
+      "famille": 231,
+      "couleur": 227,
+      "complet": 107,
+      "basse": 237
+     },
+     "samples": 4059,
+     "time": {
+      "fondamentale": 3742,
+      "famille": 3653,
+      "couleur": 3588,
+      "complet": 1692,
+      "basse": 3742
+     },
+     "twoChordBars": 19,
+     "missing": 0,
+     "oneChordBars": 45,
+     "extra": 10,
+     "doubtful": 32,
+     "doubtfulWrong": 8,
+     "sureWrong": 21,
+     "wrong": 29,
+     "flagged": 8,
+     "beatTruth": 256,
+     "beatFound": 257,
+     "beatHits": 256,
+     "downTruth": 64,
+     "downHits": 64,
+     "meterRight": 2,
+     "keyRight": 1,
+     "pieces": 2,
+     "errors": {
+      "fondamentale à la quinte / quarte": 18,
+      "bonne fondamentale, septième ou sixte fausse": 4,
+      "accord voisin (décalé d’un temps ou plus)": 2,
+      "bonne fondamentale, famille fausse": 5
+     },
+     "qualityPairs": {
+      "7 → maj7": 2,
+      "maj7 → 6": 2,
+      "m6 → maj7": 1,
+      "7 → m7": 2,
+      "m6 → 6": 2
+     }
+    }
+   },
+   "detected|disque|ballad": {
+    "rates": {
+     "pieces": 2,
+     "beat": {
+      "fondamentale": 0.8671875,
+      "famille": 0.8359375,
+      "couleur": 0.7578125,
+      "complet": 0.32421875,
+      "basse": 0.8515625
+     },
+     "time": {
+      "fondamentale": 0.8637824474660074,
+      "famille": 0.8328800988875155,
+      "couleur": 0.7555006180469716,
+      "complet": 0.32286773794808404,
+      "basse": 0.8491965389369592
+     },
+     "missing": 0.05263157894736842,
+     "extra": 0.26666666666666666,
+     "doubtfulShare": 0.1640625,
+     "errorIfDoubtful": 0.6666666666666666,
+     "errorIfSure": 0.1588785046728972,
+     "errorsFlagged": 0.45161290322580644,
+     "beatF": 0.9941747572815534,
+     "downbeats": 1,
+     "meter": 1,
+     "key": 0.5
+    },
+    "counts": {
+     "beats": 256,
+     "beat": {
+      "fondamentale": 222,
+      "famille": 214,
+      "couleur": 194,
+      "complet": 83,
+      "basse": 218
+     },
+     "samples": 4045,
+     "time": {
+      "fondamentale": 3494,
+      "famille": 3369,
+      "couleur": 3056,
+      "complet": 1306,
+      "basse": 3435
+     },
+     "twoChordBars": 19,
+     "missing": 1,
+     "oneChordBars": 45,
+     "extra": 12,
+     "doubtful": 42,
+     "doubtfulWrong": 28,
+     "sureWrong": 34,
+     "wrong": 62,
+     "flagged": 28,
+     "beatTruth": 256,
+     "beatFound": 259,
+     "beatHits": 256,
+     "downTruth": 64,
+     "downHits": 64,
+     "meterRight": 2,
+     "keyRight": 1,
+     "pieces": 2,
+     "errors": {
+      "fondamentale à la quinte / quarte": 30,
+      "bonne fondamentale, septième ou sixte fausse": 20,
+      "bonne fondamentale, famille fausse": 8,
+      "fondamentale à un demi-ton": 2,
+      "aucun accord": 2
+     },
+     "qualityPairs": {
+      "7 → 6": 2,
+      "m6 → m7": 8,
+      "7 → +": 2,
+      "7 → m7": 4,
+      "6 → maj": 6,
+      "maj7 → maj": 4,
+      "m6 → maj": 2
+     }
+    }
+   },
+   "detected|propre|swing": {
+    "rates": {
+     "pieces": 4,
+     "beat": {
+      "fondamentale": 0.8354779411764706,
+      "famille": 0.8143382352941176,
+      "couleur": 0.7398897058823529,
+      "complet": 0.296875,
+      "basse": 0.7619485294117647
+     },
+     "time": {
+      "fondamentale": 0.8251163774862463,
+      "famille": 0.8049090139652983,
+      "couleur": 0.7304274227676683,
+      "complet": 0.29168429961912823,
+      "basse": 0.7519043588658485
+     },
+     "missing": 0.15942028985507245,
+     "extra": 0.2512315270935961,
+     "doubtfulShare": 0.16268382352941177,
+     "errorIfDoubtful": 0.5084745762711864,
+     "errorIfSure": 0.21185510428100987,
+     "errorsFlagged": 0.31802120141342755,
+     "beatF": 0.998165137614679,
+     "downbeats": 1,
+     "meter": 1,
+     "key": 1
+    },
+    "counts": {
+     "beats": 1088,
+     "beat": {
+      "fondamentale": 909,
+      "famille": 886,
+      "couleur": 805,
+      "complet": 323,
+      "basse": 829
+     },
+     "samples": 9452,
+     "time": {
+      "fondamentale": 7799,
+      "famille": 7608,
+      "couleur": 6904,
+      "complet": 2757,
+      "basse": 7107
+     },
+     "twoChordBars": 69,
+     "missing": 11,
+     "oneChordBars": 203,
+     "extra": 51,
+     "doubtful": 177,
+     "doubtfulWrong": 90,
+     "sureWrong": 193,
+     "wrong": 283,
+     "flagged": 90,
+     "beatTruth": 1088,
+     "beatFound": 1092,
+     "beatHits": 1088,
+     "downTruth": 272,
+     "downHits": 272,
+     "meterRight": 4,
+     "keyRight": 4,
+     "pieces": 4,
+     "errors": {
+      "accord voisin (décalé d’un temps ou plus)": 50,
+      "bonne fondamentale, septième ou sixte fausse": 80,
+      "fondamentale à un demi-ton": 17,
+      "bonne fondamentale, famille fausse": 22,
+      "fondamentale à la quinte / quarte": 40,
+      "fondamentale à une tierce (mineure)": 25,
+      "fondamentale à une tierce (majeure)": 16,
+      "fondamentale au triton": 25,
+      "fondamentale à un ton": 3,
+      "aucun accord": 5
+     },
+     "qualityPairs": {
+      "dim7 → dim": 8,
+      "m7 → m7b5": 2,
+      "7 → maj": 3,
+      "m7 → m": 6,
+      "m7 → 7": 12,
+      "m6 → m7": 32,
+      "m7b5 → dim": 4,
+      "m6 → m": 7,
+      "6 → maj7": 10,
+      "maj7 → 7": 6,
+      "m7b5 → m7": 4,
+      "+7 → 7": 4,
+      "6 → 7": 4
+     }
+    }
+   },
+   "detected|disque|swing": {
+    "rates": {
+     "pieces": 4,
+     "beat": {
+      "fondamentale": 0.7803308823529411,
+      "famille": 0.7509191176470589,
+      "couleur": 0.6737132352941176,
+      "complet": 0.2693014705882353,
+      "basse": 0.71875
+     },
+     "time": {
+      "fondamentale": 0.7638713745271122,
+      "famille": 0.7346574190836486,
+      "couleur": 0.6592055485498108,
+      "complet": 0.26754939050021015,
+      "basse": 0.7039722572509458
+     },
+     "missing": 0.2608695652173913,
+     "extra": 0.18226600985221675,
+     "doubtfulShare": 0.2867647058823529,
+     "errorIfDoubtful": 0.4807692307692308,
+     "errorIfSure": 0.26417525773195877,
+     "errorsFlagged": 0.4225352112676056,
+     "beatF": 0.9649667405764967,
+     "downbeats": 1,
+     "meter": 1,
+     "key": 1
+    },
+    "counts": {
+     "beats": 1088,
+     "beat": {
+      "fondamentale": 849,
+      "famille": 817,
+      "couleur": 733,
+      "complet": 293,
+      "basse": 782
+     },
+     "samples": 9516,
+     "time": {
+      "fondamentale": 7269,
+      "famille": 6991,
+      "couleur": 6273,
+      "complet": 2546,
+      "basse": 6699
+     },
+     "twoChordBars": 69,
+     "missing": 18,
+     "oneChordBars": 203,
+     "extra": 37,
+     "doubtful": 312,
+     "doubtfulWrong": 150,
+     "sureWrong": 205,
+     "wrong": 355,
+     "flagged": 150,
+     "beatTruth": 1088,
+     "beatFound": 1167,
+     "beatHits": 1088,
+     "downTruth": 272,
+     "downHits": 272,
+     "meterRight": 4,
+     "keyRight": 4,
+     "pieces": 4,
+     "errors": {
+      "accord voisin (décalé d’un temps ou plus)": 59,
+      "bonne fondamentale, septième ou sixte fausse": 83,
+      "fondamentale à un demi-ton": 11,
+      "fondamentale à une tierce (majeure)": 23,
+      "fondamentale à la quinte / quarte": 52,
+      "fondamentale à une tierce (mineure)": 39,
+      "bonne fondamentale, famille fausse": 31,
+      "fondamentale au triton": 16,
+      "fondamentale à un ton": 16,
+      "aucun accord": 25
+     },
+     "qualityPairs": {
+      "dim7 → dim": 16,
+      "m7 → m": 6,
+      "m7 → 7": 21,
+      "7 → m7": 2,
+      "m6 → m7": 21,
+      "m6 → m": 13,
+      "m7b5 → dim": 10,
+      "6 → maj7": 11,
+      "6 → maj": 6,
+      "m7b5 → m7": 4,
+      "+7 → 7": 4
+     }
+    }
+   },
+   "detected|propre|bossa": {
+    "rates": {
+     "pieces": 1,
+     "beat": {
+      "fondamentale": 0.859375,
+      "famille": 0.84765625,
+      "couleur": 0.73046875,
+      "complet": 0.32421875,
+      "basse": 0.84375
+     },
+     "time": {
+      "fondamentale": 0.8588120740019474,
+      "famille": 0.8471275559883155,
+      "couleur": 0.7297955209347614,
+      "complet": 0.3237585199610516,
+      "basse": 0.8432327166504382
+     },
+     "missing": 0,
+     "extra": 0.3220338983050847,
+     "doubtfulShare": 0.28125,
+     "errorIfDoubtful": 0.4583333333333333,
+     "errorIfSure": 0.1956521739130435,
+     "errorsFlagged": 0.4782608695652174,
+     "beatF": 0.9980506822612086,
+     "downbeats": 1,
+     "meter": 1,
+     "key": 1
+    },
+    "counts": {
+     "beats": 256,
+     "beat": {
+      "fondamentale": 220,
+      "famille": 217,
+      "couleur": 187,
+      "complet": 83,
+      "basse": 216
+     },
+     "samples": 2054,
+     "time": {
+      "fondamentale": 1764,
+      "famille": 1740,
+      "couleur": 1499,
+      "complet": 665,
+      "basse": 1732
+     },
+     "twoChordBars": 5,
+     "missing": 0,
+     "oneChordBars": 59,
+     "extra": 19,
+     "doubtful": 72,
+     "doubtfulWrong": 33,
+     "sureWrong": 36,
+     "wrong": 69,
+     "flagged": 33,
+     "beatTruth": 256,
+     "beatFound": 257,
+     "beatHits": 256,
+     "downTruth": 64,
+     "downHits": 64,
+     "meterRight": 1,
+     "keyRight": 1,
+     "pieces": 1,
+     "errors": {
+      "bonne fondamentale, septième ou sixte fausse": 29,
+      "fondamentale à la quinte / quarte": 25,
+      "fondamentale à un demi-ton": 4,
+      "accord voisin (décalé d’un temps ou plus)": 7,
+      "bonne fondamentale, famille fausse": 3,
+      "fondamentale au triton": 1
+     },
+     "qualityPairs": {
+      "m7 → m": 4,
+      "dim7 → dim": 6,
+      "m6 → m7": 12,
+      "m6 → 6": 2,
+      "7 → +": 1,
+      "6 → maj7": 7
+     }
+    }
+   },
+   "detected|disque|bossa": {
+    "rates": {
+     "pieces": 1,
+     "beat": {
+      "fondamentale": 0.53515625,
+      "famille": 0.53515625,
+      "couleur": 0.40234375,
+      "complet": 0.19140625,
+      "basse": 0.515625
+     },
+     "time": {
+      "fondamentale": 0.5304518664047151,
+      "famille": 0.5304518664047151,
+      "couleur": 0.393909626719057,
+      "complet": 0.18762278978389,
+      "basse": 0.512278978388998
+     },
+     "missing": 0.4,
+     "extra": 0.23728813559322035,
+     "doubtfulShare": 0.5859375,
+     "errorIfDoubtful": 0.72,
+     "errorIfSure": 0.42452830188679247,
+     "errorsFlagged": 0.7058823529411765,
+     "beatF": 0.49443207126948774,
+     "downbeats": 0.234375,
+     "meter": 1,
+     "key": 0
+    },
+    "counts": {
+     "beats": 256,
+     "beat": {
+      "fondamentale": 137,
+      "famille": 137,
+      "couleur": 103,
+      "complet": 49,
+      "basse": 132
+     },
+     "samples": 2036,
+     "time": {
+      "fondamentale": 1080,
+      "famille": 1080,
+      "couleur": 802,
+      "complet": 382,
+      "basse": 1043
+     },
+     "twoChordBars": 5,
+     "missing": 2,
+     "oneChordBars": 59,
+     "extra": 14,
+     "doubtful": 150,
+     "doubtfulWrong": 108,
+     "sureWrong": 45,
+     "wrong": 153,
+     "flagged": 108,
+     "beatTruth": 256,
+     "beatFound": 193,
+     "beatHits": 111,
+     "downTruth": 64,
+     "downHits": 15,
+     "meterRight": 1,
+     "keyRight": 0,
+     "pieces": 1,
+     "errors": {
+      "bonne fondamentale, septième ou sixte fausse": 31,
+      "fondamentale à la quinte / quarte": 38,
+      "fondamentale à une tierce (mineure)": 32,
+      "fondamentale à une tierce (majeure)": 9,
+      "accord voisin (décalé d’un temps ou plus)": 13,
+      "fondamentale à un ton": 6,
+      "fondamentale à un demi-ton": 6,
+      "aucun accord": 18
+     },
+     "qualityPairs": {
+      "maj7 → maj": 4,
+      "m7 → m": 6,
+      "7 → maj": 6,
+      "dim7 → dim": 11,
+      "6 → maj7": 3,
+      "7 → maj7": 1
+     }
+    }
+   },
+   "detected|propre|trad": {
+    "rates": {
+     "pieces": 1,
+     "beat": {
+      "fondamentale": 0.9375,
+      "famille": 0.921875,
+      "couleur": 0.921875,
+      "complet": 0.90625,
+      "basse": 0.9791666666666666
+     },
+     "time": {
+      "fondamentale": 0.9352989352989353,
+      "famille": 0.9197379197379197,
+      "couleur": 0.9176904176904177,
+      "complet": 0.9021294021294022,
+      "basse": 0.9758394758394758
+     },
+     "missing": 0.5,
+     "extra": 0.0425531914893617,
+     "doubtfulShare": 0.010416666666666666,
+     "errorIfDoubtful": 1,
+     "errorIfSure": 0.06842105263157895,
+     "errorsFlagged": 0.13333333333333333,
+     "beatF": 0.6666666666666666,
+     "downbeats": 0.5,
+     "meter": 1,
+     "key": 1
+    },
+    "counts": {
+     "beats": 384,
+     "beat": {
+      "fondamentale": 360,
+      "famille": 354,
+      "couleur": 354,
+      "complet": 348,
+      "basse": 376
+     },
+     "samples": 2442,
+     "time": {
+      "fondamentale": 2284,
+      "famille": 2246,
+      "couleur": 2241,
+      "complet": 2203,
+      "basse": 2383
+     },
+     "twoChordBars": 2,
+     "missing": 1,
+     "oneChordBars": 94,
+     "extra": 4,
+     "doubtful": 4,
+     "doubtfulWrong": 4,
+     "sureWrong": 26,
+     "wrong": 30,
+     "flagged": 4,
+     "beatTruth": 384,
+     "beatFound": 192,
+     "beatHits": 192,
+     "downTruth": 96,
+     "downHits": 48,
+     "meterRight": 1,
+     "keyRight": 1,
+     "pieces": 1,
+     "errors": {
+      "fondamentale à la quinte / quarte": 16,
+      "accord voisin (décalé d’un temps ou plus)": 10,
+      "bonne fondamentale, famille fausse": 4
+     },
+     "qualityPairs": {
+      "m → maj": 2,
+      "m7 → 7": 2
+     }
+    }
+   },
+   "detected|disque|trad": {
+    "rates": {
+     "pieces": 1,
+     "beat": {
+      "fondamentale": 0.9375,
+      "famille": 0.9296875,
+      "couleur": 0.8463541666666666,
+      "complet": 0.78125,
+      "basse": 0.9088541666666666
+     },
+     "time": {
+      "fondamentale": 0.9264825345247766,
+      "famille": 0.9163281884646629,
+      "couleur": 0.8326563769293257,
+      "complet": 0.7701056051990252,
+      "basse": 0.9004874086108855
+     },
+     "missing": 0.5,
+     "extra": 0.11702127659574468,
+     "doubtfulShare": 0.059895833333333336,
+     "errorIfDoubtful": 1,
+     "errorIfSure": 0.0997229916897507,
+     "errorsFlagged": 0.3898305084745763,
+     "beatF": 0.9623655913978495,
+     "downbeats": 0.8333333333333334,
+     "meter": 1,
+     "key": 1
+    },
+    "counts": {
+     "beats": 384,
+     "beat": {
+      "fondamentale": 360,
+      "famille": 357,
+      "couleur": 325,
+      "complet": 300,
+      "basse": 349
+     },
+     "samples": 2462,
+     "time": {
+      "fondamentale": 2281,
+      "famille": 2256,
+      "couleur": 2050,
+      "complet": 1896,
+      "basse": 2217
+     },
+     "twoChordBars": 2,
+     "missing": 1,
+     "oneChordBars": 94,
+     "extra": 11,
+     "doubtful": 23,
+     "doubtfulWrong": 23,
+     "sureWrong": 36,
+     "wrong": 59,
+     "flagged": 23,
+     "beatTruth": 384,
+     "beatFound": 360,
+     "beatHits": 358,
+     "downTruth": 96,
+     "downHits": 80,
+     "meterRight": 1,
+     "keyRight": 1,
+     "pieces": 1,
+     "errors": {
+      "fondamentale à la quinte / quarte": 14,
+      "bonne fondamentale, septième ou sixte fausse": 28,
+      "accord voisin (décalé d’un temps ou plus)": 10,
+      "fondamentale à un ton": 4,
+      "bonne fondamentale, famille fausse": 1,
+      "aucun accord": 2
+     },
+     "qualityPairs": {
+      "7 → maj": 28,
+      "m → maj": 1
+     }
+    }
+   }
+  },
+  "total": {
+   "detected|synthese": {
+    "rates": {
+     "pieces": 16,
+     "beat": {
+      "fondamentale": 0.8301411290322581,
+      "famille": 0.8097278225806451,
+      "couleur": 0.7379032258064516,
+      "complet": 0.3996975806451613,
+      "basse": 0.7910786290322581
+     },
+     "time": {
+      "fondamentale": 0.8238507181278767,
+      "famille": 0.8025009704430766,
+      "couleur": 0.7323517994787334,
+      "complet": 0.3728442300227361,
+      "basse": 0.7862807075916376
+     },
+     "missing": 0.17894736842105263,
+     "extra": 0.1970074812967581,
+     "doubtfulShare": 0.20463709677419356,
+     "errorIfDoubtful": 0.5467980295566502,
+     "errorIfSure": 0.1888466413181242,
+     "errorsFlagged": 0.4269230769230769,
+     "beatF": 0.9309231762427373,
+     "downbeats": 0.8860887096774194,
+     "meter": 1,
+     "key": 0.8125
+    },
+    "counts": {
+     "beats": 3968,
+     "beat": {
+      "fondamentale": 3294,
+      "famille": 3213,
+      "couleur": 2928,
+      "complet": 1586,
+      "basse": 3139
+     },
+     "samples": 36066,
+     "time": {
+      "fondamentale": 29713,
+      "famille": 28943,
+      "couleur": 26413,
+      "complet": 13447,
+      "basse": 28358
+     },
+     "twoChordBars": 190,
+     "missing": 34,
+     "oneChordBars": 802,
+     "extra": 158,
+     "doubtful": 812,
+     "doubtfulWrong": 444,
+     "sureWrong": 596,
+     "wrong": 1040,
+     "flagged": 444,
+     "beatTruth": 3968,
+     "beatFound": 3777,
+     "beatHits": 3605,
+     "downTruth": 992,
+     "downHits": 879,
+     "meterRight": 16,
+     "keyRight": 13,
+     "pieces": 16,
+     "errors": {
+      "fondamentale à la quinte / quarte": 233,
+      "bonne fondamentale, septième ou sixte fausse": 275,
+      "accord voisin (décalé d’un temps ou plus)": 151,
+      "bonne fondamentale, famille fausse": 74,
+      "fondamentale à un demi-ton": 40,
+      "fondamentale à une tierce (mineure)": 96,
+      "fondamentale à une tierce (majeure)": 48,
+      "fondamentale au triton": 42,
+      "fondamentale à un ton": 29,
+      "aucun accord": 52
+     },
+     "qualityPairs": {
+      "7 → maj7": 3,
+      "7 → 6": 2,
+      "m6 → m7": 73,
+      "7 → +": 3,
+      "dim7 → dim": 41,
+      "m7 → m7b5": 2,
+      "7 → maj": 37,
+      "m7 → m": 22,
+      "m7 → 7": 35,
+      "7 → m7": 8,
+      "m6 → 6": 4,
+      "6 → maj7": 31,
+      "maj7 → maj": 8,
+      "maj7 → 6": 2,
+      "m6 → maj7": 1,
+      "6 → maj": 12,
+      "m6 → maj": 2,
+      "m7b5 → dim": 14,
+      "m6 → m": 20,
+      "m → maj": 3,
+      "maj7 → 7": 6,
+      "m7b5 → m7": 8,
+      "+7 → 7": 8,
+      "6 → 7": 4
+     }
+    }
+   },
+   "detected|tout": {
+    "rates": {
+     "pieces": 16,
+     "beat": {
+      "fondamentale": 0.8301411290322581,
+      "famille": 0.8097278225806451,
+      "couleur": 0.7379032258064516,
+      "complet": 0.3996975806451613,
+      "basse": 0.7910786290322581
+     },
+     "time": {
+      "fondamentale": 0.8238507181278767,
+      "famille": 0.8025009704430766,
+      "couleur": 0.7323517994787334,
+      "complet": 0.3728442300227361,
+      "basse": 0.7862807075916376
+     },
+     "missing": 0.17894736842105263,
+     "extra": 0.1970074812967581,
+     "doubtfulShare": 0.20463709677419356,
+     "errorIfDoubtful": 0.5467980295566502,
+     "errorIfSure": 0.1888466413181242,
+     "errorsFlagged": 0.4269230769230769,
+     "beatF": 0.9309231762427373,
+     "downbeats": 0.8860887096774194,
+     "meter": 1,
+     "key": 0.8125
+    },
+    "counts": {
+     "beats": 3968,
+     "beat": {
+      "fondamentale": 3294,
+      "famille": 3213,
+      "couleur": 2928,
+      "complet": 1586,
+      "basse": 3139
+     },
+     "samples": 36066,
+     "time": {
+      "fondamentale": 29713,
+      "famille": 28943,
+      "couleur": 26413,
+      "complet": 13447,
+      "basse": 28358
+     },
+     "twoChordBars": 190,
+     "missing": 34,
+     "oneChordBars": 802,
+     "extra": 158,
+     "doubtful": 812,
+     "doubtfulWrong": 444,
+     "sureWrong": 596,
+     "wrong": 1040,
+     "flagged": 444,
+     "beatTruth": 3968,
+     "beatFound": 3777,
+     "beatHits": 3605,
+     "downTruth": 992,
+     "downHits": 879,
+     "meterRight": 16,
+     "keyRight": 13,
+     "pieces": 16,
+     "errors": {
+      "fondamentale à la quinte / quarte": 233,
+      "bonne fondamentale, septième ou sixte fausse": 275,
+      "accord voisin (décalé d’un temps ou plus)": 151,
+      "bonne fondamentale, famille fausse": 74,
+      "fondamentale à un demi-ton": 40,
+      "fondamentale à une tierce (mineure)": 96,
+      "fondamentale à une tierce (majeure)": 48,
+      "fondamentale au triton": 42,
+      "fondamentale à un ton": 29,
+      "aucun accord": 52
+     },
+     "qualityPairs": {
+      "7 → maj7": 3,
+      "7 → 6": 2,
+      "m6 → m7": 73,
+      "7 → +": 3,
+      "dim7 → dim": 41,
+      "m7 → m7b5": 2,
+      "7 → maj": 37,
+      "m7 → m": 22,
+      "m7 → 7": 35,
+      "7 → m7": 8,
+      "m6 → 6": 4,
+      "6 → maj7": 31,
+      "maj7 → maj": 8,
+      "maj7 → 6": 2,
+      "m6 → maj7": 1,
+      "6 → maj": 12,
+      "m6 → maj": 2,
+      "m7b5 → dim": 14,
+      "m6 → m": 20,
+      "m → maj": 3,
+      "maj7 → 7": 6,
+      "m7b5 → m7": 8,
+      "+7 → 7": 8,
+      "6 → 7": 4
+     }
+    }
+   }
+  }
+ },
+ "perPiece": [
+  {
+   "id": "ballade-cuivres",
+   "split": "test",
+   "condition": "propre",
+   "grid": "detected",
+   "style": "ballad",
+   "rates": {
+    "pieces": 1,
+    "beat": {
+     "fondamentale": 0.9140625,
+     "famille": 0.9140625,
+     "couleur": 0.8984375,
+     "complet": 0.4296875,
+     "basse": 0.9140625
+    },
+    "time": {
+     "fondamentale": 0.9111522443313281,
+     "famille": 0.9111522443313281,
+     "couleur": 0.8954187875983342,
+     "complet": 0.42757982415548357,
+     "basse": 0.9111522443313281
+    },
+    "missing": 0,
+    "extra": 0.3,
+    "doubtfulShare": 0.078125,
+    "errorIfDoubtful": 0.4,
+    "errorIfSure": 0.07627118644067797,
+    "errorsFlagged": 0.3076923076923077,
+    "beatF": 1,
+    "downbeats": 1,
+    "meter": 1,
+    "key": 0
+   }
+  },
+  {
+   "id": "ballade-cuivres",
+   "split": "test",
+   "condition": "disque",
+   "grid": "detected",
+   "style": "ballad",
+   "rates": {
+    "pieces": 1,
+    "beat": {
+     "fondamentale": 0.90625,
+     "famille": 0.890625,
+     "couleur": 0.8125,
+     "complet": 0.3359375,
+     "basse": 0.90625
+    },
+    "time": {
+     "fondamentale": 0.9006094702297234,
+     "famille": 0.8842006563525551,
+     "couleur": 0.8073136427566807,
+     "complet": 0.3338021565869667,
+     "basse": 0.9006094702297234
+    },
+    "missing": 0,
+    "extra": 0.35,
+    "doubtfulShare": 0.046875,
+    "errorIfDoubtful": 0.6666666666666666,
+    "errorIfSure": 0.16393442622950818,
+    "errorsFlagged": 0.16666666666666666,
+    "beatF": 0.9961089494163424,
+    "downbeats": 1,
+    "meter": 1,
+    "key": 1
+   }
+  },
+  {
+   "id": "blues-fa-swing",
+   "split": "dev",
+   "condition": "propre",
+   "grid": "detected",
+   "style": "swing",
+   "rates": {
+    "pieces": 1,
+    "beat": {
+     "fondamentale": 0.7083333333333334,
+     "famille": 0.6805555555555556,
+     "couleur": 0.6527777777777778,
+     "complet": 0.2777777777777778,
+     "basse": 0.6736111111111112
+    },
+    "time": {
+     "fondamentale": 0.7017614091273019,
+     "famille": 0.6745396317053642,
+     "couleur": 0.6473178542834267,
+     "complet": 0.2754203362690152,
+     "basse": 0.6677341873498799
+    },
+    "missing": 0.4,
+    "extra": 0.2765957446808511,
+    "doubtfulShare": 0.13194444444444445,
+    "errorIfDoubtful": 0.39473684210526316,
+    "errorIfSure": 0.34,
+    "errorsFlagged": 0.15,
+    "beatF": 0.9982668977469671,
+    "downbeats": 1,
+    "meter": 1,
+    "key": 1
+   }
+  },
+  {
+   "id": "blues-fa-swing",
+   "split": "dev",
+   "condition": "disque",
+   "grid": "detected",
+   "style": "swing",
+   "rates": {
+    "pieces": 1,
+    "beat": {
+     "fondamentale": 0.5416666666666666,
+     "famille": 0.5,
+     "couleur": 0.4652777777777778,
+     "complet": 0.19444444444444445,
+     "basse": 0.5138888888888888
+    },
+    "time": {
+     "fondamentale": 0.5370370370370371,
+     "famille": 0.49605988967691095,
+     "couleur": 0.46178092986603625,
+     "complet": 0.19306540583136328,
+     "basse": 0.5090622537431048
+    },
+    "missing": 0.6,
+    "extra": 0.2978723404255319,
+    "doubtfulShare": 0.2465277777777778,
+    "errorIfDoubtful": 0.5774647887323944,
+    "errorIfSure": 0.5207373271889401,
+    "errorsFlagged": 0.2662337662337662,
+    "beatF": 0.9680672268907563,
+    "downbeats": 1,
+    "meter": 1,
+    "key": 1
+   }
+  },
+  {
+   "id": "bossa-mi",
+   "split": "test",
+   "condition": "propre",
+   "grid": "detected",
+   "style": "bossa",
+   "rates": {
+    "pieces": 1,
+    "beat": {
+     "fondamentale": 0.859375,
+     "famille": 0.84765625,
+     "couleur": 0.73046875,
+     "complet": 0.32421875,
+     "basse": 0.84375
+    },
+    "time": {
+     "fondamentale": 0.8588120740019474,
+     "famille": 0.8471275559883155,
+     "couleur": 0.7297955209347614,
+     "complet": 0.3237585199610516,
+     "basse": 0.8432327166504382
+    },
+    "missing": 0,
+    "extra": 0.3220338983050847,
+    "doubtfulShare": 0.28125,
+    "errorIfDoubtful": 0.4583333333333333,
+    "errorIfSure": 0.1956521739130435,
+    "errorsFlagged": 0.4782608695652174,
+    "beatF": 0.9980506822612086,
+    "downbeats": 1,
+    "meter": 1,
+    "key": 1
+   }
+  },
+  {
+   "id": "bossa-mi",
+   "split": "test",
+   "condition": "disque",
+   "grid": "detected",
+   "style": "bossa",
+   "rates": {
+    "pieces": 1,
+    "beat": {
+     "fondamentale": 0.53515625,
+     "famille": 0.53515625,
+     "couleur": 0.40234375,
+     "complet": 0.19140625,
+     "basse": 0.515625
+    },
+    "time": {
+     "fondamentale": 0.5304518664047151,
+     "famille": 0.5304518664047151,
+     "couleur": 0.393909626719057,
+     "complet": 0.18762278978389,
+     "basse": 0.512278978388998
+    },
+    "missing": 0.4,
+    "extra": 0.23728813559322035,
+    "doubtfulShare": 0.5859375,
+    "errorIfDoubtful": 0.72,
+    "errorIfSure": 0.42452830188679247,
+    "errorsFlagged": 0.7058823529411765,
+    "beatF": 0.49443207126948774,
+    "downbeats": 0.234375,
+    "meter": 1,
+    "key": 0
+   }
+  },
+  {
+   "id": "chorale-voix",
+   "split": "dev",
+   "condition": "propre",
+   "grid": "detected",
+   "style": "ballad",
+   "rates": {
+    "pieces": 1,
+    "beat": {
+     "fondamentale": 0.9375,
+     "famille": 0.890625,
+     "couleur": 0.875,
+     "complet": 0.40625,
+     "basse": 0.9375
+    },
+    "time": {
+     "fondamentale": 0.934141201264489,
+     "famille": 0.8872497365648051,
+     "couleur": 0.8709167544783983,
+     "complet": 0.40463645943098,
+     "basse": 0.934141201264489
+    },
+    "missing": 0,
+    "extra": 0.16,
+    "doubtfulShare": 0.171875,
+    "errorIfDoubtful": 0.18181818181818182,
+    "errorIfSure": 0.11320754716981132,
+    "errorsFlagged": 0.25,
+    "beatF": 0.9961089494163424,
+    "downbeats": 1,
+    "meter": 1,
+    "key": 1
+   }
+  },
+  {
+   "id": "chorale-voix",
+   "split": "dev",
+   "condition": "disque",
+   "grid": "detected",
+   "style": "ballad",
+   "rates": {
+    "pieces": 1,
+    "beat": {
+     "fondamentale": 0.828125,
+     "famille": 0.78125,
+     "couleur": 0.703125,
+     "complet": 0.3125,
+     "basse": 0.796875
+    },
+    "time": {
+     "fondamentale": 0.8226987447698745,
+     "famille": 0.7756276150627615,
+     "couleur": 0.6976987447698745,
+     "complet": 0.3106694560669456,
+     "basse": 0.7918410041841004
+    },
+    "missing": 0.14285714285714285,
+    "extra": 0.2,
+    "doubtfulShare": 0.28125,
+    "errorIfDoubtful": 0.6666666666666666,
+    "errorIfSure": 0.15217391304347827,
+    "errorsFlagged": 0.631578947368421,
+    "beatF": 0.9922480620155039,
+    "downbeats": 1,
+    "meter": 1,
+    "key": 0
+   }
+  },
+  {
+   "id": "feuilles-mortes",
+   "split": "test",
+   "condition": "propre",
+   "grid": "detected",
+   "style": "swing",
+   "rates": {
+    "pieces": 1,
+    "beat": {
+     "fondamentale": 0.84765625,
+     "famille": 0.82421875,
+     "couleur": 0.640625,
+     "complet": 0.28125,
+     "basse": 0.78515625
+    },
+    "time": {
+     "fondamentale": 0.8410596026490066,
+     "famille": 0.8174668874172185,
+     "couleur": 0.6349337748344371,
+     "complet": 0.2781456953642384,
+     "basse": 0.7785596026490066
+    },
+    "missing": 0,
+    "extra": 0.26666666666666666,
+    "doubtfulShare": 0.27734375,
+    "errorIfDoubtful": 0.6619718309859155,
+    "errorIfSure": 0.24324324324324326,
+    "errorsFlagged": 0.5108695652173914,
+    "beatF": 0.9980506822612086,
+    "downbeats": 1,
+    "meter": 1,
+    "key": 1
+   }
+  },
+  {
+   "id": "feuilles-mortes",
+   "split": "test",
+   "condition": "disque",
+   "grid": "detected",
+   "style": "swing",
+   "rates": {
+    "pieces": 1,
+    "beat": {
+     "fondamentale": 0.89453125,
+     "famille": 0.84765625,
+     "couleur": 0.69921875,
+     "complet": 0.37109375,
+     "basse": 0.8046875
+    },
+    "time": {
+     "fondamentale": 0.8819357530246141,
+     "famille": 0.8360450563204005,
+     "couleur": 0.6887776387150605,
+     "complet": 0.36587400917813934,
+     "basse": 0.7939090529828953
+    },
+    "missing": 0,
+    "extra": 0.15,
+    "doubtfulShare": 0.328125,
+    "errorIfDoubtful": 0.5833333333333334,
+    "errorIfSure": 0.16279069767441862,
+    "errorsFlagged": 0.6363636363636364,
+    "beatF": 0.9309090909090908,
+    "downbeats": 1,
+    "meter": 1,
+    "key": 1
+   }
+  },
+  {
+   "id": "saints",
+   "split": "dev",
+   "condition": "propre",
+   "grid": "detected",
+   "style": "trad",
+   "rates": {
+    "pieces": 1,
+    "beat": {
+     "fondamentale": 0.9375,
+     "famille": 0.921875,
+     "couleur": 0.921875,
+     "complet": 0.90625,
+     "basse": 0.9791666666666666
+    },
+    "time": {
+     "fondamentale": 0.9352989352989353,
+     "famille": 0.9197379197379197,
+     "couleur": 0.9176904176904177,
+     "complet": 0.9021294021294022,
+     "basse": 0.9758394758394758
+    },
+    "missing": 0.5,
+    "extra": 0.0425531914893617,
+    "doubtfulShare": 0.010416666666666666,
+    "errorIfDoubtful": 1,
+    "errorIfSure": 0.06842105263157895,
+    "errorsFlagged": 0.13333333333333333,
+    "beatF": 0.6666666666666666,
+    "downbeats": 0.5,
+    "meter": 1,
+    "key": 1
+   }
+  },
+  {
+   "id": "saints",
+   "split": "dev",
+   "condition": "disque",
+   "grid": "detected",
+   "style": "trad",
+   "rates": {
+    "pieces": 1,
+    "beat": {
+     "fondamentale": 0.9375,
+     "famille": 0.9296875,
+     "couleur": 0.8463541666666666,
+     "complet": 0.78125,
+     "basse": 0.9088541666666666
+    },
+    "time": {
+     "fondamentale": 0.9264825345247766,
+     "famille": 0.9163281884646629,
+     "couleur": 0.8326563769293257,
+     "complet": 0.7701056051990252,
+     "basse": 0.9004874086108855
+    },
+    "missing": 0.5,
+    "extra": 0.11702127659574468,
+    "doubtfulShare": 0.059895833333333336,
+    "errorIfDoubtful": 1,
+    "errorIfSure": 0.0997229916897507,
+    "errorsFlagged": 0.3898305084745763,
+    "beatF": 0.9623655913978495,
+    "downbeats": 0.8333333333333334,
+    "meter": 1,
+    "key": 1
+   }
+  },
+  {
+   "id": "satin",
+   "split": "dev",
+   "condition": "propre",
+   "grid": "detected",
+   "style": "swing",
+   "rates": {
+    "pieces": 1,
+    "beat": {
+     "fondamentale": 0.890625,
+     "famille": 0.890625,
+     "couleur": 0.875,
+     "complet": 0.296875,
+     "basse": 0.7734375
+    },
+    "time": {
+     "fondamentale": 0.8747987117552335,
+     "famille": 0.8735909822866345,
+     "couleur": 0.8582930756843801,
+     "complet": 0.2914653784219002,
+     "basse": 0.7604669887278583
+    },
+    "missing": 0.027777777777777776,
+    "extra": 0.35714285714285715,
+    "doubtfulShare": 0.08984375,
+    "errorIfDoubtful": 0.5652173913043478,
+    "errorIfSure": 0.0815450643776824,
+    "errorsFlagged": 0.40625,
+    "beatF": 0.9980506822612086,
+    "downbeats": 1,
+    "meter": 1,
+    "key": 1
+   }
+  },
+  {
+   "id": "satin",
+   "split": "dev",
+   "condition": "disque",
+   "grid": "detected",
+   "style": "swing",
+   "rates": {
+    "pieces": 1,
+    "beat": {
+     "fondamentale": 0.8125,
+     "famille": 0.8125,
+     "couleur": 0.7734375,
+     "complet": 0.2890625,
+     "basse": 0.7578125
+    },
+    "time": {
+     "fondamentale": 0.7920477137176939,
+     "famille": 0.7900596421471173,
+     "couleur": 0.7514910536779325,
+     "complet": 0.2791252485089463,
+     "basse": 0.7391650099403578
+    },
+    "missing": 0.05555555555555555,
+    "extra": 0.39285714285714285,
+    "doubtfulShare": 0.16796875,
+    "errorIfDoubtful": 0.4186046511627907,
+    "errorIfSure": 0.18779342723004694,
+    "errorsFlagged": 0.3103448275862069,
+    "beatF": 0.9624060150375939,
+    "downbeats": 1,
+    "meter": 1,
+    "key": 1
+   }
+  },
+  {
+   "id": "tous-ces-trucs",
+   "split": "test",
+   "condition": "propre",
+   "grid": "detected",
+   "style": "swing",
+   "rates": {
+    "pieces": 1,
+    "beat": {
+     "fondamentale": 0.9027777777777778,
+     "famille": 0.8715277777777778,
+     "couleur": 0.7951388888888888,
+     "complet": 0.3298611111111111,
+     "basse": 0.8194444444444444
+    },
+    "time": {
+     "fondamentale": 0.8962999026290166,
+     "famille": 0.8656280428432327,
+     "couleur": 0.7891918208373905,
+     "complet": 0.3276533592989289,
+     "basse": 0.8125608568646543
+    },
+    "missing": 0,
+    "extra": 0.17647058823529413,
+    "doubtfulShare": 0.15625,
+    "errorIfDoubtful": 0.3333333333333333,
+    "errorIfSure": 0.18106995884773663,
+    "errorsFlagged": 0.2542372881355932,
+    "beatF": 0.9982668977469671,
+    "downbeats": 1,
+    "meter": 1,
+    "key": 1
+   }
+  },
+  {
+   "id": "tous-ces-trucs",
+   "split": "test",
+   "condition": "disque",
+   "grid": "detected",
+   "style": "swing",
+   "rates": {
+    "pieces": 1,
+    "beat": {
+     "fondamentale": 0.8888888888888888,
+     "famille": 0.8611111111111112,
+     "couleur": 0.7708333333333334,
+     "complet": 0.2361111111111111,
+     "basse": 0.8125
+    },
+    "time": {
+     "fondamentale": 0.8712487899322362,
+     "famille": 0.8426911907066795,
+     "couleur": 0.755082284607938,
+     "complet": 0.2308809293320426,
+     "basse": 0.7962245885769603
+    },
+    "missing": 0.25,
+    "extra": 0.04411764705882353,
+    "doubtfulShare": 0.3958333333333333,
+    "errorIfDoubtful": 0.3684210526315789,
+    "errorIfSure": 0.13793103448275862,
+    "errorsFlagged": 0.6363636363636364,
+    "beatF": 0.9965397923875432,
+    "downbeats": 1,
+    "meter": 1,
+    "key": 1
+   }
+  }
+ ]
+}

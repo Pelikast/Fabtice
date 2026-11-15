@@ -1,0 +1,21 @@
+{
+  "note": "Fixed once, before any tuning. Synthetic pieces balanced by style and by what carries the harmony (piano, guitar, horns, voices); GuitarSet split by player (00 and 01 dev, 02 and 03 held out). Tune on dev only.",
+  "dev": [
+    "anatole-sib", "blues-fa-swing", "blues-mineur-do", "deux-cinq-chaine", "satin",
+    "ballade-mib", "chorale-voix",
+    "bill-bailey", "saints",
+    "blue-bossa",
+    "blues-lent-shuffle",
+    "valse-sib",
+    "gs-00-*", "gs-01-*"
+  ],
+  "test": [
+    "blues-bird", "blues-sib-basie", "deux-cinq-mineur-rapide", "feuilles-mortes", "tous-ces-trucs",
+    "ballade-cuivres",
+    "georgia", "st-louis",
+    "bossa-mi", "ipanema",
+    "blues-valse-sol", "valse-cliche-re",
+    "so-what",
+    "gs-02-*", "gs-03-*"
+  ]
+}

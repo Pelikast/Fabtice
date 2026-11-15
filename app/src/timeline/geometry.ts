@@ -1,15 +1,14 @@
 // Pure maths of the timeline: the visible time range, zoom anchoring, Auto
 // fitting, following the playhead, bar thinning and the hit-testing of loop
-// selection. No DOM, no store: everything is in source seconds and CSS pixels,
+// edges. No DOM, no store: everything is in source seconds and CSS pixels,
 // and everything is tested in `geometry.test.ts`.
 //
 // The view is described by `t0` (source time at the left edge of the lanes)
 // and `pps` (pixels per second): x = (t - t0) * pps.
 
-import { barsOfRange, loopFromBars } from '../grid/lines';
-import { barToBeat, clamp, timeToBar, timeToBeat } from '../grid/tempoMap';
-import type { Seconds, TimeRange } from '../model/project';
-import type { TempoMap } from '../model/tempoMap';
+import type { LoopEdge } from '../grid/loops';
+import { clamp } from '../grid/tempoMap';
+import type { Seconds } from '../model/project';
 import { clampScale, clampTrackHeight } from '../view/zoom';
 
 // ---------------------------------------------------------------- scroll and zoom
@@ -144,48 +143,12 @@ export const DRAG_THRESHOLD_PX = 4;
 /** Grab distance of a loop edge: precise with a mouse, wider for a finger. */
 export const EDGE_GRAB_PX = { mouse: 6, touch: 14 } as const;
 
-export type LoopEdge = 'start' | 'end';
-
 /** Which edge of the loop (in pixels) a pointer at `x` grabs, if any; the nearest wins. */
 export function hitLoopEdge(x: number, startX: number, endX: number, tolerance: number): LoopEdge | null {
   const ds = Math.abs(x - startX);
   const de = Math.abs(x - endX);
   if (ds > tolerance && de > tolerance) return null;
   return ds <= de ? 'start' : 'end';
-}
-
-/** The bar under a time, the time clamped to the piece (the last bar stays selectable). */
-export function barAtTime(map: TempoMap, t: Seconds, duration: Seconds): number {
-  return timeToBar(map, clamp(t, 0, Math.max(0, duration - 1e-6))).bar;
-}
-
-/** Loop from the bar where a drag started to the bar where it is now (either order). */
-export function loopFromDrag(map: TempoMap, startTime: Seconds, nowTime: Seconds, duration: Seconds): TimeRange {
-  return loopFromBars(map, barAtTime(map, startTime, duration), barAtTime(map, nowTime, duration));
-}
-
-/** Index of the bar line nearest to a time (bar `n` starts at line `n`). */
-export function nearestBarLine(map: TempoMap, t: Seconds): number {
-  const beat = timeToBeat(map, t);
-  const { bar } = timeToBar(map, t);
-  const here = barToBeat(map, bar);
-  const next = barToBeat(map, bar + 1);
-  return beat - here <= next - beat ? bar : bar + 1;
-}
-
-/**
- * Loop after dragging one of its edges to time `t`, bar by bar: the edge goes
- * to the nearest bar line, and the loop keeps at least one bar.
- */
-export function adjustLoopEdge(map: TempoMap, region: TimeRange, edge: LoopEdge, t: Seconds, duration: Seconds): TimeRange {
-  const { first, last } = barsOfRange(map, region);
-  let line = nearestBarLine(map, clamp(t, 0, duration));
-  if (edge === 'start') {
-    line = Math.min(line, last); // at least bar `last` remains
-    return loopFromBars(map, line, last);
-  }
-  line = Math.max(line, first + 1); // the end line comes after the first bar
-  return loopFromBars(map, first, line - 1);
 }
 
 // ---------------------------------------------------------------- tempo curve

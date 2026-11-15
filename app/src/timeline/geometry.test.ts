@@ -3,8 +3,6 @@ import { constantTempoMap } from '../grid/tempoMap';
 import { PX_PER_SECOND, TRACK_HEIGHT } from '../view/zoom';
 import { barsInView, minBarGapPx } from './drawing';
 import {
-  adjustLoopEdge,
-  barAtTime,
   barKept,
   barNumber,
   barStride,
@@ -12,8 +10,6 @@ import {
   fitToView,
   followT0,
   hitLoopEdge,
-  loopFromDrag,
-  nearestBarLine,
   pxPerSecondForBarWidth,
   sliderAnchorX,
   tempoRange,
@@ -27,7 +23,6 @@ import { rulerHeight, rulerRows, TRACKS_FOOT } from './layout';
 
 // 120 BPM, 4/4: a bar lasts 2 s. First downbeat at 0.5 s: bar -1 is the pick-up.
 const map = constantTempoMap({ bpm: 120, firstDownbeat: 0.5, meter: { numerator: 4, denominator: 4 }, origin: 'manual' });
-const DURATION = 60;
 
 describe('visible range and scroll', () => {
   it('converts between time and pixels', () => {
@@ -172,27 +167,7 @@ describe('bar thinning', () => {
   });
 });
 
-describe('loop selection by bars', () => {
-  it('finds the bar under a time, clamped to the piece', () => {
-    expect(barAtTime(map, 0.2, DURATION)).toBe(-1);
-    expect(barAtTime(map, 0.5, DURATION)).toBe(0);
-    expect(barAtTime(map, 2.49, DURATION)).toBe(0);
-    expect(barAtTime(map, 2.5, DURATION)).toBe(1);
-    expect(barAtTime(map, -3, DURATION)).toBe(-1);
-    expect(barAtTime(map, 1e6, DURATION)).toBe(barAtTime(map, DURATION - 1e-6, DURATION));
-  });
-
-  it('selects whole bars from where the drag started to where it is, either direction', () => {
-    const forward = loopFromDrag(map, 3, 8.2, DURATION); // bar 1 … bar 3
-    expect(forward.start).toBeCloseTo(2.5, 9);
-    expect(forward.end).toBeCloseTo(8.5, 9);
-    expect(loopFromDrag(map, 8.2, 3, DURATION)).toEqual(forward);
-    // A tiny drag inside one bar selects that bar.
-    const one = loopFromDrag(map, 3.1, 3.4, DURATION);
-    expect(one.start).toBeCloseTo(2.5, 9);
-    expect(one.end).toBeCloseTo(4.5, 9);
-  });
-
+describe('loop edges', () => {
   it('grabs the nearest loop edge within the tolerance', () => {
     expect(hitLoopEdge(100, 100, 300, 6)).toBe('start');
     expect(hitLoopEdge(95, 100, 300, 6)).toBe('start');
@@ -202,29 +177,6 @@ describe('loop selection by bars', () => {
     // A one-bar loop 8 px wide: the nearest edge wins.
     expect(hitLoopEdge(103, 100, 108, 6)).toBe('start');
     expect(hitLoopEdge(106, 100, 108, 6)).toBe('end');
-  });
-
-  it('finds the nearest bar line', () => {
-    expect(nearestBarLine(map, 2.6)).toBe(1); // line of bar 1 is at 2.5
-    expect(nearestBarLine(map, 3.4)).toBe(1);
-    expect(nearestBarLine(map, 3.6)).toBe(2);
-  });
-
-  it('drags the edges bar by bar, keeping at least one bar', () => {
-    const region = { start: 2.5, end: 8.5 }; // bars 1…3
-    const start = adjustLoopEdge(map, region, 'start', 0.6, DURATION); // nearest line: bar 0 at 0.5
-    expect(start.start).toBeCloseTo(0.5, 9);
-    expect(start.end).toBeCloseTo(8.5, 9);
-    const end = adjustLoopEdge(map, region, 'end', 12.4, DURATION); // nearest line: bar 6 at 12.5
-    expect(end.start).toBeCloseTo(2.5, 9);
-    expect(end.end).toBeCloseTo(12.5, 9);
-    // Dragged past the other edge: one bar remains.
-    const crushed = adjustLoopEdge(map, region, 'start', 30, DURATION);
-    expect(crushed.start).toBeCloseTo(6.5, 9);
-    expect(crushed.end).toBeCloseTo(8.5, 9);
-    const crushedEnd = adjustLoopEdge(map, region, 'end', 0, DURATION);
-    expect(crushedEnd.start).toBeCloseTo(2.5, 9);
-    expect(crushedEnd.end).toBeCloseTo(4.5, 9);
   });
 });
 
