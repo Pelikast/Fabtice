@@ -43,7 +43,7 @@ function paperFor(locale) {
 
 /** The PDF's file name: the piece's title, cleaned, plus « .pdf » (« Grille » when there is no title). */
 function pdfName(title) {
-  const base = saveName(title && title.trim() ? title : 'Grille').replace(/\.pdf$/i, '');
+  const base = saveName(title && title.trim() ? title : 'Grille').replace(/\.pdf$/i, '').trim() || 'Grille';
   return `${base}.pdf`;
 }
 

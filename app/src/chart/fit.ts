@@ -58,7 +58,7 @@ export interface FitGeometry {
  * then scaled to the width of the page (`styles/print.css` works in units of
  * 1/206 of a bar), so the same steps fit on every paper and in both orientations.
  */
-export const PRINT_GEOMETRY: FitGeometry = { width: 206, padLeft: 16, padRight: 8, base: 30, room: 70 };
+export const PRINT_GEOMETRY: FitGeometry = { width: 206, padLeft: 16, padRight: 8, base: 30, room: 52 };
 
 /** Where the symbol of a chord starts, from the bar line. */
 export function chordStart(frac: number, g: FitGeometry): number {

@@ -64,6 +64,13 @@ export function ChordEditor({ state, dispatch, grid, scroller, onClose, onTyped 
   // Null until measured (hidden meanwhile); 'sheet' on a phone, where CSS places it.
   const [, setResized] = useState(0);
   const [placement, setPlacement] = useState<{ left: number; top: number } | 'sheet' | null>(null);
+  // On a phone the sheet opens over the place where the finger just was: the click that follows the tap
+  // must not land on one of its controls. It does not take presses for a moment after it opens.
+  const [settled, setSettled] = useState(false);
+  useEffect(() => {
+    const id = window.setTimeout(() => setSettled(true), 450);
+    return () => window.clearTimeout(id);
+  }, []);
 
   // Another chord, another typed text.
   useEffect(() => {
@@ -204,7 +211,7 @@ export function ChordEditor({ state, dispatch, grid, scroller, onClose, onTyped 
       aria-label={t('editor.title', { n })}
       tabIndex={-1}
       // Until measured (in the same frame, before paint) it is transparent; `visibility: hidden` would refuse the focus.
-      style={placement === null ? { opacity: 0 } : placement === 'sheet' ? undefined : { left: placement.left, top: placement.top }}
+      style={placement === null ? { opacity: 0 } : placement === 'sheet' ? (settled ? undefined : { pointerEvents: 'none' }) : { left: placement.left, top: placement.top }}
       data-testid="editeur"
       onKeyDown={onKeyDown}
     >

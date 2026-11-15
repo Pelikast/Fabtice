@@ -152,8 +152,9 @@
 .case .accord-case[data-debut] {
   --decal: calc(var(--rang, 0) * (var(--rangs) - 1));
   position: absolute;
-  top: calc(var(--haut) + (100% - var(--haut)) / var(--rangs) * var(--decal));
-  height: calc((100% - var(--haut)) / var(--rangs));
+  /* Centred in its row of the room under the bar number (one row, or two for a cramped bar). */
+  top: calc(var(--haut) + (100% - var(--haut)) / var(--rangs) * (var(--decal) + 0.5));
+  transform: translateY(-50%);
   left: calc(var(--debut) * (100% - var(--pg) - var(--pd)) + var(--pg) - 5px);
   margin: 0;
 }
