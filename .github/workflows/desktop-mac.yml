@@ -343,7 +343,7 @@ jobs:
           if [ -d logs ]; then
             find logs -type f -name '*.log' | sort | while read -r f; do
               name=$(basename "$f")
-              { echo "### $f ($(wc -l < "$f") lines, last 200 shown)"; tail -n 200 "$f"; } > "$out/$name"
+              { echo "### $f ($(wc -l < "$f") lines, last 400 shown)"; tail -n 400 "$f"; } > "$out/$name"
             done
             find logs -type f \( -name '*.txt' -o -name '*.png' \) | while read -r f; do
               dir="$out/$(basename "$(dirname "$f")")"; mkdir -p "$dir"; cp "$f" "$dir/"
