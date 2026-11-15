@@ -6,7 +6,7 @@
 import { describe, expect, it } from 'vitest';
 import type { EngineQuality } from './chords';
 import { applyEvidence } from './evidence';
-import { chartBeats, engineIndex, findChartCandidates, fitKnownChart, priorAround, referenceCharts, CHART_DEFAULTS, type ChartCandidate } from './knownChart';
+import { chartBeats, engineIndex, findChartCandidates, fitKnownChart, priorAround, referenceBeats, referenceCharts, CHART_DEFAULTS, type ChartCandidate } from './knownChart';
 import type { KeyEstimate } from './key';
 import { best, chartChordsPerBeat, ix, makeChart, numbersFor, rng, unit } from './structure.fixtures';
 import { chord } from '../../harmony/chord';
@@ -177,6 +177,15 @@ describe('known chart', () => {
     const refs = referenceCharts([tune, other, ...REFS], 10, (c) => c.title === 'Test Tune');
     expect(refs).toHaveLength(10);
     expect(refs).not.toContain(tune);
+  });
+
+  it('checks against references sent beat by beat exactly as against whole charts', () => {
+    const { units, numbers } = recording(TUNE, 3, 0, 0.5);
+    const whole = fitKnownChart(units, numbers, 4, keyC, [cand(other)], {}, REFS);
+    const beats = fitKnownChart(units, numbers, 4, keyC, [cand(other)], {}, REFS.map(referenceBeats));
+    expect(beats.best!.nullZ).toBe(whole.best!.nullZ);
+    expect(beats.accepted).toBe(whole.accepted);
+    expect(JSON.stringify(REFS.map(referenceBeats)).length).toBeLessThan(JSON.stringify(REFS).length / 10);
   });
 
   it('does nothing without a candidate', () => {

@@ -8,7 +8,7 @@
 // resultats/<name>.json and resultats/<name>.md (or --out).
 
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { networks } from './networks';
 import { DATA, ROOT, RESULTS } from './paths';
@@ -33,7 +33,8 @@ const name = opt.variant ?? 'base';
 const grids = opt.grid === 'detected' ? ['detected'] : opt.grid === 'truth' ? ['truth'] : ['detected', 'truth'];
 const wanted = opt.conditions ? opt.conditions.split(',') : null;
 const only = opt.only ? new Set(opt.only.split(',')) : null;
-const outDir = opt.out ? join(process.cwd(), opt.out) : RESULTS;
+// relative to the current folder, or absolute as given
+const outDir = opt.out ? resolve(process.cwd(), opt.out) : RESULTS;
 
 const mod = (await import(pathToFileURL(join(ROOT, 'dist', 'variantes', `${name}.mjs`)).href)) as { default: Variant };
 const variant = mod.default;

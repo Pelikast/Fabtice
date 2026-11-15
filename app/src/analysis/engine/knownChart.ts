@@ -156,6 +156,21 @@ export function referenceCharts(library: readonly StandardChart[], n = 60, exclu
   return out;
 }
 
+/**
+ * A reference chart as the fit check reads it: its chords beat by beat (engine indices, one chorus)
+ * and its key. A few hundred bytes instead of the whole chart: what is posted to the worker.
+ */
+export interface ReferenceBeats {
+  /** For diagnostics only. */
+  title: string;
+  key: Key | null;
+  chord: number[];
+}
+
+export function referenceBeats(chart: StandardChart): ReferenceBeats {
+  return { title: chart.title, key: chart.key, chord: chartBeats(chart).chord };
+}
+
 export function chartBeats(chart: StandardChart): ChartBeats {
   const chord: number[] = [];
   const bar: number[] = [];
@@ -261,7 +276,7 @@ interface AudioEvidence {
 }
 
 /** Best alignment of one chart (candidate index 0), or null when the chart is too short or too long for the piece. */
-function alignChart(ev: AudioEvidence, cb: ChartBeats, chartKey: Key | null, key: KeyEstimate | null, o: ChartOptions): Alignment | null {
+function alignChart(ev: AudioEvidence, cb: Pick<ChartBeats, 'chord'>, chartKey: Key | null, key: KeyEstimate | null, o: ChartOptions): Alignment | null {
   const { N, logF, top } = ev;
   const F = cb.chord.length;
   if (F < 4) return null;
@@ -377,7 +392,7 @@ export function fitKnownChart(
   key: KeyEstimate | null,
   candidates: readonly ChartCandidate[],
   options: Partial<ChartOptions> = {},
-  references: readonly StandardChart[] = [],
+  references: readonly (StandardChart | ReferenceBeats)[] = [],
 ): ChartFit {
   void bpb;
   const o = { ...CHART_DEFAULTS, ...options };
@@ -417,7 +432,7 @@ export function fitKnownChart(
   // what tunes that are NOT this one score on this recording: the null of the verification
   const nullScores: number[] = [];
   for (const ref of references) {
-    const al = alignChart(ev, chartBeats(ref), ref.key, key, o);
+    const al = 'bars' in ref ? alignChart(ev, chartBeats(ref), ref.key, key, o) : alignChart(ev, ref, ref.key, key, o);
     if (al) nullScores.push(al.score);
   }
   if (!alignments.length) return { ...empty, reason: 'charts too short' };
