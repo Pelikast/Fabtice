@@ -15,6 +15,8 @@ class FabticePlayer extends AudioWorkletProcessor {
   private lastEnded = false;
   private seq = 0;
   private starting = false;
+  /** Test only: rendering stopped (see the `stall` message). */
+  private stalled = false;
   /** Messages that arrived while the wasm was still compiling. */
   private queue: ToWorklet[] = [];
 
@@ -107,6 +109,12 @@ class FabticePlayer extends AudioWorkletProcessor {
       case 'acceleration-restart':
         c.restartAcceleration();
         break;
+      case 'acceleration-state':
+        c.resumeAcceleration(m.step, m.passes);
+        break;
+      case 'stall':
+        this.stalled = true;
+        break;
       case 'play':
         c.play(m.countIn ?? null);
         break;
@@ -131,6 +139,7 @@ class FabticePlayer extends AudioWorkletProcessor {
     f64[2] = c.heardRate;
     f64[3] = c.countInLeft();
     f64[4] = c.accelerating ? c.accelStep : -1;
+    f64[5] = c.accelerationPasses;
     Atomics.store(i32, 1, c.playing ? FLAG_PLAYING : 0);
     Atomics.store(i32, 0, this.seq); // even: consistent
   }
@@ -139,7 +148,7 @@ class FabticePlayer extends AudioWorkletProcessor {
     const out = outputs[0];
     const c = this.core;
     if (!out || !out[0]) return true;
-    if (!c) return true;
+    if (!c || this.stalled) return true;
     const left = out[0];
     c.render(left, out.length > 1 ? out[1]! : left);
     this.publish(c);

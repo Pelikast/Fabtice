@@ -251,6 +251,26 @@ export interface DesktopBridge {
   /** Bytes `offset` to `offset + length` (at most 16 MB) of the file behind `token`. */
   readProjectFile?(token: string, offset: number, length: number): Promise<Uint8Array>;
   releaseProjectFile?(token: string): Promise<true>;
+  /**
+   * The audio journal (`app/src/audio/journal.ts`): the page hands each event to the main process, which
+   * keeps the last 200 with its own (sleeps, wakes, the audio service) across restarts, for Aide →
+   * Diagnostic…. `sticky` events (the last playback that started) replace the previous one instead of
+   * being added to the list. `text` is one line, without personal data. A Mac app that predates it lacks these.
+   */
+  audioJournalAdd?(entry: { event: string; text: string; sticky?: boolean }): Promise<true>;
+  /** The journal as the diagnostic window shows it (text ready to paste). */
+  audioJournal?(): Promise<{ text: string; count: number }>;
+  /**
+   * What macOS says about power (`desktop/src/power-events.js`, from Electron's `powerMonitor`): the Mac
+   * goes to sleep, wakes up, the screen is locked or unlocked. The page gives the audio output back on
+   * `suspend` and `resume` (see `audio/deviceLifecycle.ts`).
+   */
+  onPower?(callback: (event: PowerEvent) => void): Unsubscribe;
+}
+
+/** A power event forwarded by the Mac app. */
+export interface PowerEvent {
+  kind: 'suspend' | 'resume' | 'lock-screen' | 'unlock-screen';
 }
 
 /** A project file macOS handed over (`desktop/src/open-files.js`): read by ranges with its token. */

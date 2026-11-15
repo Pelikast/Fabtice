@@ -420,6 +420,23 @@ export class PlayerCore {
     if (this.accel) this.applyRate();
   }
 
+  /** Passes of the loop heard since the current step began (published, so that a rebuilt engine carries on). */
+  get accelerationPasses(): number {
+    return this.accelPasses;
+  }
+
+  /**
+   * Takes the acceleration up where an earlier audio thread left it (the page closed the audio context
+   * while idle and opened a new one): same step, same passes heard. Ignored without a plan.
+   */
+  resumeAcceleration(step: number, passes: number): void {
+    const a = this.accel;
+    if (!a) return;
+    this.accelStep = Math.max(0, Math.min(a.factors.length - 1, Math.round(step) || 0));
+    this.accelPasses = Math.max(0, Math.min(a.every - 1, Math.round(passes) || 0));
+    this.applyRate();
+  }
+
   /** True while a plan acts on the tempo (a plan and the loop on). */
   get accelerating(): boolean {
     return this.accel !== null && this.loop.enabled;
