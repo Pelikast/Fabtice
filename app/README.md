@@ -221,7 +221,7 @@ barre de mesure (section) les plus proches de la grille en vigueur.
 |---|---|---|
 | Résultat d'analyse | `AppState.analysis`, `model/analysis.ts#AnalysisResult` | tel qu'il est sorti, jamais modifié : temps analysés (`beats.times`, indice du premier temps, métrique et sa sûreté), tonalité (tonique, mode, sûreté, autres lectures), accordage (écart à La 440 en cents, sûreté), accords (`time`, accord ou `null` pour N.C., sûreté, `doubtful`, autres lectures), analyseur et modèles, date. `null` = pas encore analysé |
 | Grille en vigueur | `AppState.tempoMap` (inchangé, lu par le moteur et la frise) | son `origin` dit qui l'a faite : `default` (personne), `manual` (panneau du lot 1, tempo fixe), `analysis` (temps analysés, un segment par temps : `grid/beats.ts#tempoMapFromBeats`), `corrected` (temps analysés corrigés à la main : × 2, ÷ 2, premier temps, métrique). Les temps analysés restent dans le résultat : « Revenir à l'analyse » est toujours possible |
-| Corrections | `AppState.corrections`, `model/corrections.ts#Corrections` | tonalité choisie (`key`, `null` = celle de l'analyse), accordage corrigé (`tuningCents`), offre d'accordage refusée, accords écrits à la main (`chords` : temps et accord), plages réécrites à la main (`handSpans` : là, l'analyse est masquée), lettres de section (`sections` : temps de la barre et texte) |
+| Corrections | `AppState.corrections`, `model/corrections.ts#Corrections` | tonalité choisie (`key`, `null` = celle de l'analyse), accordage corrigé (`tuningCents`), offre d'accordage refusée, accords écrits à la main (`chords` : temps et accord), plages réécrites à la main (`handSpans` : là, l'analyse est masquée), lettres de section (`sections` : temps de la barre et texte), corrections du tempo à partir d'une mesure (`tempoFixes` : début de la mesure, action, grille d'avant) |
 | Instrument | `view.instrument` (`ut`, `sib`, `mib`) | affichage seul, gardé avec le morceau |
 | État de l'analyse | `AppState.analysisRun` (non gardé) | `idle`, `running` (projet, étape), `error` (code). La progression fine (fraction, octets téléchargés) est dans un petit magasin à part, `analysis/progress.ts`, pour ne pas réveiller tout l'écran (ni l'autosauvegarde, qui attend que le magasin se calme) plusieurs fois par seconde |
 
@@ -1765,6 +1765,116 @@ chantiers suivent, chacun dans son dossier.
     Les temps déplacés ne se voient presque pas sur le banc (le réseau y est plus
     souvent perdu que décalé) : leur effet est mesuré sur le jeu de cas. Le cas du
     propriétaire n'a pas pu être écouté ici.
+- **Corriger le tempo à la main, à partir d'une mesure** (demande du propriétaire
+  du 15 novembre ; `engine/tempoFix.ts`, `analysis/runner.ts#runTempoFix`,
+  `store/tempoFixActions.ts`, `components/TempoFixMenu.tsx`, `ui/tempoMenu.ts`).
+  - *Le menu de la mesure.* Clic droit sur une mesure de la règle (ligne des mesures
+    ou courbe de tempo, vue *Pistes*) ou sur une mesure de la *Grille d'accords* ;
+    appui long sur un écran tactile (650 ms dans la règle ; 900 ms dans la grille,
+    où l'appui de 420 ms sélectionne déjà la mesure pour la boucle : l'appui plus
+    long rend la boucle d'avant et ouvre le menu) ; au clavier, touche menu ou
+    Maj+F10 (dans la grille : la mesure de l'accord qui a le focus ; dans
+    *Pistes* : la mesure sous la tête de lecture). Deux entrées, avec les mots du
+    propriétaire, et une ligne d'explication sous chacune : **« Corriger un
+    changement de tempo indésirable »** et **« Réanalyser le tempo à partir de
+    cette mesure »** ; sur une mesure où une telle correction commence, une
+    troisième : « Revenir à l'analyse ». Échap ferme, les flèches passent d'une
+    entrée à l'autre. Dans l'app Mac, le menu natif n'apparaît que dans un champ
+    de texte ou sur un texte sélectionné (`desktop/src/context-menu.js`) : la page
+    annule l'événement sur les mesures, les deux ne se rencontrent pas ; le menu et
+    les mesures ne se sélectionnent pas comme du texte.
+  - *« Corriger un changement de tempo indésirable »* : à partir du début de la
+    mesure choisie, le tempo et la longueur des mesures d'avant continuent. Les
+    temps sont suivis sur la sortie du réseau de temps gardée (programmation
+    dynamique sur (image, période) : période dans ±20 % du tempo des 8 temps
+    d'avant, au plus une image de changement d'un temps au suivant, un coût sur
+    chaque changement et sur l'écart au tempo d'avant) : une dérive lente est
+    suivie, un saut vers un autre niveau est impossible. Chaque temps se pose sur
+    un pic du réseau à 2 images près ; sans pic (passage où le réseau n'entendait
+    qu'un temps sur deux), il est placé entre ses voisins. Les mesures sont
+    comptées tous les m temps depuis la mesure choisie (même métrique). Le suivi
+    rend la main à la grille en place dès qu'ils sont d'accord 8 mesures de suite
+    (mêmes temps à 70 ms, mêmes premiers temps) ; sinon il va jusqu'au bout. Par
+    construction, un vrai changement de tempo après la mesure est effacé (l'aide
+    sous l'entrée le dit). C'est là qu'un suivi de continuité est le bon outil :
+    le DBN, mauvais comme défaut parce qu'il choisit le mauvais niveau, n'a plus
+    ce choix à faire ici, les mesures d'avant le donnent.
+  - *« Réanalyser le tempo à partir de cette mesure »* : toute l'analyse des
+    temps (`gridFromBeats` : pics, réparation par les mesures, réparation des
+    temps, temps déplacés) sur la sortie du réseau à partir de la mesure, comme
+    si le morceau commençait là ; seuls la métrique et le premier temps (la
+    mesure choisie) viennent d'avant.
+  - *Communs aux deux* : tout ce qui est avant la mesure reste tel quel, temps
+    pour temps (y compris des corrections faites à la main avant elle). Le
+    calcul se fait sur les sorties du réseau gardées par l'analyseur pour ce
+    son (une fraction de seconde, étape « finition ») ; si elles ne sont plus là
+    (morceau rouvert), le réseau de temps et celui des accords tournent une fois
+    de nouveau, avec la progression habituelle (« Tempo depuis la mesure 5 ·
+    40 % » dans la barre du haut), le morceau reste jouable, « Arrêter
+    l'analyse » annule. Puis les accords à partir de la mesure sont décodés de
+    nouveau sur la nouvelle grille (chemin « regrid » habituel, avec le modèle
+    d'accords choisi, et la tonalité en vigueur), ceux d'avant restent.
+  - *Ce qui est gardé* : la grille devient une grille corrigée à la main
+    (`tempoMap.origin` = `corrected`) : « Analyser de nouveau » la garde, comme
+    les autres corrections de la grille ; « Revenir à l'analyse » du panneau
+    « Tempo et mesures » la retire avec elles. `corrections.tempoFixes` garde,
+    pour chaque action, le début de la mesure, l'action et la grille juste avant
+    elle (document de version 5, champ ajouté avant sa publication : absent =
+    aucune ; le fichier `.fab` le porte de même). Une petite marque laiton au pied
+    de la barre dans la règle, un point laiton près du numéro dans la grille,
+    montrent où une correction commence ; le menu de cette mesure offre « Revenir à
+    l'analyse », qui rend la grille d'avant cette action et retire aussi celles
+    faites après elle (calculées sur sa grille). Les actions se composent : chacune
+    part de la grille telle qu'elle est. Les temps analysés et la tonalité analysée
+    du résultat ne bougent pas : c'est vers eux que « Revenir à l'analyse » ramène.
+    Au passage, un défaut ancien corrigé : après « Analyser de nouveau » sur une
+    grille corrigée, le résultat remplaçait les temps analysés par la grille de
+    l'utilisateur, et « Revenir à l'analyse » ne ramenait plus rien ; les temps
+    analysés d'avant sont maintenant gardés (`applyAnalysis`, `keptGrid`).
+  - *Ce qui a été fait à la main après la mesure* (accords écrits, plages
+    réécrites, lettres de section, boucle, boucles nommées) : tout est rangé en
+    temps de l'enregistrement (secondes), rien n'est déplacé ni perdu ; chaque
+    chose reste avec la même musique, et la grille et la règle la placent sur le
+    temps ou la barre la plus proche de la nouvelle grille.
+  - *Mesuré* (`engine/tempoFix.test.ts`, jeu complet `FABTICE_REPAIR_FULL=1` ;
+    réseau reconstruit à partir des temps détectés de chaque cas). Des 1 005
+    passages de niveau que l'analyse automatique laisse faux (hors passages au
+    tout début, où il n'y a pas de tempo d'avant), l'action appliquée à la mesure
+    où le passage commence (puis au passage suivant, sur la grille obtenue) en
+    remet d'aplomb (mesures en place, premiers temps ≥ 97 %, temps ≥ 97 %, aucun
+    saut) :
+
+    | | laissés faux | « Corriger » | « Réanalyser » |
+    |---|---|---|---|
+    | réglage, premiers temps nets | 55 | 37 | 1 |
+    | réglage, faibles | 228 | 186 | 1 |
+    | réglage, perdus pendant le passage | 28 | 28 | 0 |
+    | mis de côté, nets | 102 | 59 | 4 |
+    | mis de côté, faibles | 498 | 373 | 2 |
+    | mis de côté, perdus | 94 | 88 | 0 |
+
+    Soit 771 sur 1 005 pour « Corriger », 8 pour « Réanalyser » : sur les mêmes
+    sorties du réseau, l'analyse refaite depuis la mesure trouve presque toujours
+    la même chose que l'analyse entière ; elle ne peut aider que là où ce qui
+    précède a trompé l'analyse (la métrique, la phase des mesures), et c'est rare
+    sur le banc. Aucun temps avant la mesure n'a bougé dans aucun
+    cas. Restent faux surtout : les passages à 3 pour 2 de 16 mesures et plus (le
+    suivi perd un temps), et la dernière mesure d'un passage qui finit le
+    morceau. Sur les négatifs (rubato, ritardando, dérive, points d'orgue),
+    « Réanalyser » ne change rien (2 sur 180 un peu autrement) ; « Corriger »
+    efface par construction un vrai changement de tempo après la mesure, et suit
+    mal une dérive de plus de 20 % (accelerando 90 → 130) : c'est l'entrée à ne
+    pas utiliser là. Réglage du suivi (fenêtre ±12, ±20, ±40 %, coûts) sur la
+    partie réglage : ±12 et ±20 % remettent le plus de passages, ±20 % abîme moins
+    les dérives des négatifs.
+  - *Tests* : `engine/tempoFix.test.ts` (jeu de cas, composition, rubato et vrai
+    changement), `store/tempoFix.test.ts` (correction gardée par une nouvelle
+    analyse, annulations, document), `project/projectFile.test.ts` (aller-retour
+    `.fab`), `chart/gesture.test.ts` (appui long), et dans Chromium
+    `npm run test:tempo-fix` (vrai analyseur sur le morceau d'essai, profil
+    persistant : passage planté à la moitié du tempo, clic droit, les deux
+    actions, la courbe, rechargement, annulation, grille d'accords, clavier,
+    téléphone).
 - **Reste à faire** : décider de l'hébergement des conversions ONNX (copie sous un
   compte du projet, voir PASSATION) ; mesurer la mémoire sur iPhone et, si besoin,
   rogner (tranches plus courtes pour le réseau de temps, au prix d'un autre
