@@ -197,6 +197,26 @@ téléchargement (l’app demande où l’enregistrer ; `test/e2e/ireal-export.t
 le range dans un dossier jetable et remplace `shell.openExternal` par un
 enregistreur, rien n’est lancé pour de bon).
 
+`standardsFetchText(url)` sert à l'offre de télécharger les grilles des standards
+(`app/src/standards/library.ts` ; une page ne peut pas lire un autre site, c'est
+donc le processus principal qui fait la requête, `src/standards-fetch.js`).
+GET en HTTPS seulement, sans identifiant, sans port, sans fragment ; l'hôte doit
+être dans une liste fixe (les mêmes que `COLLECTION_HOSTS` de
+`app/src/standards/collections.ts`, épinglés l'un à l'autre par
+`test/unit/standards-fetch.test.js` : sites d'iReal Pro et
+`raw.githubusercontent.com`) ; les redirections sont suivies à la main, cinq au
+plus, et seulement vers un hôte de la liste (`net.request`, car `net.fetch`
+annule la requête à la première redirection) ; 25 Mo au plus, lus au fil de
+l'eau ; 60 s ; ni cookie ni identifiant, agent utilisateur « Fabtice ». Elle ne
+rejette jamais : `{ ok: true, text, url, bytes }` ou `{ ok: false, error, status? }`
+avec `error` parmi `invalid-url`, `host-not-allowed`, `redirect`, `http`,
+`too-large`, `timeout`, `network`. Pour les tests, `FABTICE_STANDARDS_TEST_ORIGIN`
+(`http://127.0.0.1:port`, actif seulement avec `FABTICE_HOLD_WINDOW=1`) envoie
+les requêtes des hôtes permis à un faux serveur local, à `/<hôte><chemin>` ; la
+liste est contrôlée sur l'adresse réelle avant. Pas de `connect-src` à ajouter
+dans `src/protocol.js` : la page ne fait pas la requête. Essai de bout en bout :
+`test/e2e/standards.test.js` (règles du pont, puis toute l'offre).
+
 `test/e2e/chart-pdf.test.js` essaie l'impression dans l'app : le PDF de la grille
 tombe sur le disque (en-tête `%PDF-`, fin `%%EOF`, nombre de pages, taille de page
 debout et couchée, texte de la grille, l'interface rendue telle qu'elle était), un

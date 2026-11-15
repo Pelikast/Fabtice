@@ -17,6 +17,7 @@ contextBridge.exposeInMainWorld('fabtice', {
   lastImportReport: () => ipcRenderer.invoke('fabtice:last-import-report'),
   reportSeparation: (text) => ipcRenderer.invoke('fabtice:separation-report', String(text)),
   lastSeparationReport: () => ipcRenderer.invoke('fabtice:last-separation-report'),
+  standardsFetchText: (url) => ipcRenderer.invoke('fabtice:standards-fetch', String(url)),
   copyText: (text) => ipcRenderer.invoke('fabtice:copy', String(text)),
   openInIRealPro: (link) => ipcRenderer.invoke('fabtice:open-ireal', String(link)),
   printChart: (options) => ipcRenderer.invoke('fabtice:print-chart', options),

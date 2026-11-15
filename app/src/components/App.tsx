@@ -3,6 +3,7 @@ import { startAutoAnalysis } from '../analysis/runner';
 import { startRenderWatch } from '../render/controller';
 import { startAutoSeparation } from '../separation/runner';
 import { t } from '../i18n';
+import { useStandards } from '../standards/offer';
 import { useApp } from '../store/store';
 import { useFileDrop } from '../ui/useFileDrop';
 import { useGlobalKeys } from '../ui/useGlobalKeys';
@@ -12,6 +13,7 @@ import { ExportAudioDialog } from './ExportAudioDialog';
 import { NewPieceDialog } from './NewPieceDialog';
 import { PrintDialog } from './PrintDialog';
 import { SeparationPanelHost } from './SeparationPanel';
+import { StandardsDialog } from './StandardsOffer';
 import { StorageNotice } from './StorageNotice';
 import { TopBar } from './TopBar';
 import { TracksView } from './TracksView';
@@ -20,6 +22,8 @@ import { Transport } from './Transport';
 export function App() {
   const mode = useApp((s) => s.view.mode);
   const dialogOpen = useApp((s) => s.ui.newPieceOpen || s.ui.exportAudioOpen || s.ui.printOpen || s.render.status === 'rendering' || s.render.status === 'error');
+  const standardsOpen = useStandards((s) => s.panelOpen);
+  const inert = dialogOpen || standardsOpen;
   const dragging = useFileDrop();
   useGlobalKeys();
   // Each newly opened piece is analysed in the background once it can play (analysis/runner.ts).
@@ -29,7 +33,7 @@ export function App() {
   useEffect(() => startRenderWatch(), []);
   return (
     <>
-      <div className="app" data-vue={mode} inert={dialogOpen}>
+      <div className="app" data-vue={mode} inert={inert}>
         <TopBar />
         <main className="milieu">{mode === 'pistes' ? <TracksView /> : <ChartView />}</main>
         <Transport />
@@ -37,6 +41,7 @@ export function App() {
       <SeparationPanelHost />
       <StorageNotice />
       <NewPieceDialog />
+      <StandardsDialog />
       <ExportAudioDialog />
       <PrintDialog />
       <ApplyWaiting />
