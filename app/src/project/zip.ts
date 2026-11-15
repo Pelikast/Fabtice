@@ -1,4 +1,4 @@
-// The container of a `.fabtice` file: a ZIP archive, files stored as they are
+// The container of a `.fab` file: a ZIP archive, files stored as they are
 // (method 0), written and read piece by piece. See FORMAT.md.
 //
 // Writing: `ZipStreamWriter` hands its bytes to a sink as they are produced;
@@ -9,7 +9,7 @@
 // random-access source (a `Blob`/`File` in a page, a file handle in a test),
 // and its CRC is checked as it is read.
 //
-// No ZIP64: a `.fabtice` file stays under 4 GB (twenty minutes of seven
+// No ZIP64: a `.fab` file stays under 4 GB (twenty minutes of seven
 // stereo instruments is 1.6 GB). Bigger is refused before anything is written.
 
 import { crc32 } from '../export/audio/zip';
@@ -244,7 +244,7 @@ export async function readZipDirectory(source: ByteSource): Promise<ZipEntryInfo
     const headerOffset = v.getUint32(p + 42, true);
     if (p + 46 + nameLength > cd.length) throw new ZipFormatError('damaged', `central record ${i} name`);
     const name = dec.decode(cd.subarray(p + 46, p + 46 + nameLength));
-    // Only stored entries: a .fabtice file re-packed by another tool with compression is not read.
+    // Only stored entries: a .fab file re-packed by another tool with compression is not read.
     if (method !== 0 || compressed !== size) throw new ZipFormatError('damaged', `entry ${name} is compressed`);
     if (headerOffset + 30 + size > cdOffset) throw new ZipFormatError('damaged', `entry ${name} out of the file`);
     out.push({ name, crc, size, headerOffset });

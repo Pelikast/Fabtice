@@ -4,7 +4,7 @@
 // a few hundred kilobytes for the biggest) with its name, tune count, source and date. The charts
 // are parsed on demand (`library.ts`): the reader takes about 150 ms for 1460 tunes.
 //
-// This is device data, not project data: nothing here goes into a `.fabtice` document.
+// This is device data, not project data: nothing here goes into a `.fab` document.
 // If IndexedDB cannot be used (blocked storage, private window) the library lives in memory for
 // this page and the collections are downloaded again next time.
 

@@ -1,46 +1,38 @@
-// The `.fabtice` project file (lot 4): one file the user can keep, copy and
-// send, holding the project document, the original audio as it was imported
-// (never re-encoded) and, when the user asks for it, the separated
-// instruments. The layout is described in FORMAT.md (French).
+// The `.fab` project file (owner's decisions of 15 November): one file the
+// user can keep, copy and send, holding the project document, the original
+// audio as it was imported (never re-encoded), EVERY separation made on the
+// piece (one per tool) and the last applied render, these in lossless FLAC.
+// The layout is described in FORMAT.md (French).
 //
 // Written and read piece by piece (`zip.ts`): the writer hands its bytes to a
-// sink as they are produced; the reader reads ranges of the file. The
-// instruments go from the in-memory 16-bit chunks to the file, and back, one
-// slice at a time: never a Float32 copy of a track, never the whole file in
-// memory (except the original audio, which is decoded whole anyway, as an
-// import does).
+// sink as they are produced; the reader reads ranges of the file. The FLAC
+// tracks are encoded by libFLAC (the export's WebAssembly encoder, in a worker)
+// and decoded by `audio/flac/decode.ts` straight into the app's 16-bit
+// blocks: never a Float32 copy of a track, never the whole file in memory
+// (except the original audio, which is decoded whole anyway, as an import does).
 
 import { CHUNK, newChunkChannel, pcmFromChunks, type Chunk, type PcmAudio } from '../audio/pcm';
+import { FlacDecoder, FlacError } from '../audio/flac/decode';
 import { PROJECT_DOCUMENT_VERSION, type ProjectDocument } from '../model/document';
+import type { Track } from '../model/project';
 import type { StoredAudio } from '../storage/ProjectStorage';
 import { readDocument } from '../storage/documentFormat';
-import {
-  END_RECORD_BYTES,
-  entryFootprint,
-  readEntry,
-  readEntryBytes,
-  readZipDirectory,
-  ZIP_LIMIT,
-  ZipFormatError,
-  ZipStreamWriter,
-  type ByteSink,
-  type ByteSource,
-  type ZipEntryInfo,
-} from './zip';
+import { readEntry, readEntryBytes, readZipDirectory, ZipFormatError, ZipStreamWriter, type ByteSink, type ByteSource, type ZipEntryInfo } from './zip';
 
-/** First entry of every `.fabtice` file, stored as is: its name and content sit at fixed offsets (bytes 30 to 58). */
+/** First entry of every `.fab` file, stored as is: its name and content sit at fixed offsets (bytes 30 to 58). */
 export const MIMETYPE_ENTRY = 'mimetype';
 export const PROJECT_MIME = 'application/x-fabtice';
 export const MANIFEST_ENTRY = 'fabtice.json';
 export const DOCUMENT_ENTRY = 'projet.json';
-export const FILE_EXTENSION = '.fabtice';
+export const FILE_EXTENSION = '.fab';
 
 /**
  * Version of the file's layout (the entries and the manifest), not of the
  * project document inside, which has its own (`ProjectDocument.version`,
- * migrated as the device's copy is). Bump it with a reader for the old one.
+ * migrated as the device's copy is). 2: FLAC tracks, every separation, the
+ * kept render (1, with WAV instruments, was never published).
  */
-export const PROJECT_FILE_VERSION = 1;
+export const PROJECT_FILE_VERSION = 2;
 
 export interface ManifestAudio {
   /** `AudioRef.id` of the track(s) it is the audio of. */
@@ -51,16 +43,17 @@ export interface ManifestAudio {
   bytes: number;
 }
 
-export interface ManifestInstrument {
-  /** `AudioRef.id` of the separated track. */
+/** A track in FLAC (16-bit, lossless): a separated instrument or a track of the kept render. */
+export interface ManifestTrack {
+  /** Its audio id: `AudioRef.id` of a separated track, or `KeptRender.tracks[].audioId`. */
   id: string;
-  /** A 16-bit PCM WAV file at 48 kHz (any player reads it). */
+  kind: 'separated' | 'render';
   entry: string;
   frames: number;
   sampleRate: number;
-  /** Channels as separated (1 or 2). */
+  /** Channels as made (1 or 2). */
   channelCount: 1 | 2;
-  /** One channel written (both equal): the WAV is mono. */
+  /** One channel written (both equal): the FLAC is mono. */
   mono: boolean;
 }
 
@@ -72,7 +65,7 @@ export interface ProjectManifest {
   title: string;
   savedAt: string;
   audio: ManifestAudio[];
-  instruments: ManifestInstrument[];
+  tracks: ManifestTrack[];
 }
 
 export type ProjectFileErrorCode =
@@ -114,191 +107,166 @@ export function projectFileName(title: string): string {
   return `${safeEntryName(title, 'Morceau')}${FILE_EXTENSION}`;
 }
 
-// ---------------------------------------------------------------- WAV
-
-const WAV_HEADER = 44;
-
-function wavHeader(frames: number, channels: number, sampleRate: number): Uint8Array<ArrayBuffer> {
-  const data = frames * channels * 2;
-  const h = new Uint8Array(WAV_HEADER);
-  const v = new DataView(h.buffer);
-  const tag = (at: number, s: string) => {
-    for (let i = 0; i < 4; i++) h[at + i] = s.charCodeAt(i);
+/** Where each FLAC track goes in the archive: `separations/<outil>/<instrument>.flac`, `rendu/<piste>.flac`. */
+export function trackEntries(doc: ProjectDocument): { id: string; kind: 'separated' | 'render'; entry: string }[] {
+  const out: { id: string; kind: 'separated' | 'render'; entry: string }[] = [];
+  const used = new Set<string>();
+  const unique = (dir: string, name: string) => {
+    let entry = `${dir}/${name}.flac`;
+    for (let i = 2; used.has(entry.toLowerCase()); i++) entry = `${dir}/${name} ${i}.flac`;
+    used.add(entry.toLowerCase());
+    return entry;
   };
-  tag(0, 'RIFF');
-  v.setUint32(4, 36 + data, true);
-  tag(8, 'WAVE');
-  tag(12, 'fmt ');
-  v.setUint32(16, 16, true);
-  v.setUint16(20, 1, true);
-  v.setUint16(22, channels, true);
-  v.setUint32(24, sampleRate, true);
-  v.setUint32(28, sampleRate * channels * 2, true);
-  v.setUint16(32, channels * 2, true);
-  v.setUint16(34, 16, true);
-  tag(36, 'data');
-  v.setUint32(40, data, true);
-  return h;
-}
-
-function wavBytes(pcm: PcmAudio): number {
-  return WAV_HEADER + pcm.frames * (pcm.mono ? 1 : 2) * 2;
-}
-
-/** Chunks per write: 32 chunks, 4 MB of stereo samples. */
-const CHUNKS_PER_WRITE = 32;
-
-/** Writes the samples of `pcm` into the open entry, interleaved little-endian 16-bit, a few MB at a time. */
-async function writeWav(zip: ZipStreamWriter, pcm: PcmAudio, onBytes: (n: number) => void, tick: () => Promise<void>): Promise<void> {
-  const channels = pcm.mono ? 1 : 2;
-  await zip.write(wavHeader(pcm.frames, channels, pcm.sampleRate));
-  const littleEndian = new Uint8Array(new Uint16Array([1]).buffer)[0] === 1;
-  for (let c0 = 0; c0 < pcm.chunks.length; c0 += CHUNKS_PER_WRITE) {
-    const c1 = Math.min(pcm.chunks.length, c0 + CHUNKS_PER_WRITE);
-    const frames = Math.min(pcm.frames, c1 * CHUNK) - c0 * CHUNK;
-    const out = new Int16Array(frames * channels);
-    let o = 0;
-    for (let c = c0; c < c1; c++) {
-      const chunk = pcm.chunks[c]!;
-      const n = Math.min(CHUNK, pcm.frames - c * CHUNK);
-      if (channels === 1) {
-        out.set(chunk.l.subarray(0, n), o);
-        o += n;
-      } else {
-        const l = chunk.l;
-        const r = chunk.r ?? chunk.l;
-        for (let i = 0; i < n; i++) {
-          out[o++] = l[i]!;
-          out[o++] = r[i]!;
-        }
-      }
-    }
-    const bytes = new Uint8Array(out.buffer);
-    if (!littleEndian) for (let i = 0; i < bytes.length; i += 2) [bytes[i], bytes[i + 1]] = [bytes[i + 1]!, bytes[i]!];
-    await zip.write(bytes);
-    onBytes(bytes.length);
-    await tick();
+  const sep = doc.separation;
+  const current = [...doc.tracks, ...sep.aside].filter((tr) => tr.audio.origin === 'separated');
+  const sets: { tool: string; tracks: Track[] }[] = [];
+  if (sep.result) sets.push({ tool: sep.result.modelName, tracks: current });
+  for (const o of sep.others ?? []) sets.push({ tool: o.result.modelName, tracks: o.tracks });
+  for (const set of sets) {
+    const dir = `separations/${safeEntryName(set.tool, 'outil')}`;
+    for (const tr of set.tracks) out.push({ id: tr.audio.id, kind: 'separated', entry: unique(dir, safeEntryName(tr.name, 'instrument')) });
   }
+  const names = new Map(doc.tracks.map((tr) => [tr.id, tr.name]));
+  for (const t of doc.keptRender?.tracks ?? []) out.push({ id: t.audioId, kind: 'render', entry: unique('rendu', safeEntryName(names.get(t.trackId) ?? 'piste', 'piste')) });
+  return out;
 }
 
 // ---------------------------------------------------------------- writing
 
+/** Encodes a track in FLAC (16-bit, lossless; mono when `pcm.mono`). The app's is libFLAC in a worker. */
+export type FlacEncode = (pcm: PcmAudio, options: { onProgress?: (fraction: number) => void; signal?: AbortSignal }) => Promise<Blob>;
+
 export interface ProjectFileInput {
-  /** The document as it is now (version 4); when no instrument is given, it must not cite separated tracks. */
   document: ProjectDocument;
   /** The original audio of each original track, by `AudioRef.id`. */
   originals: ReadonlyMap<string, StoredAudio>;
-  /** The separated tracks to include, by `AudioRef.id` (empty: « sans les instruments séparés »). */
-  instruments: ReadonlyMap<string, PcmAudio>;
+  /**
+   * The samples of every FLAC track the document names (`trackEntries`), by
+   * audio id, each read when it is its turn (from memory or the device) and
+   * let go after: only a few are held at a time.
+   */
+  tracks: ReadonlyMap<string, () => Promise<PcmAudio>>;
 }
 
 export interface WriteOptions {
+  encode: FlacEncode;
   now?: Date;
-  /** 0…1, as bytes are written. */
+  /** 0…1: the FLAC encoding (the long part), then the writing. */
   onProgress?: (fraction: number) => void;
   /** Lets the page breathe between slices (the app passes `yieldToMain`). */
   tick?: () => Promise<void>;
   signal?: AbortSignal;
+  /** Tracks encoded at the same time (one worker each). */
+  parallel?: number;
 }
 
 const json = (v: unknown) => new TextEncoder().encode(JSON.stringify(v, null, 1)) as Uint8Array<ArrayBuffer>;
+const SLICE = 4 * 1024 * 1024;
 
-function plan(input: ProjectFileInput, now: Date): { manifest: ProjectManifest; total: number } {
-  const used = new Set<string>();
-  const unique = (dir: string, name: string) => {
-    let entry = `${dir}/${name}`;
-    for (let i = 2; used.has(entry.toLowerCase()); i++) entry = `${dir}/${i}-${name}`;
-    used.add(entry.toLowerCase());
-    return entry;
-  };
+/**
+ * Writes the project file into `sink`, piece by piece. Rejects with
+ * `ProjectFileError('too-large')` when the file would pass 4 GB, or with an
+ * `AbortError` when `signal` is aborted.
+ */
+export async function writeProjectFile(input: ProjectFileInput, sink: ByteSink, options: WriteOptions): Promise<{ bytes: number; manifest: ProjectManifest }> {
+  const now = options.now ?? new Date();
   const doc = input.document;
-  const audio: ManifestAudio[] = [...input.originals].map(([id, a]) => ({
-    id,
-    entry: unique('audio', safeEntryName(a.fileName, 'morceau')),
-    fileName: a.fileName,
-    mimeType: a.mimeType,
-    bytes: a.bytes.byteLength,
-  }));
-  const names = new Map([...doc.tracks, ...doc.separation.aside].map((tr) => [tr.audio.id, tr.name]));
-  const instruments: ManifestInstrument[] = [...input.instruments].map(([id, pcm]) => ({
-    id,
-    entry: unique('instruments', `${safeEntryName(names.get(id) ?? 'instrument', 'instrument')}.wav`),
-    frames: pcm.frames,
-    sampleRate: pcm.sampleRate,
-    channelCount: pcm.channelCount,
-    mono: pcm.mono,
-  }));
+  const tick = options.tick ?? (async () => {});
+  const aborted = () => {
+    if (options.signal?.aborted) throw new DOMException('cancelled', 'AbortError');
+  };
+  for (const tr of [...doc.tracks, ...doc.separation.aside]) {
+    if (tr.audio.origin !== 'separated' && !input.originals.has(tr.audio.id)) throw new Error(`no audio for track ${tr.id}`);
+  }
+  const planned = trackEntries(doc);
+  for (const p of planned) if (!input.tracks.has(p.id)) throw new Error(`no audio for ${p.entry}`);
+
+  // 1. The FLAC tracks, a few at a time (the encoding is the long part): each Blob may live on disk.
+  const encoded = new Map<string, { blob: Blob; pcm: Omit<PcmAudio, 'chunks'> }>();
+  const fractions = new Array<number>(planned.length).fill(0);
+  const report = () => options.onProgress?.(0.95 * (planned.length ? fractions.reduce((a, b) => a + b, 0) / planned.length : 1));
+  let next = 0;
+  const lane = async () => {
+    while (next < planned.length) {
+      const i = next++;
+      aborted();
+      const p = planned[i]!;
+      const pcm = await input.tracks.get(p.id)!();
+      const view: PcmAudio = pcm.mono ? { ...pcm, channelCount: 1 } : pcm;
+      const blob = await options.encode(view, {
+        signal: options.signal,
+        onProgress: (f) => {
+          fractions[i] = Math.min(1, Math.max(fractions[i]!, f));
+          report();
+        },
+      });
+      fractions[i] = 1;
+      report();
+      const { chunks: _c, ...meta } = pcm;
+      encoded.set(p.id, { blob, pcm: meta });
+    }
+  };
+  await Promise.all(Array.from({ length: Math.max(1, Math.min(options.parallel ?? 1, planned.length)) }, lane));
+  aborted();
+
+  // 2. The archive.
   const manifest: ProjectManifest = {
     format: 'fabtice',
     formatVersion: PROJECT_FILE_VERSION,
     documentVersion: doc.version,
     title: doc.project.title,
     savedAt: now.toISOString(),
-    audio,
-    instruments,
+    audio: [...input.originals].map(([id, a], i) => ({
+      id,
+      entry: `audio/${i > 0 ? `${i + 1}-` : ''}${safeEntryName(a.fileName, 'morceau')}`,
+      fileName: a.fileName,
+      mimeType: a.mimeType,
+      bytes: a.bytes.byteLength,
+    })),
+    tracks: planned.map((p) => {
+      const m = encoded.get(p.id)!.pcm;
+      return { id: p.id, kind: p.kind, entry: p.entry, frames: m.frames, sampleRate: m.sampleRate, channelCount: m.channelCount, mono: m.mono };
+    }),
   };
-  let total = entryFootprint(MIMETYPE_ENTRY, PROJECT_MIME.length, false) + entryFootprint(MANIFEST_ENTRY, json(manifest).length, false);
-  total += entryFootprint(DOCUMENT_ENTRY, json(doc).length, false);
-  for (const a of audio) total += entryFootprint(a.entry, a.bytes);
-  for (const [i, m] of instruments.entries()) total += entryFootprint(m.entry, wavBytes([...input.instruments.values()][i]!));
-  return { manifest, total: total + END_RECORD_BYTES };
-}
-
-/** Bytes the file will take, exactly (to show before saving, and to refuse a file over 4 GB). */
-export function projectFileSize(input: ProjectFileInput): number {
-  return plan(input, new Date(0)).total;
-}
-
-/** What instruments add to a file, in bytes (shown next to « avec les instruments séparés »). */
-export function instrumentsFileBytes(instruments: Iterable<PcmAudio>): number {
-  let n = 0;
-  for (const pcm of instruments) n += wavBytes(pcm);
-  return n;
-}
-
-/**
- * Writes the project file into `sink`, piece by piece. Rejects with
- * `ProjectFileError('too-large')` before writing anything when the file would
- * be over 4 GB, or with an `AbortError` when `signal` is aborted.
- */
-export async function writeProjectFile(input: ProjectFileInput, sink: ByteSink, options: WriteOptions = {}): Promise<{ bytes: number; manifest: ProjectManifest }> {
-  const now = options.now ?? new Date();
-  const { manifest, total } = plan(input, now);
-  if (total > ZIP_LIMIT) throw new ProjectFileError('too-large', `${total} bytes`);
-  for (const tr of [...input.document.tracks, ...input.document.separation.aside]) {
-    const known = tr.audio.origin === 'separated' ? input.instruments.has(tr.audio.id) : input.originals.has(tr.audio.id);
-    if (!known) throw new Error(`no audio for track ${tr.id}`);
-  }
-  const tick = options.tick ?? (async () => {});
+  const total = [...input.originals.values()].reduce((n, a) => n + a.bytes.byteLength, 0) + [...encoded.values()].reduce((n, e) => n + e.blob.size, 0);
   let done = 0;
-  const progress = (n: number) => {
+  const wrote = (n: number) => {
     done += n;
-    options.onProgress?.(Math.min(1, done / total));
-    if (options.signal?.aborted) throw new DOMException('cancelled', 'AbortError');
+    options.onProgress?.(0.95 + 0.05 * Math.min(1, done / Math.max(1, total)));
   };
-  const zip = new ZipStreamWriter(sink, now);
-  await zip.addSmall(MIMETYPE_ENTRY, new TextEncoder().encode(PROJECT_MIME) as Uint8Array<ArrayBuffer>);
-  await zip.addSmall(MANIFEST_ENTRY, json(manifest));
-  await zip.addSmall(DOCUMENT_ENTRY, json(input.document));
-  for (const a of manifest.audio) {
-    const bytes = new Uint8Array(input.originals.get(a.id)!.bytes);
-    await zip.begin(a.entry);
-    const SLICE = 4 * 1024 * 1024;
-    for (let at = 0; at < bytes.length; at += SLICE) {
-      await zip.write(bytes.slice(at, Math.min(bytes.length, at + SLICE)));
-      progress(Math.min(SLICE, bytes.length - at));
-      await tick();
+  try {
+    const zip = new ZipStreamWriter(sink, now);
+    await zip.addSmall(MIMETYPE_ENTRY, new TextEncoder().encode(PROJECT_MIME) as Uint8Array<ArrayBuffer>);
+    await zip.addSmall(MANIFEST_ENTRY, json(manifest));
+    await zip.addSmall(DOCUMENT_ENTRY, json(doc));
+    for (const a of manifest.audio) {
+      const bytes = new Uint8Array(input.originals.get(a.id)!.bytes);
+      await zip.begin(a.entry);
+      for (let at = 0; at < bytes.length; at += SLICE) {
+        await zip.write(bytes.slice(at, Math.min(bytes.length, at + SLICE)));
+        wrote(Math.min(SLICE, bytes.length - at));
+        await tick();
+        aborted();
+      }
+      await zip.end();
     }
-    await zip.end();
+    for (const t of manifest.tracks) {
+      const blob = encoded.get(t.id)!.blob;
+      await zip.begin(t.entry);
+      for (let at = 0; at < blob.size; at += SLICE) {
+        await zip.write(new Uint8Array(await blob.slice(at, Math.min(blob.size, at + SLICE)).arrayBuffer()));
+        wrote(Math.min(SLICE, blob.size - at));
+        aborted();
+      }
+      await zip.end();
+    }
+    await zip.finish();
+    options.onProgress?.(1);
+    return { bytes: zip.written, manifest };
+  } catch (e) {
+    if (e instanceof ZipFormatError && e.code === 'too-large') throw new ProjectFileError('too-large', e.message);
+    throw e;
   }
-  for (const m of manifest.instruments) {
-    await zip.begin(m.entry);
-    await writeWav(zip, input.instruments.get(m.id)!, progress, tick);
-    await zip.end();
-  }
-  await zip.finish();
-  options.onProgress?.(1);
-  return { bytes: zip.written, manifest };
 }
 
 // ---------------------------------------------------------------- reading
@@ -316,13 +284,15 @@ function readManifest(raw: unknown): ProjectManifest {
   if (!isCount(raw.formatVersion) || raw.formatVersion < 1) damaged('manifest version');
   // A later layout: say so, rather than guess (« mettez Fabtice à jour »).
   if (raw.formatVersion > PROJECT_FILE_VERSION) throw new ProjectFileError('too-recent', `file version ${raw.formatVersion}`);
-  if (!Array.isArray(raw.audio) || !Array.isArray(raw.instruments)) damaged('manifest lists');
+  // Version 1 (WAV instruments) was never published.
+  if (raw.formatVersion < PROJECT_FILE_VERSION) throw new ProjectFileError('not-project', `file version ${raw.formatVersion}`);
+  if (!Array.isArray(raw.audio) || !Array.isArray(raw.tracks)) damaged('manifest lists');
   for (const a of raw.audio as unknown[]) {
     if (!isRec(a) || !isStr(a.id) || !isStr(a.entry) || !isStr(a.fileName) || !isStr(a.mimeType) || !isCount(a.bytes)) damaged('manifest audio');
   }
-  for (const m of raw.instruments as unknown[]) {
-    if (!isRec(m) || !isStr(m.id) || !isStr(m.entry) || !isCount(m.frames) || !isCount(m.sampleRate) || m.sampleRate === 0) damaged('manifest instrument');
-    if ((m.channelCount !== 1 && m.channelCount !== 2) || typeof m.mono !== 'boolean') damaged('manifest instrument channels');
+  for (const m of raw.tracks as unknown[]) {
+    if (!isRec(m) || !isStr(m.id) || !isStr(m.entry) || !isCount(m.frames) || !isCount(m.sampleRate) || m.sampleRate === 0) damaged('manifest track');
+    if ((m.kind !== 'separated' && m.kind !== 'render') || (m.channelCount !== 1 && m.channelCount !== 2) || typeof m.mono !== 'boolean') damaged('manifest track kind');
   }
   return raw as unknown as ProjectManifest;
 }
@@ -334,18 +304,19 @@ export interface OpenedProjectFile {
   /** The original audio of `id`, checked against its CRC. */
   readOriginal(id: string): Promise<StoredAudio>;
   /**
-   * A separated track, read slice by slice straight into 16-bit chunks
-   * (shared memory when the page has it), checked against its CRC.
-   * `onFraction` follows the reading.
+   * A FLAC track (separated instrument or render), decoded slice by slice
+   * straight into 16-bit chunks (shared memory when the page has it),
+   * checked against its CRC and the manifest. `onFraction` follows it.
    */
-  readInstrument(id: string, onFraction?: (fraction: number) => void): Promise<PcmAudio>;
-  /** Ids of the separated tracks the file holds. */
-  instrumentIds: string[];
+  readTrack(id: string, onFraction?: (fraction: number) => void): Promise<PcmAudio>;
+  /** Checks every entry's CRC, reading the whole file once by slices (before anything is replaced). */
+  verify(onFraction?: (fraction: number) => void): Promise<void>;
 }
 
 function asFileError(e: unknown): never {
   if (e instanceof ProjectFileError) throw e;
   if (e instanceof ZipFormatError) throw new ProjectFileError(e.code === 'not-zip' ? 'not-project' : e.code === 'too-large' ? 'too-large' : 'damaged', e.message);
+  if (e instanceof FlacError) throw new ProjectFileError('damaged', e.message);
   if (isRec(e) && (e as { name?: unknown }).name === 'StorageError') throw new ProjectFileError('damaged', String((e as { message?: unknown }).message));
   throw e;
 }
@@ -353,8 +324,7 @@ function asFileError(e: unknown): never {
 /**
  * Opens a project file: checks that it is one, reads its manifest and its
  * document (migrated from an older version, refused when too recent), and
- * checks that every track it names is in the file. Nothing big is read yet:
- * the audio comes with `readOriginal` and `readInstrument`.
+ * checks that every track it names is in the file. Nothing big is read yet.
  */
 export async function openProjectFile(source: ByteSource): Promise<OpenedProjectFile> {
   try {
@@ -394,20 +364,17 @@ async function openChecked(source: ByteSource): Promise<OpenedProjectFile> {
   const document = readDocument(raw);
   if (!document) throw new ProjectFileError('too-recent', 'document version');
   const audio = new Map(manifest.audio.map((a) => [a.id, a]));
-  const instruments = new Map(manifest.instruments.map((m) => [m.id, m]));
+  const tracks = new Map(manifest.tracks.map((m) => [m.id, m]));
   for (const tr of [...document.tracks, ...document.separation.aside]) {
-    const listed = tr.audio.origin === 'separated' ? instruments.get(tr.audio.id) : audio.get(tr.audio.id);
-    if (!listed || !byName.has(listed.entry)) damaged(`no audio for track ${tr.id}`);
+    if (tr.audio.origin !== 'separated' && !audio.has(tr.audio.id)) damaged(`no audio for track ${tr.id}`);
   }
+  for (const p of trackEntries(document)) if (!tracks.has(p.id)) damaged(`no audio for ${p.entry}`);
   for (const a of audio.values()) if (entry(a.entry).size !== a.bytes) damaged(`size of ${a.entry}`);
-  for (const m of instruments.values()) {
-    if (entry(m.entry).size !== WAV_HEADER + m.frames * (m.mono ? 1 : 2) * 2) damaged(`size of ${m.entry}`);
-  }
+  for (const m of tracks.values()) entry(m.entry);
 
   return {
     manifest,
     document,
-    instrumentIds: [...instruments.keys()],
     async readOriginal(id) {
       const a = audio.get(id) ?? damaged(`no audio ${id}`);
       try {
@@ -417,10 +384,25 @@ async function openChecked(source: ByteSource): Promise<OpenedProjectFile> {
         asFileError(e);
       }
     },
-    async readInstrument(id, onFraction) {
-      const m = instruments.get(id) ?? damaged(`no instrument ${id}`);
+    async readTrack(id, onFraction) {
+      const m = tracks.get(id) ?? damaged(`no track ${id}`);
       try {
-        return await readWavInto(source, entry(m.entry), m, onFraction);
+        return await readFlacInto(source, entry(m.entry), m, onFraction);
+      } catch (e) {
+        asFileError(e);
+      }
+    },
+    async verify(onFraction) {
+      const all = entries.filter((e) => e.size > 0);
+      const total = all.reduce((n, e) => n + e.size, 0) || 1;
+      let done = 0;
+      try {
+        for (const e of all) {
+          await readEntry(source, e, (bytes) => {
+            done += bytes.length;
+            onFraction?.(done / total);
+          });
+        }
       } catch (e) {
         asFileError(e);
       }
@@ -428,53 +410,36 @@ async function openChecked(source: ByteSource): Promise<OpenedProjectFile> {
   };
 }
 
-/** Reads a WAV entry into chunks, slice by slice; checks its header against the manifest. */
-async function readWavInto(source: ByteSource, entry: ZipEntryInfo, m: ManifestInstrument, onFraction?: (f: number) => void): Promise<PcmAudio> {
+/** Decodes a FLAC entry into chunks, slice by slice; checks it against the manifest. */
+async function readFlacInto(source: ByteSource, entry: ZipEntryInfo, m: ManifestTrack, onFraction?: (f: number) => void): Promise<PcmAudio> {
   const channels = m.mono ? 1 : 2;
-  const frameBytes = channels * 2;
   const chunkCount = Math.ceil(m.frames / CHUNK);
   const chunks: Chunk[] = [];
   for (let c = 0; c < chunkCount; c++) chunks.push({ l: newChunkChannel(), r: m.mono ? null : newChunkChannel() });
-  // A frame cut by the end of a slice is carried over to the next one (slices are 4 MB: it does not happen in practice).
   let frame = 0;
-  let carry: Uint8Array | null = null;
-  const take = (bytes: Uint8Array) => {
-    let data = bytes;
-    if (carry) {
-      const joined = new Uint8Array(carry.length + bytes.length);
-      joined.set(carry);
-      joined.set(bytes, carry.length);
-      data = joined;
-      carry = null;
+  const decoder = new FlacDecoder((out, n) => {
+    if (out.length !== channels) throw new FlacError(`${out.length} channels, ${channels} expected`);
+    if (frame + n > m.frames) throw new FlacError('more frames than announced');
+    const l = out[0]!;
+    const r = out[1];
+    for (let i = 0; i < n; ) {
+      const f = frame + i;
+      const chunk = chunks[f >> 15]!;
+      const k = f & (CHUNK - 1);
+      const run = Math.min(n - i, CHUNK - k);
+      // Int32 → Int16: exact for 16-bit files (anything else is refused below).
+      chunk.l.set(l.subarray(i, i + run), k);
+      if (chunk.r && r) chunk.r.set(r.subarray(i, i + run), k);
+      i += run;
     }
-    const whole = Math.floor(data.length / frameBytes);
-    const v = new DataView(data.buffer, data.byteOffset, whole * frameBytes);
-    for (let i = 0; i < whole; i++, frame++) {
-      const chunk = chunks[frame >> 15]!;
-      const k = frame & (CHUNK - 1);
-      chunk.l[k] = v.getInt16(i * frameBytes, true);
-      if (chunk.r) chunk.r[k] = v.getInt16(i * frameBytes + 2, true);
-    }
-    if (whole * frameBytes < data.length) carry = data.slice(whole * frameBytes);
-  };
-  let headerSeen = false;
-  await readEntry(source, entry, (bytes, at) => {
-    let body = bytes;
-    if (!headerSeen) {
-      if (at !== 0 || bytes.length < WAV_HEADER) damaged(`${entry.name}: header`);
-      const v = new DataView(bytes.buffer, bytes.byteOffset, WAV_HEADER);
-      const tag = (o: number) => String.fromCharCode(bytes[o]!, bytes[o + 1]!, bytes[o + 2]!, bytes[o + 3]!);
-      if (tag(0) !== 'RIFF' || tag(8) !== 'WAVE' || tag(12) !== 'fmt ' || tag(36) !== 'data') damaged(`${entry.name}: not a WAV`);
-      if (v.getUint16(20, true) !== 1 || v.getUint16(22, true) !== channels || v.getUint32(24, true) !== m.sampleRate || v.getUint16(34, true) !== 16) {
-        damaged(`${entry.name}: unexpected format`);
-      }
-      if (v.getUint32(40, true) !== m.frames * frameBytes) damaged(`${entry.name}: data size`);
-      headerSeen = true;
-      body = bytes.subarray(WAV_HEADER);
-    }
-    take(body);
-    onFraction?.(Math.min(1, (at + bytes.length) / entry.size));
+    frame += n;
   });
-  if (frame !== m.frames || carry) damaged(`${entry.name}: ${frame} frames, ${m.frames} expected`);
+  await readEntry(source, entry, (bytes, at) => {
+    decoder.push(bytes);
+    if (decoder.info && (decoder.info.bitsPerSample !== 16 || decoder.info.sampleRate !== m.sampleRate)) throw new FlacError('unexpected format');
+    onFraction?.(Math.min(1, (at + bytes.length) / Math.max(1, entry.size)));
+  });
+  decoder.end();
+  if (frame !== m.frames) throw new FlacError(`${entry.name}: ${frame} frames, ${m.frames} expected`);
   return pcmFromChunks(chunks, m.frames, m.sampleRate, m.channelCount);
 }

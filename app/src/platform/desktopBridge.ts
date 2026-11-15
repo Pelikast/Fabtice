@@ -242,7 +242,7 @@ export interface DesktopBridge {
   onYtdlpProgress(callback: (progress: YtdlpProgress) => void): Unsubscribe;
   onExtractProgress(callback: (progress: ExtractProgress) => void): Unsubscribe;
   /**
-   * Lot 4: `.fabtice` files macOS handed to the app (double-click in the Finder, « Ouvrir avec »)
+   * Lot 4: `.fab` files macOS handed to the app (double-click in the Finder, « Ouvrir avec »)
    * before the page asked; from that call on, the next ones come through `onOpenProject`.
    * A Mac app that predates it lacks these four methods.
    */
@@ -251,6 +251,22 @@ export interface DesktopBridge {
   /** Bytes `offset` to `offset + length` (at most 16 MB) of the file behind `token`. */
   readProjectFile?(token: string, offset: number, length: number): Promise<Uint8Array>;
   releaseProjectFile?(token: string): Promise<true>;
+  /** Owner's decisions of 15 November: the recent projects (opened or saved), most recent first, files gone dropped. */
+  recentProjects?(): Promise<RecentProject[]>;
+  /** Opens a recent project: it then comes through `onOpenProject`, as from the Finder. */
+  openRecentProject?(token: string): Promise<{ ok: boolean }>;
+  clearRecentProjects?(): Promise<true>;
+  /** A project chosen in the page's own file picker goes in the recent list (its path stays in the Mac app). */
+  rememberProjectFile?(file: File): Promise<boolean>;
+}
+
+/** A recent project as the page sees it: a name and a folder (« ~ » for the home folder), opened by its token. */
+export interface RecentProject {
+  token: string;
+  name: string;
+  folder: string;
+  /** ISO date it was last opened or saved. */
+  at: string;
 }
 
 /** A project file macOS handed over (`desktop/src/open-files.js`): read by ranges with its token. */

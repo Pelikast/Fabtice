@@ -20,7 +20,7 @@ import { defaultTempoMap } from '../grid/tempoMap';
 import type { ImportProgress } from '../import/types';
 import type { AnalysisResult } from '../model/analysis';
 import { defaultExportPreferences, type ExportPreferences } from '../model/audioExport';
-import type { RenderStatus } from '../model/render';
+import type { KeptRender, RenderStatus } from '../model/render';
 import { emptySeparation, type SeparationBackend, type SeparationState, type StemId } from '../model/separation';
 import type { SeparationErrorCode, SeparationStep } from '../separation/types';
 import { emptyCorrections, type Corrections } from '../model/corrections';
@@ -145,8 +145,10 @@ export interface AppState {
   separation: SeparationState;
   /** Progress or failure of a separation (interface only, not saved). */
   separationRun: SeparationRun;
-  /** The « Appliquer » render (interface only, never saved: the applied files are temporary). */
+  /** The « Appliquer » render in progress or in place (interface state). */
   render: RenderStatus;
+  /** The last applied render kept with the piece (version 5, saved; its samples are on the device). */
+  keptRender: KeptRender | null;
   /** Last choices of « Exporter le son » (saved with the piece). */
   exportPrefs: ExportPreferences;
   /** Lot 4: the metronome beyond on/off (volume, count-in, patterns, acceleration), saved with the piece. */
@@ -189,6 +191,7 @@ export function initialState(): AppState {
     separation: emptySeparation(),
     separationRun: { status: 'idle' },
     render: { status: 'none' },
+    keptRender: null,
     exportPrefs: defaultExportPreferences(),
     metronome: defaultMetronome(),
     markers: emptyMarkers(),

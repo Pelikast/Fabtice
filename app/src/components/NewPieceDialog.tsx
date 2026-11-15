@@ -4,7 +4,7 @@ import { cancelImport, isCancellablePhase, startFileImport, startLinkImport, sta
 import { chooseProjectFile } from '../project/choose';
 import { FILE_ACCEPT } from '../import/formats';
 import { t } from '../i18n';
-import { getDesktopBridge } from '../platform/desktopBridge';
+import { getDesktopBridge, type RecentProject } from '../platform/desktopBridge';
 import { forgetKeptPiece, reopenKeptPiece } from '../storage';
 import { closeNewPiece, setImportStatus } from '../store/actions';
 import { useApp, type ImportStatus, type ReopenOffer } from '../store/store';
@@ -115,7 +115,7 @@ function Choices({ open, desktop }: { open: boolean; desktop: boolean }) {
   }, [open]);
 
   const chooseFile = () => fileRef.current?.click();
-  // Lot 4: a `.fabtice` project, offered calmly after the main way in. Its file picker is made on the
+  // Lot 4: a `.fab` project, offered calmly after the main way in. Its file picker is made on the
   // spot (`chooseProjectFile`): the dialog keeps a single file field, the audio one.
   const projectLine = (
     <div className="ouvrir-projet">
@@ -183,6 +183,7 @@ function Choices({ open, desktop }: { open: boolean; desktop: boolean }) {
         </div>
         {fileInput}
         {projectLine}
+        <RecentProjects open={open} />
         {toolUpdate && (
           <div className="mise-a-jour">
             <span>{t('new.updateOffer')}</span>{' '}
@@ -348,3 +349,42 @@ function ImportErrorView({ status }: { status: Extract<ImportStatus, { kind: 'er
     </>
   );
 }
+
+/**
+ * Mac app (owner's decisions of 15 November): « Projets récents », the last
+ * projects opened or saved, a few calm lines under « ouvrir un projet »,
+ * most recent first. Read each time the dialog opens; nothing on the web.
+ */
+function RecentProjects({ open }: { open: boolean }) {
+  const [list, setList] = useState<RecentProject[]>([]);
+  useEffect(() => {
+    const bridge = getDesktopBridge();
+    if (!open || !bridge?.recentProjects) return;
+    let live = true;
+    bridge.recentProjects().then(
+      (l) => live && setList(l.slice(0, RECENT_SHOWN)),
+      () => live && setList([]),
+    );
+    return () => {
+      live = false;
+    };
+  }, [open]);
+  if (list.length === 0) return null;
+  return (
+    <section className="projets-recents" aria-labelledby="recents-titre" data-testid="projets-recents">
+      <h3 id="recents-titre">{t('new.recentTitle')}</h3>
+      <ul>
+        {list.map((p) => (
+          <li key={p.token}>
+            <button className="lien" onClick={() => void getDesktopBridge()?.openRecentProject?.(p.token)}>
+              {p.name.replace(/\.fab$/i, '')}
+            </button>
+            <small>{p.folder}</small>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+const RECENT_SHOWN = 5;
