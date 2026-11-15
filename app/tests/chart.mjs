@@ -1143,7 +1143,7 @@ try {
     await page.tap('.menu-plus');
     await sleep(300);
     const items = await page.$$eval('.export-tel [role="menuitem"]', (els) => els.map((e) => `${e.dataset.export}:${e.disabled}`));
-    check('phone: the « ⋯ » menu lists the export entries (iReal Pro, print, audio)', items.map((i) => i.split(':')[0]).join() === 'ireal,print,audio', items.join());
+    check('phone: the « ⋯ » menu lists the export entries (project, iReal Pro, print, audio)', items.map((i) => i.split(':')[0]).join() === 'project,ireal,print,audio', items.join());
     check('phone: « Imprimer la grille » is available there', items.includes('print:false'));
     await page.screenshot({ path: path.join(out, 'app-390-menu-export.png') });
     await page.tap('.export-tel [data-export="print"]');

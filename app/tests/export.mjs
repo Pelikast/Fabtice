@@ -144,7 +144,7 @@ try {
     const ireal = items.find((i) => i.key === 'ireal');
     check('menu: « Grille pour iReal Pro » is a normal link to a file named after the piece', ireal && ireal.tag === 'A' && /^blob:/.test(ireal.href) && ireal.download === 'Blues du dimanche.html' && ireal.text === 'Grille pour iReal Pro', JSON.stringify(ireal));
     check('menu: in a browser there is no « Ouvrir dans iReal Pro » (the Mac app adds it)', !items.some((i) => i.key === 'ireal-open'));
-    check('menu: print and audio entries are still there', items.map((i) => i.key).join(',') === 'ireal,print,audio');
+    check('menu: the project (lot 4), then print and audio entries are still there', items.map((i) => i.key).join(',') === 'project,ireal,print,audio');
     await page.keyboard.press('Escape');
 
     // The file.

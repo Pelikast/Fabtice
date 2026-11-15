@@ -57,10 +57,12 @@ try {
     // « Exporter » is a small menu: iReal Pro is a link, printing the chart is available, the sound opens its dialog (lot 3).
     await page.click('button:has-text("Exporter")');
     const exportItems = await page.locator('.menu-export [role="menuitem"]').evaluateAll((els) => els.map((el) => ({ key: el.dataset.export, disabled: el.disabled, text: el.innerText })));
+    // Lot 4: « Enregistrer le projet… » first (off for the demo piece, which is never kept nor saved);
     // « Grille pour iReal Pro » is a link to the page it writes; printing and the sound are available.
+    const [projectItem, ...others] = exportItems;
     check(
-      'top bar: Exporter opens a menu (iReal Pro link, print and sound available)',
-      exportItems.length === 3 && exportItems.map((x) => x.key).join(',') === 'ireal,print,audio' && !exportItems[0].disabled && !exportItems[1].disabled && !exportItems[2].disabled && !exportItems[0].text.includes('bientôt'),
+      'top bar: Exporter opens a menu (save the project, iReal Pro link, print and sound available)',
+      exportItems.length === 4 && exportItems.map((x) => x.key).join(',') === 'project,ireal,print,audio' && projectItem.disabled && others.every((x) => !x.disabled) && !others[0].text.includes('bientôt'),
       JSON.stringify(exportItems),
     );
     await page.keyboard.press('Escape');
@@ -198,10 +200,13 @@ try {
     await sleep(300);
     check('dialog opens', await page.locator('.voile.ouverte').isVisible());
     check('web: no link field, a file button', (await page.locator('.champ').count()) === 0 && (await page.locator('.accueil .plein').innerText()) === 'Choisir un fichier audio');
-    // Lot 3: « Instruments à séparer » is back (off by default); « ouvrir un projet » waits for lot 4.
+    // Lot 3: « Instruments à séparer » is back (off by default). Lot 4: « ouvrir un projet Fabtice », one calm line under the main button.
     check(
-      'the instrument choice (none ticked), no « ouvrir un projet »',
-      (await page.locator('text=Instruments à séparer').count()) === 1 && (await page.locator('.stems-choix .stem[aria-pressed="true"]').count()) === 0 && (await page.locator('text=ouvrir un projet').count()) === 0,
+      'the instrument choice (none ticked), « ouvrir un projet » after the main button',
+      (await page.locator('text=Instruments à séparer').count()) === 1 &&
+        (await page.locator('.stems-choix .stem[aria-pressed="true"]').count()) === 0 &&
+        (await page.locator('[data-testid="ouvrir-projet"]').count()) === 1 &&
+        (await page.locator('.accueil input[type="file"]').count()) === 1,
     );
     await page.keyboard.press('Escape');
     await sleep(300);

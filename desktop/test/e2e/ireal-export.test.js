@@ -99,7 +99,7 @@ test('the file downloads inside the app and decodes to the chart; « Ouvrir dans
     await page.click('button:has-text("Exporter")');
     await page.waitForSelector('.menu-export a[data-export="ireal"]', { timeout: 10000 });
     const items = await page.$$eval('.menu-export [role="menuitem"]', (els) => els.map((e) => `${e.dataset.export}:${e.tagName}:${e.getAttribute('download') || ''}`));
-    assert.deepEqual(items, ['ireal:A:Blues du dimanche.html', 'ireal-open:BUTTON:', 'print:BUTTON:', 'audio:BUTTON:']);
+    assert.deepEqual(items, ['project:BUTTON:', 'ireal:A:Blues du dimanche.html', 'ireal-open:BUTTON:', 'print:BUTTON:', 'audio:BUTTON:']);
 
     // The download: no navigation, no new window, and the file lands.
     const url0 = page.url();
