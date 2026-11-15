@@ -20,6 +20,7 @@ import { gridFromActivations, gridFromBeats } from '../../../../app/src/analysis
 import { downProbAt, pickPeaks, postMinimal } from '../../../../app/src/analysis/engine/beats';
 import { REPAIR } from '../../../../app/src/analysis/engine/repair';
 import { DISPLACED } from '../../../../app/src/analysis/engine/displaced';
+import { STEADY, ruleBreaks } from '../../../../app/src/analysis/engine/steady';
 import { TEMPO_FIX, applyTempoFix } from '../../../../app/src/analysis/engine/tempoFix';
 import { BARS, barChains, downbeatPeaks, repairByBars } from '../../../../app/src/analysis/engine/bars';
 import { firstDownbeat } from '../../../../app/src/analysis/engine/grid';
@@ -64,10 +65,14 @@ export const METHODS: Record<string, Method> = {
         { ...REPAIR, ...JSON.parse(process.env.REPAIR_OPTS ?? '{}') },
         { ...BARS, ...JSON.parse(process.env.BARS_OPTS ?? '{}') },
         process.env.DISPLACED_OPTS === 'off' ? null : { ...DISPLACED, ...JSON.parse(process.env.DISPLACED_OPTS ?? '{}') },
+        [3, 4],
+        process.env.STEADY_OPTS === 'off' ? null : { ...STEADY, ...JSON.parse(process.env.STEADY_OPTS ?? '{}') },
       ),
     ),
+  /** Analyser version 4: everything but the last safety net. */
+  v4: (act) => asGrid(gridFromBeats(postMinimal(act).beats, (t) => downProbAt(act, t), REPAIR, BARS, DISPLACED, [3, 4], null)),
   /** The app before the bar-led repair (the beat repair alone). */
-  old: (act) => asGrid(gridFromBeats(postMinimal(act).beats, (t) => downProbAt(act, t), REPAIR, null, null)),
+  old: (act) => asGrid(gridFromBeats(postMinimal(act).beats, (t) => downProbAt(act, t), REPAIR, null, null, [3, 4], null)),
   /** The prototype's beat-only DBN, then the app's metre and phase (no repair). */
   dbn: (act) => asGrid(gridFromBeats(dbnDecode(act, { beatsPerBar: 1, minBpm: 40, maxBpm: 300, lambda: LAMBDA }).beats, (t) => downProbAt(act, t), null)),
   /** The prototype's joint beat and bar DBN (3 or 4 beats). */
@@ -230,8 +235,85 @@ export function firstWrongBar(truth: { times: number[]; downbeat: number; meter:
   return null;
 }
 
+/**
+ * Every tempo jump (≥ `ratio` between neighbouring bars) of a grid, with what
+ * causes it: `edge` (first or last bar of the music), `lost` (fewer than half
+ * of the bar's beats on true beats: the network lost the pulse), `count` (the
+ * beats are true beats, but the bar holds another number of them than the
+ * metre), `downbeat` (the right number, the bar line a beat early or late),
+ * `timing` (all right but the beats' own placing).
+ */
+export function jumpCauses(truth: { times: number[]; downbeat: number; meter: number }, g: FoundGrid, ratio = 1.3): { at: number; cause: string; tempi: [number, number] }[] {
+  const m = g.beatsPerBar;
+  const tb = truth.times;
+  const span: [number, number] = [tb[0]!, tb[tb.length - 1]!];
+  const bars: { t0: number; t1: number; i0: number; tempo: number }[] = [];
+  for (let i = g.downbeat; i + m < g.times.length; i += m) {
+    const t0 = g.times[i]!;
+    const t1 = g.times[i + m]!;
+    if (t0 >= span[0] - TOL && t1 <= span[1] + TOL) bars.push({ t0, t1, i0: i, tempo: (60 * m) / (t1 - t0) });
+  }
+  const onTrue = (t: number) => tb.some((x) => Math.abs(x - t) <= TOL);
+  const trueDown = (t: number) => tb.some((x, k) => Math.abs(x - t) <= TOL && (((k - truth.downbeat) % truth.meter) + truth.meter) % truth.meter === 0);
+  const out: { at: number; cause: string; tempi: [number, number] }[] = [];
+  for (let k = 1; k < bars.length; k++) {
+    const a = bars[k - 1]!;
+    const b = bars[k]!;
+    if (Math.max(a.tempo / b.tempo, b.tempo / a.tempo) < ratio) continue;
+    let cause = 'timing';
+    if (k === 1 || k === bars.length - 1) cause = 'edge';
+    else {
+      const lost = [a, b].some((x) => g.times.slice(x.i0, x.i0 + m).filter(onTrue).length < m / 2);
+      const nTrue = (x: typeof a) => tb.filter((t) => t >= x.t0 - TOL && t < x.t1 - TOL).length;
+      if (lost) cause = 'lost';
+      else if (nTrue(a) !== truth.meter || nTrue(b) !== truth.meter) cause = 'count';
+      else if (![a.t0, b.t0, b.t1].every(trueDown)) cause = 'downbeat';
+    }
+    out.push({ at: b.t0, cause, tempi: [a.tempo, b.tempo] });
+  }
+  return out;
+}
+
 const opt = args();
-if (process.argv[1]?.endsWith('temps.mjs') && opt.manual) {
+if (process.argv[1]?.endsWith('temps.mjs') && opt.net) {
+  // --net id.condition: the passages the last safety net re-grids, the beats before and after it, the true beats.
+  const [id, cond] = opt.net.split('.');
+  const t = loadCorpus().find((x) => x.id === id)!;
+  const act = (await networks(`${t.dir}/${t.conditions[cond!]!.mix}`)).outputs.act;
+  const tr = truthOf(t, cond!);
+  const r = gridFromBeats(postMinimal(act).beats, (x) => downProbAt(act, x), REPAIR, BARS, DISPLACED, [3, 4], process.env.STEADY_OPTS === 'off' ? null : { ...STEADY, ...JSON.parse(process.env.STEADY_OPTS ?? '{}') });
+  const before = METHODS.v4!(act);
+  const all = (g: FoundGrid) => barTempi(g.times, g.downbeat, g.beatsPerBar).map((x) => x.toFixed(0)).join(' ');
+  console.log(`bar tempi v4   ${all(before)}\nbar tempi now  ${all(asGrid({ grid: r.grid, meterScores: [], repairs: [] }))}\nbar tempi true ${barTempi(tr.times, tr.downbeat, tr.meter).map((x) => x.toFixed(0)).join(' ')}`);
+  for (const j of jumpCauses(tr, before)) console.log(`jump v4 ${j.at.toFixed(2)} ${j.cause} ${j.tempi.map((x) => x.toFixed(0)).join('→')}`);
+  for (const p of r.repairs.filter((x) => x.cause === 'steady')) {
+    const show = (a: readonly number[]) => a.filter((x) => x >= p.start - 0.01 && x <= p.end + 0.01).map((x) => x.toFixed(2)).join(' ');
+    const tempi = (g: FoundGrid) => barTempi(g.times, g.downbeat, g.beatsPerBar, [p.start - 8, p.end + 8]).map((x) => x.toFixed(0)).join(' ');
+    console.log(`steady ${p.start.toFixed(2)}–${p.end.toFixed(2)} found ${p.found} placed ${p.placed}\n  v4    ${show(before.times)}\n  now   ${show(r.grid.beats)}\n  true  ${show(tr.times)}\n  bar tempi v4 ${tempi(before)}\n  bar tempi now ${tempi(asGrid({ grid: r.grid, meterScores: [], repairs: [] }))}`);
+  }
+} else if (process.argv[1]?.endsWith('temps.mjs') && opt.jumps) {
+  // --jumps: every tempo jump of the app's grid, by cause.
+  const tally = new Map<string, number>();
+  for (const t of loadCorpus()) {
+    for (const condition of Object.keys(t.conditions)) {
+      const act = (await networks(`${t.dir}/${t.conditions[condition]!.mix}`)).outputs.act;
+      const truth = truthOf(t, condition);
+      const g = METHODS[opt.jumps === 'true' ? 'app' : opt.jumps]!(act);
+      const js = jumpCauses(truth, g);
+      // Passages that still break the owner's rule on the grid shown (the last safety net's own test).
+      const downs = g.times.filter((_, i) => i >= g.downbeat && (i - g.downbeat) % g.beatsPerBar === 0);
+      const left = ruleBreaks(g.times, g.times.map((_, i) => ((((i - g.downbeat) % g.beatsPerBar) + g.beatsPerBar) % g.beatsPerBar === 0 ? 1 : 2)), g.beatsPerBar, { ...STEADY, ...JSON.parse(process.env.STEADY_OPTS ?? '{}') });
+      if (left.length) {
+        tally.set(`${condition}|rule broken`, (tally.get(`${condition}|rule broken`) ?? 0) + left.length);
+        console.log(`${t.id.padEnd(24)} ${condition.padEnd(11)} RULE ${left.map((p) => `${downs[p.from]!.toFixed(1)}–${downs[p.to + 1]!.toFixed(1)}s`).join(' ')}`);
+      }
+      if (!js.length) continue;
+      for (const j of js) tally.set(`${condition}|${j.cause}`, (tally.get(`${condition}|${j.cause}`) ?? 0) + 1);
+      console.log(`${t.id.padEnd(24)} ${condition.padEnd(11)} ${js.map((j) => `${j.at.toFixed(1)}s ${j.cause} ${j.tempi[0].toFixed(0)}→${j.tempi[1].toFixed(0)}`).join(' | ')}`);
+    }
+  }
+  console.log('\n' + [...tally.entries()].sort().map(([k, v]) => `${k.padEnd(24)} ${v}`).join('\n'));
+} else if (process.argv[1]?.endsWith('temps.mjs') && opt.manual) {
   // --manual: the two actions of the bar menu applied at the first wrong bar of the app's grid, on every piece where it is wrong.
   const partage = JSON.parse(readFileSync(join(ROOT, 'banc', 'partage.json'), 'utf8')) as { dev: string[]; test: string[] };
   const inList = (id: string, list: string[]) => list.some((p) => (p.endsWith('*') ? id.startsWith(p.slice(0, -1)) : p === id));

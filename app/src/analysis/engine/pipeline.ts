@@ -22,7 +22,8 @@ import { estimateKey, type KeyEstimate } from './key';
 import { inferMeter, type MeterScore } from './meter';
 import { BARS, repairByBars, type BarOptions } from './bars';
 import { DISPLACED, smoothDisplaced, type DisplacedOptions } from './displaced';
-import { REPAIR, bestPhase, repairBeats, type DownbeatAt, type RepairOptions, type RepairedPassage } from './repair';
+import { STEADY, steadyBars, type SteadyOptions } from './steady';
+import { REPAIR, bestPhase, phaseScores, repairBeats, type DownbeatAt, type RepairOptions, type RepairedPassage } from './repair';
 import { resampleRatio } from './resample';
 import { type OrtLike, type RunControl, type SessionLike } from './session';
 import { estimateTuning, type TuningEstimate } from './tuning';
@@ -39,6 +40,8 @@ export const OPTIONS = {
   bars: true,
   /** Move back runs of beats the network placed early or late and that come back (`displaced.ts`). */
   displaced: true,
+  /** The last safety net: no abrupt and brief change of the bar length (`steady.ts`). */
+  steady: true,
 };
 
 /** Shortest piece analysed, in seconds: below it there is nothing to find. */
@@ -120,6 +123,7 @@ export function gridFromBeats(
   bars: BarOptions | null = OPTIONS.bars ? BARS : null,
   displaced: DisplacedOptions | null = OPTIONS.displaced ? DISPLACED : null,
   candidates: readonly number[] = OPTIONS.meterCandidates,
+  steady: SteadyOptions | null = OPTIONS.steady ? STEADY : null,
 ): GridFromBeats {
   const flat = () => 0.5;
   const probs = (beats: readonly number[]) => beats.map((t) => (downAt ?? flat)(t));
@@ -134,6 +138,19 @@ export function gridFromBeats(
   const dp = probs(beats);
   const m = inferMeter(dp, { candidates });
   const numbers = beats.length >= 4 ? renumber(beats, m.beatsPerBar, bestPhase(dp, m.beatsPerBar)) : m.numbers;
+  if (steady && beats.length >= 4) {
+    const d0 = numbers.indexOf(1);
+    const net = steadyBars(beats, d0, m.beatsPerBar, steady, downAt ?? undefined);
+    if (net.repairs.length) {
+      const all = [...repairs, ...net.repairs].sort((a, b) => a.start - b.start);
+      // Counted in beats, a passage may hold a part of a bar: the phase heard before it or the one heard after
+      // it, the one the downbeats of the whole piece agree with best.
+      const scores = phaseScores(probs(net.beats), m.beatsPerBar);
+      const score = (d: number) => scores[(m.beatsPerBar - (d % m.beatsPerBar)) % m.beatsPerBar]!;
+      const d = net.phases.reduce((x, y) => (score(y) > score(x) ? y : x));
+      return { grid: makeGrid(net.beats, renumber(net.beats, m.beatsPerBar, d), m.beatsPerBar), meterScores: m.scores, repairs: all };
+    }
+  }
   return { grid: makeGrid(beats, numbers, m.beatsPerBar), meterScores: m.scores, repairs };
 }
 

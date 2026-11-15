@@ -175,7 +175,7 @@ describe('the grid from the beats', () => {
   it('can be switched off', () => {
     const truth = steady(96, 72);
     const found = [...truth.slice(0, 51), (truth[50]! + truth[51]!) / 2, ...truth.slice(51)];
-    expect(gridFromBeats(found, null, null).grid.beats).toEqual(found);
+    expect(gridFromBeats(found, null, null, undefined, undefined, undefined, null).grid.beats).toEqual(found);
     expect(repairBeats(found, 4, null, REPAIR).beats).toHaveLength(truth.length);
   });
 });

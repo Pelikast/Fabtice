@@ -51,7 +51,7 @@ const results = Object.entries(recorded.cases as unknown as Record<string, Recor
   const beat = unpack(r.beat);
   const act: BeatActivations = { beat, down: unpack(r.down), frames: beat.length, fps: recorded.fps };
   const downAt = (t: number) => downProbAt(act, t);
-  const was = gridFromBeats(postMinimal(act).beats, downAt, REPAIR, null, null).grid;
+  const was = gridFromBeats(postMinimal(act).beats, downAt, REPAIR, null, null, undefined, null).grid;
   const is = gridFromActivations(act).grid;
   const asGrid = (g: typeof was): Grid => ({ times: g.beats, downbeat: firstDownbeat(g), bpb: g.beatsPerBar });
   return { name, split: r.split, was: scoreGrid(r.truth, asGrid(was)), is: scoreGrid(r.truth, asGrid(is)), same: JSON.stringify(was.beats) === JSON.stringify(is.beats) };
