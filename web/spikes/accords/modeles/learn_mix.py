@@ -21,12 +21,15 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
 
 
+VARIANT = "modele-mix"
+
+
 def run(model: str, ids: list[str], w: float, tag: str) -> dict:
-    out = ROOT / "resultats" / "modeles" / tag / f"{model}-w{w:g}"
+    out = ROOT / "resultats" / "modeles" / tag / f"{model}-{VARIANT}-w{w:g}"
     env = {**os.environ, "MODELE": model, "MIX_W": str(w), "BANC_DATA": os.environ.get("BANC_DATA", "/home/user/banc/data")}
-    subprocess.run(["node", "dist/run.mjs", "--variant", "modele-mix", "--grid", "detected", "--only", ",".join(ids), "--out", str(out.relative_to(ROOT))],
+    subprocess.run(["node", "dist/run.mjs", "--variant", VARIANT, "--grid", "detected", "--only", ",".join(ids), "--out", str(out.relative_to(ROOT))],
                    cwd=ROOT, env=env, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    return json.loads((out / "modele-mix.json").read_text())
+    return json.loads((out / f"{VARIANT}.json").read_text())
 
 
 def colour(d: dict) -> dict[str, float]:
@@ -38,7 +41,10 @@ def main() -> None:
     ap.add_argument("model")
     ap.add_argument("--set", default="all", choices=["all", "subset"])
     ap.add_argument("--weights", default="0.2,0.35,0.5,0.65,0.8")
+    ap.add_argument("--variant", default="modele-mix", help="modele-mix (app's plain decoder) or modele-amix (stage A)")
     a = ap.parse_args()
+    global VARIANT
+    VARIANT = a.variant
     items = corpus()
     if a.set == "subset":
         items = subset(items)
@@ -53,7 +59,7 @@ def main() -> None:
             best, best_w = m, w
     c = colour(run(a.model, ctl, best_w, "controle"))
     print(f"held-out w={best_w:g} " + "  ".join(f"{k} {100 * v:.1f}" for k, v in c.items()))
-    (ROOT / "resultats" / "modeles" / f"mix-{a.model}-{a.set}.json").write_text(json.dumps({"model": a.model, "set": a.set, "weight": best_w}))
+    (ROOT / "resultats" / "modeles" / f"mix-{a.model}-{VARIANT}-{a.set}.json").write_text(json.dumps({"model": a.model, "set": a.set, "weight": best_w}))
 
 
 if __name__ == "__main__":

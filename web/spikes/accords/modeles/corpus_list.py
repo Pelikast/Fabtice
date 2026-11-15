@@ -3,9 +3,7 @@ for the slow candidates.
 
     python corpus_list.py [--subset] [--json]
 
-Split: banc/partage.json (dev / controle). Subset for Tsumugi: within each synthetic style,
-the first dev piece and the first held-out piece (sorted by id), clipped to 14 pieces with
-every style covered; GuitarSet: one take per style family (bn, jazz) per player = 8 takes.
+Split: banc/partage.json (dev / test, here "controle"). Subset for the slow candidate: SUBSET.
 """
 
 from __future__ import annotations
@@ -22,11 +20,20 @@ SPLIT_FILE = HERE.parent / "banc" / "partage.json"
 
 
 def split() -> dict[str, str]:
-    if SPLIT_FILE.exists():
-        d = json.loads(SPLIT_FILE.read_text())
-    else:  # the shared split (origin/accords-structure), copied
-        d = json.loads((HERE / "partage.json").read_text())
-    return {**{i: "dev" for i in d["dev"]}, **{i: "controle" for i in d["controle"]}}
+    """The shared dev / held-out split of banc/partage.json ("dev" / "test", ids or globs);
+    "test" is called "controle" here."""
+
+    import fnmatch
+
+    d = json.loads(SPLIT_FILE.read_text())
+    ids = [p.name for p in (DATA / "corpus").iterdir() if (p / "truth.json").exists()]
+    out = {}
+    for part, name in (("dev", "dev"), ("test", "controle"), ("controle", "controle")):
+        for pat in d.get(part, []):
+            for i in ids:
+                if fnmatch.fnmatch(i, pat):
+                    out[i] = name
+    return out
 
 
 def corpus() -> list[dict]:
@@ -43,28 +50,17 @@ def corpus() -> list[dict]:
     return out
 
 
+# The pieces the slow candidate (Tsumugi) ran on: 14 synthetic pieces covering every style and
+# 8 GuitarSet takes (one bossa and one jazz take per player). Frozen: chosen before the split
+# of banc/partage.json was fixed, they happen to fall 7 / 7 and 4 / 4 into dev and held-out.
+SUBSET = ["ballade-cuivres", "ballade-mib", "blue-bossa", "bossa-mi", "so-what", "blues-lent-shuffle", "anatole-sib",
+          "blues-bird", "bill-bailey", "georgia", "blues-valse-sol", "valse-cliche-re", "blues-mineur-do", "blues-fa-swing",
+          "gs-00-bn1-147-gb", "gs-00-jazz1-130-d", "gs-01-bn1-129-eb", "gs-01-jazz1-200-b", "gs-02-bn1-147-gb",
+          "gs-02-jazz1-130-d", "gs-03-bn1-129-eb", "gs-03-jazz1-200-b"]
+
+
 def subset(items: list[dict]) -> list[dict]:
-    synth = [x for x in items if not x["id"].startswith("gs-")]
-    styles = sorted({x["style"] for x in synth})
-    pick = []
-    for s in styles:
-        for part in ("dev", "controle"):
-            c = [x for x in synth if x["style"] == s and x["split"] == part]
-            if c:
-                pick.append(c[0])
-    # Modal and shuffle have a dev piece only: fill up to 14 with more swing (the largest and
-    # hardest style), alternating held-out and dev.
-    extra = [x for x in synth if x["style"] == "swing" and x not in pick]
-    order = [x for x in extra if x["split"] == "controle"][:1] + [x for x in extra if x["split"] == "dev"][:1]
-    for x in order:
-        if len(pick) < 14:
-            pick.append(x)
-    gs = []
-    for player in ("00", "01", "02", "03"):
-        for fam in ("bn1", "jazz1"):
-            c = [x for x in items if x["id"].startswith(f"gs-{player}-{fam}")]
-            gs += c[:1]
-    return pick + gs
+    return [x for x in items if x["id"] in SUBSET]
 
 
 def sha(path: str) -> str:

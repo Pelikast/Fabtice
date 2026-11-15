@@ -1,6 +1,6 @@
 # Banc accords — variante `modele-brut`
 
-22 morceaux, mesuré le 2026-11-15 (2 s). Chiffres « par temps » : chaque temps de chaque mesure compte une fois.
+22 morceaux, mesuré le 2026-11-15 (1 s). Chiffres « par temps » : chaque temps de chaque mesure compte une fois.
 
 | Grille | Son | Morceaux | Fondamentale | Famille | Couleur | Complet | Basse | Accords manqués | Accords en trop | Temps trouvés | Premiers temps | Tonalité |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -8,6 +8,19 @@
 | grille détectée | synthèse, vieux disque | 14 | 56 % | 50 % | 41 % | 25 % | 56 % | 14 % | 54 % | 92 % | 76 % | 0 % |
 | grille détectée | enregistrements réels | 8 | 87 % | 86 % | 70 % | 67 % | 84 % | — | 26 % | 91 % | 74 % | 0 % |
 | grille détectée | réels, façon vieux disque | 8 | 89 % | 88 % | 61 % | 59 % | 78 % | — | 28 % | 79 % | 43 % | 0 % |
+
+Développement (réglages faits dessus) et morceaux mis de côté (jamais regardés pour régler), voir `banc/partage.json` :
+
+| Grille | Partie | Son | Morceaux | Fondamentale | Couleur | Basse | Accords manqués | Accords en trop | Tonalité | Erreurs signalées |
+|---|---|---|---|---|---|---|---|---|---|---|
+| grille détectée | développement | synthèse, son propre | 7 | 65 % | 51 % | 66 % | 9 % | 60 % | 0 % | 42 % |
+| grille détectée | développement | synthèse, vieux disque | 7 | 54 % | 34 % | 54 % | 12 % | 65 % | 0 % | 46 % |
+| grille détectée | développement | enregistrements réels | 4 | 97 % | 83 % | 95 % | — | 23 % | 0 % | 31 % |
+| grille détectée | développement | réels, façon vieux disque | 4 | 85 % | 74 % | 83 % | — | 29 % | 0 % | 53 % |
+| grille détectée | mis de côté | synthèse, son propre | 7 | 70 % | 58 % | 70 % | 9 % | 50 % | 0 % | 41 % |
+| grille détectée | mis de côté | synthèse, vieux disque | 7 | 58 % | 47 % | 59 % | 16 % | 44 % | 0 % | 42 % |
+| grille détectée | mis de côté | enregistrements réels | 4 | 77 % | 56 % | 72 % | — | 29 % | 0 % | 16 % |
+| grille détectée | mis de côté | réels, façon vieux disque | 4 | 93 % | 48 % | 72 % | — | 27 % | 0 % | 18 % |
 
 Même mesure pondérée par la durée (échantillons toutes les 50 ms) :
 

@@ -21,6 +21,9 @@ import { modelsFor } from '../../../../../app/src/analysis/models';
 import type { ChordSymbol } from '../../../../../app/src/model/harmony';
 import type { NetworkResult } from '../../banc/networks';
 import type { Variant, VariantChord, VariantInput, VariantOutput } from '../../banc/types';
+import { resultFromOutputs } from '../../../../../app/src/analysis/engine/analyse';
+import { lowAudio } from '../../banc/ecoute';
+import { knownFor } from '../../banc/variantes/app';
 import { harteToSymbol, onGrid, pooledArgmax, pooledBass, readModel, toChordFrames, type ModelFrames } from './lire';
 
 const MODEL = process.env.MODELE ?? '';
@@ -142,4 +145,55 @@ export const dec: Variant = async (input, ctx) => {
   const chords: VariantChord[] = [];
   for (const [s, , label] of m.segments) push(chords, Number(s), harteToSymbol(label), 1);
   return { chords, beats: beatsOut(grid) };
+};
+
+// ------------------------------------------------------------- on top of stage A
+// The same as the bench variant `app` (resultFromOutputs: bass band, repeats, known chart,
+// reliability), with the chord network's frames replaced:
+// - modele-a   : by the model alone (folded onto the 169 chords);
+// - modele-amix: by the log-linear mix CREMA^(1-w) * model^w on CREMA's frames (w = MIX_W).
+
+async function stageA(input: VariantInput, net: NetworkResult, frames: ChordFrames, timeScale: number): Promise<VariantOutput> {
+  const o = net.outputs;
+  const bass = { low: await lowAudio({ paths: [input.mixPath], transform: 'bass' }), from: 'band' as const };
+  const h = input.truthGrid;
+  const result = resultFromOutputs({
+    outputs: { ...o, frames, timeScale, listening: { harmony: null, bass } },
+    grid: h ? { times: h.times, downbeat: h.downbeat, meter: { numerator: h.beatsPerBar, denominator: 4 } } : null,
+    key: null,
+    known: await knownFor(input.title),
+    duration: net.duration,
+    models: modelsFor('light').map((m) => m.id),
+  });
+  return {
+    chords: result.chords.map((c) => ({ time: c.time, chord: c.chord, confidence: c.confidence, doubtful: c.doubtful })),
+    beats: { times: result.beats.times, downbeat: result.beats.downbeat, beatsPerBar: result.beats.meter.numerator },
+    key: result.key ? { tonic: result.key.tonic, mode: result.key.mode } : undefined,
+  };
+}
+
+export const appAlone: Variant = async (input, ctx) => {
+  const net = await ctx.networks(input.mixPath);
+  return stageA(input, net, toChordFrames(need(input)), 1);
+};
+
+export const appMix: Variant = async (input, ctx) => {
+  const net = await ctx.networks(input.mixPath);
+  const m = need(input);
+  const w = Number(process.env.MIX_W ?? 0.5);
+  const cr = net.outputs.frames;
+  const ts = net.outputs.timeScale;
+  const other = onGrid(m, cr.T, cr.fps, ts);
+  const probs = new Float32Array(cr.T * N_CHORDS);
+  for (let f = 0; f < cr.T; f++) {
+    let s = 0;
+    for (let c = 0; c < N_CHORDS; c++) {
+      const i = f * N_CHORDS + c;
+      const v = Math.exp((1 - w) * Math.log(cr.probs[i]! + 1e-4) + w * Math.log(other[i]! + 1e-4));
+      probs[i] = v;
+      s += v;
+    }
+    for (let c = 0; c < N_CHORDS; c++) probs[f * N_CHORDS + c]! /= s;
+  }
+  return stageA(input, net, { T: cr.T, fps: cr.fps, probs, pitch: cr.pitch, bass: cr.bass }, ts);
 };
