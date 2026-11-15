@@ -58,8 +58,10 @@ const CONFIGS: Record<string, StructureConfig> = {
   'les-deux': { repeats: overrides.repeats, chart: overrides.chart, chartKey },
 };
 
-const split = JSON.parse(readFileSync(join(ROOT, 'banc', 'partage.json'), 'utf8')) as { dev: string[]; controle: string[] };
-const half = (id: string) => (split.dev.includes(id) ? 'dev' : split.controle.includes(id) ? 'controle' : 'hors');
+// the split shared with the other chord work (banc/partage.json: `dev` and `test`, « gs-00-* » patterns)
+const split = JSON.parse(readFileSync(join(ROOT, 'banc', 'partage.json'), 'utf8')) as { dev: string[]; test?: string[]; controle?: string[] };
+const inList = (list: readonly string[], id: string) => list.some((x) => (x.endsWith('*') ? id.startsWith(x.slice(0, -1)) : x === id));
+const half = (id: string) => (inList(split.dev, id) ? 'dev' : inList(split.test ?? split.controle ?? [], id) ? 'controle' : 'hors');
 
 /** A noisy title, as a video link gives it (deterministic). */
 export function noisyTitle(title: string, id: string): string {
@@ -188,7 +190,7 @@ const add = (key: Key, c: Counts, k: Kinds) => {
   counts.set(key, addCounts(counts.get(key) ?? emptyCounts(), c));
   kinds.set(key, addKinds(kinds.get(key) ?? emptyKinds(), k));
 };
-const acceptance: { colour: number; colourBase: number; chartTruth: number | null; id: string; half: string; condition: string; scenario: string; title: string; standard: boolean; accepted: boolean; matched: string | null; z: number | null; nullZ: number | null; agree: number | null; reason: string | null; transpose: number | null; scale: number | null; formLength: number | null }[] = [];
+const acceptance: { trust: { sureAgree: number; colourAgree: number; sureBeats: number } | null; colour: number; colourBase: number; chartTruth: number | null; chartTruthRoot: number | null; id: string; half: string; condition: string; scenario: string; title: string; standard: boolean; accepted: boolean; matched: string | null; z: number | null; nullZ: number | null; agree: number | null; reason: string | null; transpose: number | null; scale: number | null; formLength: number | null }[] = [];
 const chartTruth = new Map<string, { beats: number; root: number; colour: number }>();
 const forms: { id: string; condition: string; truthForm: number; found: number | null; lags: number[]; choruses: number }[] = [];
 const rel: { half: string; condition: string; config: string; f: ReliabilityFeatures; beats: number; right: number; oldDoubt: boolean }[] = [];
@@ -256,7 +258,7 @@ for (const t of corpus) {
         const colourBase = rates(scorePiece(t, condition, analyse(input, net, { repeats: null, chart: null }).out)).beat.couleur;
         const vt = chartVsTruth(t, condition, run);
         acceptance.push({
-          colour, colourBase, chartTruth: vt.beats ? vt.colour / vt.beats : null,
+          trust: fit?.trust ?? null, colour, colourBase, chartTruth: vt.beats ? vt.colour / vt.beats : null, chartTruthRoot: vt.beats ? vt.root / vt.beats : null,
           id: t.id, half: h, condition, scenario, title, standard: t.standard && scenario !== 'titre d’un autre morceau',
           accepted: !!fit?.accepted, matched: fit?.chart?.title ?? null, z: fit?.best?.z ?? null, nullZ: fit?.best?.nullZ ?? null, agree: fit?.best?.agree ?? null,
           reason: fit?.reason ?? null, transpose: fit?.best?.transpose ?? null, scale: fit?.best?.scale ?? null,
@@ -315,11 +317,11 @@ if (acceptance.length) {
     }
   }
   lines.push('\nDétail (z : écart de la meilleure position aux autres ; accord : part des temps où la grille et le réseau sont d’accord) :\n');
-  lines.push('| Morceau | Son | Scénario | Titre | Grille trouvée | z | z contre d’autres morceaux | Accord | Transp. | Échelle | Décision | Grille vs vérité (couleur) | Couleur sans → avec |');
+  lines.push('| Morceau | Son | Scénario | Titre | Grille trouvée | z | z contre d’autres morceaux | Accord | Transp. | Échelle | Décision | Grille vs vérité (fondamentale / couleur) | Couleur sans → avec |');
   lines.push('|---|---|---|---|---|---|---|---|---|---|---|---|---|');
   for (const r of acceptance) {
     if (!r.matched) continue;
-    lines.push(`| ${r.id} | ${r.condition} | ${r.scenario} | ${r.title} | ${r.matched} | ${r.z?.toFixed(1)} | ${r.nullZ?.toFixed(1)} | ${r.agree !== null ? pct(r.agree) : ''} | ${r.transpose} | ${r.scale} | ${r.accepted ? 'acceptée' : `refusée (${r.reason})`} | ${r.chartTruth !== null ? pct(r.chartTruth) : ''} | ${pct(r.colourBase)} → ${pct(r.colour)} |`);
+    lines.push(`| ${r.id} | ${r.condition} | ${r.scenario} | ${r.title} | ${r.matched} | ${r.z?.toFixed(1)} | ${r.nullZ?.toFixed(1)} | ${r.agree !== null ? pct(r.agree) : ''} | ${r.transpose} | ${r.scale} | ${r.accepted ? 'acceptée' : `refusée (${r.reason})`} | ${r.chartTruth !== null ? `${pct(r.chartTruthRoot!)} / ${pct(r.chartTruth)}` : ''} | ${pct(r.colourBase)} → ${pct(r.colour)} |`);
   }
 }
 if (chartTruth.size) {

@@ -74,6 +74,12 @@ export interface ChartOptions {
   weight: number;
   /** Exponent of the doubt (1 − top probability of the network) in the weight. 0: a plain prior. */
   doubtPower: number;
+  /** Piecewise alignment: offsets kept, cost of switching offset (or to / from « none »), in nats, and how much better than a random alignment a bar must fit not to be « none » (nats per beat). */
+  offsets: number;
+  switchCost: number;
+  noneMargin: number;
+  /** The network is « sure » of a beat's root and family from this folded probability on. */
+  sure: number;
   /** Bars on each side for the local fit (the bar itself left out). */
   window: number;
   /** Local agreement (share of beats) below which the chart gets no weight; full weight from `fitHigh`. */
@@ -93,6 +99,10 @@ export const CHART_DEFAULTS: ChartOptions = {
   minNullZ: 2.5,
   weight: 4,
   doubtPower: 1,
+  offsets: 6,
+  switchCost: 12,
+  noneMargin: 0.3,
+  sure: 0.5,
   window: 2,
   fitLow: 0.1,
   fitHigh: 0.35,
@@ -203,6 +213,12 @@ export interface ChartFit {
   key: Key | null;
   /** Per recording bar. */
   bars: BarAlignment[];
+  /**
+   * How far the chart holds on this recording: `sureAgree`, the share of the beats where the network
+   * is sure of root and family (top ≥ `sure`) on which the chart says the same; `colourAgree`, where
+   * they agree on root and family, the share on which the chart's exact colour is the network's top.
+   */
+  trust: { sureAgree: number; colourAgree: number; sureBeats: number };
   /** Per beat: the chart's engine chord (null: none), and its local fit. */
   chordOfBeat: (number | null)[];
   fitOfBeat: number[];
@@ -283,6 +299,68 @@ function alignChart(ev: AudioEvidence, cb: ChartBeats, chartKey: Key | null, key
   return best;
 }
 
+/** Per bar, the offset of the chart (among the K best at the alignment's transposition and scale) or null (« none »). */
+function piecewiseOffsets(ev: AudioEvidence, cb: ChartBeats, a: Alignment, bars: readonly number[][], o: ChartOptions): (number | null)[] {
+  const { N, logF } = ev;
+  const F = cb.chord.length;
+  const P = F * a.scale;
+  const nb = bars.length;
+  if (!nb) return [];
+  const chartCls = cb.chord.map((c) => foldedClass(transposeIndex(c, a.transpose)));
+  // per offset, per bar, the fit of the chart's chords
+  const perBar: Float64Array[] = [];
+  const totals: number[] = [];
+  const mean = new Float64Array(nb);
+  for (let off = 0; off < P; off++) {
+    const row = new Float64Array(nb);
+    let tot = 0;
+    for (let i = 0; i < nb; i++) {
+      let s = 0;
+      for (const b of bars[i]!) s += logF[b]![chartCls[chartPos(b, { offset: off, scale: a.scale }, F)]!]!;
+      row[i] = s;
+      tot += s;
+      mean[i]! += s / P;
+    }
+    perBar.push(row);
+    totals.push(tot);
+  }
+  void N;
+  const order = totals.map((t, i) => [t, i] as const).sort((x, y) => y[0] - x[0]).slice(0, Math.min(o.offsets, P)).map((x) => x[1]);
+  if (!order.includes(a.offset)) order[order.length - 1] = a.offset;
+  const K = order.length;
+  // emissions: state k < K = offset order[k]; state K = none (a random alignment's fit, plus a margin per beat)
+  const em = (i: number, k: number) => (k < K ? perBar[order[k]!]![i]! : mean[i]! + o.noneMargin * bars[i]!.length);
+  let delta = Array.from({ length: K + 1 }, (_, k) => em(0, k));
+  const back: Int16Array[] = [];
+  for (let i = 1; i < nb; i++) {
+    const nd = new Array<number>(K + 1);
+    const bp = new Int16Array(K + 1);
+    let bestPrev = 0;
+    for (let k = 1; k <= K; k++) if (delta[k]! > delta[bestPrev]!) bestPrev = k;
+    for (let k = 0; k <= K; k++) {
+      const stay = delta[k]!;
+      const move = delta[bestPrev]! - o.switchCost;
+      if (stay >= move || bestPrev === k) {
+        nd[k] = stay + em(i, k);
+        bp[k] = k;
+      } else {
+        nd[k] = move + em(i, k);
+        bp[k] = bestPrev;
+      }
+    }
+    delta = nd;
+    back.push(bp);
+  }
+  let k = 0;
+  for (let j = 1; j <= K; j++) if (delta[j]! > delta[k]!) k = j;
+  const out = new Array<number | null>(nb);
+  for (let i = nb - 1; i >= 0; i--) {
+    out[i] = k < K ? order[k]! : null;
+    if (i > 0) k = back[i - 1]![k]!;
+  }
+  return out;
+}
+
 /** Align, verify and turn into evidence. `numbers`: beat numbers of the grid; `bpb`: its meter (unused by the fit, kept for the alignment output). */
 export function fitKnownChart(
   units: readonly PooledUnit[],
@@ -315,6 +393,7 @@ export function fitKnownChart(
     bars: layout.bars.map((_, i) => ({ bar: i, formBar: null, chorus: null, section: null, fit: 0 })),
     chordOfBeat: units.map(() => null),
     fitOfBeat: units.map(() => 0),
+    trust: { sureAgree: 0, colourAgree: 0, sureBeats: 0 },
     source: { name: 'chart', logp: units.map(() => null), weight: units.map(() => 0) },
   };
   if (!N || !candidates.length) return empty;
@@ -340,15 +419,28 @@ export function fitKnownChart(
   const cb = beatsOf[best.candidate]!;
   const F = cb.chord.length;
   const chartKey = cand.chart.key ? { tonic: (cand.chart.key.tonic + best.transpose) % 12, mode: cand.chart.key.mode } : null;
+  const nb = layout.bars.length;
+  // piecewise alignment: the global offset may not hold over the whole recording (a beat lost
+  // or added by the grid shifts everything after it; an arrangement plays the sections in
+  // another order; an intro, a tag, a free chorus follow no chart). Per bar, one of the K best
+  // offsets (same transposition and scale) or « none », by Viterbi: switching costs
+  // `switchCost` nats, so only a change that holds for a few bars is taken.
+  const offsetOfBar = piecewiseOffsets(ev, cb, best, layout.bars, o);
+  const pickupBar = (b: number) => (layout.barOfBeat[b]! < 0 ? 0 : layout.barOfBeat[b]!);
   const chordOfBeat: (number | null)[] = [];
   const agreeOfBeat: number[] = [];
   for (let b = 0; b < N; b++) {
-    const c = transposeIndex(cb.chord[chartPos(b, best, F)]!, best.transpose);
+    const off = nb ? offsetOfBar[pickupBar(b)] : best.offset;
+    if (off === null || off === undefined) {
+      chordOfBeat.push(null);
+      agreeOfBeat.push(0);
+      continue;
+    }
+    const c = transposeIndex(cb.chord[chartPos(b, { offset: off, scale: best.scale }, F)]!, best.transpose);
     chordOfBeat.push(c);
     agreeOfBeat.push(foldedClass(c) === top[b] ? 1 : 0);
   }
   // local fit per bar (beats of the neighbouring bars, the bar itself left out)
-  const nb = layout.bars.length;
   const barAgree = layout.bars.map((bs) => bs.reduce((s, b) => s + agreeOfBeat[b]!, 0) / (bs.length || 1));
   const localFit = layout.bars.map((_, i) => {
     let s = 0;
@@ -360,10 +452,37 @@ export function fitKnownChart(
     }
     return n ? s / n : 0;
   });
+  // an intro or a coda: the first and last bars on which the chart and the audio disagree
+  // (their neighbours' fit would otherwise lend them the chart)
+  for (let i = 0; i < nb && barAgree[i]! < 0.25; i++) localFit[i] = 0;
+  for (let i = nb - 1; i >= 0 && barAgree[i]! < 0.25; i--) localFit[i] = 0;
   const fitOfBeat = units.map((_, b) => {
     const bar = layout.barOfBeat[b]!;
     return bar < 0 ? (localFit[0] ?? 0) : localFit[bar]!;
   });
+  // how far the chart can be trusted ON THIS RECORDING: where the network is sure of the root and
+  // family, does the chart say the same (a chart of another arrangement, another form, says other
+  // roots there)? and where they agree on root and family, does the chart's colour match what is
+  // heard (a chart writing 7ths where the band plays triads)?
+  let sure = 0;
+  let sureAgree = 0;
+  let same = 0;
+  let sameColour = 0;
+  for (let b = 0; b < N; b++) {
+    if (fitOfBeat[b]! < o.fitLow) continue;
+    const c = chordOfBeat[b]!;
+    if (folded[b]![top[b]!]! >= o.sure) {
+      sure++;
+      if (agreeOfBeat[b]) sureAgree++;
+    }
+    if (agreeOfBeat[b]) {
+      same++;
+      let m = 0;
+      for (let k = 1; k < N_CHORDS; k++) if (probs[b]![k]! > probs[b]![m]!) m = k;
+      if (m === c) sameColour++;
+    }
+  }
+  const trust = { sureAgree: sure ? sureAgree / sure : 1, colourAgree: same ? sameColour / same : 1, sureBeats: sure };
   if (nullScores.length >= 2) {
     const m = nullScores.reduce((x, y) => x + y, 0) / nullScores.length;
     const sd = Math.sqrt(nullScores.reduce((x, y) => x + (y - m) ** 2, 0) / nullScores.length) || 1e-6;
@@ -378,19 +497,18 @@ export function fitKnownChart(
         ? `too little agreement (${(100 * best.agree).toFixed(0)} %)`
         : `no better than other tunes (z ${best.nullZ.toFixed(2)} against them)`;
   // bars of the recording in the form
-  let firstChorusBeat = -1;
+  let chorus = -1;
+  let lastPos = Infinity;
   const bars: BarAlignment[] = layout.bars.map((bs, i) => {
     const b0 = bs[0]!;
-    const fits = localFit[i]! >= o.fitLow;
-    if (fits && firstChorusBeat < 0) firstChorusBeat = b0 - chartPos(b0, best, F) * best.scale;
-    const pos = chartPos(b0, best, F);
-    return {
-      bar: i,
-      formBar: fits ? cb.bar[pos]! : null,
-      chorus: fits && firstChorusBeat >= 0 ? Math.floor((b0 - firstChorusBeat) / (F * best.scale)) : null,
-      section: fits ? cb.section[pos]! : null,
-      fit: localFit[i]!,
-    };
+    const off = offsetOfBar[i];
+    const fits = off !== null && off !== undefined && localFit[i]! >= o.fitLow;
+    if (!fits) return { bar: i, formBar: null, chorus: null, section: null, fit: localFit[i]! };
+    const pos = chartPos(b0, { offset: off, scale: best.scale }, F);
+    // a new chorus each time the form starts again
+    if (pos <= lastPos) chorus++;
+    lastPos = pos;
+    return { bar: i, formBar: cb.bar[pos]!, chorus, section: cb.section[pos]!, fit: localFit[i]! };
   });
   // the evidence
   const logp: (Float64Array | null)[] = units.map(() => null);
@@ -398,8 +516,8 @@ export function fitKnownChart(
   if (accepted) {
     const cache = new Map<number, Float64Array>();
     for (let b = 0; b < N; b++) {
-      const c = chordOfBeat[b]!;
-      if (c === NO_CHORD) continue;
+      const c = chordOfBeat[b];
+      if (c === null || c === undefined || c === NO_CHORD) continue;
       const ramp = Math.max(0, Math.min(1, (fitOfBeat[b]! - o.fitLow) / (o.fitHigh - o.fitLow)));
       if (ramp <= 0) continue;
       let pmax = 0;
@@ -408,7 +526,8 @@ export function fitKnownChart(
       if (!(w > 0)) continue;
       let l = cache.get(c);
       if (!l) {
-        l = priorAround(c, o);
+        // the chart's colours count as much as they hold on this recording (`trust.colourAgree`)
+        l = priorAround(c, { ...o, exact: o.exact * trust.colourAgree, colour: o.colour + o.exact * (1 - trust.colourAgree) });
         cache.set(c, l);
       }
       logp[b] = l;
@@ -425,6 +544,7 @@ export function fitKnownChart(
     bars,
     chordOfBeat,
     fitOfBeat,
+    trust,
     source: { name: 'chart', logp, weight },
   };
 }

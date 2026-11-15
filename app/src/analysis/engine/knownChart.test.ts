@@ -51,7 +51,8 @@ function recording(form: Bars, choruses: number, transpose: number, p: number, o
   const scale = opts.scale ?? 1;
   const perBeat = chartChordsPerBeat(form, transpose);
   const truth: number[] = [];
-  for (let i = 0; i < (opts.intro ?? 0) * 4; i++) truth.push(ix(Math.floor(r() * 12), 'maj'));
+  // the intro: diminished chords, which the tune never has
+  for (let i = 0; i < (opts.intro ?? 0) * 4; i++) truth.push(ix(Math.floor(i / 4), 'dim'));
   for (let c = 0; c < choruses; c++) for (const x of perBeat) for (let k = 0; k < scale; k++) truth.push(x);
   const units = truth.map((c, b) => {
     const ov = opts.override?.get(b);
@@ -102,6 +103,25 @@ describe('known chart', () => {
     const fit = fitKnownChart(units, numbers, 4, keyC, [cand(tune)], {}, REFS);
     expect(fit.accepted).toBe(true);
     expect(fit.best!.scale).toBe(2);
+  });
+
+  it('follows the recording when the grid loses two beats in the middle', () => {
+    const rec = recording(TUNE, 4, 0, 0.5);
+    // two beats missing at the start of the third chorus: every later bar is shifted by half a bar
+    const cut = 128;
+    const units = rec.units.slice(0, cut).concat(rec.units.slice(cut + 2));
+    const truth = rec.truth.slice(0, cut).concat(rec.truth.slice(cut + 2));
+    const numbers = numbersFor(Math.ceil(units.length / 4), 4).slice(0, units.length);
+    const fit = fitKnownChart(units, numbers, 4, keyC, [cand(tune)], {}, REFS);
+    expect(fit.accepted).toBe(true);
+    const right = (from: number, to: number) => {
+      let n = 0;
+      for (let b = from; b < to; b++) if (fit.chordOfBeat[b] === truth[b]) n++;
+      return n / (to - from);
+    };
+    // the alignment switches offset a few bars after the cut, and holds on both sides
+    expect(right(0, cut)).toBeGreaterThan(0.95);
+    expect(right(cut + 24, units.length)).toBeGreaterThan(0.95);
   });
 
   it('chooses among variants of the tune by fit', () => {
