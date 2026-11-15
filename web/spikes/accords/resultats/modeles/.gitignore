@@ -1,0 +1,2 @@
+# Bench outputs of the chord-model candidates: the .md reports are kept, the .json are re-created by modeles/bench_runs.sh.
+*.json

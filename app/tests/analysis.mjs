@@ -21,7 +21,8 @@
 //     quantum over budget;
 //   - the cost: analysis time for this file and for a 4-minute piece, peak
 //     memory of the browser's processes, longest task of the main thread.
-// Scenarios: first, panel, cancel, network, integrity, resume, playing, long.
+// Scenarios: first, panel, cancel, network, integrity, resume, playing, long; and, on request
+// only (several minutes), fin: the optional fine chord model.
 //
 // The models are fetched for real: the network must reach Hugging Face. Set
 // FABTICE_ANALYSIS_ONLY=<name> to run one scenario (names are in `scenarios`).
@@ -334,6 +335,7 @@ scenarios.first = async () => {
   await analysisEnded(page);
   const total = (Date.now() - t0) / 1000;
   const memory = stop();
+  await page.evaluate(() => (window.__marks = { ...window.__fine }));
   const st = await state(page);
   check('first use: the analysis ends with a result', st.hasAnalysis && st.run.status === 'idle', JSON.stringify(st.run));
   check('first use: the piece stayed playable', st.engine === 'ready' && st.tracks === 1);
@@ -842,12 +844,128 @@ scenarios.charts = async () => {
   check('charts: no console error', errors.length === 0, errors.join(' | '));
 };
 
+/** Chooses the chord model in Réglages → Réglages avancés, as a user would. */
+async function chooseChordModel(page, value) {
+  await page.click('button.menu:has-text("Réglages")');
+  await page.click('[data-testid="reglages-avances"]');
+  await page.selectOption('[data-testid="modele-accords"]', value);
+  return page.locator('.reglages-app').innerText();
+}
+
+/**
+ * The fine chord model (Tsumugi-Chords, optional): chosen in the advanced settings, its 68 MB
+ * downloaded for real from Hugging Face, the demo piece analysed (2 windows of 30 s), progress
+ * per window, the model recorded in the result; then its fallback to CREMA (a simulated
+ * failure). Several minutes: not in the default list, run it with FABTICE_ANALYSIS_ONLY=fin.
+ */
+scenarios.fin = async () => {
+  const context = await browser.newContext();
+  const requests = [];
+  context.on('request', (req) => {
+    if (/huggingface\.co|\.hf\.co/.test(req.url())) requests.push(req.url().replace(/\?.*/, ''));
+  });
+  const { page, errors } = await open(context);
+  // The piece is first analysed with the default model; then the fine one is chosen and
+  // « Analyser de nouveau ce morceau avec ce modèle » pressed, as the owner would.
+  await importFile(page, SWING);
+  await analysisEnded(page);
+  const before = await result(page);
+  check('fine: first analysed with the default model', before.analyser.models.includes('crema-chords'));
+  const settings = await chooseChordModel(page, 'fine');
+  check('fine: the setting states the cost and the licence plainly', /plusieurs minutes/.test(settings) && /2,5 Go/.test(settings) && /CC BY-NC 4\.0/.test(settings) && /68 Mo/.test(settings), settings.replace(/\s+/g, ' ').slice(0, 400));
+  check('fine: the choice is kept on this device', (await page.evaluate(() => localStorage.getItem('fabtice.chordModel.v1'))) === 'fine');
+  check('fine: analysing the open piece again is offered', settings.includes('Analyser de nouveau ce morceau avec ce modèle'));
+  // Marks of this second analysis: from its start to its result (the page's own marks belong to the first).
+  await page.evaluate(() => {
+    window.__texts = [];
+    window.__steps = [];
+    const first = window.__fabtice.store.getState().analysis;
+    window.__firstAnalysis = first;
+    window.__fine = { start: null, end: null };
+    window.__fabtice.store.subscribe((s) => {
+      const f = window.__fine;
+      if (s.analysisRun.status === 'running' && f.start === null) f.start = performance.now();
+      if (f.start !== null && f.end === null && ((s.analysis && s.analysis !== first) || s.analysisRun.status === 'error')) f.end = performance.now();
+    });
+  });
+  const stop = watchMemory();
+  const t0 = Date.now();
+  await page.click('[data-testid="modele-accords-relancer"]');
+  await page.keyboard.press('Escape');
+  // Window progress, sampled from the fine progress store as it goes.
+  await page.evaluate(() => {
+    window.__windows = [];
+    setInterval(() => {
+      const w = document.querySelector('[data-testid="analyse-etat"]')?.textContent ?? '';
+      if (/fenêtre/.test(w) && window.__windows[window.__windows.length - 1]?.text !== w) window.__windows.push({ text: w, t: performance.now() });
+    }, 50);
+  });
+  await page.waitForFunction(() => {
+    const s = window.__fabtice.store.getState();
+    return (s.analysis && s.analysis !== window.__firstAnalysis) || s.analysisRun.status === 'error';
+  }, null, { timeout: 900000, polling: 200 });
+  const total = (Date.now() - t0) / 1000;
+  const memory = stop();
+  await page.evaluate(() => (window.__marks = { ...window.__fine }));
+  const st = await state(page);
+  check('fine: the analysis ends with a result', st.hasAnalysis && st.run.status === 'idle', JSON.stringify(st.run));
+  check('fine: its weights came from Hugging Face', requests.some((u) => u.endsWith('chord-model.safetensors')), requests.map((u) => path.basename(u)).join(', '));
+  const texts = await page.evaluate(() => window.__texts);
+  const windows = await page.evaluate(() => window.__windows);
+  check('fine: progress per window, in French', texts.some((x) => /Accords : écoute fine, fenêtre 1 sur 2/.test(x)) && texts.some((x) => /fenêtre 2 sur 2/.test(x)), texts.filter((x) => /fenêtre/.test(x)).join(' | '));
+  const r = await result(page);
+  const c = compare(r);
+  check('fine: the result records the fine model', r.analyser.models.includes('tsumugi-chords') && !r.analyser.models.includes('crema-chords') && r.chordModel?.id === 'tsumugi-chords' && !r.chordModel.fallback, JSON.stringify([r.analyser.models, r.chordModel]));
+  // Measured with Python on this file (RECHERCHE.md): roots 0.948 frame by frame; after the decoding, at least CREMA's.
+  check('fine: chord roots at least 0.90 of the time', c.roots >= 0.9, (c.roots * 100).toFixed(1));
+  note(`fine model on the demo file: roots ${(c.roots * 100).toFixed(1)} %, root and quality ${(c.rootsAndQualities * 100).toFixed(1)} % (CREMA: prototype ${(PROTOTYPE.roots * 100).toFixed(1)} / ${(PROTOTYPE.rootsAndQualities * 100).toFixed(1)}), key ${c.keyOk ? 'right' : 'wrong'}`);
+  note(`fine model steps: ${await stepStarts(page)}`);
+  if (windows.length > 1) note(`fine model windows: ${windows.map((w, i) => (i ? `${((w.t - windows[i - 1].t) / 1000).toFixed(1)} s` : w.text)).join(', ')} (time between window reports)`);
+  const mt = await mainThread(page);
+  note(`fine model, first use (68 MB downloaded): analysis ${mt.seconds.toFixed(1)} s for ${(await page.evaluate(() => window.__fabtice.store.getState().project.duration)).toFixed(1)} s of music; whole run ${total.toFixed(1)} s`);
+  note(`fine model: browser memory ${memory.before.toFixed(0)} MB before, peak ${memory.peak.toFixed(0)} MB (all browser processes, resident)`);
+  check('fine: no task over 200 ms on the main thread', mt.longestTask < 200, `${mt.longestTask.toFixed(0)} ms`);
+  // Opening the advanced settings probes the graphics chip for the separation tool: Chromium then says it has none (not a fault).
+  const realErrors = errors.filter((e) => !/No available adapters/i.test(e));
+  check('fine: no console error', realErrors.length === 0, realErrors.join(' | '));
+
+  // Second use: the weights are kept; the analysis time alone.
+  {
+    const second = await open(context);
+    const before = requests.length;
+    const stop2 = watchMemory();
+    await importFile(second.page, SWING);
+    await analysisEnded(second.page, 900000);
+    const m2 = stop2();
+    const mt2 = await mainThread(second.page);
+    check('fine, second use: nothing downloaded', requests.length === before, `${requests.length - before} requests`);
+    note(`fine model, weights kept: analysis ${mt2.seconds.toFixed(1)} s; steps ${await stepStarts(second.page)}; peak memory ${m2.peak.toFixed(0)} MB`);
+    await second.page.close();
+  }
+
+  // Fallback: the fine model fails (as on a device without memory): CREMA reads the chords, said calmly.
+  for (const fail of ['memoire', 'session']) {
+    const p = await open(context, { query: `?debug&moteur=factice&analyse=reel&echec-accords=${fail}` });
+    await importFile(p.page, SWING);
+    await analysisEnded(p.page, 900000);
+    const rf = await result(p.page);
+    const status = await p.page.locator('[data-testid="analyse-etat"]').innerText().catch(() => '');
+    check(`fine, fallback (${fail}): CREMA read the chords and the result says so`, !!rf && rf.analyser.models.includes('crema-chords') && rf.chordModel?.fallback === (fail === 'memoire' ? 'memory' : 'failed'), JSON.stringify(rf?.chordModel));
+    check(`fine, fallback (${fail}): the status line says it plainly`, /modèle par défaut/.test(status), status);
+    check(`fine, fallback (${fail}): no console error`, p.errors.length === 0, p.errors.join(' | '));
+    await p.page.close();
+  }
+  await context.close();
+};
+
 // ---------------------------------------------------------------------- main
 
+/** Long scenarios run only when asked by name. */
+const ON_REQUEST = new Set(['fin']);
 const only = process.env.FABTICE_ANALYSIS_ONLY;
 try {
   for (const [name, run] of Object.entries(scenarios)) {
-    if (only && only !== name) continue;
+    if (only ? only !== name : ON_REQUEST.has(name)) continue;
     console.log(`\n# ${name}`);
     browser = await launch();
     try {

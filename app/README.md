@@ -1301,6 +1301,68 @@ fiabilité qui les réunit. Fonctions **pures**, pas encore branchées dans
   le résultat de `chartsForAnalysis` (voir `src/standards/`). Une correction à la main
   reste intouchable (ces preuves ne servent qu'à l'analyse).
 
+##### Modèle d'accords détaillé, au choix (`engine/tsumugi*.ts`, `chordModel.ts`)
+
+Réglages → Réglages avancés → **Modèle d'accords** : « Rapide : CREMA » (par défaut)
+ou « Détaillé : Tsumugi-Chords ». C'est une préférence de l'**appareil**
+(`localStorage`, clé `fabtice.chordModel.v1`), jamais du projet. Le réglage dit
+en clair le coût (plusieurs minutes par morceau, environ 2,5 Go de mémoire,
+déconseillé sur téléphone, 68 Mo à télécharger une fois) et la licence des
+poids (CC BY-NC 4.0, usage non commercial ; code MIT). Quand un morceau est
+ouvert, changer de modèle propose « Analyser de nouveau ce morceau avec ce
+modèle » : la grille, la tonalité et tous les accords écrits à la main sont
+gardés (règle de toujours, testée dans `chordModel.test.ts`).
+
+- **Fichiers.** Les poids sont ceux de l'auteur, intacts
+  (`chord-model.safetensors`, Hugging Face `anime-song/Tsumugi-Chords` à une
+  révision figée, 67 647 992 octets, SHA-256 vérifiée), téléchargés par le chemin
+  habituel (`models/download.ts` : reprise par morceaux, vérification, gardés sur
+  l'appareil), seulement quand ce modèle est choisi. Le graphe ONNX **sans aucun
+  poids** (1,36 Mo) est livré avec l'app (`assets/tsumugi-chords.graph.onnx`,
+  provenance et empreinte dans `assets/README.md`) et vérifié avant usage ; il lit
+  le fichier de l'auteur comme « données externes » d'onnxruntime-web. Il se
+  refait à l'identique par `web/spikes/accords/modeles/build_graph.py`.
+- **Déroulé (worker).** Tout se passe d'abord comme avec CREMA (temps, mesures,
+  CREMA, tonalité). Puis le modèle détaillé écoute le morceau **en stéréo**
+  (le fil principal lui donne les deux voies ; un morceau mono est donné sur les
+  deux), rééchantillonné à 25,6 kHz (`tsumugiFeatures.ts#resampleTo25600`), en
+  fenêtres de 30 s dont il garde les 20 s du milieu, avec les temps, premiers
+  temps et la tonalité que l'analyse vient de trouver (ou ceux de l'utilisateur).
+  Progression par fenêtre : « Accords : écoute fine, fenêtre 3 sur 12 » ;
+  l'annulation est lue entre deux fenêtres ; la session est libérée à la fin.
+  Ses 745 classes sont ramenées aux 169 accords de l'app (`tsumugiVocab.ts`,
+  généré par `gen_tsumugi_vocab.py`, le même repli que sur le banc), avec ses
+  propres notes et sa basse, en `ChordFrames` à 25 images/s, `timeScale` 1 ; la
+  suite (`resultFromOutputs` : basse dans le grave, reprises, grille connue,
+  fiabilité) est inchangée. Le résultat note le modèle (`analyser.models`
+  contient `tsumugi-chords`, et `chordModel: { id }`). Les sorties gardées pour
+  « garder ma grille » ne servent que si elles viennent du même modèle.
+- **Repli.** Poids introuvables, session impossible à créer, mémoire épuisée :
+  les accords de CREMA (déjà calculés) sont gardés pour cette analyse,
+  `chordModel: { id: 'crema-chords', fallback }`, et la barre du haut le dit
+  calmement (« Accords lus par le modèle par défaut », le panneau dit pourquoi).
+  `?echec-accords=memoire|session` provoque ces pannes pour les essais.
+- **Mesures du banc** (`web/spikes/accords/`, variante `app-fin`, qui passe par les
+  mêmes fonctions que le worker), couleur par temps, grille détectée, 22 morceaux
+  : synthèse propre 67 → 88 %, vieux disque de synthèse 55 → 79 % (contrôle seul :
+  52 → 83 %), GuitarSet 84 → 79 %, GuitarSet façon vieux disque 77 → 86 %. Le
+  signal « douteux » garde son sens avec les mêmes coefficients (un accord
+  douteux est faux 53 à 63 % du temps sur le contrôle) mais en signale moins
+  (moins d'erreurs, et des probabilités plus tranchées) : pas de second jeu de
+  coefficients pour l'instant.
+- **Coût mesuré ici** (4 cœurs chargés par d'autres travaux, Chromium,
+  onnxruntime-web WASM, 4 fils) : le morceau de démonstration (37,6 s, 2 fenêtres)
+  en 70 à 75 s, dont environ 30 s par fenêtre ; mémoire de tous les processus du
+  navigateur : de 1,36 Go au repos à 2,8–3,3 Go au pic. Pour 4 minutes (12
+  fenêtres) : environ 6 min avec 4 fils, 11 min avec un seul (mesuré sous Node,
+  `web/spikes/accords/modeles/ts/wasm-song.ts`). Vérification dans Chromium :
+  `FABTICE_ANALYSIS_ONLY=fin npm run test:analysis` (hors de la liste par défaut).
+  Dans l'app Mac (Electron sous `xvfb-run`, même machine) : 50 s pour le morceau de
+  démonstration téléchargement compris, 71 s une autre fois (machine plus
+  chargée) ; mémoire de tous les processus de l'app : 1,7 Go au repos, 3,0 à
+  3,3 Go au pic. Essai : `FABTICE_E2E_ANALYSIS_FINE=1 xvfb-run -a node --test
+  test/e2e/analysis-fine.test.js` dans `desktop/` (non bloquant).
+
 #### Grille d'accords — `src/chart/`
 
 Tout est en place : la feuille fidèle à la maquette, et ce qu'un musicien fait

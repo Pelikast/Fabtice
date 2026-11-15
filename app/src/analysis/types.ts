@@ -13,6 +13,7 @@ import type { Key } from '../model/harmony';
 import type { Seconds } from '../model/project';
 import type { Meter } from '../model/tempoMap';
 import type { KnownCharts } from './engine/chart';
+import type { ChordModelChoice } from './models';
 
 /** One downloadable model (shown to the user before and during the first download). */
 export interface AnalysisModelInfo {
@@ -56,12 +57,20 @@ export interface DownloadProgress {
   total: number;
 }
 
+/** The fine chord model's windows (30 s each): « fenêtre 3 sur 12 ». */
+export interface ChordWindowProgress {
+  done: number;
+  total: number;
+}
+
 export interface AnalysisProgress {
   step: AnalysisStep;
   /** Progress of the whole analysis, 0…1, never going back. */
   fraction: number;
   /** Present during `download`. */
   download?: DownloadProgress;
+  /** Present while the fine chord model listens (`chords` step). */
+  chordWindow?: ChordWindowProgress;
 }
 
 /**
@@ -114,8 +123,28 @@ export interface AnalysisEvidence {
   knownChart: { title: string; collection: string | null } | null;
 }
 
+/** Why the fine chord model could not be used for an analysis (the default one read the chords). */
+export type ChordFallback = 'download' | 'memory' | 'failed';
+
+/**
+ * Which chord model read the chords: an optional extra field of the result (absent in
+ * results stored before it existed, which were all read by CREMA). `fallback`: the fine model
+ * was chosen but could not run, CREMA read the chords instead.
+ */
+export interface ResultChordModel {
+  id: string;
+  fallback?: ChordFallback;
+}
+
 export interface ListenedResult extends AnalysisResult {
   evidence?: AnalysisEvidence;
+  chordModel?: ResultChordModel;
+}
+
+/** The chord model of a result (CREMA for results stored before the choice existed). */
+export function resultChordModel(result: AnalysisResult): ResultChordModel {
+  const c = (result as ListenedResult).chordModel;
+  return c && typeof c === 'object' && typeof c.id === 'string' ? c : { id: 'crema-chords' };
 }
 
 /** What the analysis listened to, if the result says so. */
@@ -148,6 +177,11 @@ export interface AnalysisRequest {
   key?: Key | null;
   /** Known charts whose title matches the piece's (`knownCharts.ts`): plain data, a few kB. */
   knownCharts?: KnownCharts | null;
+  /**
+   * Which chord model reads the chords (default `crema`). With `fine`, `channels` should hold
+   * both channels of the piece: the fine model listens in stereo.
+   */
+  chordModel?: ChordModelChoice;
   /** Called often (at least every few hundred ms while working). Never throws into the analyser. */
   onProgress?: (p: AnalysisProgress) => void;
   /** Aborts the analysis: `analyse()` then rejects with `AnalysisError('cancelled')` quickly. */
@@ -181,7 +215,7 @@ export interface Analyzer {
   /** `mock` or `fabtice`; copied into `AnalysisResult.analyser.id`. */
   readonly id: string;
   /** The models this analyser uses, with their source, size, licence and whether they are cached. */
-  models(): Promise<AnalysisModelInfo[]>;
+  models(chordModel?: ChordModelChoice): Promise<AnalysisModelInfo[]>;
   /**
    * Analyses a piece. Resolves with a complete result; rejects with an
    * `AnalysisError`. Only one analysis runs at a time: a second call while one
