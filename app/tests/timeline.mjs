@@ -693,8 +693,8 @@ try {
     {
       const { page, context, errors } = await open({ width: 1280, height: 800 }, { query: '?demo' });
       let rs = await rulerState(page);
-      check('chords: the ruler has three rows, tempo, accords, mesures, in the header column too', rs.rows.join() === 'tempo,accords,mesures' && rs.headRows.map((r) => r[0].replace(/ .*/, '')).join() === 'tempo,accords,mesures', `${rs.rows} | ${rs.headRows.map((r) => r[0])}`);
-      check('chords: heights shared with the header column (34, 42, 24)', rs.headRows.every((r, i) => near(r[2], rs.rangs[i][1], 0.5) && near(r[1], rs.rangs[i][0], 1)) && rs.rangs.map((r) => r[1]).join() === '34,42,24', JSON.stringify(rs.rangs));
+      check('chords: the ruler has its rows, tempo, accords, repères (lot 4: the demo has sections), mesures, in the header column too', rs.rows.join() === 'tempo,accords,reperes,mesures' && rs.headRows.map((r) => r[0].replace(/ .*/, '')).join() === 'tempo,accords,reperes,mesures', `${rs.rows} | ${rs.headRows.map((r) => r[0])}`);
+      check('chords: heights shared with the header column (34, 42, 22, 24)', rs.headRows.every((r, i) => near(r[2], rs.rangs[i][1], 0.5) && near(r[1], rs.rangs[i][0], 1)) && rs.rangs.map((r) => r[1]).join() === '34,42,22,24', JSON.stringify(rs.rangs));
       check('chords: ruler and header column end together', near(rs.headsBottom, rs.rulerBottom, 1));
       check('chords: Auto still leaves no vertical overflow', rs.overflow <= 0, `${rs.overflow} px`);
       check('tempo head reads « Tempo · ≈ N » on a variable tempo', /Tempo\s*·\s*≈\s*1\d\d/i.test(await page.locator('.rang-tete.tempo').innerText()), await page.locator('.rang-tete.tempo').innerText());
@@ -855,7 +855,7 @@ try {
     {
       const { page, context, errors } = await open({ width: 1280, height: 800 }, { query: '?demo&analyse=lente', waitPeaks: true });
       const before = await rulerState(page);
-      check('row appears later: no chord row before the analysis', before.rows.join() === 'tempo,mesures');
+      check('row appears later: no chord row before the analysis', before.rows.filter((x) => x !== 'reperes').join() === 'tempo,mesures');
       await page.evaluate(() => window.__fabtice.actions.setAuto(false));
       await page.evaluate(() => window.__fabtice.actions.setZoom(55));
       await sleep(200);
@@ -863,7 +863,7 @@ try {
       await page.waitForFunction(() => document.querySelector('.frise-accords'), null, { timeout: 30000 });
       await sleep(400);
       const after = await rulerState(page);
-      check('row appears later: the three rows are there, aligned with the header column', after.rows.join() === 'tempo,accords,mesures' && near(after.headsBottom, after.rulerBottom, 1) && after.headRows.every((r, i) => near(r[2], after.rangs[i][1], 0.5) && near(r[1], after.rangs[i][0], 1)));
+      check('row appears later: the three rows are there, aligned with the header column', after.rows.filter((x) => x !== 'reperes').join() === 'tempo,accords,mesures' && near(after.headsBottom, after.rulerBottom, 1) && after.headRows.every((r, i) => near(r[2], after.rangs[i][1], 0.5) && near(r[1], after.rangs[i][0], 1)));
       check('row appears later: the view keeps its position and scale', near(after.pps, st0.pps, 1e-6) && near(after.t0, st0.t0, 1e-6), `${st0.t0} -> ${after.t0}, ${st0.pps} -> ${after.pps}`);
       check('row appears later: labels are drawn at once', after.count >= 3, `${after.count}`);
       check('no page errors (row appears)', errors.length === 0, errors.join(' | '));
@@ -1069,7 +1069,7 @@ try {
       const { page, context, errors } = await open({ width: 390, height: 844 }, { touch: true, dpr: 2, query: '?demo' });
       const rs = await rulerState(page);
       const ls = await labels(page);
-      check('phone: chord row present and aligned with the header column', rs.rows.join() === 'tempo,accords,mesures' && near(rs.headsBottom, rs.rulerBottom, 1) && rs.headRows.every((r, i) => near(r[2], rs.rangs[i][1], 0.5)));
+      check('phone: chord row present and aligned with the header column', rs.rows.join() === 'tempo,accords,reperes,mesures' && near(rs.headsBottom, rs.rulerBottom, 1) && rs.headRows.every((r, i) => near(r[2], rs.rangs[i][1], 0.5)));
       check('phone: one chord per bar of 86 px, every label on its bar line', rs.stride === 1 && ls.length >= 3 && ls.filter((l) => l.nearBar > 1 && l.nearBeat > 1.5).length === 0, `stride ${rs.stride}, ${ls.length} labels`);
       check('phone: no horizontal page scroll', (await page.evaluate(() => document.documentElement.scrollWidth)) <= 390);
       const rects = await labelRect(page);

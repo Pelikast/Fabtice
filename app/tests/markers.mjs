@@ -48,7 +48,10 @@ const near = (a, b) => Math.abs(a - b) < 1e-6;
 async function fits(page, sel) {
   await sleep(300); // panels rise 10 px as they open
   return page.evaluate((s) => {
-    const r = document.querySelector(s).getBoundingClientRect();
+    const el = document.querySelector(s);
+    // the opening rise (10 px, DESIGN.md) is finished before measuring
+    for (const a of el.getAnimations()) a.finish();
+    const r = el.getBoundingClientRect();
     const bas = document.querySelector('.bas').getBoundingClientRect();
     return { ok: r.left >= 0 && r.right <= innerWidth + 0.5 && r.top >= 0 && r.bottom <= Math.min(innerHeight, bas.top) + 0.5, r: [r.left, r.top, r.right, r.bottom, bas.top].map(Math.round) };
   }, sel);
