@@ -173,6 +173,14 @@ export interface LastImportReport {
   at?: string;
 }
 
+// ---------------------------------------------------------------- printing the chart
+
+/** Orientation of the printed page, as the Mac app's printing takes it. */
+export type PagePrintOrientation = 'portrait' | 'landscape';
+
+/** What a printing of the chart answers: done, or why not (the user closed the panel; the system refused). */
+export type ChartPrintResult = { ok: true } | { ok: false; reason: 'cancelled' | 'failed' };
+
 // ---------------------------------------------------------------- the bridge
 
 export interface DesktopBridge {
@@ -194,6 +202,18 @@ export interface DesktopBridge {
    * `failed` when the system could not open it (iReal Pro not installed). A Mac app that predates it lacks this method.
    */
   openInIRealPro?(link: string): Promise<{ ok: true } | { ok: false; reason: 'invalid' | 'failed' }>;
+  /**
+   * Prints the page as it is now (the interface has put it in its printed form: the chart alone) through the
+   * system's print dialog, in the orientation asked. `window.print()` does not work in the Mac app, this does.
+   * A Mac app that predates it lacks this method (the page then falls back on `window.print()`).
+   */
+  printChart?(options: { orientation: PagePrintOrientation }): Promise<ChartPrintResult>;
+  /**
+   * Writes the page as it is now (the chart alone) to a PDF file: the system's save panel (French, in the
+   * Downloads folder, named after `title`), then the file. `cancelled` when the user closes the panel.
+   * A Mac app that predates it lacks this method.
+   */
+  saveChartPdf?(options: { orientation: PagePrintOrientation; title: string }): Promise<ChartPrintResult>;
   /** Timings of the last import made from the interface (a Mac app that predates it lacks this method). */
   lastImportReport?(): Promise<LastImportReport>;
   /**

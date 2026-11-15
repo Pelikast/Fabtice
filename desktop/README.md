@@ -99,6 +99,16 @@ Ouvrez ensuite Fabtice normalement.
    du morceau, temps avant la première ligne de progression, vitesse du
    téléchargement), puis le détail technique. Collez-le dans la conversation.
 
+4. **Clic droit** : dans un champ de texte (le lien du « Nouveau morceau » par
+   exemple), « Couper », « Copier », « Coller » et « Tout sélectionner », chacun
+   utilisable selon ce qui est possible à cet endroit ; sur un texte sélectionné,
+   « Copier » ; ailleurs, rien. On colle donc un lien YouTube sans le clavier.
+5. **Imprimer la grille** : dans l’affichage « Grille d’accords », le bouton
+   « Imprimer » (ou **Exporter > Imprimer la grille…**) ouvre une petite fenêtre :
+   portrait ou paysage, taille telle quelle ou sur une page, puis **Imprimer…**
+   (la fenêtre d’impression de macOS) ou **Enregistrer en PDF…** (le volet
+   d’enregistrement de macOS, dans le dossier Téléchargements, au nom du morceau).
+
 L’app utilise yt-dlp tel quel, depuis la connexion de l’utilisateur, sans
 aucun moyen de contourner les protections de YouTube. Si YouTube refuse, le
 diagnostic montre simplement le message d’erreur.
@@ -121,7 +131,19 @@ Fonctionnement :
 - La page de diagnostic est servie par `fabtice://diagnostic/` et partage le
   même `window.fabtice` (`src/preload.js`). Les appels IPC ne sont acceptés
   que de ces deux adresses, depuis la fenêtre principale d’une page.
-- Menu en français : `src/menu.js`.
+- Menu en français : `src/menu.js`. Menu du clic droit, en français, pour toutes
+  les fenêtres : `src/context-menu.js` (le modèle des entrées est une fonction
+  pure, testée ; Electron n'en montre aucun de lui-même).
+- Impression de la grille : `src/printing.js`. `window.print()` ne marche pas dans
+  Electron (la page cesse de répondre ; observé ici sous Linux, et c'est pourquoi
+  l'entrée de menu ne faisait rien), alors l'interface met la page en forme
+  d'impression (la grille seule, les choix appliqués : `app/src/chart/print.ts`)
+  et demande au processus principal : `fabtice:print-chart` (`webContents.print`
+  avec l'orientation : la fenêtre d'impression du système) et
+  `fabtice:save-chart-pdf` (volet d'enregistrement `dialog.showSaveDialog`, en
+  français, dossier Téléchargements, nom du morceau ; puis `printToPDF` en A4, ou
+  US Letter dans une région qui l'emploie, et le fichier est écrit ici). Seuls
+  deux sens et un titre court sont acceptés. Politique de sécurité inchangée.
 
 Choix techniques (vérifiés le 12 novembre 2026) :
 
@@ -158,7 +180,9 @@ Les commandes de fabrication s’arrêtent avec un message clair si
 
 Le pont (`window.fabtice`, `src/preload.js`) : `systemInfo`, `ytdlpStatus`,
 `ytdlpCheck`, `ytdlpInstall`, `extract`, `lastImportReport`, `copyText`,
-`onYtdlpProgress`, `onExtractProgress` et `openInIRealPro(lien)`. Cette
+`onYtdlpProgress`, `onExtractProgress`, `printChart({ orientation })`,
+`saveChartPdf({ orientation, title })` (voir plus haut ; `{ ok: true }` ou
+`{ ok: false, reason: 'cancelled' | 'failed' }`) et `openInIRealPro(lien)`. Cette
 dernière est celle de « Ouvrir dans iReal Pro » (menu « Exporter » de
 l’interface) : le processus principal vérifie le lien (`src/ireal-link.js` :
 schéma exactement `irealb://`, 200 000 caractères au plus, rien que ce
@@ -172,6 +196,22 @@ nouvelle fenêtre ; le fichier « Grille pour iReal Pro » est un vrai
 téléchargement (l’app demande où l’enregistrer ; `test/e2e/ireal-export.test.js`
 le range dans un dossier jetable et remplace `shell.openExternal` par un
 enregistreur, rien n’est lancé pour de bon).
+
+`test/e2e/chart-pdf.test.js` essaie l'impression dans l'app : le PDF de la grille
+tombe sur le disque (en-tête `%PDF-`, fin `%%EOF`, nombre de pages, taille de page
+debout et couchée, texte de la grille, l'interface rendue telle qu'elle était), un
+morceau de 48 mesures en deux pages puis sur une seule, un volet fermé qui n'écrit
+rien, des demandes refusées, et « Imprimer… » qui demande bien la fenêtre
+d'impression avec l'orientation. Comme pour l'export du son, c'est le processus
+principal qui répond au volet d'enregistrement (`dialog.showSaveDialog` est lu au
+moment de l'appel, après que l'app a construit les options du volet, que le test
+relit) ; `webContents.print` est remplacé par un enregistreur. Il lui faut `pdfinfo` et
+`pdftotext` (poppler). `test/e2e/context-menu.test.js` fait un vrai clic droit dans la
+page : le menu natif ne se pilote pas, `Menu.prototype.popup` est remplacé par un
+enregistreur et le test appuie sur l'entrée (son propre gestionnaire) ; le lien
+collé arrive bien dans le champ, dans la fenêtre principale et dans celle de
+diagnostic. `test/unit/context-menu.test.js` et `test/unit/printing.test.js` couvrent
+les modèles, la validation, le volet et l'écriture du fichier.
 
 Ce que le pont envoie à l’interface pendant un import (`src/extract.js`) :
 `{ phase: 'info' }`, puis `{ phase: 'prepare', meta }` quand le téléchargement
