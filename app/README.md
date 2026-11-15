@@ -1589,3 +1589,14 @@ de la grille, « Revenir à l'analyse » et « Analyser de nouveau ». Saisir ou
 battre un tempo fait une grille fixe (`setManualGrid`, lot 1), qui remplace les
 temps analysés ; les autres corrections gardent les temps analysés et n'en
 changent que la numérotation (`store/gridActions.ts`, `grid/corrections.ts`).
+
+## Grilles de standards — `src/standards/`
+
+Filet de sécurité pour les accords (CLAUDE.md, analyse, moyen 3) : la grille connue d'un standard, retrouvée par le titre. **Le dépôt ne contient aucune grille** ; recherche et adresses : `web/spikes/accords/recueils/RECHERCHE.md`. Tout est pur (ni DOM ni réseau), donc utilisable dans le processus principal, un worker ou la page.
+
+- `collections.json` / `collections.ts` : liste distante des recueils (comme `models.json`) : nom, résumé en français, nombre de morceaux, `pages` (adresse, `kind` `html-with-ireal-links` ou `ireal-url-file`, `role`, `verified`). `validateCollectionList` refuse tout ce qui n'est pas https sur un hôte permis (copies GitHub figées à une révision). `loadCollectionList()` prend la liste distante si elle est valide, sinon celle de l'app, sans erreur. `selectPlaylists(collection, listes)` garde la bonne liste d'une page et refuse un téléchargement trop court (`minTunes`).
+- `irealRead.ts` : `readIRealText(texte)` lit un lien `irealb://` ou `irealbook://`, une page HTML ou un fichier texte ; `readIRealPlaylists` donne une liste par lien. Chaque `StandardChart` a titre, compositeur, style, tonalité, mètres et `bars` **dépliées** (reprises, 1res et 2es fins, D.C., D.S., coda, `x`, `r`), chaque mesure portant ses accords placés par temps (`ReadChord`, en `ChordSymbol`, `text` d'origine, `approximate` si l'accord n'a pas d'équivalent exact) et ses accords alternatifs. Une chanson illisible va dans `skipped` avec sa raison ; rien ne lève d'exception. `asAnalysisChord` ramène `m7♭5` et `7♯5` aux noms de l'analyse. Les mesures vides sont ignorées (indiscernables du remplissage d'iReal).
+- `match.ts` : `buildTitleIndex(entrées)` une fois, puis `findTitle(index, titre bruité, {threshold, max})` → candidats triés, score dans [0, 1], rien sous 0,88 (une mauvaise grille est pire que pas de grille). Gère années, « remastered », « live at », « feat. », « take 2 », accents, articles, alias entre parenthèses et quelques traductions.
+- `transposeTo.ts` : `transposeChartToKey(grille, tonalité)`, `transposeChart`, `semitonesBetween`, et `chordAt(grille, mesure, temps, refrains)` : l'accord qui sonne à un temps d'une grille jouée sur plusieurs refrains.
+
+Le téléchargement (processus principal de l'app Mac, import de fichier pour le web) et l'interface ne sont pas là. Vérifier sur de vraies listes, gardées hors du dépôt : `FABTICE_IREAL_REAL_DIR=/dossier npx vitest run src/standards/irealRead.real --silent=false`.
