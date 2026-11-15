@@ -141,7 +141,12 @@ test('http errors, size cap (declared and streamed), timeout and network failure
   } finally {
     await server.close();
   }
-  const down = await fetchStandardsText('https://www.irealpro.com/x', options('http://127.0.0.1:9'));
+  // A port nothing listens on: one this machine has just given out and taken back
+  // (a fixed low port is not safe: on some machines something answers there).
+  const gone = await fakeServer({});
+  const deadOrigin = gone.origin;
+  await gone.close();
+  const down = await fetchStandardsText('https://www.irealpro.com/x', options(deadOrigin));
   assert.equal(down.ok, false);
   assert.equal(down.error, 'network');
 });

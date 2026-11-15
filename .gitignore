@@ -12,3 +12,6 @@ __pycache__/
 
 # Screenshots of the browser checks (a local folder, never committed).
 /app/tests/out/
+
+# Never commit working folders
+/web/spikes/accords/tmp/
