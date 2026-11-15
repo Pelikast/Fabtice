@@ -282,8 +282,10 @@ async function keepRender(target: RenderTarget, trackIds: readonly string[], out
     const storage = getProjectStorage();
     try {
       for (const t of kept.tracks) await storage.saveTrackAudio(t.audioId, out.get(t.trackId)!);
-    } catch {
-      // Not kept on the device: it plays now, and will be offered again after a relaunch.
+    } catch (e) {
+      // Not kept on the device: it plays now, and will be offered again after a relaunch. A full device is
+      // said calmly (the piece itself stays kept); the partial copy is dropped.
+      if ((e as { code?: string } | null)?.code === 'quota') appStore.setState((st) => ({ ui: { ...st.ui, storageNotice: 'renderFull' } }));
       await storage.deleteTrackAudio(kept.tracks.map((t) => t.audioId)).catch(() => {});
       return;
     }
