@@ -87,8 +87,11 @@
 .metro-choix button[aria-pressed="true"] { background: var(--encre); color: var(--papier-clair); }
 .metro-ligne .metro-choix { flex: none; }
 
+/* A tall panel may reach the top of the window: it stays above the top bar. */
+.bas:has(.panneau-metronome, .panneau-reperes) { z-index: 40; }
+
 /* Strong and weak beats: one button per beat; the level reads as the weight of a dot (and in words for screen readers). */
-.temps-rangee { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0 8px; }
+.temps-rangee { display: flex; flex-wrap: wrap; gap: 3px; margin: 4px 0 8px; }
 .temps-bouton {
   display: flex;
   flex-direction: column;
@@ -102,7 +105,7 @@
   color: var(--encre);
   transition: background var(--vite) var(--courbe), border-color var(--vite) var(--courbe);
 }
-.temps-bouton.groupe { margin-left: 8px; }
+.temps-bouton.groupe { margin-left: 5px; }
 .temps-bouton:hover { border-color: var(--encre-pale); background: var(--papier-fonce); }
 .temps-numero { font-size: 11px; font-weight: 600; color: var(--encre-douce); font-variant-numeric: tabular-nums; }
 .temps-force { display: grid; place-items: center; width: 20px; height: 20px; font-family: var(--titre); font-size: 20px; line-height: 1; }
