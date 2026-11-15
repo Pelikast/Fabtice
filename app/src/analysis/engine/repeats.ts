@@ -33,6 +33,10 @@ export interface RepeatOptions {
   lagZ: number;
   /** …and by at least this much (similarity units). */
   lagMargin: number;
+  /** Floor of the lags' robust spread (similarity units). */
+  minSpread: number;
+  /** At least this many lags must be measurable (else: no form; a single pass of 16 bars has 5). */
+  minLags: number;
   /** A lag needs at least this many bar pairs. */
   minPairs: number;
   /** Bars on each side of the pair that make its neighbourhood. */
@@ -49,11 +53,13 @@ export interface RepeatOptions {
 export const REPEAT_DEFAULTS: RepeatOptions = {
   minLag: 4,
   lagZ: 3,
-  lagMargin: 0.08,
+  lagMargin: 0.1,
+  minSpread: 0.04,
   minPairs: 8,
+  minLags: 6,
   window: 2,
-  simLow: 0.45,
-  simHigh: 0.7,
+  simLow: 0.2,
+  simHigh: 0.5,
   weight: 1,
   floor: 1e-4,
 };
@@ -131,12 +137,21 @@ export function findRepeats(units: readonly PooledUnit[], numbers: readonly numb
       S[j]![i] = v;
     }
   }
+  // relative to the piece's own background: two unrelated bars are not at 0
+  // (the network's leftover mass overlaps), so similarities are measured from
+  // the median pair (0) to identical bars (1)
+  const off: number[] = [];
+  for (let i = 0; i < nb; i++) for (let j = i + 1; j < nb; j++) off.push(S[i]![j]!);
+  const bg = Math.min(0.95, median(off));
+  for (let i = 0; i < nb; i++) for (let j = 0; j < nb; j++) S[i]![j] = Math.max(0, (S[i]![j]! - bg) / (1 - bg));
   // lag scores: mean similarity at each lag, then how much it stands out
   // from the lags 2 to 4 away (a vamp makes every short lag alike, the
   // similarity decays with the lag: only a peak means a repeat). Lags ±1 are
   // left out of the reference, so a peak spread over three lags (a beat lost
   // or added somewhere shifts the bars by one) still counts.
   const maxLag = nb - Math.max(o.minPairs, Math.ceil(nb / 3));
+  // too few lags to tell a peak from the rest (a single pass of a 16-bar form): no form
+  if (maxLag - o.minLag + 1 < o.minLags) return none;
   const raw: number[] = [0];
   for (let L = 1; L <= nb - 1; L++) {
     let s = 0;
@@ -150,7 +165,8 @@ export function findRepeats(units: readonly PooledUnit[], numbers: readonly numb
     all.push({ lag: L, score: raw[L]!, z: raw[L]! - median(ref) });
   }
   const peaks = all.filter((x) => x.lag >= o.minLag).map((x) => x.z);
-  const spread = median(peaks.map((v) => Math.abs(v - median(peaks)))) * 1.4826 || 1e-3;
+  // (with few lags the spread says little: it has a floor)
+  const spread = Math.max(o.minSpread, median(peaks.map((v) => Math.abs(v - median(peaks)))) * 1.4826);
   for (const x of all) x.z /= spread;
   const kept = all
     .filter((x) => x.lag >= o.minLag && x.z >= o.lagZ && x.z * spread >= o.lagMargin)
@@ -206,7 +222,8 @@ export function findRepeats(units: readonly PooledUnit[], numbers: readonly numb
   const support = partners.map((p) => p.reduce((s, x) => s + x.weight, 0));
   // choruses: from the first bar that has a partner at the form's lag to the last one
   const choruses: { start: number; end: number }[] = [];
-  const atForm = (i: number) => partners[i]!.some((p) => { const r = Math.abs(p.bar - i) % formLength; return r <= 1 || r >= formLength - 1; });
+  // (a bar of a chorus resembles its partner itself, not only around it: an intro bar next to the first chorus does not)
+  const atForm = (i: number) => partners[i]!.some((p) => { const r = Math.abs(p.bar - i) % formLength; return (r <= 1 || r >= formLength - 1) && S[i]![p.bar]! >= o.simHigh; });
   let first = -1;
   let last = -1;
   for (let i = 0; i < nb; i++) if (atForm(i)) {

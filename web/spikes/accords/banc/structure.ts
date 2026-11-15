@@ -50,11 +50,12 @@ for (const kv of (opt.set ?? '').split(',').filter(Boolean)) {
   overrides[group][name] = Number(v);
 }
 
+const chartKey = opt.chartKey !== 'false';
 const CONFIGS: Record<string, StructureConfig> = {
   base: { repeats: null, chart: null },
   reprises: { repeats: overrides.repeats, chart: null },
-  grille: { repeats: null, chart: overrides.chart },
-  'les-deux': { repeats: overrides.repeats, chart: overrides.chart },
+  grille: { repeats: null, chart: overrides.chart, chartKey },
+  'les-deux': { repeats: overrides.repeats, chart: overrides.chart, chartKey },
 };
 
 const split = JSON.parse(readFileSync(join(ROOT, 'banc', 'partage.json'), 'utf8')) as { dev: string[]; controle: string[] };
@@ -78,7 +79,8 @@ function wrongTitle(t: Truth): string {
   if (/blues|st-louis|valse/.test(t.id)) return 'All the Things You Are';
   if (t.id === 'tous-ces-trucs') return 'Autumn Leaves';
   if (t.style === 'bossa') return 'Corcovado';
-  if (t.source !== 'synthese') return 'All the Things You Are';
+  // GuitarSet takes are 12 to 16 bars: a chart must be as short to be tried at all (a 16-bar bossa, a 12-bar blues)
+  if (t.source !== 'synthese') return /jazz1/.test(t.id) ? 'Blue Bossa' : /jazz/.test(t.id) ? 'Blues for Alice' : 'Blue Bossa';
   return 'Blue Bossa' === t.title ? 'Satin Doll' : t.title === 'Satin Doll' ? 'Blue Bossa' : 'Body and Soul';
 }
 
@@ -186,7 +188,7 @@ const add = (key: Key, c: Counts, k: Kinds) => {
   counts.set(key, addCounts(counts.get(key) ?? emptyCounts(), c));
   kinds.set(key, addKinds(kinds.get(key) ?? emptyKinds(), k));
 };
-const acceptance: { id: string; half: string; condition: string; scenario: string; title: string; standard: boolean; accepted: boolean; matched: string | null; z: number | null; agree: number | null; reason: string | null; transpose: number | null; scale: number | null; formLength: number | null }[] = [];
+const acceptance: { id: string; half: string; condition: string; scenario: string; title: string; standard: boolean; accepted: boolean; matched: string | null; z: number | null; nullZ: number | null; agree: number | null; reason: string | null; transpose: number | null; scale: number | null; formLength: number | null }[] = [];
 const chartTruth = new Map<string, { beats: number; root: number; colour: number }>();
 const forms: { id: string; condition: string; truthForm: number; found: number | null; lags: number[]; choruses: number }[] = [];
 const rel: { half: string; condition: string; config: string; f: ReliabilityFeatures; beats: number; right: number; oldDoubt: boolean }[] = [];
@@ -208,6 +210,7 @@ for (const t of corpus) {
       const k = scoreKinds(t, condition, run.out);
       add(`${name}|${h}|${condition}`, c, k);
       add(`${name}|tout|${condition}`, c, k);
+      if (t.standard) add(`${name}|${h}-standards|${condition}`, c, k);
       if (name === 'reprises' && opt.lags) {
         const al = run.repeats?.allLags ?? [];
         process.stdout.write(`${t.id} ${condition}: ${[...al].sort((a, b) => b.z - a.z).slice(0, 8).map((l) => `${l.lag}:${l.score.toFixed(2)}/z${l.z.toFixed(1)}`).join(' ')}\n`);
@@ -242,7 +245,7 @@ for (const t of corpus) {
       }
     }
     // chart acceptance: right title (clean and noisy), wrong title, no title
-    if (configNames.includes('grille')) {
+    if (configNames.includes('grille') && !opt.noaccept) {
       const scenarios: [string, string][] = t.source === 'synthese'
         ? [['titre exact', t.title], ['titre bruité', noisy], ['titre d’un autre morceau', wrongTitle(t)]]
         : [['sans titre', ''], ['titre d’un autre morceau', wrongTitle(t)]];
@@ -251,7 +254,7 @@ for (const t of corpus) {
         const fit = run.chart;
         acceptance.push({
           id: t.id, half: h, condition, scenario, title, standard: t.standard && scenario !== 'titre d’un autre morceau',
-          accepted: !!fit?.accepted, matched: fit?.chart?.title ?? null, z: fit?.best?.z ?? null, agree: fit?.best?.agree ?? null,
+          accepted: !!fit?.accepted, matched: fit?.chart?.title ?? null, z: fit?.best?.z ?? null, nullZ: fit?.best?.nullZ ?? null, agree: fit?.best?.agree ?? null,
           reason: fit?.reason ?? null, transpose: fit?.best?.transpose ?? null, scale: fit?.best?.scale ?? null,
           formLength: fit?.chart ? fit.chart.bars.length : null,
         });
@@ -308,11 +311,11 @@ if (acceptance.length) {
     }
   }
   lines.push('\nDétail (z : écart de la meilleure position aux autres ; accord : part des temps où la grille et le réseau sont d’accord) :\n');
-  lines.push('| Morceau | Son | Scénario | Titre | Grille trouvée | z | Accord | Transp. | Échelle | Décision |');
-  lines.push('|---|---|---|---|---|---|---|---|---|---|');
+  lines.push('| Morceau | Son | Scénario | Titre | Grille trouvée | z | z contre d’autres morceaux | Accord | Transp. | Échelle | Décision |');
+  lines.push('|---|---|---|---|---|---|---|---|---|---|---|');
   for (const r of acceptance) {
     if (!r.matched) continue;
-    lines.push(`| ${r.id} | ${r.condition} | ${r.scenario} | ${r.title} | ${r.matched} | ${r.z?.toFixed(1)} | ${r.agree !== null ? pct(r.agree) : ''} | ${r.transpose} | ${r.scale} | ${r.accepted ? 'acceptée' : `refusée (${r.reason})`} |`);
+    lines.push(`| ${r.id} | ${r.condition} | ${r.scenario} | ${r.title} | ${r.matched} | ${r.z?.toFixed(1)} | ${r.nullZ?.toFixed(1)} | ${r.agree !== null ? pct(r.agree) : ''} | ${r.transpose} | ${r.scale} | ${r.accepted ? 'acceptée' : `refusée (${r.reason})`} |`);
   }
 }
 if (chartTruth.size) {
@@ -411,7 +414,7 @@ if (opt.fit && rel.length) {
   rows.push('\n## Fiabilité : une probabilité d’être juste par accord\n');
   rows.push(`Modèle logistique réglé sur « dev » (${opt.fitConfig ?? 'les-deux'}), coefficients : ${names.map((n, i) => `${n} ${w[i + 1]!.toFixed(3)}`).join(', ')}, constante ${w[0]!.toFixed(3)}.\n`);
   rows.push('| Partie | Variante | Son | Temps | Brier (nouveau / ancien) | ECE (nouveau / ancien) | Douteux | Faux si douteux | Faux si sûr | Erreurs signalées (nouveau / ancien) |');
-  rows.push('|---|---|---|---|---|---|---|---|---|---|');
+  rows.push('|---|---|---|---|---|---|---|---|---|---|---|');
   for (const h of ['dev', 'controle']) {
     for (const cfgName of configNames) {
       for (const cond of CONDS) {

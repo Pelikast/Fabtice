@@ -5,7 +5,8 @@
 import type { PooledUnit } from '../../../../../app/src/analysis/engine/chords';
 import { applyEvidence, type EvidenceSource } from '../../../../../app/src/analysis/engine/evidence';
 import { findRepeats, type RepeatAnalysis, type RepeatOptions } from '../../../../../app/src/analysis/engine/repeats';
-import { findChartCandidates, fitKnownChart, type ChartFit, type ChartOptions } from '../../../../../app/src/analysis/engine/knownChart';
+import { findChartCandidates, fitKnownChart, referenceCharts, type ChartFit, type ChartOptions } from '../../../../../app/src/analysis/engine/knownChart';
+import { normalizeTitle } from '../../../../../app/src/standards/match';
 import { reliability, reliabilityFeatures, type ReliabilityFeatures } from '../../../../../app/src/analysis/engine/reliability';
 import type { NetworkResult } from '../networks';
 import type { VariantInput, VariantOutput } from '../types';
@@ -16,6 +17,8 @@ export interface StructureConfig {
   chart: Partial<ChartOptions> | null;
   /** Title used for the chart search (default: the piece's). */
   title?: string;
+  /** When a chart is accepted, decode in the key it gives (the detected key is wrong on a third of the pieces). Default true. */
+  chartKey?: boolean;
   /** Use the reliability function for « doubtful » and the confidence. */
   reliability?: boolean;
 }
@@ -46,11 +49,16 @@ export function analyse(input: VariantInput, net: NetworkResult, cfg: StructureC
     const lib = standards();
     const cands = title ? findChartCandidates(lib.index, title) : [];
     if (cands.length) {
-      chart = fitKnownChart(p.units, p.grid.numbers, p.grid.beatsPerBar, p.key, cands, cfg.chart);
+      const own = new Set(cands.map((c) => normalizeTitle(c.chart.title)));
+      const refs = referenceCharts(lib.charts, 60, (c) => own.has(normalizeTitle(c.title)));
+      chart = fitKnownChart(p.units, p.grid.numbers, p.grid.beatsPerBar, p.key, cands, cfg.chart, refs);
       if (chart.accepted) sources.push(chart.source);
     }
   }
   const units = applyEvidence(p.units, sources);
+  if (cfg.chartKey !== false && chart?.accepted && chart.key) {
+    p.key = { best: { tonic: chart.key.tonic, minor: chart.key.mode === 'minor' }, ranked: p.key.ranked };
+  }
   const decoding = decode(p, units);
   const features = reliabilityFeatures(decoding.segments, p.units, rep, chart?.accepted ? chart : null);
   const prob = features.map((f) => reliability(f));

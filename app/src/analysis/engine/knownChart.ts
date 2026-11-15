@@ -64,6 +64,8 @@ export interface ChartOptions {
   minZ: number;
   /** …and the chart agrees with the network's top root × family on at least this share of beats. */
   minAgree: number;
+  /** …and its score is this many standard deviations above what other tunes (the reference charts) score on the recording. */
+  minNullZ: number;
   /** Evidence weight (see `evidence.ts`). */
   weight: number;
   /** Exponent of the doubt (1 − top probability of the network) in the weight. 0: a plain prior. */
@@ -82,13 +84,14 @@ export interface ChartOptions {
 export const CHART_DEFAULTS: ChartOptions = {
   scales: [1, 2, 0.5],
   keyWeight: 0.05,
-  minZ: 4,
-  minAgree: 0.35,
-  weight: 1,
+  minZ: 2,
+  minAgree: 0.25,
+  minNullZ: 2,
+  weight: 4,
   doubtPower: 1,
   window: 2,
-  fitLow: 0.2,
-  fitHigh: 0.5,
+  fitLow: 0.1,
+  fitHigh: 0.35,
   exact: 0.5,
   colour: 0.3,
   tritone: 0.05,
@@ -120,6 +123,15 @@ export interface ChartBeats {
   bar: number[];
   /** Section letter of each beat's bar (the last mark at or before it). */
   section: (string | null)[];
+}
+
+/** `n` charts spread evenly over a library (deterministic), for the verification's null; the caller leaves out the candidates' tune. */
+export function referenceCharts(library: readonly StandardChart[], n = 60, exclude: (c: StandardChart) => boolean = () => false): StandardChart[] {
+  const pool = library.filter((c) => !exclude(c) && c.bars.length >= 8);
+  if (pool.length <= n) return pool;
+  const out: StandardChart[] = [];
+  for (let i = 0; i < n; i++) out.push(pool[Math.floor(((i + 0.5) * pool.length) / n)]!);
+  return out;
 }
 
 export function chartBeats(chart: StandardChart): ChartBeats {
@@ -158,6 +170,8 @@ export interface Alignment {
   z: number;
   /** Share of beats where the chart's root × family is the network's top. */
   agree: number;
+  /** Score above the reference charts' best scores on this recording, in their standard deviations (0 without references). */
+  nullZ: number;
 }
 
 export interface BarAlignment {
@@ -210,6 +224,61 @@ function keyPrior(key: KeyEstimate | null, chartKey: Key | null, t: number): num
   return Math.log(p + 0.02);
 }
 
+interface AudioEvidence {
+  N: number;
+  /** log of the folded (root × family) distribution, per beat. */
+  logF: Float64Array[];
+  /** The network's top folded class, per beat. */
+  top: number[];
+}
+
+/** Best alignment of one chart (candidate index 0), or null when the chart is too short or too long for the piece. */
+function alignChart(ev: AudioEvidence, cb: ChartBeats, chartKey: Key | null, key: KeyEstimate | null, o: ChartOptions): Alignment | null {
+  const { N, logF, top } = ev;
+  const F = cb.chord.length;
+  if (F < 4) return null;
+  let best: Alignment | null = null;
+  let sum = 0;
+  let sum2 = 0;
+  let count = 0;
+  for (const scale of o.scales) {
+    const P = F * scale;
+    if (!Number.isInteger(P) || P < 2 || P > N) continue;
+    // beats summed by their position in the period
+    const A: Float64Array[] = Array.from({ length: P }, () => new Float64Array(N_FOLDED));
+    for (let b = 0; b < N; b++) {
+      const row = A[b % P]!;
+      const l = logF[b]!;
+      for (let k = 0; k < N_FOLDED; k++) row[k]! += l[k]!;
+    }
+    const xOf = Array.from({ length: P }, (_, d) => Math.floor(d / scale));
+    for (let t = 0; t < 12; t++) {
+      const kp = o.keyWeight * keyPrior(key, chartKey, t);
+      const chartCls = cb.chord.map((c) => foldedClass(transposeIndex(c, t)));
+      for (let off = 0; off < P; off++) {
+        let s = 0;
+        for (let m = 0; m < P; m++) {
+          const d = m - off < 0 ? m - off + P : m - off;
+          s += A[m]![chartCls[xOf[d]!]!]!;
+        }
+        const score = s / N + kp;
+        sum += score;
+        sum2 += score * score;
+        count++;
+        if (!best || score > best.score) best = { candidate: 0, transpose: t, scale, offset: off, score, z: 0, agree: 0, nullZ: 0 };
+      }
+    }
+  }
+  if (!best) return null;
+  const mean = sum / count;
+  const sd = Math.sqrt(Math.max(1e-12, sum2 / count - mean * mean));
+  best.z = (best.score - mean) / sd;
+  let agree = 0;
+  for (let b = 0; b < N; b++) if (foldedClass(transposeIndex(cb.chord[chartPos(b, best, F)]!, best.transpose)) === top[b]) agree++;
+  best.agree = agree / N;
+  return best;
+}
+
 /** Align, verify and turn into evidence. `numbers`: beat numbers of the grid; `bpb`: its meter (unused by the fit, kept for the alignment output). */
 export function fitKnownChart(
   units: readonly PooledUnit[],
@@ -218,6 +287,7 @@ export function fitKnownChart(
   key: KeyEstimate | null,
   candidates: readonly ChartCandidate[],
   options: Partial<ChartOptions> = {},
+  references: readonly StandardChart[] = [],
 ): ChartFit {
   void bpb;
   const o = { ...CHART_DEFAULTS, ...options };
@@ -244,54 +314,21 @@ export function fitKnownChart(
     source: { name: 'chart', logp: units.map(() => null), weight: units.map(() => 0) },
   };
   if (!N || !candidates.length) return empty;
+  const ev: AudioEvidence = { N, logF, top };
   const alignments: Alignment[] = [];
   const beatsOf: ChartBeats[] = [];
   candidates.forEach((cand, ci) => {
     const cb = chartBeats(cand.chart);
     beatsOf.push(cb);
-    const F = cb.chord.length;
-    if (F < 4) return;
-    const cls = (c: number, t: number) => foldedClass(transposeIndex(c, t));
-    let best: Alignment | null = null;
-    let sum = 0;
-    let sum2 = 0;
-    let count = 0;
-    for (const scale of o.scales) {
-      const P = Math.round(F * scale);
-      if (P < 2 || P > N || !Number.isInteger(F * scale)) continue;
-      // beats summed by their position in the period
-      const A: Float64Array[] = Array.from({ length: P }, () => new Float64Array(N_FOLDED));
-      for (let b = 0; b < N; b++) {
-        const row = A[b % P]!;
-        const l = logF[b]!;
-        for (let k = 0; k < N_FOLDED; k++) row[k]! += l[k]!;
-      }
-      for (let t = 0; t < 12; t++) {
-        const kp = o.keyWeight * keyPrior(key, cand.chart.key, t);
-        const chartCls = cb.chord.map((c) => cls(c, t));
-        for (let off = 0; off < P; off++) {
-          let s = 0;
-          for (let m = 0; m < P; m++) {
-            const x = Math.floor((((m - off) % P) + P) % P / scale);
-            s += A[m]![chartCls[x]!]!;
-          }
-          const score = s / N + kp;
-          sum += score;
-          sum2 += score * score;
-          count++;
-          if (!best || score > best.score) best = { candidate: ci, transpose: t, scale, offset: off, score, z: 0, agree: 0 };
-        }
-      }
-    }
-    if (!best) return;
-    const mean = sum / count;
-    const sd = Math.sqrt(Math.max(1e-12, sum2 / count - mean * mean));
-    best.z = (best.score - mean) / sd;
-    let agree = 0;
-    for (let b = 0; b < N; b++) if (foldedClass(transposeIndex(cb.chord[chartPos(b, best, F)]!, best.transpose)) === top[b]) agree++;
-    best.agree = agree / N;
-    alignments.push(best);
+    const al = alignChart(ev, cb, cand.chart.key, key, o);
+    if (al) alignments.push({ ...al, candidate: ci });
   });
+  // what tunes that are NOT this one score on this recording: the null of the verification
+  const nullScores: number[] = [];
+  for (const ref of references) {
+    const al = alignChart(ev, chartBeats(ref), ref.key, key, o);
+    if (al) nullScores.push(al.score);
+  }
   if (!alignments.length) return { ...empty, reason: 'charts too short' };
   // the variant that fits best
   const best = alignments.reduce((a, b) => (b.score > a.score ? b : a));
@@ -323,8 +360,19 @@ export function fitKnownChart(
     const bar = layout.barOfBeat[b]!;
     return bar < 0 ? (localFit[0] ?? 0) : localFit[bar]!;
   });
-  const accepted = best.z >= o.minZ && best.agree >= o.minAgree;
-  const reason = accepted ? null : best.z < o.minZ ? `alignment not distinct (z ${best.z.toFixed(2)})` : `too little agreement (${(100 * best.agree).toFixed(0)} %)`;
+  if (nullScores.length >= 2) {
+    const m = nullScores.reduce((x, y) => x + y, 0) / nullScores.length;
+    const sd = Math.sqrt(nullScores.reduce((x, y) => x + (y - m) ** 2, 0) / nullScores.length) || 1e-6;
+    for (const a of alignments) a.nullZ = (a.score - m) / sd;
+  }
+  const accepted = best.z >= o.minZ && best.agree >= o.minAgree && (nullScores.length < 2 || best.nullZ >= o.minNullZ);
+  const reason = accepted
+    ? null
+    : best.z < o.minZ
+      ? `alignment not distinct (z ${best.z.toFixed(2)})`
+      : best.agree < o.minAgree
+        ? `too little agreement (${(100 * best.agree).toFixed(0)} %)`
+        : `no better than other tunes (z ${best.nullZ.toFixed(2)} against them)`;
   // bars of the recording in the form
   let firstChorusBeat = -1;
   const bars: BarAlignment[] = layout.bars.map((bs, i) => {
