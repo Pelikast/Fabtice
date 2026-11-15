@@ -293,19 +293,30 @@ async function keepRender(target: RenderTarget, trackIds: readonly string[], out
   appStore.setState({ keptRender: kept });
 }
 
-let reviving = false;
+let reviving: Promise<boolean> | null = null;
 
 /**
  * Hears the kept render again when the live settings are its target: read
  * back from `source` (an opened `.fab` file) or the device, within the memory
- * budget of a new render. Does nothing otherwise; never rejects.
+ * budget of a new render. Does nothing otherwise; never rejects. One attempt
+ * at a time: a call made meanwhile waits for it, then tries in turn.
  */
 export async function reviveKeptRender(source?: ReadonlyMap<string, PcmAudio>): Promise<boolean> {
+  while (reviving) await reviving;
+  const attempt = reviveOnce(source);
+  reviving = attempt;
+  try {
+    return await attempt;
+  } finally {
+    if (reviving === attempt) reviving = null;
+  }
+}
+
+async function reviveOnce(source?: ReadonlyMap<string, PcmAudio>): Promise<boolean> {
   const s = appStore.getState();
   const kept = s.keptRender;
-  if (!kept || reviving || s.render.status !== 'none' || isOriginal(s) || !sameTarget(kept.target, currentTarget(s))) return false;
+  if (!kept || s.render.status !== 'none' || isOriginal(s) || !sameTarget(kept.target, currentTarget(s))) return false;
   const projectId = s.project?.id;
-  reviving = true;
   try {
     const sources = s.tracks.map((tr) => getAudio(tr.audio.id));
     if (sources.some((a) => !a) || !appliedFits(sources as PcmAudio[], kept.target.tempoRatio)) return false;
@@ -328,8 +339,6 @@ export async function reviveKeptRender(source?: ReadonlyMap<string, PcmAudio>): 
     return true;
   } catch {
     return false;
-  } finally {
-    reviving = false;
   }
 }
 
