@@ -20,11 +20,17 @@ import { useFitPanel } from '../ui/useFitPanel';
 const percent = (f: number) => Math.round(Math.min(1, Math.max(0, f)) * 100);
 const megabytes = (bytes: number) => formatNumber(bytes / 1e6, 0);
 
+/** Whole percent of the fine chord step: the steady estimate, or the windows done when there is none. */
+function windowPercentOf(w: ChordWindowProgress | null | undefined): number {
+  if (!w || w.total <= 0) return 0;
+  return percent(w.fraction ?? w.done / w.total);
+}
+
 /** Short text of the status for the top bar, or null when there is nothing to say. */
-function statusText(run: AnalysisRun, fraction: number, window: ChordWindowProgress | null, fallback: string | null): string | null {
+function statusText(run: AnalysisRun, fraction: number, window: (ChordWindowProgress & { percent: number }) | null, fallback: string | null): string | null {
   if (run.status === 'running') {
     if (run.step === 'download') return t('analysis.statusDownload', { n: percent(fraction) });
-    if (run.step === 'chords' && window && window.total > 0) return t('analysis.statusFine', { done: window.done, total: window.total });
+    if (run.step === 'chords' && window && window.total > 0) return t('analysis.statusFine', { n: window.percent });
     return t('analysis.statusRunning', { n: percent(fraction) });
   }
   if (run.status === 'error') return t('analysis.statusError');
@@ -39,6 +45,7 @@ export function AnalysisStatus() {
   const fraction = useAnalysisProgress((p) => percent(p.fraction) / 100);
   const windowDone = useAnalysisProgress((p) => p.chordWindow?.done ?? -1);
   const windowTotal = useAnalysisProgress((p) => p.chordWindow?.total ?? 0);
+  const windowPercent = useAnalysisProgress((p) => windowPercentOf(p.chordWindow));
   const fallback = useAnalysisProgress((p) => p.fallback ?? null);
   const open = useApp((s) => s.ui.panel === 'analysis');
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -67,7 +74,7 @@ export function AnalysisStatus() {
     }
   }, [run.status]);
 
-  const text = statusText(run, fraction, windowDone >= 0 ? { done: windowDone, total: windowTotal } : null, fallback);
+  const text = statusText(run, fraction, windowDone >= 0 ? { done: windowDone, total: windowTotal, percent: windowPercent } : null, fallback);
   if (!text && !open) return null;
   return (
     // Any press on the button or in the panel means the user has taken it over: it then stays until they close it.
@@ -99,6 +106,7 @@ export function AnalysisProgressNote() {
   const download = useAnalysisProgress((p) => p.download);
   const windowDone = useAnalysisProgress((p) => p.chordWindow?.done ?? -1);
   const windowTotal = useAnalysisProgress((p) => p.chordWindow?.total ?? 0);
+  const windowPercent = useAnalysisProgress((p) => windowPercentOf(p.chordWindow));
   const models = useModels();
   if (run.status !== 'running') return null;
   const toDownload = models.filter((m) => !m.cached);
@@ -109,7 +117,7 @@ export function AnalysisProgressNote() {
         <span style={{ transform: `scaleX(${Math.min(1, Math.max(0, fraction))})` }} />
       </div>
       <p className="analyse-etape" data-testid="analyse-etape">
-        {run.step === 'chords' && windowDone >= 0 && windowTotal > 0 ? t('analysis.stepFine', { done: windowDone, total: windowTotal }) : t(`analysis.step.${run.step}`)}
+        {run.step === 'chords' && windowDone >= 0 && windowTotal > 0 ? t('analysis.stepFine', { n: windowPercent, done: windowDone, total: windowTotal }) : t(`analysis.step.${run.step}`)}
         {run.step === 'download' && download && ` · ${t('analysis.downloaded', { loaded: megabytes(download.loaded), total: megabytes(download.total) })}`}
       </p>
       {showSources && models.length > 0 && <ModelSources models={models} />}

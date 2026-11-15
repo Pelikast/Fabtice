@@ -169,6 +169,31 @@ describe('FabticeAnalyzer', () => {
     await work;
   });
 
+  it('moves steadily between the windows of the fine chord model, never back, never past the end of the step', async () => {
+    const { a, workers } = analyser();
+    const seen: AnalysisProgress[] = [];
+    const work = a.analyse(request({ chordModel: 'fine', onProgress: (p) => seen.push(p) }));
+    await vi.advanceTimersByTimeAsync(0);
+    const w = workers[0]!;
+    w.emit({ type: 'plan', downloadBytes: 0 });
+    w.emit({ type: 'step', step: 'chords' });
+    w.emit({ type: 'progress', step: 'chords', fraction: 0, chordWindow: { done: 0, total: 4 } });
+    for (let i = 1; i <= 3; i++) {
+      await vi.advanceTimersByTimeAsync(8000);
+      w.emit({ type: 'progress', step: 'chords', fraction: i / 4, chordWindow: { done: i, total: 4 } });
+    }
+    await vi.advanceTimersByTimeAsync(5000); // inside the last window
+    const chords = seen.filter((p) => p.step === 'chords');
+    const f = chords.map((p) => p.fraction);
+    expect(f.every((v, i) => i === 0 || v >= f[i - 1]!)).toBe(true);
+    // Many more reports than windows: the percentage moves between them.
+    expect(new Set(chords.map((p) => Math.round((p.chordWindow?.fraction ?? 0) * 100))).size).toBeGreaterThan(12);
+    const inside = chords.filter((p) => p.chordWindow?.done === 3);
+    expect(Math.max(...inside.map((p) => p.chordWindow!.fraction!))).toBeLessThan(1);
+    finishWith(w);
+    await work;
+  });
+
   it('does not let a failing listener break the analysis', async () => {
     const { a, workers } = analyser();
     const work = a.analyse(request({ onProgress: () => void (() => { throw new Error('listener'); })() }));
