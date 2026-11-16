@@ -162,10 +162,14 @@ async function dropFile(page, file, mimeType) {
     },
     [b64, path.basename(file), mimeType],
   );
+  // A piece imported earlier reads « modified »: the alert about changes not saved comes first (C5).
+  await page.locator('[data-testid="alerte-abandonner"]').click({ timeout: 1500 }).catch(() => {});
 }
 
 async function openDialog(page) {
   await page.click('button:has-text("Nouveau projet")');
+  // A piece imported earlier reads « modified »: the alert about changes not saved comes first (C5).
+  await page.locator('[data-testid="alerte-abandonner"]').click({ timeout: 1500 }).catch(() => {});
   await page.waitForFunction(() => document.querySelector('.voile')?.classList.contains('ouverte'));
   await sleep(260);
 }

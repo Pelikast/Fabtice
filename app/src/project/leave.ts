@@ -20,7 +20,7 @@
 
 import { createStore } from 'zustand/vanilla';
 import { isModified } from '../store/history';
-import { openNewPiece } from '../store/actions';
+import { closePanel, openNewPiece } from '../store/actions';
 import { appStore } from '../store/store';
 import { saveProject } from './saveFlow';
 
@@ -88,6 +88,8 @@ export async function answerLeave(choice: 'save' | 'discard' | 'cancel'): Promis
 export async function requestNewProject(): Promise<void> {
   const s = appStore.getState();
   if (s.ui.import.kind === 'busy') return;
+  // The menu it was chosen from (the phone's « … ») makes way for the alert.
+  closePanel();
   if (!(await confirmLeaveProject())) return;
   // What the user just agreed to stands for the window that opens: « Ouvrir » in it does not ask again.
   agreedFor = appStore.getState().project?.id ?? null;
