@@ -34,7 +34,8 @@
     "test:markers": "node tests/markers.mjs",
     "test:tempo-fix": "node tests/tempo-fix.mjs",
     "test:project-file": "node tests/project-file.mjs",
-    "test:offline": "node tests/offline.mjs"
+    "test:offline": "node tests/offline.mjs",
+    "test:undo": "node tests/undo.mjs"
   },
   "dependencies": {
     "@audio/encode-flac": "1.4.3",
