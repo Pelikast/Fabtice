@@ -100,10 +100,15 @@ export function startFileImport(file: File): Promise<void> {
 /**
  * Lot 4, « Ouvrir un projet… » (or a `.fab` file dropped, or opened by the
  * Mac app): the project replaces the open piece, as an import does.
+ * `onOpened` hears the id of the project once it is open and not « modified »
+ * (the caller makes the file the project's file there). The alert « Enregistrer
+ * les modifications ? » is the caller's business (`project/leave.ts`).
  */
-export function startProjectOpen(source: ByteSource, name: string): Promise<void> {
+export function startProjectOpen(source: ByteSource, name: string, onOpened?: (projectId: string) => void | Promise<void>): Promise<void> {
   return exclusive(async (options) => {
-    await openProjectSource(source, name, options);
+    const id = await openProjectSource(source, name, options);
+    // The file it came from is now the project's file (C5).
+    if (id !== null && onOpened) await onOpened(id);
     setImportStatus({ kind: 'idle' });
   });
 }

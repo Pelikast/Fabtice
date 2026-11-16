@@ -19,7 +19,9 @@ const ROOT = path.join(__dirname, '..', '..');
 // FABTICE_STARTUP_TRACE makes the app print its start-up steps on stderr, which
 // Playwright copies into the error of a failed launch.
 async function launchApp(env, { initScript } = {}) {
-  const clean = { ...process.env, FABTICE_HOLD_WINDOW: '1', FABTICE_STARTUP_TRACE: '1', ...env };
+  // FABTICE_NO_CLOSE_GUARD: tests close apps that hold pieces never saved; only project-file.test.js asks the window
+  // whether it may close (the alert about changes not saved) and turns the guard on for itself.
+  const clean = { ...process.env, FABTICE_HOLD_WINDOW: '1', FABTICE_STARTUP_TRACE: '1', FABTICE_NO_CLOSE_GUARD: '1', ...env };
   delete clean.ELECTRON_RUN_AS_NODE;
   const extraArgs = process.platform === 'linux' ? ['--no-sandbox'] : [];
   const options = process.env.FABTICE_E2E_APP

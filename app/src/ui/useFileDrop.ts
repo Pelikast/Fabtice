@@ -1,19 +1,27 @@
 import { useEffect, useState } from 'react';
-import { startFileImport, startProjectOpen } from '../import/controller';
-import { getDesktopBridge } from '../platform/desktopBridge';
+import { startFileImport } from '../import/controller';
+import { openProjectFileFromUser } from '../project/choose';
+import { handleOfDropped, type FileHandle } from '../project/fileSystem';
+import { confirmLeaveProject } from '../project/leave';
 import { isProjectFileName, looksLikeProjectFile } from '../project/open';
 import { blobSource } from '../project/zip';
 import { openNewPiece } from '../store/actions';
 import { appStore } from '../store/store';
 
-/** A `.fab` project (by its name, or by its first bytes) opens as a project; anything else is imported as audio. */
-async function openDropped(file: File): Promise<void> {
+/**
+ * Changes not saved in the open project: the alert first (« Enregistrer », « Ne pas enregistrer », « Annuler »).
+ * Then a `.fab` project (by its name, or by its first bytes) opens as a project (its file, when the browser gives
+ * a handle, becomes the project's file); anything else is imported as audio.
+ */
+async function openDropped(file: File, handle: Promise<FileHandle | null>): Promise<void> {
   const source = blobSource(file);
   if (isProjectFileName(file.name) || (await looksLikeProjectFile(source))) {
-    void getDesktopBridge()?.rememberProjectFile?.(file).catch(() => false);
-    await startProjectOpen(source, file.name);
+    await openProjectFileFromUser(file, await handle);
+    return;
   }
-  else await startFileImport(file);
+  if (!(await confirmLeaveProject())) return;
+  openNewPiece();
+  await startFileImport(file);
 }
 
 const hasFiles = (e: DragEvent) => Array.from(e.dataTransfer?.types ?? []).includes('Files');
@@ -49,8 +57,9 @@ export function useFileDrop(): boolean {
       setOver(false);
       const file = e.dataTransfer?.files[0];
       if (!file || appStore.getState().ui.import.kind === 'busy') return;
-      openNewPiece();
-      void openDropped(file);
+      // The handle must be asked for during the event itself.
+      const handle = handleOfDropped(e.dataTransfer?.items[0]);
+      void openDropped(file, handle);
     };
     window.addEventListener('dragenter', onEnter);
     window.addEventListener('dragover', onOver);

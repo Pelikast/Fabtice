@@ -1,20 +1,31 @@
-// « Enregistrer le projet » (lot 4): one `.fab` file holding the whole
-// project, with every separation and the kept render (owner's decision: no
-// choice to make). The dialog says what goes in, prepares the file (the FLAC
-// encoding takes a moment, with a steady percentage), then hands it over as a
-// link (the user's click saves it: a download in a browser, the save panel of
-// macOS in the Mac app), in the family of « Exporter le son ».
+// « Enregistrer le projet » (lot 4) and « Enregistrer sous… » (C5): one `.fab`
+// file holding the whole project, with every separation and the kept render
+// (owner's decision: no choice to make). The dialog says what goes in; the
+// button opens the system's save panel (Mac app, Chromium) and writes the file
+// there, with a steady percentage (`project/saveFlow.ts`): the file chosen
+// becomes the project's file. A browser that cannot write a file (Safari,
+// Firefox) gets the file as a link instead (the user's click downloads it), in
+// the family of « Exporter le son ».
 
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { deliverable, type Delivered } from '../export/audio/deliver';
 import { t } from '../i18n';
-import { buildProjectFile, projectContents, ProjectSaveError, saveRefusal } from '../project/save';
+import { getDesktopBridge } from '../platform/desktopBridge';
+import { canSaveToFile } from '../project/fileSystem';
+import { projectContents, ProjectSaveError, saveRefusal } from '../project/save';
+import { noteSaved, runSaveAs, settleSaveAs } from '../project/saveFlow';
 import { formatSize } from '../separation/useChoice';
 import { closeSaveProject } from '../store/exportActions';
-import { useApp } from '../store/store';
+import { appStore, useApp } from '../store/store';
 import { CloseIcon } from '../ui/icons';
 
-type Phase = { kind: 'choose' } | { kind: 'working'; fraction: number } | { kind: 'ready'; file: Delivered } | { kind: 'error'; code: string };
+type Phase = { kind: 'choose' } | { kind: 'working'; fraction: number } | { kind: 'ready'; file: Delivered; finish: () => void } | { kind: 'error'; code: string };
+
+/** True when the button leads to a save panel (the Mac app, Chromium); otherwise the file comes as a link. */
+function writesFiles(): boolean {
+  const b = getDesktopBridge();
+  return Boolean(b?.beginProjectSave && b.writeProjectSave && b.finishProjectSave) || canSaveToFile();
+}
 
 export function SaveProjectDialog() {
   const open = useApp((s) => s.ui.saveProjectOpen);
@@ -33,6 +44,16 @@ function SaveProjectBox() {
   useEffect(() => goRef.current?.focus({ preventScroll: true }), []);
   useEffect(() => () => abortRef.current?.abort(), []);
   useEffect(() => () => (phase.kind === 'ready' ? phase.file.release() : undefined), [phase]);
+  // Whoever asked for « Enregistrer sous… » (the alert, a shortcut) hears that it was closed without saving.
+  // Deferred: the dialog is remounted at once in development, and Escape closes it through the store.
+  useEffect(
+    () => () => {
+      setTimeout(() => {
+        if (!appStore.getState().ui.saveProjectOpen) settleSaveAs('cancelled');
+      }, 0);
+    },
+    [],
+  );
   const close = () => {
     abortRef.current?.abort();
     closeSaveProject();
@@ -42,12 +63,19 @@ function SaveProjectBox() {
     abortRef.current = abort;
     setPhase({ kind: 'working', fraction: 0 });
     try {
-      const out = await buildProjectFile({
+      // The system's panel opens from here, from the click (the browser wants the gesture).
+      const out = await runSaveAs({
         signal: abort.signal,
         onProgress: (fraction) => setPhase((p) => (p.kind === 'working' && Math.round(fraction * 100) !== Math.round(p.fraction * 100) ? { kind: 'working', fraction } : p)),
       });
       if (abort.signal.aborted) return;
-      setPhase({ kind: 'ready', file: deliverable(out.blob, out.name) });
+      if (out.kind === 'cancelled') return setPhase({ kind: 'choose' });
+      if (out.kind === 'saved') {
+        noteSaved();
+        settleSaveAs('saved');
+        return closeSaveProject();
+      }
+      setPhase({ kind: 'ready', file: deliverable(out.blob, out.name), finish: out.finish });
     } catch (e) {
       if (abort.signal.aborted) return setPhase({ kind: 'choose' });
       setPhase({ kind: 'error', code: e instanceof ProjectSaveError ? e.code : 'failed' });
@@ -89,7 +117,7 @@ function SaveProjectBox() {
             {(contents.separations.length > 0 || contents.render) && <p className="export-resume">{t('saveProject.flacNote')}</p>}
             <div className="import-actions">
               <button ref={goRef} className="plein" data-testid="preparer-projet" onClick={() => void run()}>
-                {t('saveProject.go')}
+                {writesFiles() ? t('saveProject.goChoose') : t('saveProject.go')}
               </button>
             </div>
           </>
@@ -113,7 +141,17 @@ function SaveProjectBox() {
         {phase.kind === 'ready' && (
           <>
             <p>{t('saveProject.ready')}</p>
-            <a className="plein fichier-pret" data-testid="fichier-projet" href={phase.file.href} download={phase.file.name}>
+            <a
+              className="plein fichier-pret"
+              data-testid="fichier-projet"
+              href={phase.file.href}
+              download={phase.file.name}
+              onClick={() => {
+                // The user's click saves it: from here the project reads « saved ».
+                phase.finish();
+                settleSaveAs('saved');
+              }}
+            >
               {t('saveProject.save', { name: phase.file.name })}
             </a>
             <p className="export-resume">{formatSize(phase.file.bytes)}</p>

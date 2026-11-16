@@ -133,6 +133,8 @@ const result = (page) => page.evaluate(() => window.__fabtice.store.getState().a
 
 async function openDialog(page) {
   await page.click('button:has-text("Nouveau projet")');
+  // A piece imported earlier reads « modified »: the alert about changes not saved comes first (C5).
+  await page.locator('[data-testid="alerte-abandonner"]').click({ timeout: 1500 }).catch(() => {});
   await page.waitForFunction(() => document.querySelector('.voile')?.classList.contains('ouverte'));
   await sleep(260);
 }

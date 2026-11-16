@@ -4,7 +4,8 @@ import type { MinorNotation } from '../model/project';
 import { getRenderer } from '../render';
 import { useMainTools, useSeparationChoice } from '../separation/useChoice';
 import { openStandardsPanel } from '../standards/offer';
-import { closePanel, openNewPiece, setFollow, setMinorNotation, togglePanel } from '../store/actions';
+import { requestNewProject } from '../project/leave';
+import { closePanel, setFollow, setMinorNotation, togglePanel } from '../store/actions';
 import { StandardsSettingsEntry } from './StandardsOffer';
 import { ChordModelSetting } from './ChordModelSetting';
 import { setFormants, setSeparationModel } from '../store/separationActions';
@@ -42,7 +43,7 @@ export function SettingsPopover({ ref }: { ref: Ref<HTMLDivElement> }) {
           ))}
         </span>
       </div>
-      <button className="option lien-option" onClick={openNewPiece}>
+      <button className="option lien-option" onClick={() => void requestNewProject()}>
         {t('settings.newProject')}
       </button>
       {/* On a phone the track column has little room: the way into the separation is also here. */}

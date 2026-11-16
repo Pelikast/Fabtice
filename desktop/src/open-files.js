@@ -106,7 +106,13 @@ function createOpenFiles(deps = {}) {
     known.delete(token);
   }
 
-  return { accept, isProjectFile, takePending, onOpen, read, release };
+  /** The path behind a token not yet released (the main process only: the project the page opened has this file). */
+  function pathOf(token) {
+    const entry = typeof token === 'string' ? known.get(token) : undefined;
+    return entry ? entry.path : null;
+  }
+
+  return { accept, isProjectFile, takePending, onOpen, read, release, pathOf };
 }
 
 /** `.fab` paths in a command line (a second launch, or a launch that names files). */

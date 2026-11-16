@@ -1,5 +1,8 @@
 import { useEffect } from 'react';
+import { useStore } from 'zustand';
 import { startAutoAnalysis } from '../analysis/runner';
+import { leaveDialog } from '../project/leave';
+import { saveActivity } from '../project/saveFlow';
 import { startKeptRenderWatch, startRenderWatch } from '../render/controller';
 import { startAutoSeparation } from '../separation/runner';
 import { t } from '../i18n';
@@ -10,6 +13,8 @@ import { useGlobalKeys } from '../ui/useGlobalKeys';
 import { ApplyWaiting } from './ApplyRender';
 import { ChartView } from './ChartView';
 import { ExportAudioDialog } from './ExportAudioDialog';
+import { LeaveProjectDialog } from './LeaveProjectDialog';
+import { SaveActivity } from './SaveActivity';
 import { NewPieceDialog } from './NewPieceDialog';
 import { PrintDialog } from './PrintDialog';
 import { SaveProjectDialog } from './SaveProjectDialog';
@@ -25,7 +30,10 @@ export function App() {
   const mode = useApp((s) => s.view.mode);
   const dialogOpen = useApp((s) => s.ui.newPieceOpen || s.ui.exportAudioOpen || s.ui.printOpen || s.ui.saveProjectOpen || s.render.status === 'rendering' || s.render.status === 'error');
   const standardsOpen = useStandards((s) => s.panelOpen);
-  const inert = dialogOpen || standardsOpen;
+  // The alert about changes not saved, and the progress or the error of « Enregistrer », are windows too.
+  const leaving = useStore(leaveDialog, (s) => s.open);
+  const saving = useStore(saveActivity, (s) => (s.phase === 'working' && s.visible) || s.phase === 'error');
+  const inert = dialogOpen || standardsOpen || leaving || saving;
   const dragging = useFileDrop();
   useGlobalKeys();
   // Each newly opened piece is analysed in the background once it can play (analysis/runner.ts).
@@ -49,6 +57,8 @@ export function App() {
       <ExportAudioDialog />
       <PrintDialog />
       <SaveProjectDialog />
+      <SaveActivity />
+      <LeaveProjectDialog />
       <ApplyWaiting />
       <TempoFixMenu />
       {dragging && (

@@ -146,7 +146,8 @@ export class ZipStreamWriter {
     await this.emit(chunk);
   }
 
-  async end(): Promise<void> {
+  /** Closes the entry; answers with the CRC and the size it was written with. */
+  async end(): Promise<{ crc: number; size: number }> {
     const e = this.open;
     if (!e) throw new Error('no entry open');
     this.open = null;
@@ -158,6 +159,7 @@ export class ZipStreamWriter {
     v.setUint32(12, e.size, true);
     await this.emit(d);
     this.central.push({ ...e.record, crc: e.crc, size: e.size });
+    return { crc: e.crc, size: e.size };
   }
 
   /** The central directory and the end record. */

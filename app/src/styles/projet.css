@@ -1,0 +1,39 @@
+/* ---------- C5: the alert « Enregistrer les modifications ? » and the notices of « Enregistrer » ---------- */
+
+.accueil.alerte-projet { width: min(480px, 100%); padding-bottom: 24px; }
+.alerte-projet h2 { font-size: 24px; margin-bottom: 10px; }
+.alerte-projet p { margin: 0 0 6px; color: var(--encre); font-size: 16px; line-height: 1.45; }
+/* The default (« Enregistrer ») sits at the right end, as in the system's own alerts. */
+.alerte-projet .alerte-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 22px; }
+.alerte-projet .alerte-actions button { width: auto; min-height: 46px; padding: 0 18px; }
+.alerte-projet .alerte-actions .plein { order: 3; }
+.alerte-projet .alerte-actions .annuler { order: 2; }
+.alerte-projet .alerte-actions .abandonner { order: 1; margin-right: auto; }
+@media (max-width: 520px) {
+  /* A phone: one button per line, the default first. */
+  .alerte-projet .alerte-actions { flex-direction: column; align-items: stretch; }
+  .alerte-projet .alerte-actions button { width: 100%; margin-right: 0; }
+  .alerte-projet .alerte-actions .plein { order: 1; }
+  .alerte-projet .alerte-actions .annuler { order: 2; }
+  .alerte-projet .alerte-actions .abandonner { order: 3; }
+}
+
+/* « Projet enregistré. »: a calm confirmation that goes by itself. */
+.avis-enregistre {
+  position: fixed;
+  bottom: 96px;
+  left: 16px;
+  z-index: 35;
+  padding: 10px 16px;
+  background: var(--papier-clair);
+  border: 1px solid var(--trait);
+  border-left: 3px solid var(--laiton);
+  border-radius: var(--rayon-fenetre);
+  box-shadow: var(--ombre-fenetre);
+  font-size: 14px;
+  color: var(--encre);
+  animation: apparait var(--pose) var(--courbe);
+}
+@media (max-width: 760px) {
+  .avis-enregistre { bottom: 212px; }
+}
