@@ -197,6 +197,8 @@ try {
 
     // New-piece dialog over a project
     await page.click('button:has-text("Nouveau projet")');
+    // The demo piece was changed above: the alert about changes not saved comes first (C5).
+    await page.locator('[data-testid="alerte-abandonner"]').click({ timeout: 1500 }).catch(() => {});
     await sleep(300);
     check('dialog opens', await page.locator('.voile.ouverte').isVisible());
     check('web: no link field, a file button', (await page.locator('.champ').count()) === 0 && (await page.locator('.accueil .plein').innerText()) === 'Choisir un fichier audio');
@@ -214,6 +216,8 @@ try {
 
     // Import: unsupported file, then an undecodable one, then progress
     await page.click('button:has-text("Nouveau projet")');
+    // The demo piece was changed above: the alert about changes not saved comes first (C5).
+    await page.locator('[data-testid="alerte-abandonner"]').click({ timeout: 1500 }).catch(() => {});
     await page.locator('.accueil input[type="file"]').setInputFiles({ name: 'partition.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF') });
     check('unsupported file refused', (await text(page, '.import-erreur')).includes('Formats acceptés'));
     await page.click('button:has-text("Réessayer")');
@@ -297,6 +301,8 @@ try {
     check('phone: menu holds « Nouveau projet… »', await page.locator('.lien-option').isVisible());
     await page.screenshot({ path: path.join(out, 'app-390-menu.png') });
     await page.click('.lien-option');
+    // The demo piece was changed above: the alert about changes not saved comes first (C5).
+    await page.locator('[data-testid="alerte-abandonner"]').click({ timeout: 1500 }).catch(() => {});
     await sleep(300);
     check('phone: dialog from the menu', await page.locator('.voile.ouverte').isVisible());
     await page.screenshot({ path: path.join(out, 'app-390-accueil.png') });
