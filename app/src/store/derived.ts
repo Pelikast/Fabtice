@@ -1,7 +1,7 @@
 // Values computed from the state, and the stepping rules of the transport
 // buttons. Pure functions, tested in `derived.test.ts`.
 
-import { feltUnits } from '../grid/metronome';
+import { feltBeat } from '../grid/meters';
 import { clamp, nominalBpm } from '../grid/tempoMap';
 import type { TempoMap } from '../model/tempoMap';
 import type { AppState } from './store';
@@ -22,16 +22,21 @@ export function isTempoKnown(map: TempoMap): boolean {
 /**
  * The tempo of the piece as recorded, or null while unknown. Per beat a
  * musician counts (lot 4): the dotted quarter in 6/8, the quarter in 7/8,
- * whereas the grid counts eighths there (`grid/metronome.ts#feltUnits`).
+ * whereas the grid counts eighths there (`grid/tempoMap.ts#feltUnits`).
+ * With several signatures (C13), per the felt beat of the one that covers
+ * most of the piece (`grid/meters.ts#mainMeter`), not the one at the
+ * playhead: one bar of 6/8 in a 4/4 piece does not make the tempo jump from
+ * 120 to 80 and back (« la noire reste la noire »: the quarter's tempo does
+ * not change there). A single-signature piece reads as before.
  */
 export function originalBpm(state: Pick<AppState, 'tempoMap' | 'project'>): number | null {
   if (!isTempoKnown(state.tempoMap)) return null;
-  return nominalBpm(state.tempoMap, state.project?.duration) / feltUnits(state.tempoMap.meters[0]!.meter);
+  return nominalBpm(state.tempoMap, state.project?.duration) / feltBeat(state.tempoMap, state.project?.duration);
 }
 
-/** A grid tempo (per grid beat) as the interface shows it (per felt beat). */
-export function shownBpm(map: TempoMap, gridBpm: number): number {
-  return gridBpm / feltUnits(map.meters[0]!.meter);
+/** A grid tempo (per grid beat) as the interface shows it (per felt beat, as `originalBpm`). */
+export function shownBpm(map: TempoMap, gridBpm: number, duration?: number): number {
+  return gridBpm / feltBeat(map, duration);
 }
 
 /** The tempo being played: original × ratio, or null while the original is unknown. */

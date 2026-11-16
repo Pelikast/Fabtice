@@ -14,8 +14,10 @@
 // applied by `chartForExport`); iReal Pro transposes for instruments itself.
 
 import { chordParts } from '../harmony/chord';
+import { sameMeter } from '../grid/tempoMap';
 import { t } from '../i18n';
 import type { Key } from '../model/harmony';
+import type { Meter } from '../model/tempoMap';
 import { iRealNote, iRealQualityFor } from './irealChords';
 import type { ExportBar, ExportChart, ExportChord } from './chartExport';
 
@@ -77,6 +79,68 @@ export function iRealKey(key: Key | null): string {
 export function iRealChordText(chord: NonNullable<ExportChord['chord']>, key: Key | null): string {
   const parts = chordParts(chord, { key });
   return `${iRealNote(parts.root)}${iRealQualityFor(chord).text}${parts.bass ? `/${iRealNote(parts.bass)}` : ''}`;
+}
+
+// ---------------------------------------------------------------- time signatures
+
+/**
+ * The time signatures iReal Pro has: its `T` tokens are two figures (`T44`,
+ * `T68`; `T12` is 12/8), the list of its editor, the one `standards/irealRead.ts`
+ * reads (IREAL-FORMAT.md).
+ */
+export const IREAL_METERS: readonly Meter[] = [
+  { numerator: 2, denominator: 4 },
+  { numerator: 3, denominator: 4 },
+  { numerator: 4, denominator: 4 },
+  { numerator: 5, denominator: 4 },
+  { numerator: 6, denominator: 4 },
+  { numerator: 7, denominator: 4 },
+  { numerator: 2, denominator: 2 },
+  { numerator: 3, denominator: 2 },
+  { numerator: 3, denominator: 8 },
+  { numerator: 5, denominator: 8 },
+  { numerator: 6, denominator: 8 },
+  { numerator: 7, denominator: 8 },
+  { numerator: 9, denominator: 8 },
+  { numerator: 12, denominator: 8 },
+];
+
+/** The `T` token of a signature iReal Pro has. */
+export function iRealMeterToken(m: Meter): string {
+  return m.numerator === 12 && m.denominator === 8 ? 'T12' : `T${m.numerator}${m.denominator}`;
+}
+
+/**
+ * The signature written for `m`: itself when iReal Pro has it; else the one of
+ * iReal Pro's whose bar lasts nearest (in quarters: 7/16 → 3/8, 11/16 → 5/8,
+ * 1/4 → 3/8, 9/4 → 7/4, 64/32 → 7/4), the nearest denominator, then the
+ * smaller numerator, on a tie. The export then writes the real signature as
+ * a text comment in that bar (`<7/16>`), so the file is never broken and the
+ * reader still sees it.
+ */
+export function iRealMeterFor(m: Meter): { meter: Meter; exact: boolean } {
+  const own = IREAL_METERS.find((x) => sameMeter(x, m));
+  if (own) return { meter: own, exact: true };
+  const quarters = (x: Meter) => (x.numerator * 4) / x.denominator;
+  const dist = (x: Meter) => Math.abs(Math.log2(x.denominator) - Math.log2(m.denominator));
+  let best = IREAL_METERS[0]!;
+  for (const x of IREAL_METERS) {
+    const d = Math.abs(quarters(x) - quarters(m)) - Math.abs(quarters(best) - quarters(m));
+    if (d < -1e-9 || (Math.abs(d) <= 1e-9 && (dist(x) < dist(best) || (dist(x) === dist(best) && x.numerator < best.numerator)))) best = x;
+  }
+  return { meter: best, exact: false };
+}
+
+/** A bar's chords moved to the cells of the signature written for it (one cell per beat; a later chord wins a shared cell). */
+function onWrittenBeats(bar: ExportBar, own: Meter, written: Meter): ExportBar {
+  if (sameMeter(own, written)) return bar;
+  const byCell = new Map<number, ExportChord>();
+  for (const c of bar.chords) {
+    if (c.beat < 0 || c.beat >= own.numerator) continue;
+    const cell = Math.min(written.numerator - 1, Math.round((c.beat * written.numerator) / own.numerator));
+    byCell.set(cell, { ...c, beat: cell });
+  }
+  return { ...bar, chords: [...byCell.values()].sort((a, b) => a.beat - b.beat) };
 }
 
 // ---------------------------------------------------------------- the chart string
@@ -141,16 +205,21 @@ export function iRealMusic(chart: ExportChart): string {
   let out = '';
   let meter = chart.timeSignature;
   const ctx: BarContext = { key: chart.key, going: false, lastBarSingle: false };
-  chart.bars.forEach((bar, i) => {
-    const m = bar.timeSignature ?? meter;
-    if (bar.timeSignature || i === 0) meter = m;
-    const beats = Math.max(1, Math.min(m.numerator, 12));
+  chart.bars.forEach((source, i) => {
+    const m = source.timeSignature ?? meter;
+    if (source.timeSignature || i === 0) meter = m;
+    // A signature iReal Pro does not have is written as the nearest one it has, the real one in a comment.
+    const target = iRealMeterFor(m);
+    const bar = onWrittenBeats(source, m, target.meter);
+    const beats = Math.max(1, Math.min(target.meter.numerator, 12));
     const next = chart.bars[i + 1];
     const section = bar.section ? sectionToken(bar.section) : '';
+    const signature = i === 0 || bar.timeSignature;
     // A double bar line closes the bar before a section and opens this one; the first bar opens the chart.
     out += i === 0 || bar.doubleBarBefore ? '[' : '';
     out += section.startsWith('*') ? section : '';
-    out += i === 0 || bar.timeSignature ? `T${m.numerator}${m.denominator}` : '';
+    out += signature ? iRealMeterToken(target.meter) : '';
+    out += signature && !target.exact ? `<${m.numerator}/${m.denominator}>` : '';
     out += section.startsWith('<') ? section : '';
     const cells = barCells(bar, beats, ctx);
     out += joinCells(cells);

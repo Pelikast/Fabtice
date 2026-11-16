@@ -8,25 +8,45 @@
 //
 // Units
 //   - Time is source time in seconds (position in the original recording).
-//   - A "beat" is one unit of the meter denominator (a quarter note in 4/4);
-//     beats are counted from the first downbeat: beat 0 is the first downbeat,
-//     negative beats are before it (pick-up).
+//   - A "beat" of the map (`TempoSegment.beat`, `TempoSegment.bpm`,
+//     `MeterChange.beat`) is one unit of the denominator of the FIRST meter
+//     (`meters[0]`): a quarter note in a piece that starts in 4/4, an eighth
+//     in one that starts in 6/8. Beats are counted from the first downbeat:
+//     beat 0 is the first downbeat, negative beats are before it (pick-up).
 //   - Bars are counted from 0 internally: bar 0 starts at beat 0 and is shown
 //     as « mesure 1 ». Bars before the first downbeat have negative indices.
+//
+// Mixed denominators: « la noire reste la noire » (C13)
+//   An eighth lasts half a quarter, whatever the signatures. A bar of n/d
+//   lasts n × d0 / d beats of the map, d0 being the first meter's
+//   denominator: in a piece that starts in 4/4, a 6/8 bar lasts three
+//   quarters (its six eighths divide the analysed quarter beats in two, and
+//   its bar lines fall on analysed beats), a 7/16 bar 1.75 quarters, a 64/32
+//   bar eight. Inside a bar, beats are counted in the bar's own denominator
+//   (`grid/tempoMap.ts#BarPosition`): the metronome clicks the six eighths of
+//   a 6/8 bar, its chords sit on those eighths, « 3.4 » is its fourth eighth.
+//   Changing the denominator of the first meter with « Changer la signature
+//   rythmique » renumbers the whole map so that the quarter stays the quarter
+//   (twice as many beats for x/8, same times: `grid/meters.ts`). The metronome
+//   panel's choice of a meter for the whole piece keeps its rule of lot 4:
+//   the beat the analysis found is the beat a musician counts (the dotted
+//   quarter in 6/8), see `grid/corrections.ts#withMeter`. A single-meter
+//   piece reads exactly as before.
 //
 // Before the first downbeat (pick-up)
 //   The first tempo segment and the first meter extend backwards: bar −1 is
 //   the bar that ends on the first downbeat (shown as « 0 », the pick-up bar),
-//   bar −2 is shown as « −1 », and so on. Display number = index + 1.
+//   bar −2 is shown as « −1 », and so on. Display number = index + 1. Pick-up
+//   bars always have the first meter.
 
 import type { Seconds } from './project';
 
 /**
  * A time signature. Stored meters (document version 6) are legal when
- * `isValidMeter` says so: an integer numerator 1…64 over 4, 8, 16 or 32.
- * What the interface offers and what every consumer supports is narrower for
- * now (2 to 12 over 4 or 8: `grid/metronome.ts#isAllowedMeter`), until the
- * per-bar signatures of 1.0.0 make the whole app follow.
+ * `isValidMeter` says so: an integer numerator 1…64 over 4, 8, 16 or 32, and
+ * every consumer follows them, bar by bar (`grid/meters.ts`). The metronome
+ * panel's list for the whole piece stays narrower (2 to 12 over 4 or 8:
+ * `grid/metronome.ts#isAllowedMeter`).
  */
 export interface Meter {
   /** Beats per bar: an integer in `METER_NUMERATOR` (1…64). */
@@ -68,7 +88,7 @@ export interface TempoSegment {
 export interface MeterChange {
   /** Bar index where the meter starts (0 for the first one). */
   bar: number;
-  /** Beat position of that bar line (redundant, for lookups). */
+  /** Beat position of that bar line, in beats of the map (redundant, for lookups; may be fractional after a 7/8 bar). */
   beat: number;
   meter: Meter;
 }

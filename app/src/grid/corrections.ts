@@ -2,21 +2,24 @@
 // doubled or halved, first downbeat moved by whole beats, meter changed. Pure
 // functions; the beat TIMES never move, only their numbering does, so the
 // grid stays on the music.
+//
+// Signature changes further in the piece (C13, `grid/meters.ts`) keep their
+// place in the music through every one of them: they go to the bar line of
+// the corrected grid nearest to where they were.
 
 import type { Seconds } from '../model/project';
-import type { Meter, MeterChange, TempoMap, TempoOrigin } from '../model/tempoMap';
-import { feltUnits, isAllowedMeter } from './metronome';
-import { BPM_MAX, BPM_MIN, clamp, NUMERATOR_MAX, NUMERATOR_MIN, nominalBpm, timeToBeat } from './tempoMap';
+import type { Meter, TempoMap } from '../model/tempoMap';
+import { correctedOrigin, placeMeters } from './meters';
+import { isAllowedMeter } from './metronome';
+import { BPM_MAX, BPM_MIN, clamp, feltUnits, NUMERATOR_MAX, NUMERATOR_MIN, nominalBpm, sameMeter, timeToBeat } from './tempoMap';
 
-/** Who made the grid once corrected by hand: analysed beats become `corrected`, anything else `manual`. */
-export function correctedOrigin(origin: TempoOrigin): TempoOrigin {
-  return origin === 'analysis' || origin === 'corrected' ? 'corrected' : 'manual';
-}
+export { correctedOrigin };
 
 /**
  * Renumbers the beats: new beat = factor × old beat + offset (tempo × factor).
- * Meter changes keep their place in the music; those before the new first
- * downbeat are dropped, and the first meter in force starts at bar 0, beat 0.
+ * Meter changes keep their place in the music (the nearest bar line of the
+ * new numbering); those before the new first downbeat are dropped, and the
+ * first meter in force starts at bar 0, beat 0.
  */
 export function renumberBeats(map: TempoMap, factor: number, offset: number): TempoMap {
   if (!(factor > 0)) throw new RangeError(`invalid factor ${factor}`);
@@ -27,12 +30,7 @@ export function renumberBeats(map: TempoMap, factor: number, offset: number): Te
   moved.forEach((m, i) => {
     if (m.beat <= 1e-9) firstIdx = i;
   });
-  const meters: MeterChange[] = [{ bar: 0, beat: 0, meter: { ...moved[firstIdx]!.meter } }];
-  for (const m of moved.slice(firstIdx + 1)) {
-    const prev = meters[meters.length - 1]!;
-    const bars = Math.max(1, Math.round((m.beat - prev.beat) / prev.meter.numerator));
-    meters.push({ bar: prev.bar + bars, beat: prev.beat + bars * prev.meter.numerator, meter: { ...m.meter } });
-  }
+  const meters = placeMeters({ ...moved[firstIdx]!.meter }, [], moved.slice(firstIdx + 1));
   return { origin: correctedOrigin(map.origin), segments, meters };
 }
 
@@ -56,11 +54,19 @@ export function downbeatNear(map: TempoMap, time: Seconds): TempoMap {
   return shiftDownbeat(map, Math.round(timeToBeat(map, time)));
 }
 
-/** Beats per bar (2…7), from the first downbeat on. Meter changes further on are dropped. */
+/** The later signature changes of a map, to place again by their position (map beats × `factor`). */
+function laterChanges(map: TempoMap, factor = 1) {
+  return map.meters.slice(1).map((m) => ({ beat: m.beat * factor, meter: m.meter, bar: m.bar }));
+}
+
+/**
+ * Beats per bar (2…7) of the first signature, from the first downbeat on.
+ * Later signature changes keep their place in the music.
+ */
 export function withNumerator(map: TempoMap, numerator: number): TempoMap {
   const n = Math.round(clamp(numerator, NUMERATOR_MIN, NUMERATOR_MAX));
   const meter = { numerator: n, denominator: map.meters[0]!.meter.denominator };
-  return { origin: correctedOrigin(map.origin), segments: map.segments.map((s) => ({ ...s })), meters: [{ bar: 0, beat: 0, meter }] };
+  return { origin: correctedOrigin(map.origin), segments: map.segments.map((s) => ({ ...s })), meters: placeMeters(meter, [], laterChanges(map)) };
 }
 
 /** The tempo ×2 correction stays within the tempo range a piece can have. */
@@ -78,18 +84,22 @@ export function isBeatGrid(map: TempoMap): boolean {
 }
 
 /**
- * A whole meter (lot 4: 5/4, 7/8, 6/8, 12/8…), from the first downbeat on;
- * meter changes further on are dropped. A beat is one unit of the
- * denominator, so going from x/4 to x/8 renumbers the beats: the beat a
- * musician counts (a quarter in 4/4 and 7/8, a dotted quarter in 6/8) stays
- * on the same music (`grid/metronome.ts#feltUnits`); the beat times never
- * move. An unchanged meter returns the map itself.
+ * The meter of the piece from the metronome panel (lot 4: 5/4, 7/8, 6/8,
+ * 12/8…): the first signature, from the first downbeat on. A beat is one
+ * unit of the denominator, so going from x/4 to x/8 renumbers the beats: the
+ * beat a musician counts (a quarter in 4/4 and 7/8, a dotted quarter in 6/8)
+ * stays on the same music (`feltUnits`); the beat times never move. This is
+ * the panel's rule for the whole piece; « Changer la signature rythmique »
+ * keeps the quarter instead (`grid/meters.ts`). Later signature changes keep
+ * their place in the music. An unchanged meter returns the map itself.
  */
 export function withMeter(map: TempoMap, meter: Meter): TempoMap {
   if (!isAllowedMeter(meter)) throw new RangeError(`meter ${meter.numerator}/${meter.denominator} not offered`);
   const old = map.meters[0]!.meter;
-  if (map.meters.length === 1 && old.numerator === meter.numerator && old.denominator === meter.denominator) return map;
+  if (map.meters.length === 1 && sameMeter(old, meter)) return map;
   const factor = feltUnits(meter) / feltUnits(old);
-  const base = factor === 1 ? map : renumberBeats(map, factor, 0);
-  return { origin: correctedOrigin(map.origin), segments: base.segments.map((s) => ({ ...s })), meters: [{ bar: 0, beat: 0, meter: { ...meter } }] };
+  const segments = map.segments.map((s) => (factor === 1 ? { ...s } : { time: s.time, beat: s.beat * factor, bpm: s.bpm * factor }));
+  const meters = placeMeters({ ...meter }, [], laterChanges(map, factor));
+  if (factor === 1 && sameMeter(old, meter) && meters.length === map.meters.length && meters.every((m, i) => m.bar === map.meters[i]!.bar)) return map;
+  return { origin: correctedOrigin(map.origin), segments, meters };
 }

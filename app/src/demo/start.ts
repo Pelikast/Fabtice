@@ -41,8 +41,9 @@ import { appStore } from '../store/store';
 import * as standardsLibrary from '../standards/library';
 import * as actions from '../store/actions';
 import * as gridMetronome from '../grid/metronome';
-import { beatToTime, constantTempoMap, variableTempoMap } from '../grid/tempoMap';
+import { barStartTime, beatToTime, constantTempoMap, variableTempoMap } from '../grid/tempoMap';
 import * as markerActions from '../store/markerActions';
+import * as meterActions from '../store/meterActions';
 import * as metronomeActions from '../store/metronomeActions';
 import * as analysisActions from '../store/analysisActions';
 import * as gridActions from '../store/gridActions';
@@ -58,8 +59,8 @@ declare global {
       store: typeof appStore;
       engine: ReturnType<typeof getEngine>;
       actions: typeof actions;
-      /** Lot 2 actions (analysis, grid corrections, harmony and chart). */
-      lot2?: { analysis: typeof analysisActions; grid: typeof gridActions; harmony: typeof harmonyActions };
+      /** Lot 2 actions (analysis, grid corrections, harmony and chart), and the signatures bar by bar (C13). */
+      lot2?: { analysis: typeof analysisActions; grid: typeof gridActions; harmony: typeof harmonyActions; meter: typeof meterActions };
       /** Lot 3: separation, « Appliquer », audio export, the audio registry and the storage. */
       lot3?: typeof lot3Handle;
       /** Lot 4: the metronome's pure functions and actions, the markers' actions. */
@@ -75,12 +76,12 @@ declare global {
   }
 }
 
-export const lot2Actions = { analysis: analysisActions, grid: gridActions, harmony: harmonyActions };
+export const lot2Actions = { analysis: analysisActions, grid: gridActions, harmony: harmonyActions, meter: meterActions };
 
 /** Lot 4 handles for the browser checks (`?demo`, `?debug`). */
 export const lot4Handle = {
   metronome: { ...gridMetronome, ...metronomeActions },
-  tempoMap: { constantTempoMap, variableTempoMap, beatToTime },
+  tempoMap: { constantTempoMap, variableTempoMap, beatToTime, barStartTime },
   markers: markerActions,
 };
 

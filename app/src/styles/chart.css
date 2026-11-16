@@ -133,6 +133,32 @@
   line-height: 17px;
   text-align: center;
 }
+/* A signature written in the bar where it changes (C13): two figures one over the other, as on paper,
+   between the bar line and the first beat, which moves right to make room for it. */
+.case.signee { --pg: 30px; }
+.case .signature {
+  position: absolute;
+  left: 8px;
+  top: calc(var(--haut) + (100% - var(--haut)) / 2);
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-family: var(--titre);
+  font-size: 15px;
+  font-weight: 640;
+  line-height: 0.95;
+  color: var(--encre);
+  pointer-events: none;
+}
+@media (max-width: 760px) {
+  .case.signee { --pg: 22px; }
+  .case .signature { left: 4px; font-size: 12px; }
+}
+@media print {
+  .feuille .case.signee { --pg: calc(30 * var(--u)); }
+  .feuille .case .signature { left: calc(8 * var(--u)); font-size: 9pt; }
+}
 /* The bar being played fills with an ember hairline (set every frame: chart/usePlayheadBar.ts). */
 .case.jouee::after {
   content: "";

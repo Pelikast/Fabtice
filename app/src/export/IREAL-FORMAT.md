@@ -105,6 +105,17 @@ is written ` x  ` (iReal's repeat sign, the chart's own simile mark) when the
 previous bar is one chord on its first beat (or such a repeat), else `p` in every
 cell, and `p` for the beats before a first chord that starts late in the bar.
 
+**Time signatures.** The `T` token is written on the first bar and on every bar
+where the chart's signature changes (signatures bar by bar, C13). iReal Pro has
+fourteen: 2/4 to 7/4, 2/2, 3/2, 3/8, 5/8, 6/8, 7/8, 9/8 and 12/8 (`T12`); its
+token has room for two figures only. Any other signature of the app (1 to 64 over
+4, 8, 16 or 32) is written as the one of the fourteen whose bar lasts nearest in
+quarters (on a tie: the nearest denominator, then the smaller numerator: 7/16 →
+`T38`, 11/16 → `T58`, 1/4 → `T38`, 9/4 → `T74`, 64/32 → `T74`), with one cell per
+beat of that signature, the chords moved to the cell at the same place in the bar,
+and the real signature as a comment right after the token (`T38<7/16>`), so the
+file always opens and the reader still sees the signature (`ireal.ts#iRealMeterFor`).
+
 ## Chords
 
 Root `A`-`G` with `b` or `#`, then a quality text, then `/bass`. The roots and

@@ -133,6 +133,24 @@ fait à la main est relu exactement, ou le fichier est déclaré abîmé ; ce qu
 l'analyse a produit et qui serait abîmé est simplement oublié (l'analyse se
 refait).
 
+**Signatures mesure par mesure : « la noire reste la noire ».** Les changements
+de signature sont `tempoMap.meters` (le premier à la mesure 0 ; les suivants
+sont tous faits à la main, l'analyse n'en donne qu'une). Les temps de la carte
+(`segments[].beat`, `segments[].bpm`, `meters[].beat`) comptent la valeur du
+chiffre du bas de la **première** signature : des noires pour un morceau qui
+commence en 4/4, des croches s'il commence en 6/8. Une mesure de n/d dure
+n × d₀/d de ces temps (d₀ : chiffre du bas de la première signature) : une
+croche dure la moitié d'une noire, une mesure de 6/8 dans un morceau en 4/4
+dure trois noires (ses barres tombent sur les temps analysés), une de 7/16
+1,75 noire, d'où un `meters[].beat` qui peut être fractionnaire. Les instants
+ne bougent jamais quand on change une signature : seules les barres de mesure
+se replacent. Changer le chiffre du bas de la première signature par
+« Changer la signature rythmique » renumérote toute la carte (deux fois plus de
+temps pour des croches, mêmes instants). Le choix d'une métrique pour tout le
+morceau dans le panneau du métronome garde sa règle d'avant (le temps trouvé
+par l'analyse devient la noire pointée en 6/8). Un morceau à une seule
+signature s'écrit exactement comme avant.
+
 ## Faire évoluer le format
 
 - Nouveau champ du projet : il va dans `ProjectDocument` (nouvelle version du

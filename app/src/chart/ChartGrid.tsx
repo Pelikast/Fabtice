@@ -170,7 +170,7 @@ function BarCell({
   onKeyboardOpen: (stop: Stop) => void;
 }) {
   const n = bar.chords.length;
-  const cls = ['case', bar.doubleBar ? 'double' : '', looped ? (looped.from === 0 && looped.to === 1 ? 'dans-boucle' : 'dans-boucle partielle') : '', final ? 'finale' : ''].filter(Boolean).join(' ');
+  const cls = ['case', bar.doubleBar ? 'double' : '', bar.signature ? 'signee' : '', looped ? (looped.from === 0 && looped.to === 1 ? 'dans-boucle' : 'dans-boucle partielle') : '', final ? 'finale' : ''].filter(Boolean).join(' ');
   const label = formatBarNumber(bar.bar);
   const stopProps = (index: number) => {
     const stop = { bar: bar.bar, index };
@@ -199,6 +199,18 @@ function BarCell({
       style={looped && looped.to - looped.from < 1 ? ({ '--boucle-de': looped.from, '--boucle-a': looped.to } as CSSProperties) : undefined}
     >
       {bar.section && <span className="section">{bar.section}</span>}
+      {/* The signature, written as on paper where it changes (C13). */}
+      {bar.signature && (
+        <span
+          className="signature"
+          data-signature={`${bar.signature.numerator}/${bar.signature.denominator}`}
+          role="img"
+          aria-label={t('chart.signature', { n: bar.signature.numerator, d: bar.signature.denominator })}
+        >
+          <span>{bar.signature.numerator}</span>
+          <span>{bar.signature.denominator}</span>
+        </span>
+      )}
       <span className={tempoFixed ? 'numero tempo-corrige' : 'numero'} title={tempoFixed ? t('tempoMenu.mark', { bar: label }) : undefined}>
         {label}
       </span>

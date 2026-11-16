@@ -1173,6 +1173,48 @@ try {
     await context.close();
   }
 
+  // ------------------------------------------------------------ signatures bar by bar (C13), through the debug handle
+  for (const viewport of [{ width: 1280, height: 800 }, { width: 390, height: 844 }]) {
+    const w = viewport.width;
+    const { page, errors } = await open('?demo&moteur=factice&vue=grille', viewport);
+    await sleep(300);
+    // « mesure 3 » alone in 7/8, then 6/8 from « mesure 6 »: one undo step each.
+    const done = await page.evaluate(() => {
+      const m = window.__fabtice.lot2.meter;
+      return [m.setMeterForBar(2, { numerator: 7, denominator: 8 }), m.setMeterFrom(5, { numerator: 6, denominator: 8 })];
+    });
+    check(`${w}: both commands applied`, done.every(Boolean), JSON.stringify(done));
+    await sleep(400);
+    const sig = await page.$$eval('.vue-grille .case', (cells) => cells.slice(0, 9).map((c) => [c.dataset.mesure, c.querySelector('.numero')?.textContent, c.querySelector('.signature')?.dataset.signature ?? null]));
+    const expected = [['0', '1', '4/4'], ['1', '2', null], ['2', '3', '7/8'], ['3', '4', '4/4'], ['4', '5', null], ['5', '6', '6/8'], ['6', '7', null], ['7', '8', null], ['8', '9', null]];
+    check(`${w}: bar numbers follow, the signature written where it changes and in the first bar`, JSON.stringify(sig) === JSON.stringify(expected), JSON.stringify(sig));
+    // The bar lines of the grid: the 7/8 bar lasts 3.5 analysed beats, a 6/8 bar 3 (the quarter stays the quarter).
+    const lines = await page.evaluate(() => {
+      const s = window.__fabtice.store.getState();
+      const { barStartTime, beatToTime } = window.__fabtice.lot4.tempoMap;
+      const map = s.tempoMap;
+      return [2, 3, 5, 6, 7].map((bar) => [barStartTime(map, bar), beatToTime(map, { 2: 8, 3: 11.5, 5: 19.5, 6: 22.5, 7: 25.5 }[bar])]);
+    });
+    check(`${w}: bar lines of bars 3, 4, 6, 7, 8 at 8, 11.5, 19.5, 22.5, 25.5 analysed beats`, lines.every(([a, b]) => Math.abs(a - b) < 1e-6), JSON.stringify(lines));
+    const placed = (await geometry(page)).filter((b) => ['2', '3', '5', '6'].includes(b.bar));
+    check(`${w}: in the bars with a signature, every chord at the place of its beat, none touching`, placed.every((b) => b.problems.length === 0), placed.filter((b) => b.problems.length).map((b) => `bar ${b.bar}: ${b.problems.join(', ')}`).join(' ; '));
+    const clear = await page.$$eval('.case.signee', (cells) =>
+      cells.every((c) => {
+        const s = c.querySelector('.signature').getBoundingClientRect();
+        const r = c.getBoundingClientRect();
+        const ch = c.querySelector('.ch')?.getBoundingClientRect();
+        return s.left >= r.left && s.right <= r.right && s.height > 0 && (!ch || s.right <= ch.left + 1);
+      }),
+    );
+    check(`${w}: the written signature sits in its bar, before the first chord`, clear);
+    await page.screenshot({ path: path.join(out, `signatures-grille-${w}.png`) });
+    const undone = await page.evaluate(() => [window.__fabtice.history.undoLabel(), window.__fabtice.history.undo(), window.__fabtice.history.undo(), window.__fabtice.store.getState().tempoMap.meters.length]);
+    await sleep(300);
+    check(`${w}: « Annuler : signature rythmique » twice gives back one signature, nothing written in the bars`, undone[0] === 'Annuler : signature rythmique' && undone[3] === 1 && (await page.locator('.case .signature').count()) === 0, JSON.stringify(undone));
+    check(`no page errors (signatures, ${w})`, errors.length === 0, errors.join(' | '));
+    await page.close();
+  }
+
   // ------------------------------------------------------------ printing
   {
     const { page, errors } = await open('?demo&moteur=factice&vue=grille');

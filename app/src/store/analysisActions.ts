@@ -2,6 +2,7 @@
 // interface. The analysis itself is run by `analysis/runner.ts`.
 
 import { tempoMapFromBeats } from '../grid/beats';
+import { withMetersOf } from '../grid/meters';
 import type { AnalysisResult } from '../model/analysis';
 import { emptyCorrections } from '../model/corrections';
 import { appStore, type AnalysisRun, type AppState } from './store';
@@ -28,7 +29,11 @@ export interface ApplyAnalysisOptions {
 /**
  * Stores a finished analysis for the open piece.
  *   - The grid: the analysed beats become the grid in force, unless the user
- *     made one (`manual` from the panel, or `corrected`), which stays.
+ *     made one (`manual` from the panel, or `corrected`), which stays. Hand
+ *     signatures (C13) make the grid `corrected` or `manual`, so they stay
+ *     with it; should a grid in force still carry signature changes, they are
+ *     placed on the analysed grid by time (`grid/meters.ts#withMetersOf`).
+ *     `replaceCorrections` drops them with the other grid corrections.
  *   - Key, tuning, chords: the result is kept apart; corrections hide it
  *     where they apply (`store/chartSelectors.ts`).
  */
@@ -39,7 +44,8 @@ export function applyAnalysis(result: AnalysisResult, opts: ApplyAnalysisOptions
   let tempoMap = s.tempoMap;
   if (opts.replaceCorrections || !userGrid) {
     try {
-      tempoMap = tempoMapFromBeats(result.beats.times, result.beats.downbeat, result.beats.meter, 'analysis');
+      const analysed = tempoMapFromBeats(result.beats.times, result.beats.downbeat, result.beats.meter, 'analysis');
+      tempoMap = opts.replaceCorrections ? analysed : withMetersOf(analysed, s.tempoMap);
     } catch {
       // An unusable grid in the result: the grid in force stays.
     }

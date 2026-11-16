@@ -3,7 +3,8 @@ import { runAnalysis } from '../analysis/runner';
 import { formatClock } from '../grid/format';
 import { addTap, tapTempo } from '../grid/tapTempo';
 import { isBeatGrid } from '../grid/corrections';
-import { feltUnits } from '../grid/metronome';
+import { feltBeat, mainMeter } from '../grid/meters';
+import { isCompound } from '../grid/tempoMap';
 import { BPM_MAX, BPM_MIN, NUMERATOR_MAX, NUMERATOR_MIN, firstDownbeat, nominalBpm } from '../grid/tempoMap';
 import { decimalSeparator, formatNumber, t } from '../i18n';
 import { closePanel, setManualGrid } from '../store/actions';
@@ -42,8 +43,9 @@ export function GridPanel({ ref }: { ref: Ref<HTMLDivElement> }) {
   const hasAnalysis = useApp((s) => s.analysis !== null);
   const canDouble = useApp((s) => gridCorrectionsAvailable(s).double);
   const canHalve = useApp((s) => gridCorrectionsAvailable(s).halve);
-  // Shown and typed per felt beat (the dotted quarter in 6/8); the grid counts denominator units (lot 4).
-  const felt = feltUnits(map.meters[0]!.meter);
+  // Shown and typed per felt beat (the dotted quarter in 6/8) of the main signature; the grid counts denominator units (lot 4, C13).
+  const felt = feltBeat(map, duration);
+  const dotted = isCompound(mainMeter(map, duration));
   const bpm = nominalBpm(map, duration) / felt;
   const numerator = map.meters[0]!.meter.numerator;
   const downbeat = firstDownbeat(map);
@@ -77,7 +79,7 @@ export function GridPanel({ ref }: { ref: Ref<HTMLDivElement> }) {
       <div className="panneau-ligne">
         <span>
           {t('grid.bpm')}
-          <small>{beats ? t('grid.bpmVaries') : t(felt === 3 ? 'grid.bpmUnitDotted' : 'grid.bpmUnit')}</small>
+          <small>{beats ? t('grid.bpmVaries') : t(dotted ? 'grid.bpmUnitDotted' : 'grid.bpmUnit')}</small>
         </span>
         <span className="saisie">
           <button aria-label={t('grid.slower')} onClick={() => step(-1)} disabled={bpm <= BPM_MIN}>

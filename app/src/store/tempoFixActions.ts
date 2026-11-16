@@ -15,8 +15,13 @@
 // stretches, section letters, loops and named loops are kept in source time
 // (seconds in the recording): they stay with the same music, and the chart and
 // the ruler place them on the nearest beat or bar line of the new grid.
+// The signatures are kept too (C13): the first one as it was (the analyser
+// only knows its number of beats), the changes further on placed again on
+// the new grid by time (`grid/meters.ts#withMetersOf`); before the chosen bar
+// the beats are the same, so they stay on the same bars there.
 
 import { tempoMapFromBeats } from '../grid/beats';
+import { withMetersOf } from '../grid/meters';
 import type { AnalysisResult } from '../model/analysis';
 import type { TempoFix } from '../model/corrections';
 import { transact } from './history';
@@ -30,7 +35,10 @@ export function applyTempoFix(result: AnalysisResult, fix: TempoFix): void {
   if (!s.project) return;
   let tempoMap;
   try {
-    tempoMap = tempoMapFromBeats(result.beats.times, result.beats.downbeat, result.beats.meter, 'corrected');
+    // The beats come back in the units of the grid sent (`beatGridOf`): the first signature's denominator is the grid's.
+    const first = s.tempoMap.meters[0]!.meter;
+    const meter = { numerator: result.beats.meter.numerator, denominator: first.denominator };
+    tempoMap = withMetersOf(tempoMapFromBeats(result.beats.times, result.beats.downbeat, meter, 'corrected'), s.tempoMap);
   } catch {
     appStore.setState({ analysisRun: { status: 'idle' } });
     return;
@@ -70,7 +78,8 @@ export function undoTempoFix(time: number): void {
   const i = s.corrections.tempoFixes.findIndex((f) => Math.abs(f.time - time) < 1e-3);
   if (i < 0) return;
   const fix = s.corrections.tempoFixes[i]!;
-  appStore.setState({ tempoMap: fix.previous, corrections: { ...s.corrections, tempoFixes: s.corrections.tempoFixes.slice(0, i) } });
+  // The signatures changed further in the piece are the user's as they are now (some may be newer than the action).
+  appStore.setState({ tempoMap: withMetersOf(fix.previous, s.tempoMap), corrections: { ...s.corrections, tempoFixes: s.corrections.tempoFixes.slice(0, i) } });
 }
 
 /** Undoes the last manual tempo action (« Annuler »). */
