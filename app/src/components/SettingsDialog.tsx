@@ -56,7 +56,9 @@ function SettingsBox() {
   useEffect(() => {
     const before = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     return () => {
-      if (before && document.contains(before)) before.focus({ preventScroll: true });
+      // Opened from the menu, the entry that was chosen is gone by now: the logo, which opens the menu, takes the focus.
+      const back = before && before !== document.body && document.contains(before) ? before : document.querySelector<HTMLElement>('button.marque');
+      back?.focus({ preventScroll: true });
     };
   }, []);
   useEffect(() => {

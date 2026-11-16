@@ -334,6 +334,18 @@ test('« Enregistrer » and « Enregistrer sous… » in the app: the project\'s
     try {
       await stubPanel(app);
       await spyWindow(app);
+      // Counts the FLAC encoders the page starts (one worker per track encoded): « fast » is proved by this count
+      // not moving on the second save, not by a duration (which turns round on a machine under load).
+      await page.evaluate(() => {
+        window.__encodeWorkers = 0;
+        const Native = window.Worker;
+        window.Worker = class extends Native {
+          constructor(url, options) {
+            super(url, options);
+            if (options && options.name === 'fabtice-encode') window.__encodeWorkers++;
+          }
+        };
+      });
       await page.locator('.accueil input[type="file"]').setInputFiles(wav);
       await pieceReady(page);
       await page.waitForFunction(() => window.__fabtice && window.__fabtice.lot3, null, { timeout: 30000 });
@@ -354,12 +366,12 @@ test('« Enregistrer » and « Enregistrer sous… » in the app: the project\'s
       await page.click('[data-testid="preparer-projet"]');
       await page.waitForFunction(() => !!document.querySelector('[data-testid="preparer-projet"]'), null, { timeout: 15000 });
       assert.equal(fs.readdirSync(folder).length, 0, 'panel closed: nothing written');
-      const t0 = Date.now();
       await panelAnswers(app, path.join(folder, 'Mon blues'));
       await page.click('[data-testid="preparer-projet"]');
       await page.waitForFunction(() => !document.querySelector('[data-testid="enregistrer-projet"]'), null, { timeout: 120000 });
-      const firstMs = Date.now() - t0;
       await saved(page);
+      const encodedFirst = await page.evaluate(() => window.__encodeWorkers);
+      assert.ok(encodedFirst >= 2, `the first save encodes the instruments (${encodedFirst} encoders started)`);
       assert.deepEqual(fs.readdirSync(folder), ['Mon blues.fab'], 'the .fab extension is added, no temporary file left');
       const panel = (await app.evaluate(() => globalThis.__panels)).pop();
       assert.equal(panel.title, 'Enregistrer le projet');
@@ -380,10 +392,8 @@ test('« Enregistrer » and « Enregistrer sous… » in the app: the project\'s
       await page.waitForTimeout(300);
       assert.equal(await lastEdited(app), true);
       await wait(20);
-      const t1 = Date.now();
       await page.keyboard.press('ControlOrMeta+s');
       await saved(page);
-      const secondMs = Date.now() - t1;
       assert.deepEqual(fs.readdirSync(folder), ['Mon blues.fab'], 'no temporary file left, no other file');
       assert.notEqual(sha(first), before.sha, 'the content changed');
       assert.ok(fs.statSync(first).mtimeMs > before.mtime, 'the file was written again');
@@ -392,7 +402,8 @@ test('« Enregistrer » and « Enregistrer sous… » in the app: the project\'s
       assert.ok(sounds.length >= 3, `sounds in the file: ${sounds.join(', ')}`);
       assert.deepEqual(sounds.map((n) => after[n]), sounds.map((n) => before.crcs[n]), 'every sound is the first save\'s, copied');
       assert.notEqual(after['projet.json'], before.crcs['projet.json']);
-      assert.ok(secondMs < Math.max(firstMs, 2500), `fast: ${secondMs} ms against ${firstMs} ms`);
+      // Fast: no sound was encoded again, they were copied (no clock involved).
+      assert.equal(await page.evaluate(() => window.__encodeWorkers), encodedFirst, 'fast: the second save starts no FLAC encoder');
       assert.equal(await lastEdited(app), false);
       assert.equal(await windowTitle(app), 'Mon blues');
       assert.equal(await page.evaluate(() => window.__fabtice.project.getCurrentFile().name), 'Mon blues.fab');
