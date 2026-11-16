@@ -20,6 +20,7 @@ const printing = require('./printing');
 const { electronFetch, fetchStandardsText } = require('./standards-fetch');
 const { projectPathsIn } = require('./open-files');
 const { createProjects } = require('./projects');
+const { createCloseGuard } = require('./close-guard');
 const { createAudioJournal, sourceFromUrl } = require('./audio-journal');
 const { installPowerEvents } = require('./power-events');
 
@@ -42,7 +43,18 @@ const projects = createProjects({
   userData: () => app.getPath('userData'),
   addRecentDocument: (p) => app.addRecentDocument(p),
   clearRecentDocuments: () => app.clearRecentDocuments(),
+  // « Enregistrer sous… »: the system's save panel, on the window; read at call time (a test stands in for it).
+  dialog: { showSaveDialog: (w, o) => (w ? dialog.showSaveDialog(w, o) : dialog.showSaveDialog(o)) },
+  window: () => win,
+  downloadsDir: () => app.getPath('downloads'),
 });
+// Closing the window or quitting with changes not saved: the page is asked (close-guard.js).
+// FABTICE_NO_CLOSE_GUARD=1 is a test seam (never set for a user): the end-to-end tests close apps holding pieces
+// that were never saved, which would wait for an answer nobody gives.
+const closeGuard = createCloseGuard();
+const closeGuardOn = () => process.env.FABTICE_NO_CLOSE_GUARD !== '1';
+/** The window and the app may go: the question was answered « yes » (or could not be asked). */
+let leaveConfirmed = false;
 
 // Diagnostics are pasted into conversations: replace the home folder by "~".
 function redact(value) {
@@ -154,11 +166,44 @@ function createWindow() {
     webPreferences: WEB_PREFERENCES,
   });
   win.once('ready-to-show', () => win.show());
+  // The red button, cmd + W: the page is asked first whether the project has changes that were not saved.
+  win.on('close', (event) => {
+    if (leaveConfirmed || !closeGuardOn() || !win || win.isDestroyed()) return;
+    event.preventDefault();
+    askToLeave().then((ok) => {
+      if (ok && win && !win.isDestroyed()) {
+        leaveConfirmed = true;
+        win.close();
+      }
+    });
+  });
   win.on('closed', () => {
     win = null;
     if (diagnosticWin && !diagnosticWin.isDestroyed()) diagnosticWin.close();
   });
   win.loadURL(fabticeProtocol.APP_URL + testQuery());
+}
+
+/** Brings the window forward (it may be hidden behind others, or minimised) and asks its page whether it may go. */
+function askToLeave() {
+  if (closeGuard.isAsking()) return Promise.resolve(false);
+  const w = win;
+  if (!w || w.isDestroyed()) return Promise.resolve(true);
+  if (w.isMinimized()) w.restore();
+  w.show();
+  const contents = w.webContents;
+  return closeGuard.ask({
+    send: (channel, payload) => contents.send(channel, payload),
+    // A page that crashes or is destroyed cannot answer: the window then closes.
+    onGone: (listener) => {
+      contents.once('destroyed', listener);
+      contents.once('render-process-gone', listener);
+      return () => {
+        contents.removeListener('destroyed', listener);
+        contents.removeListener('render-process-gone', listener);
+      };
+    },
+  });
 }
 
 // The phase 0 prototype page, kept to copy technical details on a machine
@@ -306,6 +351,20 @@ function registerIpc() {
   // Lot 4: `.fab` project files: the Finder, the recent list, the page's picker (projects.js).
   projects.registerIpc(handle);
 
+  // C5: the page says which project is open and whether it has changes not saved: the dot in the close button,
+  // the proxy icon of the file in the title bar. The title itself is the page's (`document.title`).
+  handle('fabtice:project-state', async (event, state) => {
+    const w = BrowserWindow.fromWebContents(event.sender);
+    if (!w || w !== win) return false;
+    const s = state && typeof state === 'object' ? state : {};
+    w.setDocumentEdited(s.modified === true);
+    w.setRepresentedFilename((typeof s.projectId === 'string' && projects.pathFor(s.projectId)) || '');
+    return true;
+  });
+  // The page answers the question « may this window go? » (close-guard.js).
+  handle('fabtice:close-ack', async (_e, id) => closeGuard.ack(String(id)));
+  handle('fabtice:close-answer', async (_e, id, ok) => closeGuard.answer(String(id), ok === true));
+
   handle('fabtice:copy', async (_e, text) => {
     if (typeof text !== 'string' || text.length > 1_000_000) throw new Error('invalid text');
     clipboard.writeText(text);
@@ -388,6 +447,8 @@ if (!app.requestSingleInstanceLock()) {
     systemInfo = collectSystemInfo();
     updateCheck = manager.checkForUpdate().catch((e) => ({ error: e.message }));
     removeStaleTempDirs();
+    // A save that died (power cut, kill) may have left its temporary file next to a project.
+    void projects.cleanStale().catch(() => {});
     registerIpc();
     // The audio journal (Aide → Diagnostic…) and the Mac's sleeps and wakes, forwarded to the pages, which
     // then give the audio output back to the system: see audio-journal.js and power-events.js.
@@ -423,7 +484,17 @@ if (!app.requestSingleInstanceLock()) {
     app.exit(1);
   });
 
-  app.on('before-quit', () => {
+  // cmd + Q, « Quitter »: the page is asked first (the red button goes through the window's `close` event).
+  app.on('before-quit', (event) => {
+    if (!leaveConfirmed && closeGuardOn() && win && !win.isDestroyed()) {
+      event.preventDefault();
+      void askToLeave().then((ok) => {
+        if (!ok) return;
+        leaveConfirmed = true;
+        app.quit();
+      });
+      return;
+    }
     if (extraction) extraction.abort();
   });
 
