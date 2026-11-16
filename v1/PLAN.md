@@ -327,6 +327,11 @@ ou les accords changent, sans toucher aux corrections à la main. Sans
 séparation : « Solo 1, Solo 2 », pas de nom d'instrument. Dire honnêtement
 dans le bilan la fiabilité mesurée de chaque brique.
 
+**Ce que l'étape 2 a laissé.** « Ce qu'on imprime » (grille complète ou
+simplifiée) : un champ `what` dans `PrintOptions` / `normalizePrintOptions`
+(`app/src/chart/printLayout.ts`), lu par `printLines`
+(`chart/printChart.ts`), et un groupe dans `PrintDialog` avant « Marges ».
+
 **Vérifié quand.** Chiffres du banc dans le bilan ; l'exemple « Autumn
 Leaves » du cahier sort sous la forme attendue à partir d'un rendu ; lecture
 suivie sans saut dans les trois affichages ; tout se corrige et s'annule.
