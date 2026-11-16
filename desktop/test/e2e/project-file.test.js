@@ -195,9 +195,11 @@ test('a project saved in the app opens in a fresh app from the Finder, everythin
       await page.screenshot({ path: path.join(base, 'recents.png') });
       if (process.env.FABTICE_E2E_SHOTS) fs.copyFileSync(path.join(base, 'recents.png'), path.join(process.env.FABTICE_E2E_SHOTS, 'projets-recents.png'));
       await page.click('[data-testid="projets-recents"] .lien');
-      // The piece restored from the device's copy reads « modified »: the alert about changes not saved comes first.
-      await page.waitForSelector('[data-testid="alerte-projet"]', { timeout: 10000 });
-      await page.click('[data-testid="alerte-abandonner"]');
+      // The piece restored from the device's copy is the one in its file (opened from it, nothing changed since): it
+      // reads « not modified », so no alert about changes not saved.
+      assert.equal(await page.evaluate(() => window.__fabtice.history.isModified()), false, 'restored, identical to its file');
+      await page.waitForTimeout(1000);
+      assert.equal(await page.locator('[data-testid="alerte-projet"]').count(), 0, 'no alert');
       await page.waitForFunction(() => window.__fabtice.store.getState().ui.import.kind === 'busy', null, { timeout: 10000 }).catch(() => {});
       await pieceReady(page);
       assert.deepEqual(await snapshot(page), before, 'opened again from the recent projects');
