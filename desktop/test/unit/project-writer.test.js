@@ -143,6 +143,26 @@ test('a failure of the final rename leaves the old file and no temporary file', 
   }
 });
 
+test('the page starts the file again (an entry it copied did not read back): the temporary file is emptied, the old file stays', async () => {
+  const { dir, writer, cleanup } = setup();
+  try {
+    const file = path.join(dir, 'a.fab');
+    const old = bytesOf(300, 8);
+    fs.writeFileSync(file, old);
+    await writer.adopt('p1', file);
+    const s = await writer.begin({ projectId: 'p1', target: 'current' });
+    await writer.write(s.session, bytesOf(900, 1));
+    await writer.restart(s.session);
+    const next = bytesOf(500, 2);
+    await writer.write(s.session, next);
+    assert.deepEqual(await writer.finish(s.session), { name: 'a.fab', size: 500 });
+    assert.deepEqual(fs.readFileSync(file), next, 'nothing of the first attempt remains');
+    assert.equal(await codeOf(writer.restart(s.session)), 'unknown-session');
+  } finally {
+    cleanup();
+  }
+});
+
 test('the page abandons the save: the temporary file goes, the target stays', async () => {
   const { dir, writer, cleanup } = setup();
   try {

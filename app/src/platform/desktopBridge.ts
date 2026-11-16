@@ -259,6 +259,48 @@ export interface DesktopBridge {
   /** A project chosen in the page's own file picker goes in the recent list (its path stays in the Mac app). */
   rememberProjectFile?(file: File): Promise<boolean>;
   /**
+   * C5, the file of the open project (`desktop/src/project-writer.js`). The page names the project by its id
+   * (`ProjectInfo.id`), never a path: the Mac app keeps the path and only ever writes that file, or one the
+   * user chose in the system's save panel. A Mac app that predates it lacks these methods (the page then
+   * saves as a download, as before).
+   *
+   * Name and size of the project's file as it is on the disk now, or null (no file, or gone).
+   */
+  projectFileInfo?(projectId: string): Promise<{ name: string; size: number } | null>;
+  /** Bytes `offset` to `offset + length` (at most 16 MB) of the project's file: the sounds already encoded are copied from it. */
+  readCurrentProjectFile?(projectId: string, offset: number, length: number): Promise<Uint8Array>;
+  /** The project was opened from the file behind `token` (not yet released): that is now its file. Resolves its name, or null. */
+  adoptProjectFile?(projectId: string, token: string): Promise<{ name: string } | null>;
+  /** The project was opened from a file chosen or dropped in the page: that is now its file. */
+  adoptChosenProjectFile?(projectId: string, file: File): Promise<{ name: string } | null>;
+  /** The piece was restored from the page's own autosave: its file of a former launch, if it is still there. */
+  recallProjectFile?(projectId: string): Promise<{ name: string } | null>;
+  /** The open project has no file (a new project replaced it). */
+  forgetProjectFile?(): Promise<true>;
+  /**
+   * Starts a save: `current` overwrites the project's file (`reason: 'no-file'` when it has none or it is gone),
+   * `choose` shows the system's save panel first (`reason: 'cancelled'`). The bytes go to a temporary file beside
+   * the target, renamed over it by `finishProjectSave`. Answers with data, never rejects.
+   */
+  beginProjectSave?(request: { projectId: string; target: 'current' | 'choose'; suggestedName?: string }): Promise<ProjectSaveBegun>;
+  writeProjectSave?(session: string, bytes: Uint8Array): Promise<{ ok: true } | { ok: false; reason: string }>;
+  /** Empties the temporary file: the page writes the whole file again (an entry it copied did not read back). */
+  restartProjectSave?(session: string): Promise<{ ok: true } | { ok: false; reason: string }>;
+  /** Flushes and renames: the new file is now the project's file (and first in the recent projects). */
+  finishProjectSave?(session: string): Promise<{ ok: true; name: string; size: number } | { ok: false; reason: string }>;
+  /** Gives up: the temporary file is removed, the target is not touched. */
+  abortProjectSave?(session: string): Promise<true>;
+  /** The title bar: the dot in the close button (`modified`) and the proxy icon of the project's file. */
+  reportProjectState?(state: { projectId: string | null; modified: boolean }): Promise<boolean>;
+  /**
+   * Closing the window or quitting (`desktop/src/close-guard.js`): the Mac app asks, the page acknowledges at once
+   * (`ackClose`: it is deciding, however long that takes) then answers (`answerClose`: true lets the window go).
+   * A page that does not acknowledge within about two seconds is let go.
+   */
+  onConfirmClose?(callback: (question: { id: string }) => void): Unsubscribe;
+  ackClose?(id: string): Promise<boolean>;
+  answerClose?(id: string, ok: boolean): Promise<boolean>;
+  /**
    * The audio journal (`app/src/audio/journal.ts`): the page hands each event to the main process, which
    * keeps the last 200 with its own (sleeps, wakes, the audio service) across restarts, for Aide →
    * Diagnostic…. `sticky` events (the last playback that started) replace the previous one instead of
@@ -274,6 +316,8 @@ export interface DesktopBridge {
    */
   onPower?(callback: (event: PowerEvent) => void): Unsubscribe;
 }
+
+export type ProjectSaveBegun = { ok: true; session: string; name: string } | { ok: false; reason: 'no-file' | 'cancelled' | 'invalid' | 'failed' };
 
 /** A power event forwarded by the Mac app. */
 export interface PowerEvent {

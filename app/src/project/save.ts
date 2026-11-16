@@ -18,7 +18,7 @@ import { getKeeper, getProjectStorage } from '../storage';
 import type { StoredAudio } from '../storage/ProjectStorage';
 import { toProjectDocument } from '../store/document';
 import { appStore, type AppState } from '../store/store';
-import { PROJECT_MIME, ProjectFileError, projectFileName, trackEntries, writeProjectFile, type FlacEncode, type ProjectFileInput } from './fileFormat';
+import { PROJECT_MIME, ProjectFileError, projectFileName, trackEntries, writeProjectFile, type FlacEncode, type LazyOriginal, type ProjectFileInput, type ProjectManifest } from './fileFormat';
 import type { ByteSink } from './zip';
 
 export type SaveRefusal =
@@ -31,7 +31,7 @@ export type SaveRefusal =
 
 export class ProjectSaveError extends Error {
   constructor(
-    readonly code: SaveRefusal | 'too-large' | 'failed' | 'cancelled',
+    readonly code: SaveRefusal | 'too-large' | 'failed' | 'cancelled' | 'no-file',
     message?: string,
   ) {
     super(message ?? code);
@@ -62,17 +62,26 @@ function readerFor(audioId: string, inMemory: () => PcmAudio | undefined): () =>
   };
 }
 
-/** What the file will hold: the document, the originals read from the device, a reader per FLAC track. */
-export async function gatherProject(s: AppState = appStore.getState()): Promise<ProjectFileInput> {
+/**
+ * What the file will hold: the document, the originals read from the device, a reader per FLAC track.
+ * `earlier` is the manifest of an earlier file of the project: the originals it already holds are not read from
+ * the device unless the writer finds it cannot copy them (they are `LazyOriginal`s).
+ */
+export async function gatherProject(s: AppState = appStore.getState(), earlier: ProjectManifest | null = null): Promise<ProjectFileInput> {
   const refusal = saveRefusal(s);
   if (refusal) throw new ProjectSaveError(refusal);
   const document = toProjectDocument(s)!;
-  const originals = new Map<string, StoredAudio>();
+  const originals = new Map<string, StoredAudio | LazyOriginal>();
+  const load = async (id: string): Promise<StoredAudio> => {
+    const stored = await getProjectStorage().loadAudio(id);
+    if (!stored) throw new ProjectSaveError('not-kept', `no stored audio ${id}`);
+    return stored;
+  };
   for (const tr of [...document.tracks, ...document.separation.aside]) {
     if (tr.audio.origin === 'separated' || originals.has(tr.audio.id)) continue;
-    const stored = await getProjectStorage().loadAudio(tr.audio.id);
-    if (!stored) throw new ProjectSaveError('not-kept', `no stored audio ${tr.audio.id}`);
-    originals.set(tr.audio.id, stored);
+    const id = tr.audio.id;
+    const old = earlier?.audio.find((a) => a.id === id);
+    originals.set(id, old ? { fileName: old.fileName, mimeType: old.mimeType, byteLength: old.bytes, load: () => load(id) } : await load(id));
   }
   const renderTrack = new Map((document.keptRender?.tracks ?? []).map((t) => [t.audioId, t.trackId]));
   const tracks = new Map<string, () => Promise<PcmAudio>>();
@@ -81,6 +90,37 @@ export async function gatherProject(s: AppState = appStore.getState()): Promise<
     tracks.set(p.id, readerFor(p.id, () => (p.kind === 'render' && trackId ? keptRenderAudio()?.get(trackId) : getAudio(p.id))));
   }
   return { document, originals, tracks };
+}
+
+/** Hands the bytes on in pieces of about `size`: many small writes (the headers of a ZIP) become few large ones. */
+export function bufferedSink(inner: ByteSink, size = 4 * 1024 * 1024): ByteSink & { flush(): Promise<void>; reset(): void } {
+  let pending: Uint8Array<ArrayBuffer>[] = [];
+  let pendingBytes = 0;
+  const flush = async () => {
+    if (!pendingBytes) return;
+    const out = new Uint8Array(pendingBytes);
+    let at = 0;
+    for (const p of pending) {
+      out.set(p, at);
+      at += p.length;
+    }
+    pending = [];
+    pendingBytes = 0;
+    await inner.write(out);
+  };
+  return {
+    async write(chunk) {
+      pending.push(chunk);
+      pendingBytes += chunk.length;
+      if (pendingBytes >= size) await flush();
+    },
+    flush,
+    /** Forgets what was not handed on yet (the file is written again from its start). */
+    reset() {
+      pending = [];
+      pendingBytes = 0;
+    },
+  };
 }
 
 /** A sink that gathers the bytes in small `Blob`s (8 MB each), then one `Blob` of them. */
@@ -107,14 +147,14 @@ export function blobSink(type = PROJECT_MIME): ByteSink & { blob(): Blob } {
 }
 
 /** libFLAC in a worker (the export's encoder), at its usual level. */
-const appEncoder: FlacEncode = (pcm, { onProgress, signal }) => {
+export const appEncoder: FlacEncode = (pcm, { onProgress, signal }) => {
   const encoder = getEncoder('flac');
   if (!encoder) return Promise.reject(new ProjectSaveError('failed', 'no FLAC encoder'));
   return encoder.encode(pcm, { onProgress, signal });
 };
 
 /** How many tracks are encoded at once: one worker each, leaving a core for the page and the sound. */
-function parallelism(): number {
+export function parallelism(): number {
   const cores = typeof navigator !== 'undefined' ? navigator.hardwareConcurrency || 2 : 2;
   return Math.max(1, Math.min(3, cores - 1));
 }

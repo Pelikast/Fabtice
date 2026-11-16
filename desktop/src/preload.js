@@ -68,6 +68,7 @@ contextBridge.exposeInMainWorld('fabtice', {
     suggestedName: String((request && request.suggestedName) || ''),
   }),
   writeProjectSave: (session, bytes) => ipcRenderer.invoke('fabtice:project-save-write', String(session), bytes),
+  restartProjectSave: (session) => ipcRenderer.invoke('fabtice:project-save-restart', String(session)),
   finishProjectSave: (session) => ipcRenderer.invoke('fabtice:project-save-finish', String(session)),
   abortProjectSave: (session) => ipcRenderer.invoke('fabtice:project-save-abort', String(session)),
   // The title bar: the dot in the close button and the proxy icon of the file.

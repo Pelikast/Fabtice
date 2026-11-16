@@ -5,6 +5,8 @@
 import { startProjectOpen } from '../import/controller';
 import { getDesktopBridge, type DesktopBridge, type OpenedProjectFile } from '../platform/desktopBridge';
 import { openNewPiece } from '../store/actions';
+import { setCurrentFile } from './currentFile';
+import { confirmLeaveProject } from './leave';
 import type { ByteSource } from './zip';
 
 /** A file the Mac app holds, read by ranges (at most 16 MB per call). */
@@ -27,9 +29,15 @@ export function bridgeSource(bridge: DesktopBridge, file: OpenedProjectFile): By
 }
 
 async function open(bridge: DesktopBridge, file: OpenedProjectFile): Promise<void> {
-  openNewPiece();
   try {
-    await startProjectOpen(bridgeSource(bridge, file), file.name);
+    // Changes not saved in the project open: the alert first (a file handed over by the Finder, the recent list).
+    if (!(await confirmLeaveProject())) return;
+    openNewPiece();
+    await startProjectOpen(bridgeSource(bridge, file), file.name, async (projectId) => {
+      // Opened without a fault: the Mac app keeps this file's path as the project's file.
+      const found = await bridge.adoptProjectFile?.(projectId, file.token).catch(() => null);
+      if (found) setCurrentFile({ projectId, name: found.name, ref: { kind: 'desktop' } });
+    });
   } finally {
     void bridge.releaseProjectFile?.(file.token).catch(() => {});
   }

@@ -146,6 +146,8 @@ function createProjectWriter(options) {
   /** The page restored a piece from its own autosave: its file of a former launch, if it is still there. */
   async function recall(projectId) {
     if (!validId(projectId)) return null;
+    // Already has a file (just opened or saved): that one stands.
+    if (current && current.projectId === projectId && (await projectSize(current.path)) !== null) return { name: path.basename(current.path) };
     const known = (await load()).get(projectId);
     if (!known || (await projectSize(known)) === null) return null;
     current = { projectId, path: known };
@@ -207,6 +209,19 @@ function createProjectWriter(options) {
       // already closed
     }
     await files.rm(s.temp, { force: true }).catch(() => {});
+  }
+
+  /** Empties the temporary file of the save in progress: the page starts it again (an entry it copied did not read back). */
+  async function restart(sessionId) {
+    const s = session;
+    if (!s || s.id !== sessionId) throw new WriterError('unknown-session');
+    try {
+      await s.handle.truncate(0);
+      s.written = 0;
+    } catch (e) {
+      await discard(s);
+      throw new WriterError('failed', e && e.message);
+    }
   }
 
   /**
@@ -349,7 +364,7 @@ function createProjectWriter(options) {
     return [...extra, ...[...(await load()).values()].map((p) => path.dirname(p))];
   }
 
-  return { adopt, recall, forget, pathFor, info, read, begin, write, finish, abort, cleanStale, knownFolders };
+  return { adopt, recall, forget, pathFor, info, read, begin, write, restart, finish, abort, cleanStale, knownFolders };
 }
 
 module.exports = { createProjectWriter, WriterError, withExtension, EXTENSION, MAX_CHUNK_BYTES, MAX_READ_BYTES, TEMP_PATTERN };

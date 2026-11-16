@@ -114,6 +114,7 @@ function createProjects(options) {
       );
     });
     handle('fabtice:project-save-write', async (_e, session, bytes) => answer(async () => void (await writer.write(session, bytes))));
+    handle('fabtice:project-save-restart', async (_e, session) => answer(async () => void (await writer.restart(session))));
     handle('fabtice:project-save-finish', async (_e, session) => answer(() => writer.finish(session)));
     handle('fabtice:project-save-abort', async (_e, session) => writer.abort(session));
     handle('fabtice:clear-recent-projects', async () => {

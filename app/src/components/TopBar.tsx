@@ -2,7 +2,8 @@ import { useCallback, useRef } from 'react';
 import { formatDuration } from '../grid/format';
 import { t } from '../i18n';
 import type { ViewMode } from '../model/project';
-import { closePanel, openNewPiece, setViewMode, togglePanel } from '../store/actions';
+import { requestNewProject } from '../project/leave';
+import { closePanel, setViewMode, togglePanel } from '../store/actions';
 import { useApp } from '../store/store';
 import { useOutsideClose } from '../ui/useOutsideClose';
 import { AnalysisStatus } from './AnalysisStatus';
@@ -36,7 +37,7 @@ export function TopBar() {
         {project && <SeparationStatus />}
       </div>
       <nav className="menus" aria-label={t('top.menus')}>
-        <button className="menu cache-tel" onClick={openNewPiece}>
+        <button className="menu cache-tel" onClick={() => void requestNewProject()}>
           {t('top.newProject')}
         </button>
         <span className="modes" role="tablist" aria-label={t('top.views')}>

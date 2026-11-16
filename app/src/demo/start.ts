@@ -48,6 +48,7 @@ import * as analysisActions from '../store/analysisActions';
 import * as gridActions from '../store/gridActions';
 import * as harmonyActions from '../store/harmonyActions';
 import * as historyModule from '../store/history';
+import * as projectModules from '../project/debug';
 import { demoAnalysis, demoCorrections } from './demoAnalysis';
 import * as audioJournal from '../audio/journal';
 import { demoProject } from './demoProject';
@@ -70,6 +71,8 @@ declare global {
       audioJournal?: typeof audioJournal;
       /** « Annuler » / « Rétablir » and the « modified » state (`store/history.ts`). */
       history?: typeof historyModule;
+      /** « Enregistrer », the file of the project and the alert (`project/debug.ts`). */
+      project?: typeof projectModules;
       ready: Promise<void>;
     };
   }
@@ -154,6 +157,6 @@ export function startDemo(params: URLSearchParams): Promise<void> {
     else if (separation === 'lente' || separation === 'repli' || separation === 'echec') void separationRunner.startSeparation();
     if (params.get('export') === 'ouvert') exportActions.openExportAudio();
   })();
-  window.__fabtice = { store: appStore, engine: getEngine(), actions, lot2: lot2Actions, lot3: lot3Handle, lot4: lot4Handle, audioJournal, history: historyModule, ready };
+  window.__fabtice = { store: appStore, engine: getEngine(), actions, lot2: lot2Actions, lot3: lot3Handle, lot4: lot4Handle, audioJournal, history: historyModule, project: projectModules, ready };
   return ready;
 }

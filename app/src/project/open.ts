@@ -29,6 +29,7 @@ import { getKeeper, getProjectStorage } from '../storage';
 import type { StoredAudio } from '../storage/ProjectStorage';
 import { wholePieceOf } from '../storage/restore';
 import { restoreProject, setStorageNotice } from '../store/actions';
+import { markSaved } from '../store/history';
 import { dropOtherSeparation, setImportStems, setSeparationNotice } from '../store/separationActions';
 import { appStore } from '../store/store';
 import { FILE_EXTENSION, MIMETYPE_ENTRY, openProjectFile, PROJECT_MIME, ProjectFileError, type OpenedProjectFile } from './fileFormat';
@@ -74,13 +75,16 @@ const separatedOf = (tracks: readonly Track[]) => tracks.filter((tr) => tr.audio
  * `decode-failed`, `prepare-failed`, `cancelled`…) without having touched the
  * open piece, except for `prepare-failed` (the engine refused the new piece:
  * as for an import, nothing is open then, and the kept piece is untouched).
+ * Resolves the id of the project now open, with nothing « modified » about it
+ * (it is as its file says: `markSaved`), or null if another piece replaced it
+ * before the end.
  */
 export async function openProjectSource(
   source: ByteSource,
   name: string,
   options: { onProgress?: (p: ImportProgress) => void; signal?: AbortSignal } = {},
   deps: OpenDeps = {},
-): Promise<void> {
+): Promise<string | null> {
   const { onProgress, signal } = options;
   let title = name.replace(/\.fab$/i, '');
   const show = (step: 'reading' | 'decoding' | 'instruments' | 'preparing', fraction: number | null) => onProgress?.({ phase: 'opening', fraction, title, step });
@@ -175,7 +179,7 @@ export async function openProjectSource(
 
   // The other separations: decoded one at a time, written on the device, let go (kept in memory if the device refuses).
   for (const other of doc.separation.others) {
-    if (!still()) return;
+    if (!still()) return null;
     try {
       for (const tr of other.tracks) {
         const pcm = await file.readTrack(tr.audio.id);
@@ -205,4 +209,8 @@ export async function openProjectSource(
       appStore.setState({ keptRender: null });
     }
   }
+  if (!still()) return null;
+  // The piece is what its file holds: restoring the separation and the render marked it modified on the way.
+  markSaved();
+  return id;
 }
