@@ -7,8 +7,8 @@ la fenêtre, ou (app Mac) un double-clic dans le Finder, « Ouvrir avec », les
 projets récents.
 
 Code : `zip.ts` (le conteneur), `fileFormat.ts` (le format),
-`../audio/flac/decode.ts` (le décodeur FLAC), `save.ts` et `open.ts` (l'app),
-`fromDesktop.ts` (l'app Mac). Tests : `fileFormat.test.ts`,
+`../audio/flac/decode.ts` (le décodeur FLAC), `save.ts`, `saveFlow.ts` et
+`open.ts` (l'app), `fromDesktop.ts` (l'app Mac). Tests : `fileFormat.test.ts`,
 `projectFile.test.ts`, `../audio/flac/decode.test.ts`,
 `tests/project-file.mjs`, `desktop/test/e2e/project-file.test.js`.
 
@@ -87,9 +87,21 @@ pourrait passer en FLAC, mais il ne se décode pas toujours à l'identique en
   disque ; les pistes qui ne sont pas en mémoire sont lues sur l'appareil à leur
   tour. Puis l'archive sort par morceaux de 4 Mo vers un « puits » ; la CRC-32
   de chaque entrée est calculée au passage et écrite après elle (descripteur de
-  données, bit 3). Dans l'app, le puits rassemble des `Blob` de 8 Mo et le
-  fichier est remis par un lien : un téléchargement dans un navigateur, la
-  fenêtre d'enregistrement de macOS dans l'app Mac.
+  données, bit 3). Selon l'endroit, le puits est un fichier ouvert en écriture
+  (« Enregistrer » et « Enregistrer sous… » : poignée de Chromium, ou écriture
+  sûre du processus principal de l'app Mac : fichier temporaire puis
+  renommage), ou rassemble des `Blob` de 8 Mo remis par un lien (un
+  téléchargement, dans Safari et Firefox).
+- **Recopier ce qui n'a pas changé** (`WriteOptions.reuse`, `readReusableFile`) :
+  un écrivain peut recopier **telles quelles**, depuis un fichier plus ancien du
+  même projet, les entrées audio qui n'ont pas changé (même `id`, même sorte,
+  même nombre d'images et même format ; pour l'original, même `id` et même
+  taille ; la CRC est contrôlée pendant la copie), au lieu de les encoder de
+  nouveau. Cela **ne change pas le format** : le fichier écrit a les mêmes
+  entrées, le même manifeste et les mêmes règles qu'un fichier tout encodé, et
+  un lecteur n'a rien à savoir de cette économie. Si une entrée recopiée ne se
+  relit pas comme son manifeste le dit (`ReuseError`),
+  l'écrivain recommence sans rien emprunter.
 - **Lecture** (`openProjectFile`) : le répertoire central à la fin du fichier
   donne la place de chaque entrée ; `verify()` relit tout le fichier une fois
   par tranches de 4 Mo et contrôle chaque CRC **avant** que le morceau ouvert
