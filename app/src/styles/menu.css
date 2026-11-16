@@ -1,0 +1,143 @@
+/* ---------- The menu Fabtice (C6), under the logo ---------- */
+
+/* The logo is the menu's button: same look, a discreet chevron, the paper hollow on hover. */
+.marque-ancre { position: relative; flex: none; }
+.marque {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+  margin: 0 -8px;
+  padding: 7px 8px;
+  border-radius: var(--rayon);
+  color: var(--encre);
+  transition: background var(--vite) var(--courbe);
+}
+.marque:hover, .marque[aria-expanded="true"] { background: var(--papier-fonce); }
+/* The views are the last thing of the bar now: no rule after them. */
+.haut .modes { border-right: 0; margin-right: 0; }
+.marque-chevron {
+  align-self: center;
+  width: 10px;
+  height: 7px;
+  margin-top: 3px;
+  color: var(--encre-douce);
+  transition: transform var(--vite) var(--courbe);
+}
+.marque[aria-expanded="true"] .marque-chevron { transform: rotate(180deg); }
+
+/* Computer: a drop-down under the logo, submenus to the right. */
+.menu-fabtice {
+  top: calc(100% + 8px);
+  left: -8px;
+  width: max-content;
+  min-width: 270px;
+  max-width: 420px;
+  padding: 6px;
+  font-family: var(--texte);
+  font-size: 15px;
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 1.3;
+  font-variation-settings: normal;
+}
+.menu-fabtice:focus { outline: none; }
+.menu-fabtice.sous-menu {
+  top: -7px;
+  left: calc(100% + 6px);
+  min-width: 230px;
+  animation: menu-glisse var(--vite) var(--courbe);
+}
+@keyframes menu-glisse {
+  from { opacity: 0; transform: translateX(-4px); }
+  to { opacity: 1; transform: none; }
+}
+.menu-ligne { position: relative; }
+.menu-entree {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  width: 100%;
+  min-height: 34px;
+  padding: 6px 10px;
+  border-radius: var(--rayon);
+  color: var(--encre);
+  text-align: left;
+  white-space: nowrap;
+  transition: background var(--vite) var(--courbe), color var(--vite) var(--courbe);
+}
+/* The focus follows the mouse, so one look for both; an open submenu keeps its entry marked. */
+.menu-entree:focus, .menu-entree[aria-expanded="true"] { outline: none; background: var(--papier-fonce); }
+.menu-entree:focus-visible { outline: none; box-shadow: inset 0 0 0 1px var(--encre-douce); }
+.menu-entree[aria-disabled="true"] { color: var(--encre-douce); opacity: 0.72; cursor: default; }
+.menu-texte { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.menu-raccourci {
+  flex: none;
+  font-size: 13px;
+  color: var(--encre-douce);
+  font-variant-numeric: tabular-nums;
+}
+.menu-fleche { flex: none; width: 7px; height: 11px; color: var(--encre-douce); }
+.menu-filet { height: 1px; margin: 5px 6px; background: var(--trait-fin); }
+.menu-erreur {
+  max-width: 300px;
+  margin: 2px 10px 6px;
+  font-size: 13px;
+  font-style: italic;
+  line-height: 1.35;
+  white-space: normal;
+  color: var(--encre-douce);
+}
+
+/* Phone: a sheet over the whole screen; a submenu is a list of its own, with « Retour ». */
+.feuille-menu {
+  position: fixed;
+  inset: 0;
+  z-index: 46;
+  display: flex;
+  flex-direction: column;
+  background: var(--papier-clair);
+  animation: monte var(--pose) var(--courbe);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.feuille-menu-tete {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 52px;
+  padding: 4px 8px 4px 16px;
+  border-bottom: 1px solid var(--trait);
+}
+.feuille-menu-tete .fermer { width: 44px; height: 44px; }
+.feuille-menu-retour {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 44px;
+  margin-left: -8px;
+  padding: 0 12px 0 8px;
+  border-radius: var(--rayon);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--encre);
+}
+.feuille-menu-retour svg { width: 8px; height: 12px; }
+.feuille-menu-titre {
+  margin: 16px 20px 4px;
+  font-family: var(--titre);
+  font-size: 22px;
+  font-weight: 480;
+  font-variation-settings: "opsz" 24, "SOFT" 40;
+}
+.feuille-menu-liste { flex: 1; overflow-y: auto; padding: 8px; }
+.feuille-menu .menu-entree { min-height: 48px; padding: 10px 12px; white-space: normal; }
+.feuille-menu .menu-entree:focus { background: none; }
+.feuille-menu .menu-entree:active:not([aria-disabled="true"]) { background: var(--papier-fonce); }
+.feuille-menu .menu-entree:focus-visible { background: var(--papier-fonce); }
+.feuille-menu .menu-recent { flex-direction: column; align-items: flex-start; gap: 2px; }
+.feuille-menu .menu-recent small { font-size: 13px; color: var(--encre-douce); }
+.feuille-menu .menu-filet { margin: 6px 12px; }
+.feuille-menu .menu-erreur { margin: 0 12px 8px; max-width: none; }
+
+@media (max-width: 760px) {
+  .marque-ancre .marque { margin: 5px -8px; padding: 9px 8px; line-height: 1; }
+}

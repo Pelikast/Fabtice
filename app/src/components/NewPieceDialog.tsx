@@ -106,13 +106,18 @@ function Choices({ open, desktop }: { open: boolean; desktop: boolean }) {
   const notice = useApp((s) => s.ui.notice);
   const reopenOffer = useApp((s) => s.ui.reopenOffer);
   const toolUpdate = useApp((s) => s.ui.toolUpdate);
+  // « Nouveau projet ▸ » (C6): which entry asked; null for the whole opening screen.
+  const from = useApp((s) => s.ui.newPieceFrom);
   const [link, setLink] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
-  // Mac app: the link field takes the focus, ready for a paste.
+  // Mac app: the link field takes the focus, ready for a paste; « À partir d'un fichier audio »: the file button.
   const linkRef = useRef<HTMLInputElement>(null);
+  const fileButtonRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
-    if (open) linkRef.current?.focus({ preventScroll: true });
-  }, [open]);
+    if (!open) return;
+    if (from === 'file' || (!desktop && from === 'link')) fileButtonRef.current?.focus({ preventScroll: true });
+    else if (desktop) linkRef.current?.focus({ preventScroll: true });
+  }, [open, from, desktop]);
 
   const chooseFile = () => fileRef.current?.click();
   // Lot 4: a `.fab` project, offered calmly after the main way in. Its file picker is made on the
@@ -177,7 +182,7 @@ function Choices({ open, desktop }: { open: boolean; desktop: boolean }) {
         </form>
         <div className="sinon">
           {t('new.or')}{' '}
-          <button className="lien" onClick={chooseFile}>
+          <button ref={fileButtonRef} className="lien" onClick={chooseFile}>
             {t('new.chooseFile')}
           </button>
         </div>
@@ -204,8 +209,14 @@ function Choices({ open, desktop }: { open: boolean; desktop: boolean }) {
   return (
     <>
       {noticeLine}
+      {/* « À partir d'un lien YouTube » on the web: the link is imported in the Mac app. */}
+      {from === 'link' && (
+        <p className="accueil-avis" role="status" data-testid="lien-app-mac">
+          {t('menu.linkOnMac')}
+        </p>
+      )}
       <p>{t('new.leadFile')}</p>
-      <button className="plein" onClick={chooseFile}>
+      <button ref={fileButtonRef} className="plein" onClick={chooseFile}>
         {t('new.chooseFileButton')}
       </button>
       {fileInput}

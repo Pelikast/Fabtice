@@ -80,6 +80,9 @@ contextBridge.exposeInMainWorld('fabtice', {
   onConfirmClose: (cb) => subscribe('fabtice:confirm-close', cb),
   ackClose: (id) => ipcRenderer.invoke('fabtice:close-ack', String(id)),
   answerClose: (id, ok) => ipcRenderer.invoke('fabtice:close-answer', String(id), Boolean(ok)),
+  // C6, the menu bar (menu.js): the page's commands, their labels and states; « Quitter » from the page's menu.
+  reportMenuState: (state) => ipcRenderer.invoke('fabtice:menu-state', state),
+  quitApp: () => ipcRenderer.invoke('fabtice:quit'),
   onYtdlpProgress: (cb) => subscribe('fabtice:ytdlp-progress', cb),
   onExtractProgress: (cb) => subscribe('fabtice:extract-progress', cb),
 });

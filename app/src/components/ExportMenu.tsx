@@ -1,42 +1,17 @@
-// « Exporter » in the top bar: a small menu. The chord chart for iReal Pro
-// and printing the chart (lot 2), the sound (lot 3: « Exporter le son », a dialog).
+// The former « Exporter » menu of the top bar. Its commands now live in the
+// menu Fabtice (`ui/commands.ts`, `components/FabticeMenu.tsx`); what is left
+// is only read by the former settings popover, and goes with it.
 
-import { useCallback, useEffect, useRef, useState, type Ref } from 'react';
+import { useEffect, useState } from 'react';
 import { PRINT_READY } from '../chart/print';
 import { chartForExport, exportToIRealPro } from '../export';
 import '../export/export.css';
 import { t } from '../i18n';
-import { closePanel, togglePanel } from '../store/actions';
-import { useFitPanel } from '../ui/useFitPanel';
+import { closePanel } from '../store/actions';
 import { selectHasChords } from '../store/chartSelectors';
 import { getDesktopBridge } from '../platform/desktopBridge';
 import { openExportAudio, openPrint, openSaveProject } from '../store/exportActions';
 import { appStore, useApp } from '../store/store';
-import { useOutsideClose } from '../ui/useOutsideClose';
-
-export function ExportMenu() {
-  const open = useApp((s) => s.ui.panel === 'export');
-  const hasProject = useApp((s) => s.project !== null);
-  const buttonRef = useRef<HTMLButtonElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
-  const refs = useRef([buttonRef, panelRef]).current;
-  useOutsideClose(open, refs, useCallback(() => closePanel(), []));
-  return (
-    <span className="menu-ancre cache-tel">
-      <button
-        ref={buttonRef}
-        className="menu"
-        aria-expanded={open}
-        aria-haspopup="menu"
-        disabled={!hasProject}
-        onClick={() => togglePanel('export')}
-      >
-        {t('top.export')}
-      </button>
-      {open && <ExportPanel ref={panelRef} />}
-    </span>
-  );
-}
 
 /**
  * « Grille pour iReal Pro »: a link to a small page that holds the iReal Pro
@@ -111,16 +86,6 @@ function IRealEntries({ enabled }: { enabled: boolean }) {
         </p>
       )}
     </>
-  );
-}
-
-/** The menu's window, under its button. */
-function ExportPanel({ ref }: { ref: Ref<HTMLDivElement> }) {
-  const fitRef = useFitPanel(ref);
-  return (
-    <div ref={fitRef} className="fenetre menu-export" role="menu" aria-label={t('top.export')}>
-      <ExportItems />
-    </div>
   );
 }
 
