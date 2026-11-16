@@ -105,8 +105,11 @@ export function toAnalysisResult(r: ResultInput): AnalysisResult {
     duration: r.duration,
     beats,
     key,
+    // Modulations and structure are not looked for by this analyser yet.
+    keyChanges: [],
     tuning: r.tuning.peaks > 0 ? { cents: r.tuning.cents, confidence: r.tuning.confidence } : null,
     chords,
+    structure: null,
   };
   if (r.evidence) out.evidence = r.evidence;
   return out;

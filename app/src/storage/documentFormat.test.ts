@@ -113,7 +113,7 @@ describe('version 2 (lot 2): analysis and corrections', () => {
 
   it('a damaged or outdated analysis is dropped, the piece is kept', () => {
     const analysis = demoSwingResult(10);
-    expect(readDocument(json(sampleDocument({ analysis: { ...analysis, version: 99 as 1 } })))!.analysis).toBeNull();
+    expect(readDocument(json(sampleDocument({ analysis: { ...analysis, version: 99 as 2 } })))!.analysis).toBeNull();
     expect(readDocument(json(sampleDocument({ analysis: { ...analysis, beats: { ...analysis.beats, times: [1] } } })))!.analysis).toBeNull();
     const badChord = { ...analysis, chords: [{ ...analysis.chords[0]!, chord: { root: 13, quality: 'maj7', extensions: [], bass: null } }] };
     expect(readDocument(json(sampleDocument({ analysis: badChord as never })))!.analysis).toBeNull();

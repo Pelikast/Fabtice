@@ -1,0 +1,133 @@
+{
+ "version": 5,
+ "project": {
+  "id": "e260da18-9ebb-4987-b5da-68f8aca52c22",
+  "title": "Blues du dimanche",
+  "source": {
+   "kind": "file",
+   "fileName": "Blues du dimanche.mp3"
+  },
+  "duration": 20,
+  "sampleRate": 48000,
+  "createdAt": "2026-11-16T16:40:16.289Z"
+ },
+ "tracks": [
+  {
+   "id": "b6778521-ec7b-411a-a0a4-dfcfa3d99ce1",
+   "name": "Morceau",
+   "role": "morceau",
+   "mute": false,
+   "solo": false,
+   "volume": 1,
+   "audio": {
+    "id": "bfc884cb-8c2b-407f-b22a-e2e38ea657b9",
+    "origin": "original",
+    "channels": 1,
+    "sampleRate": 48000,
+    "frames": 960000
+   }
+  }
+ ],
+ "tempoMap": {
+  "origin": "manual",
+  "segments": [
+   {
+    "time": 0.4,
+    "beat": 0,
+    "bpm": 180
+   }
+  ],
+  "meters": [
+   {
+    "bar": 0,
+    "beat": 0,
+    "meter": {
+     "numerator": 6,
+     "denominator": 8
+    }
+   }
+  ]
+ },
+ "loop": {
+  "region": null,
+  "enabled": false
+ },
+ "playback": {
+  "semitones": 0,
+  "cents": 0,
+  "tempoRatio": 1,
+  "metronome": false
+ },
+ "view": {
+  "pxPerSecond": 40,
+  "trackHeight": 74,
+  "auto": true,
+  "subdivision": 2,
+  "triplets": false,
+  "snap": true,
+  "follow": true,
+  "instrument": "ut"
+ },
+ "analysis": null,
+ "corrections": {
+  "key": null,
+  "tuningCents": null,
+  "tuningOfferDismissed": false,
+  "chords": [],
+  "handSpans": [],
+  "sections": [
+   {
+    "time": 0.4,
+    "label": "A"
+   },
+   {
+    "time": 8.4,
+    "label": "B"
+   }
+  ],
+  "tempoFixes": []
+ },
+ "separation": {
+  "result": null,
+  "showing": "whole",
+  "aside": [],
+  "others": []
+ },
+ "exportPrefs": {
+  "what": "mix",
+  "range": "whole",
+  "format": "wav"
+ },
+ "metronome": {
+  "volume": 0.5,
+  "countInBars": 0,
+  "patterns": {
+   "6/8": {
+    "grouping": [
+     3,
+     3
+    ],
+    "levels": [
+     "accent",
+     "soft",
+     "soft",
+     "soft",
+     "soft",
+     "soft"
+    ]
+   }
+  },
+  "acceleration": {
+   "enabled": false,
+   "startPercent": 70,
+   "stepPercent": 5,
+   "everyRepeats": 2,
+   "targetPercent": 100
+  }
+ },
+ "markers": {
+  "loops": []
+ },
+ "keptRender": null,
+ "savedAt": "2026-11-15T09:00:00.000Z"
+}

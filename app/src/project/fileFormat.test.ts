@@ -2,9 +2,10 @@ import { closeSync, fstatSync, mkdtempSync, openSync, readSync, rmSync, writeSyn
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { demoSwingResult } from '../analysis/fromDemoSwing';
 import { CHUNK, pcmFromChannels, type PcmAudio } from '../audio/pcm';
 import { emptyCorrections } from '../model/corrections';
-import type { ProjectDocument } from '../model/document';
+import { PROJECT_DOCUMENT_VERSION, type ProjectDocument } from '../model/document';
 import type { Track } from '../model/project';
 import type { SeparationSummary } from '../model/separation';
 import { nodeFlacEncode } from '../test/flacEncode';
@@ -179,15 +180,37 @@ describe('the .fab file', () => {
     const tracks = new Map([...input.tracks].filter(([id]) => id.startsWith('a-')));
     const { file } = await write({ ...input, document: old as unknown as ProjectDocument, tracks });
     const opened = await openProjectFile(bytesSource(file));
-    expect(opened.document.version).toBe(5);
+    expect(opened.document.version).toBe(PROJECT_DOCUMENT_VERSION);
     expect(opened.document.markers).toEqual({ loops: [] });
     expect(opened.document.separation.others).toEqual([]);
     expect(opened.document.keptRender).toBeNull();
   });
 
+  it('opens a file of the published app (document version 5, analysis of version 1) with nothing lost, and writes version 6', async () => {
+    const { input } = workedOn();
+    const v5 = JSON.parse(JSON.stringify(input.document)) as Record<string, Record<string, unknown>>;
+    v5.version = 5 as never;
+    delete v5.corrections!.keyChanges;
+    delete v5.corrections!.structure;
+    const { keyChanges: _k, structure: _s, ...analysis } = demoSwingResult(3);
+    v5.analysis = { ...analysis, version: 1 };
+    const { file } = await write({ ...input, document: v5 as unknown as ProjectDocument });
+    const opened = await openProjectFile(bytesSource(file));
+    expect(opened.manifest.documentVersion).toBe(5);
+    expect(opened.document.version).toBe(PROJECT_DOCUMENT_VERSION);
+    expect(opened.document.analysis!.chords).toEqual(analysis.chords);
+    expect(opened.document.corrections.key).toEqual({ tonic: 3, mode: 'major' });
+    expect(opened.document.corrections.keyChanges).toBeNull();
+    expect(opened.document.separation).toEqual(input.document.separation);
+    const again = await write({ ...input, document: opened.document });
+    const reopened = await openProjectFile(bytesSource(again.file));
+    expect(reopened.manifest.documentVersion).toBe(6);
+    expect(reopened.document).toEqual(opened.document);
+  });
+
   it('says « too recent » for a later file layout or a later document', async () => {
     const { input } = workedOn();
-    const { file } = await write({ ...input, document: { ...input.document, version: 6 as 5 } });
+    const { file } = await write({ ...input, document: { ...input.document, version: (PROJECT_DOCUMENT_VERSION + 1) as typeof PROJECT_DOCUMENT_VERSION } });
     expect(await errorCode(openProjectFile(bytesSource(file)))).toBe('too-recent');
     const sink = memorySink();
     const zip = new ZipStreamWriter(sink);

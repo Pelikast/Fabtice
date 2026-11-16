@@ -21,11 +21,33 @@
 
 import type { Seconds } from './project';
 
+/**
+ * A time signature. Stored meters (document version 6) are legal when
+ * `isValidMeter` says so: an integer numerator 1…64 over 4, 8, 16 or 32.
+ * What the interface offers and what every consumer supports is narrower for
+ * now (2 to 12 over 4 or 8: `grid/metronome.ts#isAllowedMeter`), until the
+ * per-bar signatures of 1.0.0 make the whole app follow.
+ */
 export interface Meter {
-  /** Beats per bar, 2…7 in lot 1. */
+  /** Beats per bar: an integer in `METER_NUMERATOR` (1…64). */
   numerator: number;
-  /** Beat unit; only 4 in lot 1, kept for 6/8, 12/8… later. */
+  /** Beat unit (4 = quarter note, 8 = eighth…): one of `METER_DENOMINATORS`. */
   denominator: number;
+}
+
+/** Numerators a stored meter may have (« 1 à 64 »). */
+export const METER_NUMERATOR = { min: 1, max: 64 } as const;
+/** Denominators a stored meter may have. */
+export const METER_DENOMINATORS: readonly number[] = [4, 8, 16, 32];
+
+/** True for a meter the document may hold: integer numerator 1…64 over 4, 8, 16 or 32. */
+export function isValidMeter(m: unknown): m is Meter {
+  if (typeof m !== 'object' || m === null) return false;
+  const { numerator, denominator } = m as Record<string, unknown>;
+  return (
+    typeof numerator === 'number' && Number.isInteger(numerator) && numerator >= METER_NUMERATOR.min && numerator <= METER_NUMERATOR.max &&
+    typeof denominator === 'number' && METER_DENOMINATORS.includes(denominator)
+  );
 }
 
 /**

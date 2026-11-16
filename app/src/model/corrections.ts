@@ -13,25 +13,54 @@
 // tempo doubled, meter changed). The chart rounds them to the nearest beat or
 // bar line of the grid in force (see `chart/layout.ts`).
 
-import type { ChordSymbol, Key } from './harmony';
+import type { ChordSymbol, Key, KeyChange } from './harmony';
 import type { Seconds, TimeRange } from './project';
+import { emptyStructureCorrections, type StructureCorrections } from './structure';
 import type { TempoMap } from './tempoMap';
 
 /**
  * A manual tempo action of the bar menu (« Corriger un changement de tempo
- * indésirable », « Réanalyser le tempo à partir de cette mesure »): from the
- * bar starting at `time`, the grid was computed again. The grid itself is the
+ * indésirable », « Réanalyser le tempo à partir de cette mesure », and from
+ * version 6 « Correction de la courbe en tapant le tempo »): from the bar
+ * starting at `time`, the grid was computed again. The grid itself is the
  * tempo map in force (origin `corrected`); this keeps where the action starts
  * (a mark on the ruler) and the grid as it was just before, so that the action
  * can be undone (« Revenir à l'analyse » on that bar).
  */
-export interface TempoFix {
+export type TempoFix = AnalysedTempoFix | TappedTempoFix;
+
+export type TempoFixKind = TempoFix['kind'];
+export const TEMPO_FIX_KINDS: readonly TempoFixKind[] = ['continuity', 'fresh', 'tapped'];
+
+interface TempoFixBase {
   /** Source time of the chosen bar's start (a downbeat, before and after). */
   time: Seconds;
-  /** `continuity`: the tempo before goes on; `fresh`: analysed again from there. */
-  kind: 'continuity' | 'fresh';
   /** The grid in force just before the action. */
   previous: TempoMap;
+}
+
+/** The two actions computed by the analysis alone. */
+export interface AnalysedTempoFix extends TempoFixBase {
+  /** `continuity`: the tempo before goes on; `fresh`: analysed again from there. */
+  kind: 'continuity' | 'fresh';
+}
+
+/**
+ * Version 6: the user tapped the beats of a difficult passage. The grid from
+ * `time` to `end` was placed from the taps, the rest of the piece analysed
+ * again after it. The taps are kept so that the passage can be computed again
+ * (a later, better algorithm) without asking the user to tap again.
+ */
+export interface TappedTempoFix extends TempoFixBase {
+  kind: 'tapped';
+  /**
+   * Every tap as heard, in source seconds, ascending (equal times allowed),
+   * before any compensation (the user's usual advance or delay, the output
+   * latency) and before snapping to the onsets. The count-in is not kept.
+   */
+  taps: Seconds[];
+  /** Source time where the tapped passage ends (its last beat placed from the taps), after `time`. */
+  end: Seconds;
 }
 
 /** A chord written by hand: it starts at `time` and lasts until the next chord. */
@@ -50,8 +79,16 @@ export interface SectionMark {
 }
 
 export interface Corrections {
-  /** The key chosen by hand; null = the analysed key (or none). */
+  /** The main key chosen by hand (the first passage, from 0); null = the analysed key (or none). */
   key: Key | null;
+  /**
+   * Version 6: the later passages (modulations) as the user wants them, or
+   * null = the analysed ones (`AnalysisResult.keyChanges`). Once the user adds,
+   * moves, changes or deletes one, this is the whole list (an analysed one
+   * deleted is simply absent), so a new analysis never undoes it. Ascending,
+   * each strictly after 0 and after the one before.
+   */
+  keyChanges: KeyChange[] | null;
   /**
    * The recording's distance from A = 440 Hz as corrected by hand, in cents;
    * null = the analysed value. Compensating it is a separate act: it sets the
@@ -69,8 +106,14 @@ export interface Corrections {
    * chord means « no new chord here »: the previous chord goes on.
    */
   handSpans: TimeRange[];
-  /** Section letters, ascending by time, at most one per bar line. */
+  /**
+   * Section letters placed by hand, ascending by time, at most one per bar
+   * line (the letters in force when there is one, or when
+   * `structure.lettersByHand`: see `model/structure.ts`).
+   */
   sections: SectionMark[];
+  /** Version 6: the structure corrected by hand (mode, parts), see `model/structure.ts`. */
+  structure: StructureCorrections;
   /**
    * Manual tempo actions, in the order they were made (each one computed on the
    * grid the one before left). Dropped with the grid corrections.
@@ -79,5 +122,15 @@ export interface Corrections {
 }
 
 export function emptyCorrections(): Corrections {
-  return { key: null, tuningCents: null, tuningOfferDismissed: false, chords: [], handSpans: [], sections: [], tempoFixes: [] };
+  return {
+    key: null,
+    keyChanges: null,
+    tuningCents: null,
+    tuningOfferDismissed: false,
+    chords: [],
+    handSpans: [],
+    sections: [],
+    structure: emptyStructureCorrections(),
+    tempoFixes: [],
+  };
 }

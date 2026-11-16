@@ -48,7 +48,9 @@ export function demoSwingResult(duration: Seconds, analyser = { id: 'mock', vers
     duration,
     beats: { times, downbeat: 0, meter: { numerator: 4, denominator: 4 }, meterConfidence: 0.8 },
     key: { tonic: 11, mode: 'major', confidence: 0.72, alternatives: [{ tonic: 8, mode: 'minor', confidence: 0.14 }, { tonic: 4, mode: 'major', confidence: 0.06 }] },
+    keyChanges: [],
     tuning: { cents: DEMO_SWING.tuningCents, confidence: 0.81 },
     chords,
+    structure: null,
   };
 }
