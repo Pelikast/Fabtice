@@ -107,9 +107,6 @@
   background: var(--laiton-voile);
   pointer-events: none;
 }
-@media print {
-  .case.partielle::before { display: none; }
-}
 /* Section change: a double bar line. */
 .case.double { border-left-width: 6px; border-left-style: double; }
 .case .numero {
@@ -154,10 +151,6 @@
 @media (max-width: 760px) {
   .case.signee { --pg: 22px; }
   .case .signature { left: 4px; font-size: 12px; }
-}
-@media print {
-  .feuille .case.signee { --pg: calc(30 * var(--u)); }
-  .feuille .case .signature { left: calc(8 * var(--u)); font-size: 9pt; }
 }
 /* The bar being played fills with an ember hairline (set every frame: chart/usePlayheadBar.ts). */
 .case.jouee::after {

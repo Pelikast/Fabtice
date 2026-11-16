@@ -23,8 +23,10 @@
 // `fitChart` also says which bar forced the step down (`limitedBy`), so that
 // the rule that decides can be named.
 //
-// The widths come from the screen (`useFitChords.ts` measures each symbol once,
-// in em: a symbol is as wide as its size times that number, whatever the size).
+// The widths are measured on the page (`useFitChords.ts` for the screen,
+// `PrintSheets.tsx` for the paper; each symbol in em: a symbol is as wide as its
+// size times that number, whatever the size). The geometry of a printed bar is
+// `printLayout.ts#printBarGeometry`.
 
 /** Size of the chords of a bar, as a fraction of the normal one, step by step (30, 22, 17, 14, 11 px on a desktop). */
 export const FIT_RATIOS: readonly number[] = [1, 0.73, 0.57, 0.47, 0.38];
@@ -58,13 +60,6 @@ export interface FitGeometry {
   /** Height of the room for chords, under the bar number, in px. */
   room: number;
 }
-
-/**
- * The geometry of the printed chart: its bars are drawn as the desktop's are,
- * then scaled to the width of the page (`styles/print.css` works in units of
- * 1/206 of a bar), so the same steps fit on every paper and in both orientations.
- */
-export const PRINT_GEOMETRY: FitGeometry = { width: 206, padLeft: 16, padRight: 8, base: 30, room: 52 };
 
 /** Where the symbol of a chord starts, from the bar line. */
 export function chordStart(frac: number, g: FitGeometry): number {

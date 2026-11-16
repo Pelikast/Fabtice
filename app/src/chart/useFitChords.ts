@@ -4,15 +4,13 @@
 //   - `data-taille` on every bar (absent: normal size): the same step everywhere;
 //     `data-rangs` on the bars that need two rows;
 //   - `--pousse` on a chord (px): how far a chord is moved from its beat
-//     (a late one is pushed back to stay inside its bar);
-//   - `data-taille-p`, `data-rangs-p`, `--pousse-p`: the same for paper, for the
-//     bars as the printed chart draws them (`PRINT_GEOMETRY`: the page scales the
-//     same drawing to its width, `--pousse-p` is in units of 1/206 of a bar).
+//     (a late one is pushed back to stay inside its bar).
+// The printed sheets do the same for themselves (`PrintSheets.tsx#fitPrintSheets`).
 // Done before the first paint, again when the sheet changes width, when the
 // fonts arrive, and whenever the chords change.
 
 import { useEffect, useLayoutEffect, type RefObject } from 'react';
-import { fitChart, PRINT_GEOMETRY, type ChartBar, type FitChord } from './fit';
+import { fitChart, type ChartBar, type FitChord } from './fit';
 
 function px(value: string): number {
   const n = parseFloat(value);
@@ -24,14 +22,12 @@ export function fitChords(root: HTMLElement): void {
   const cells = [...root.querySelectorAll<HTMLElement>('.case[data-temps]')];
   // Everything is measured at the normal size, unpushed.
   for (const cell of cells) {
-    for (const name of ['data-taille', 'data-taille-p', 'data-rangs', 'data-rangs-p']) cell.removeAttribute(name);
+    for (const name of ['data-taille', 'data-rangs']) cell.removeAttribute(name);
     for (const button of cell.querySelectorAll<HTMLElement>('.accord-case[data-debut]')) {
       button.style.removeProperty('--pousse');
-      button.style.removeProperty('--pousse-p');
     }
   }
   const screen: ChartBar[] = [];
-  const paper: ChartBar[] = [];
   const buttons: HTMLElement[][] = [];
   for (const cell of cells) {
     const style = getComputedStyle(cell);
@@ -56,21 +52,15 @@ export function fitChords(root: HTMLElement): void {
         room: cell.clientHeight - px(style.getPropertyValue('--haut')),
       },
     });
-    paper.push({ chords, geometry: PRINT_GEOMETRY });
   }
   const onScreen = fitChart(screen.map((b) => (b.geometry.width > 0 ? b : { ...b, chords: [] })));
-  const onPaper = fitChart(paper);
   cells.forEach((cell, i) => {
     if (!screen[i]!.chords.length) return;
     if (onScreen.step > 0) cell.dataset.taille = String(onScreen.step);
     if (onScreen.bars[i]!.rows === 2) cell.dataset.rangs = '2';
-    if (onPaper.step > 0) cell.dataset.tailleP = String(onPaper.step);
-    if (onPaper.bars[i]!.rows === 2) cell.dataset.rangsP = '2';
     buttons[i]!.forEach((button, k) => {
       const a = onScreen.bars[i]!.push[k]!;
-      const b = onPaper.bars[i]!.push[k]!;
       if (Math.abs(a) > 0.01) button.style.setProperty('--pousse', `${a.toFixed(2)}px`);
-      if (Math.abs(b) > 0.01) button.style.setProperty('--pousse-p', b.toFixed(2));
     });
   });
 }
