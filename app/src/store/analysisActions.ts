@@ -12,7 +12,8 @@ const set = (patch: Partial<AppState> | ((s: AppState) => Partial<AppState>)) =>
 export interface ApplyAnalysisOptions {
   /**
    * The user asked to start again from this analysis: the grid, key, tuning
-   * and chord corrections are dropped. Section letters are always kept.
+   * and chord corrections are dropped (modulations too). Section letters and
+   * the structure corrected by hand are always kept.
    * Without it (the default) nothing done by hand is touched.
    */
   replaceCorrections?: boolean;
@@ -43,7 +44,7 @@ export function applyAnalysis(result: AnalysisResult, opts: ApplyAnalysisOptions
       // An unusable grid in the result: the grid in force stays.
     }
   }
-  const corrections = opts.replaceCorrections ? { ...emptyCorrections(), sections: s.corrections.sections } : s.corrections;
+  const corrections = opts.replaceCorrections ? { ...emptyCorrections(), sections: s.corrections.sections, structure: s.corrections.structure } : s.corrections;
   const analysis = opts.keptGrid && s.analysis ? { ...result, beats: s.analysis.beats } : result;
   set({ analysis, tempoMap, corrections, analysisRun: { status: 'idle' } });
 }

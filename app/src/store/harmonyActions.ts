@@ -15,6 +15,7 @@ import { clampCents } from './derived';
 import { meterAtBar } from '../grid/tempoMap';
 import { compensatingCents, selectBarChords, selectChartBars, selectDisplayContext, tuningInForce } from './chartSelectors';
 import { appStore, type AppState } from './store';
+import { withLettersAdopted } from './structureSelectors';
 
 const get = () => appStore.getState();
 const set = (patch: Partial<AppState> | ((s: AppState) => Partial<AppState>)) => appStore.setState(patch);
@@ -164,18 +165,21 @@ export function dismissTuningOffer(): void {
 
 // ---------------------------------------------------------------- sections and display
 
-/** Places a section letter on bar `bar` (« A », « B », « Pont »…); null or empty removes it. */
+/**
+ * Places a section letter on bar `bar` (« A », « B », « Pont »…); null or empty removes it.
+ * Version 6: the letters in force become the user's (detected ones copied the first time).
+ */
 export function setSection(bar: number, label: string | null): void {
-  edit((c, s) => withSection(c, s.tempoMap, bar, label));
+  edit((c, s) => withSection(withLettersAdopted(c, s.analysis), s.tempoMap, bar, label));
 }
 
 export function setInstrument(instrument: Instrument): void {
   set((s) => ({ view: { ...s.view, instrument } }));
 }
 
-/** Everything done by hand on the harmony goes (the user asked); sections stay. */
+/** Everything done by hand on the harmony goes (the user asked), modulations included; sections and structure stay. */
 export function resetHarmonyCorrections(): void {
-  edit((c) => ({ ...emptyCorrections(), sections: c.sections }));
+  edit((c) => ({ ...emptyCorrections(), sections: c.sections, structure: c.structure }));
 }
 
 // ---------------------------------------------------------------- helpers
