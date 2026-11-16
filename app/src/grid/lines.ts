@@ -1,5 +1,9 @@
 // Bar lines, sub-grid lines, snapping, loops from bars, metronome clicks.
 // Pure functions over a tempo map; all times are source seconds.
+//
+// The sub-grid divides the beats of each bar's own signature (eighths in a
+// 6/8 bar, sixteenths in a 7/16 bar), from its bar line, as the metronome
+// clicks them; with a single signature, the beats of the map.
 
 import type { Seconds, Subdivision, TimeRange } from '../model/project';
 import type { TempoMap } from '../model/tempoMap';
@@ -7,6 +11,7 @@ import {
   BEAT_EPSILON,
   barStartTime,
   barToBeat,
+  beatScale,
   beatToBar,
   beatToTime,
   maxBpm,
@@ -47,7 +52,9 @@ export function subGridStep(opts: SubGridOptions): number {
  * below `SUBGRID_MIN_SPACING_PX`.
  */
 export function subGridSpacingPx(map: TempoMap, pxPerSecond: number, opts: SubGridOptions): number {
-  const secondsPerBeat = 60 / maxBpm(map);
+  // The shortest beat of the piece: the fastest tempo, in the signature with the smallest note value.
+  const shortest = map.meters.reduce((m, c) => Math.min(m, beatScale(map, c.meter)), 1);
+  const secondsPerBeat = (60 / maxBpm(map)) * shortest;
   return pxPerSecond * secondsPerBeat * subGridStep(opts);
 }
 
@@ -95,10 +102,12 @@ export function subGridLines(map: TempoMap, t0: Seconds, t1: Seconds, opts: SubG
   const lastBar = timeToBar(map, t1).bar;
   for (let bar = timeToBar(map, t0).bar; bar <= lastBar && out.length < MAX_LINES; bar++) {
     const startBeat = barToBeat(map, bar);
-    const n = meterAtBar(map, bar).numerator;
+    const meter = meterAtBar(map, bar);
+    const n = meter.numerator;
+    const sc = beatScale(map, meter);
     for (let k = 1; k * step < n - BEAT_EPSILON && out.length < MAX_LINES; k++) {
       const beatInBar = k * step;
-      const time = beatToTime(map, startBeat + beatInBar);
+      const time = beatToTime(map, startBeat + beatInBar * sc);
       if (time < t0 - 1e-9 || time > t1 + 1e-9) continue;
       out.push({ time, bar, beatInBar, onBeat: Math.abs(beatInBar - Math.round(beatInBar)) < 1e-6 });
     }
@@ -118,7 +127,7 @@ export function snapTime(map: TempoMap, t: Seconds, opts: SubGridOptions): Secon
   const below = Math.floor(pos.beatInBar / step + BEAT_EPSILON) * step;
   const above = Math.min(n, below + step);
   const best = pos.beatInBar - below <= above - pos.beatInBar ? below : above;
-  return beatToTime(map, startBeat + best);
+  return beatToTime(map, startBeat + best * beatScale(map, pos.meter));
 }
 
 /** Loop covering whole bars, `firstBar` to `lastBar` inclusive (either order). */
@@ -150,15 +159,25 @@ export interface MetronomeClicks {
   accents: Uint8Array;
 }
 
-/** One click per beat in [from, to), with the downbeats accented. */
+/** One click per beat in [from, to) (the beats of each bar's signature), with the downbeats accented. */
 export function metronomeClicks(map: TempoMap, from: Seconds, to: Seconds): MetronomeClicks {
   const times: number[] = [];
   const accents: number[] = [];
-  let beat = Math.ceil(timeToBeat(map, from) - BEAT_EPSILON);
-  for (let t = beatToTime(map, beat); t < to && times.length < 1_000_000; t = beatToTime(map, ++beat)) {
-    if (t < from) continue;
-    times.push(t);
-    accents.push(beatToBar(map, beat).beatInBar < BEAT_EPSILON * 10 ? 1 : 0);
+  if (!(to > from)) return { times: new Float64Array(0), accents: new Uint8Array(0) };
+  for (let bar = timeToBar(map, from).bar; times.length < 1_000_000; bar++) {
+    const start = barToBeat(map, bar);
+    if (beatToTime(map, start) >= to) break;
+    const meter = meterAtBar(map, bar);
+    const sc = beatScale(map, meter);
+    let k = 0;
+    for (; k < meter.numerator; k++) {
+      const t = beatToTime(map, start + k * sc);
+      if (t >= to) break;
+      if (t < from) continue;
+      times.push(t);
+      accents.push(k === 0 ? 1 : 0);
+    }
+    if (k < meter.numerator) break;
   }
   return { times: Float64Array.from(times), accents: Uint8Array.from(accents) };
 }

@@ -6,8 +6,10 @@
 import type { ClickTrack } from '../audio/AudioEngine';
 import { ACCELERATION_LIMITS, type AccelerationPlan, type BeatLevel, type MeterPattern } from '../model/metronome';
 import type { Seconds } from '../model/project';
-import type { Meter, TempoMap } from '../model/tempoMap';
-import { BEAT_EPSILON, barToBeat, beatToBar, beatToTime, clamp, meterAtBar, timeToBar, timeToBeat } from './tempoMap';
+import { isValidMeter, type Meter, type TempoMap } from '../model/tempoMap';
+import { BEAT_EPSILON, barToBeat, beatScale, beatToTime, clamp, feltUnits, isCompound, meterAtBar, timeToBar, timeToBeat } from './tempoMap';
+
+export { feltUnits, isCompound };
 
 /** Codes of `ClickTrack.accents`: what the engine plays for each level (a silent beat has no click at all). */
 export const CLICK_NORMAL = 0;
@@ -31,7 +33,12 @@ export const COMMON_METERS: readonly Meter[] = [
   { numerator: 12, denominator: 8 },
 ];
 
-/** Numerators and denominators a meter may have. */
+/**
+ * Numerators and denominators the metronome panel's meter list offers for the
+ * whole piece (`setMeter`). Any legal signature (1…64 over 4, 8, 16, 32,
+ * `model/tempoMap.ts#isValidMeter`) clicks, with its default accents or the
+ * pattern kept for it; signatures bar by bar come from `grid/meters.ts`.
+ */
 export const METER_NUMERATOR = { min: 2, max: 12 } as const;
 export const METER_DENOMINATORS: readonly number[] = [4, 8];
 
@@ -39,26 +46,13 @@ export function meterKey(m: Meter): string {
   return `${m.numerator}/${m.denominator}`;
 }
 
+/** A meter the metronome panel offers for the whole piece (2 to 12 over 4 or 8). */
 export function isAllowedMeter(m: Meter): boolean {
   return Number.isInteger(m.numerator) && m.numerator >= METER_NUMERATOR.min && m.numerator <= METER_NUMERATOR.max && METER_DENOMINATORS.includes(m.denominator);
 }
 
-/** 6/8, 9/8, 12/8: the beat felt is a dotted quarter (three eighths). */
-export function isCompound(m: Meter): boolean {
-  return m.denominator === 8 && m.numerator >= 6 && m.numerator % 3 === 0;
-}
-
-/**
- * Grid beats per beat a musician counts (and a beat tracker finds): 1 in x/4,
- * 3 in 6/8, 9/8, 12/8 (dotted quarter), 2 in the other x/8 (a quarter). The
- * tempo is shown and typed per felt beat (`store/derived.ts`), and changing
- * the meter renumbers the beats so that the felt beat stays on the music
- * (`grid/corrections.ts#withMeter`).
- */
-export function feltUnits(m: Meter): number {
-  if (m.denominator !== 8) return 1;
-  return isCompound(m) ? 3 : 2;
-}
+/** Above this many beats the groupings are not listed one by one (there are too many): the default only. */
+const LISTED_GROUPINGS_MAX = 16;
 
 /** Ordered splits of `n` into parts of 2 and 3. */
 function compositions(n: number): number[][] {
@@ -68,15 +62,22 @@ function compositions(n: number): number[][] {
   return out;
 }
 
-/** How a bar of this meter is grouped unless the user says otherwise. */
+/**
+ * How a bar of this meter is grouped unless the user says otherwise, for any
+ * legal signature: compound meters by threes (6/8 = 3+3, 12/16 = 3+3+3+3);
+ * x/4 in fours and threes (5/4 = 3+2, 7/4 = 4+3, 10/4 = 4+3+3, 16/4 = 4+4+4+4);
+ * x/8, x/16, x/32 in threes then twos (7/8 = 2+2+3, 8/8 = 3+3+2,
+ * 11/16 = 3+3+3+2); four beats or fewer make one group.
+ */
 export function defaultGrouping(m: Meter): number[] {
   const n = m.numerator;
   if (isCompound(m)) return Array.from({ length: n / 3 }, () => 3);
   if (m.denominator === 4) {
     if (n <= 4) return [n];
     if (n === 5) return [3, 2];
-    if (n === 6) return [3, 3];
-    if (n === 7) return [4, 3];
+    // fours, and as many threes at the end as it takes (6 = 3+3, 7 = 4+3, 9 = 3+3+3, 10 = 4+3+3…)
+    const threes = (4 - (n % 4)) % 4;
+    return [...Array.from({ length: (n - 3 * threes) / 4 }, () => 4), ...Array.from({ length: threes }, () => 3)];
   }
   if (n <= 4) return [n];
   if (n === 5) return [3, 2];
@@ -100,6 +101,7 @@ export function defaultGrouping(m: Meter): number[] {
 export function groupingChoices(m: Meter): number[][] {
   if (m.numerator < 5) return [];
   const def = defaultGrouping(m);
+  if (m.numerator > LISTED_GROUPINGS_MAX) return [def];
   const all = compositions(m.numerator).sort((a, b) => a.length - b.length);
   const same = (a: number[], b: number[]) => a.length === b.length && a.every((x, i) => x === b[i]);
   const rest = all.filter((g) => !same(g, def));
@@ -146,11 +148,12 @@ export function isValidPattern(p: unknown, m: Meter): p is MeterPattern {
   return q.levels.every((l) => l === 'accent' || l === 'normal' || l === 'soft' || l === 'silent');
 }
 
-/** Parses a meter key (« 7/8 »); null when it is not one. */
+/** Parses a meter key (« 7/8 », « 64/32 »); null when it is not the key of a legal signature. */
 export function parseMeterKey(key: string): Meter | null {
   const m = /^(\d{1,2})\/(\d{1,2})$/.exec(key);
   if (!m) return null;
-  return { numerator: Number(m[1]), denominator: Number(m[2]) };
+  const meter = { numerator: Number(m[1]), denominator: Number(m[2]) };
+  return isValidMeter(meter) ? meter : null;
 }
 
 /** The pattern in force for a meter: the user's when it fits, else the default. */
@@ -162,6 +165,33 @@ export function patternFor(patterns: Readonly<Record<string, MeterPattern>>, m: 
 /** Next level when a beat's button is pressed: accent → normal → soft → silent → accent. */
 export function nextLevel(l: BeatLevel): BeatLevel {
   return l === 'accent' ? 'normal' : l === 'normal' ? 'soft' : l === 'soft' ? 'silent' : 'accent';
+}
+
+/** Most clicks one track holds, whatever the range asked. */
+const MAX_CLICKS = 1_000_000;
+
+/**
+ * The beats of the grid in [from, to), bar by bar: each bar clicks the beats
+ * of its own signature (seven eighths in a 7/8 bar, whatever the map
+ * counts), from its bar line. `visit` gets the time, the bar's meter and the
+ * beat's index in the bar.
+ */
+export function forEachBeat(map: TempoMap, from: Seconds, to: Seconds, visit: (t: Seconds, meter: Meter, index: number) => void): void {
+  if (!(to > from)) return;
+  let count = 0;
+  for (let bar = timeToBar(map, from).bar; count < MAX_CLICKS; bar++) {
+    const start = barToBeat(map, bar);
+    if (beatToTime(map, start) >= to) return;
+    const meter = meterAtBar(map, bar);
+    const sc = beatScale(map, meter);
+    for (let k = 0; k < meter.numerator && count < MAX_CLICKS; k++) {
+      const t = beatToTime(map, start + k * sc);
+      if (t >= to) return;
+      if (t < from) continue;
+      count++;
+      visit(t, meter, k);
+    }
+  }
 }
 
 /**
@@ -179,16 +209,12 @@ export function metronomeClickTrack(map: TempoMap, from: Seconds, to: Seconds, p
     if (!p) cache.set(key, (p = patternFor(patterns, meter)));
     return p.levels[index] ?? 'normal';
   };
-  let beat = Math.ceil(timeToBeat(map, from) - BEAT_EPSILON);
-  for (let t = beatToTime(map, beat); t < to && times.length < 1_000_000; t = beatToTime(map, ++beat)) {
-    if (t < from) continue;
-    const pos = beatToBar(map, beat);
-    const index = Math.round(pos.beatInBar);
-    const level = levelOf(pos.meter, index >= pos.meter.numerator ? 0 : index);
-    if (level === 'silent') continue;
+  forEachBeat(map, from, to, (t, meter, index) => {
+    const level = levelOf(meter, index);
+    if (level === 'silent') return;
     times.push(t);
     levels.push(LEVEL_CODE[level]);
-  }
+  });
   return { times: Float64Array.from(times), accents: Uint8Array.from(levels) };
 }
 
@@ -211,21 +237,25 @@ export interface CountIn {
 export function countInClicks(map: TempoMap, start: Seconds, bars: number, patterns: Readonly<Record<string, MeterPattern>>): CountIn | null {
   if (!(bars >= 1)) return null;
   const startBeat = timeToBeat(map, start);
+  // The signature of the bar where playback starts (a loop's first bar), counted in its own beats.
   const pos = timeToBar(map, start);
   const meter = pos.meter;
   const n = meter.numerator;
-  const spb = (beatToTime(map, startBeat + n) - start) / n;
+  const sc = beatScale(map, meter);
+  const spb = (beatToTime(map, startBeat + n * sc) - start) / n;
   if (!(spb > 0)) return null;
   const pattern = patternFor(patterns, meter);
   const barStart = barToBeat(map, pos.bar);
+  // Where the start is, in beats of its bar from the bar line.
+  const at = (startBeat - barStart) / sc;
   const total = bars * n;
   const offsets: number[] = [];
   const levels: number[] = [];
-  const first = Math.ceil(startBeat - total - BEAT_EPSILON * 10);
-  for (let j = first; j < startBeat - BEAT_EPSILON * 10; j++) {
-    const index = ((Math.round(j - barStart) % n) + n) % n;
+  const first = Math.ceil(at - total - BEAT_EPSILON * 10);
+  for (let j = first; j < at - BEAT_EPSILON * 10; j++) {
+    const index = ((Math.round(j) % n) + n) % n;
     const level = pattern.levels[index] ?? 'normal';
-    offsets.push((startBeat - j) * spb);
+    offsets.push((at - j) * spb);
     levels.push(level === 'silent' ? CLICK_SOFT : LEVEL_CODE[level]);
   }
   // A start between two beats: the count still has a whole number of bars of beats before it.

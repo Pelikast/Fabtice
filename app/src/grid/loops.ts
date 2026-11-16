@@ -9,7 +9,7 @@
 import type { Seconds, TimeRange } from '../model/project';
 import type { TempoMap } from '../model/tempoMap';
 import { subGridStep, snapTime, type SubGridOptions } from './lines';
-import { BEAT_EPSILON, barToBeat, beatToTime, clamp, timeToBar, timeToBeat } from './tempoMap';
+import { BEAT_EPSILON, barToBeat, beatScale, beatToTime, clamp, meterAtBar, timeToBar, timeToBeat } from './tempoMap';
 
 /**
  * The shortest loop the timeline will make. The engine ignores anything under
@@ -36,18 +36,19 @@ export function adjacentLine(map: TempoMap, t: Seconds, dir: 1 | -1, opts: SubGr
   const pos = timeToBar(map, t);
   const step = subGridStep(opts);
   const n = pos.meter.numerator;
+  const sc = beatScale(map, pos.meter);
   const startBeat = barToBeat(map, pos.bar);
   if (dir === 1) {
     const k = Math.floor(pos.beatInBar / step + BEAT_EPSILON) + 1;
-    return beatToTime(map, startBeat + Math.min(n, k * step));
+    return beatToTime(map, startBeat + Math.min(n, k * step) * sc);
   }
   const k = Math.ceil(pos.beatInBar / step - BEAT_EPSILON) - 1;
-  if (k >= 0) return beatToTime(map, startBeat + k * step);
-  // Before the first line of the bar: the last line of the bar before.
+  if (k >= 0) return beatToTime(map, startBeat + k * step * sc);
+  // Before the first line of the bar: the last line of the bar before (in its own beats).
   const before = timeToBar(map, beatToTime(map, startBeat - BEAT_EPSILON * 4));
   const m = before.meter.numerator;
   const last = Math.ceil(m / step - BEAT_EPSILON) - 1;
-  return beatToTime(map, barToBeat(map, before.bar) + last * step);
+  return beatToTime(map, barToBeat(map, before.bar) + last * step * beatScale(map, before.meter));
 }
 
 /** Moves along the lines until the span is at least `MIN_LOOP_SECONDS` (the walk is bounded). */
@@ -143,9 +144,11 @@ export function loopCoverage(map: TempoMap, range: TimeRange): LoopCoverage {
   const endBeat = timeToBeat(map, range.end);
   const e = timeToBar(map, beatToTime(map, endBeat - LINE_TOLERANCE_BEATS));
   const last = Math.max(first, e.bar);
-  const endInBar = endBeat - barToBeat(map, last);
-  let to = clamp(endInBar / e.meter.numerator, 0, 1);
-  if (1 - to < LINE_TOLERANCE_BEATS / e.meter.numerator) to = 1;
+  // In the last bar's own beats, as `from` is in the first bar's.
+  const lastMeter = meterAtBar(map, last);
+  const endInBar = (endBeat - barToBeat(map, last)) / beatScale(map, lastMeter);
+  let to = clamp(endInBar / lastMeter.numerator, 0, 1);
+  if (1 - to < LINE_TOLERANCE_BEATS / lastMeter.numerator) to = 1;
   return { first, last, from: Math.round(from * 10000) / 10000, to: Math.round(to * 10000) / 10000 };
 }
 

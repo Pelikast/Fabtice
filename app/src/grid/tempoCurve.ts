@@ -7,14 +7,18 @@
 
 import type { Seconds } from '../model/project';
 import type { TempoMap } from '../model/tempoMap';
-import { barStartTime, meterAtBar, timeToBar } from './tempoMap';
+import { barBeats, barStartTime, meterAtBar, timeToBar } from './tempoMap';
 
 export interface TempoPoint {
   bar: number;
   /** Start and end of the bar, source time. */
   start: Seconds;
   end: Seconds;
-  /** Average tempo over the bar: beats of the bar × 60 / its duration. */
+  /**
+   * Average tempo over the bar: map beats of the bar × 60 / its duration. In
+   * the map's beats (« la noire reste la noire »): a 6/8 bar played at the
+   * quarter's tempo of the 4/4 bars around it reads the same tempo.
+   */
   bpm: number;
 }
 
@@ -26,7 +30,7 @@ export function tempoCurve(map: TempoMap, from: Seconds, to: Seconds, maxPoints 
     const start = barStartTime(map, bar);
     if (start > to) break;
     const end = barStartTime(map, bar + 1);
-    out.push({ bar, start, end, bpm: (meterAtBar(map, bar).numerator * 60) / (end - start) });
+    out.push({ bar, start, end, bpm: (barBeats(map, meterAtBar(map, bar)) * 60) / (end - start) });
   }
   return out;
 }
