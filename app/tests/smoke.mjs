@@ -10,6 +10,7 @@ import { createRequire } from 'node:module';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { openSettingsTab } from './lib/settings.mjs';
 import { startServer } from './serve.mjs';
 
 const require = createRequire(process.env.PLAYWRIGHT_MODULE_DIR || '/opt/node-tools/');
@@ -186,14 +187,14 @@ try {
     check('back to the tracks view', (await state(page)).view.mode === 'pistes');
 
     // Settings
-    await page.click('button:has-text("Réglages")');
-    check('settings popover', await page.locator('.reglages-app').isVisible());
-    await page.click('.reglages-app input[type="checkbox"]');
-    await page.click('.reglages-app .duo button:has-text("C–7")');
+    await openSettingsTab(page, 'display');
+    check('settings window', await page.locator('[data-testid="reglages"]').isVisible());
+    await page.click('[data-testid="reglage-suivre"]');
+    await page.click('[data-testid="reglages-panneau"] .duo button:has-text("C–7")');
     const st = await state(page);
     check('follow and minor notation stored', st.view.follow === false && st.settings.minorNotation === '–');
     await page.keyboard.press('Escape');
-    check('Escape closes the settings', (await page.locator('.reglages-app').count()) === 0);
+    check('Escape closes the settings', (await page.locator('[data-testid="reglages"]').count()) === 0);
 
     // New-piece dialog over a project
     await page.click('button:has-text("Nouveau projet")');

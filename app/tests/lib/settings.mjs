@@ -18,11 +18,19 @@ export const SETTINGS_LABELS = {
 /** True when the page is laid out as a phone (760 px and below), as the interface itself decides. */
 export const isPhone = (page) => page.evaluate(() => window.matchMedia('(max-width: 760px)').matches);
 
+/** True when the page was opened with touch (`hasTouch`): the checks then touch instead of click. */
+export const isTouch = (page) => page.evaluate(() => 'ontouchstart' in window && navigator.maxTouchPoints > 0);
+
+/** Presses a control as the form of the page does: a touch on a phone, a click on a computer. */
+export async function press(page, selector) {
+  if (await isTouch(page)) await page.tap(selector);
+  else await page.click(selector);
+}
+
 /** Opens the window (on the tab last seen, or on the list of the tabs on a phone), without choosing a tab. */
 export async function openSettings(page) {
   if (await page.locator('[data-testid="reglages"]').count()) return;
-  const tap = (await page.evaluate(() => 'ontouchstart' in window && navigator.maxTouchPoints > 0)) ? 'tap' : 'click';
-  await page[tap]((await isPhone(page)) ? '.menu-plus' : 'button.menu:has-text("Réglages")');
+  await press(page, (await isPhone(page)) ? '.menu-plus' : 'button.menu:has-text("Réglages")');
   await page.waitForSelector('[data-testid="reglages"]');
 }
 
@@ -32,17 +40,15 @@ export async function openSettings(page) {
  */
 export async function openSettingsTab(page, tab) {
   await openSettings(page);
-  const tap = (await page.evaluate(() => 'ontouchstart' in window && navigator.maxTouchPoints > 0)) ? 'tap' : 'click';
-  const phone = await isPhone(page);
-  if (phone) {
+  if (await isPhone(page)) {
     // The list of the seven, unless a link already led to a tab.
-    if (await page.locator(`[data-testid="reglages"] .reglages-ligne[data-tab="${tab}"]`).count()) await page[tap](`.reglages-ligne[data-tab="${tab}"]`);
+    if (await page.locator(`[data-testid="reglages"] .reglages-ligne[data-tab="${tab}"]`).count()) await press(page, `.reglages-ligne[data-tab="${tab}"]`);
     else if ((await page.locator('[data-testid="reglages-panneau"]').getAttribute('data-onglet')) !== tab) {
-      await page[tap]('[data-testid="reglages-retour"]');
-      await page[tap](`.reglages-ligne[data-tab="${tab}"]`);
+      await press(page, '[data-testid="reglages-retour"]');
+      await press(page, `.reglages-ligne[data-tab="${tab}"]`);
     }
   } else {
-    await page[tap](`[role="tab"][data-tab="${tab}"]`);
+    await press(page, `[role="tab"][data-tab="${tab}"]`);
   }
   await page.waitForSelector(`[data-testid="reglages-panneau"][data-onglet="${tab}"]`);
   return page.locator('[data-testid="reglages-panneau"]');
@@ -50,7 +56,6 @@ export async function openSettingsTab(page, tab) {
 
 /** Closes the window by its cross. */
 export async function closeSettings(page) {
-  const tap = (await page.evaluate(() => 'ontouchstart' in window && navigator.maxTouchPoints > 0)) ? 'tap' : 'click';
-  await page[tap]('[data-testid="reglages-fermer"]');
+  await press(page, '[data-testid="reglages-fermer"]');
   await page.waitForSelector('[data-testid="reglages"]', { state: 'detached' });
 }

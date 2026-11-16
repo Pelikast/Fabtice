@@ -10,6 +10,7 @@ import { createRequire } from 'node:module';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { openSettingsTab } from './lib/settings.mjs';
 import { startServer } from './serve.mjs';
 
 const require = createRequire(process.env.PLAYWRIGHT_MODULE_DIR || '/opt/node-tools/');
@@ -605,8 +606,8 @@ try {
     await page.click('.jouer');
 
     // Follow off: the view never moves by itself.
-    await page.click('button:has-text("Réglages")');
-    await page.click('.reglages-app input[type="checkbox"]');
+    await openSettingsTab(page, 'display');
+    await page.click('[data-testid="reglage-suivre"]');
     await page.keyboard.press('Escape');
     check('follow switched off in the settings', (await state(page)).view.follow === false);
     await page.focus('.frise-defile');
@@ -619,8 +620,8 @@ try {
     const posOff = await position(page);
     check('follow off: the view stays put while the playhead leaves it', gOff.t0 === 0 && posOff > spanSec + 0.5, `pos ${posOff.toFixed(2)} > span ${spanSec.toFixed(2)}`);
     await page.click('.jouer');
-    await page.click('button:has-text("Réglages")');
-    await page.click('.reglages-app input[type="checkbox"]');
+    await openSettingsTab(page, 'display');
+    await page.click('[data-testid="reglage-suivre"]');
     await page.keyboard.press('Escape');
 
     check('no page errors (desktop)', errors.length === 0, errors.join(' | '));

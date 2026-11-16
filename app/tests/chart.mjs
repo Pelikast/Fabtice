@@ -816,12 +816,11 @@ try {
     }
   }
 
-  // ------------------------------------------------------------ every panel stays in the window, above the transport
+  // ------------------------------------------------------------ every panel stays in the window, above the transport (« Réglages » is a window of its own: test:settings)
   {
     const panels = [
       { name: 'grid panel (Tempo)', sel: '.panneau-grille', view: 'pistes', open: (page) => page.click('.rang-tete.tempo') },
       { name: 'analysis panel', sel: '.panneau-analyse', view: 'pistes', open: (page) => page.evaluate(() => window.__fabtice.actions.openPanel('analysis')) },
-      { name: 'settings', sel: '.reglages-app', view: 'pistes', open: (page) => page.click('button:has-text("Réglages")') },
       { name: 'Exporter menu', sel: '.menu-export', view: 'pistes', open: (page) => page.click('button:has-text("Exporter")') },
       { name: 'fine tuning', sel: '.panneau-accord', up: true, view: 'pistes', open: (page) => page.evaluate(() => window.__fabtice.actions.openPanel('tuning')) },
       { name: 'key editor', sel: '.cle-editeur', view: 'grille', open: (page) => page.click('[data-testid="cle-bouton"]') },

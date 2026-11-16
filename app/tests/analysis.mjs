@@ -34,6 +34,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { startServer } from './serve.mjs';
+import { openSettingsTab } from './lib/settings.mjs';
 import { playlistFile } from './standards-fixtures.mjs';
 
 const require = createRequire(process.env.PLAYWRIGHT_MODULE_DIR || '/opt/node-tools/');
@@ -846,12 +847,11 @@ scenarios.charts = async () => {
   check('charts: no console error', errors.length === 0, errors.join(' | '));
 };
 
-/** Chooses the chord model in Réglages → Réglages avancés, as a user would. */
+/** Chooses the chord model in Réglages → Détection des accords, as a user would. */
 async function chooseChordModel(page, value) {
-  await page.click('button.menu:has-text("Réglages")');
-  await page.click('[data-testid="reglages-avances"]');
+  const panel = await openSettingsTab(page, 'chords');
   await page.selectOption('[data-testid="modele-accords"]', value);
-  return page.locator('.reglages-app').innerText();
+  return panel.innerText();
 }
 
 /**

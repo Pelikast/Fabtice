@@ -105,6 +105,7 @@
 .reglages-corps .option-colonne select { max-width: 420px; }
 .reglages-corps .option-colonne .bouton-cadre { width: auto; align-self: flex-start; padding: 0 16px; }
 .reglages-corps .option-colonne .bouton-cadre:disabled { color: var(--encre-pale); cursor: default; }
+.reglages-corps .option-colonne > .lien { align-self: flex-start; }
 
 /* A choice between a few phrases (« À l'ouverture »): a group of buttons, the one chosen in ink. */
 .choix-reglage { display: flex; flex-wrap: wrap; align-self: flex-start; border: 1px solid var(--trait); border-radius: var(--rayon); overflow: hidden; }
@@ -120,7 +121,7 @@
 .choix-reglage button:hover { background: var(--papier-fonce); color: var(--encre); }
 .choix-reglage button[aria-checked="true"] { background: var(--encre); color: var(--papier-clair); }
 
-.raccourcis { list-style: none; margin: 0; padding: 0; max-width: 460px; }
+.raccourcis { display: grid; grid-template-columns: 1fr 1fr; gap: 0 36px; list-style: none; margin: 0; padding: 0; }
 .raccourcis li {
   display: flex;
   align-items: center;
@@ -131,7 +132,7 @@
   border-top: 1px solid var(--trait-fin);
   font-size: 14px;
 }
-.raccourcis li:first-child { border-top: 0; }
+.raccourcis li:nth-child(-n + 2) { border-top: 0; }
 .raccourcis kbd {
   padding: 2px 9px;
   border: 1px solid var(--trait);
@@ -170,7 +171,6 @@
 .reglages-grille .panneau-actions { min-height: 32px; margin-top: 4px; }
 .reglages-accordage .accordage { margin: 0; padding-top: 0; border-top: 0; }
 .reglages-metronome .metro-bloc:first-of-type { margin-top: 0; }
-.reglages-metronome .avance { margin-left: -10px; margin-right: -10px; }
 
 .reglages-reinit { margin-top: 12px; padding-top: 14px; border-top: 1px solid var(--trait-fin); border-radius: 0; }
 .reglages-confirme p { margin: 0 0 10px; font-size: 14px; }
@@ -183,6 +183,7 @@
 
 /* ---------- Phone: a full-screen sheet, the list of the seven first ---------- */
 @media (max-width: 760px) {
+  .raccourcis { grid-template-columns: 1fr; }
   .voile-reglages { padding: 0; place-items: stretch; }
   .reglages-fenetre {
     width: 100%;
@@ -245,9 +246,9 @@
   .sous-grille-ligne .bascule { height: 44px; }
   .reglages-corps .option-colonne .bouton-cadre { align-self: stretch; min-height: 48px; }
   .reglages-grille, .reglages-metronome, .reglages-accordage { padding-left: 2px; padding-right: 2px; }
-  .reglages-metronome .avance { margin-left: 0; margin-right: 0; }
   .reglages-grille .duo button, .temps-mesure button { min-height: 44px; }
   .reglages-metronome .metro-choix button { min-height: 44px; }
+  .reglages-metronome .metro-ligne select { height: 44px; }
   .reglages-metronome .metro-ligne input[type="range"] { height: 44px; max-width: none; }
   .reglages-corps .place-lignes .lien, .reglages-corps .lien.discret { min-height: 44px; }
   .reglages-corps .duo.instrument button { min-height: 44px; min-width: 48px; }

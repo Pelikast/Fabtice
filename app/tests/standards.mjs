@@ -22,6 +22,7 @@ import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { openSettingsTab } from './lib/settings.mjs';
 import { startServer } from './serve.mjs';
 import { forumPage, link, LOGIN_PAGE, officialPage, playlistFile, shrinkList, tunes } from './standards-fixtures.mjs';
 
@@ -207,12 +208,9 @@ try {
     const { context } = await persistentContext();
     const { page, errors } = await openPage(context, '?demo&moteur=factice&outils=distant');
     await page.waitForFunction(() => window.__fabtice?.store.getState().project, null, { timeout: 20000 });
-    await page.locator('button:has-text("Réglages"):visible').first().click();
-    await sleep(300);
-    const advanced = page.locator('[data-testid="reglages-avances"]');
-    check('« Réglages avancés » is there', (await advanced.count()) === 1);
-    await advanced.click();
+    await openSettingsTab(page, 'advanced');
     await sleep(500);
+    check('the Avancé tab holds the entry of the collections', (await page.locator('[data-testid="standards-gerer"]').count()) === 1);
     await shot(page, '3a-reglages-avances');
     check('the settings say that nothing is on the device', (await page.locator('[data-testid="standards-etat"]').innerText()).includes('Aucune grille sur cet appareil'));
     await page.locator('[data-testid="standards-gerer"]').click();

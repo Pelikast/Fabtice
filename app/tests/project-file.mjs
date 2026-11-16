@@ -34,6 +34,7 @@ import { createRequire } from 'node:module';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { openSettingsTab } from './lib/settings.mjs';
 import { startServer } from './serve.mjs';
 
 const require = createRequire(process.env.PLAYWRIGHT_MODULE_DIR || '/opt/node-tools/');
@@ -557,16 +558,15 @@ try {
     const { context, page, errors } = await browserWith(viewport);
     await page.goto(`${url}/?demo`);
     await page.waitForFunction(() => window.__fabtice && window.__fabtice.store.getState().project, null, { timeout: 30000 });
-    await page.click(viewport.width < 760 ? '.menu-plus' : 'button.menu:has-text("Réglages")');
-    await page.click('[data-testid="reglages-avances"]');
+    await openSettingsTab(page, 'advanced');
     await page.waitForSelector('[data-testid="place-appareil"]');
     await page.waitForFunction(() => !document.querySelector('[data-testid="place-appareil"]').textContent.includes('Mesure en cours'));
     const panel = await page.evaluate(() => {
-      const el = document.querySelector('.reglages-app');
+      const el = document.querySelector('[data-testid="reglages"]');
       const r = el.getBoundingClientRect();
-      return { inside: r.left >= 0 && r.right <= window.innerWidth && r.top >= 0 && r.bottom <= window.innerHeight, text: el.textContent };
+      return { inside: r.left >= 0 && r.right <= window.innerWidth && r.top >= 0 && r.bottom <= window.innerHeight, text: document.querySelector('[data-testid="reglages-panneau"]').textContent };
     });
-    check(`settings (${tag}): basic first, advanced unfolded with the tool's cost and licence and the room on this device, inside the window`, panel.inside && panel.text.indexOf('Suivre la tête de lecture') < panel.text.indexOf('Réglages avancés') && panel.text.includes('Licence des poids') && panel.text.includes('Place sur cet appareil'), panel.inside ? '' : 'outside the window');
+    check(`settings (${tag}): the Avancé tab shows the room on this device, inside the window`, panel.inside && panel.text.includes('Place sur cet appareil'), panel.inside ? '' : 'outside the window');
     await page.locator('[data-testid="place-appareil"]').scrollIntoViewIfNeeded();
     await page.screenshot({ path: path.join(out, `reglages-${tag}.png`) });
     check(`no page errors (settings ${tag})`, errors.length === 0, errors.join(' | '));

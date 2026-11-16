@@ -104,8 +104,8 @@ function SettingsBox() {
     if (next < 0) return;
     e.preventDefault();
     setSettingsTab(SETTINGS_TABS[next]!);
-    // The new tab takes the focus once it is drawn.
-    requestAnimationFrame(() => boxRef.current?.querySelector<HTMLElement>(`[role="tab"][data-tab="${SETTINGS_TABS[next]}"]`)?.focus());
+    // The seven tabs are always drawn: the new one takes the focus at once.
+    boxRef.current?.querySelector<HTMLElement>(`[role="tab"][data-tab="${SETTINGS_TABS[next]}"]`)?.focus();
   };
 
   const showList = phone && !detail;
