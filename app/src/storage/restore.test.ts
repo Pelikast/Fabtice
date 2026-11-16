@@ -141,6 +141,38 @@ describe('reopening the kept piece at launch', () => {
     expect(appStore.getState().ui).toMatchObject({ newPieceOpen: true, notice: null, import: { kind: 'idle' } });
   });
 
+  it('« À l\'ouverture: Nouveau projet »: the window opens, the kept piece stays kept and is offered, nothing is decoded', async () => {
+    const before = await leaveSessionBehind();
+    appStore.setState(initialState(), true);
+    appStore.setState((s) => ({ ui: { ...s.ui, newPieceOpen: false }, settings: { ...s.settings, atLaunch: 'newProject' } }));
+    const fresh = new MockEngine(fakeClock().clock);
+    replaceEngine(fresh);
+    connectEngine(appStore, fresh);
+    const decode = vi.fn(async (_s: StoredAudio) => pcm(12));
+    const marker = memoryMarker();
+    expect(await restoreAtLaunch({ storage, keeper, marker, decode })).toBe('none');
+    const s = appStore.getState();
+    expect(decode).not.toHaveBeenCalled();
+    expect(s.project).toBeNull();
+    expect(s.ui).toMatchObject({ newPieceOpen: true, notice: null, import: { kind: 'idle' }, reopenOffer: { title: 'Blues du dimanche' } });
+    expect(marker.value).toBeNull();
+    // The piece is still on the device, and « Rouvrir » opens it.
+    expect((await storage.loadCurrent())?.project.id).toBe(before.project!.id);
+    expect(await reopenKept({ storage, keeper, marker, decode })).toBe('restored');
+    expect(appStore.getState().project?.id).toBe(before.project!.id);
+  });
+
+  it('« À l\'ouverture: Reprendre le dernier projet » (the default) reopens the kept piece', async () => {
+    await leaveSessionBehind();
+    appStore.setState(initialState(), true);
+    appStore.setState((s) => ({ ui: { ...s.ui, newPieceOpen: false } }));
+    const fresh = new MockEngine(fakeClock().clock);
+    replaceEngine(fresh);
+    connectEngine(appStore, fresh);
+    expect(appStore.getState().settings.atLaunch).toBe('lastProject');
+    expect(await restoreAtLaunch({ storage, keeper, marker: memoryMarker(), decode: async () => pcm(12) })).toBe('restored');
+  });
+
   it('starts as a new user when the device gives no storage (no scary message)', async () => {
     storage.failWith = 'unavailable';
     expect(await restoreAtLaunch({ storage, keeper, marker: memoryMarker() })).toBe('none');

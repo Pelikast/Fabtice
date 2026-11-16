@@ -156,6 +156,54 @@ describe('grid lines', () => {
   });
 });
 
+describe('half-note sub-grid (« Blanches », C3)', () => {
+  const halves = { subdivision: 0.5, triplets: false } as const;
+  const m3 = constantTempoMap({ bpm: 60, firstDownbeat: 0, meter: { numerator: 3, denominator: 4 }, origin: 'manual' });
+
+  it('is one line every two beats; triplets of half notes make three lines per four beats', () => {
+    expect(linesPerBeat(halves)).toBe(0.5);
+    expect(linesPerBeat({ subdivision: 0.5, triplets: true })).toBe(0.75);
+  });
+
+  it('draws the third beat of a 4/4 bar, and nothing else', () => {
+    const lines = subGridLines(map, 1, 3, halves);
+    expect(lines.map((l) => [l.beatInBar, l.time])).toEqual([[2, 2]]);
+    expect(lines[0]!.onBeat).toBe(true);
+  });
+
+  it('draws triplets of half notes at 4/3 and 8/3 beats of a 4/4 bar', () => {
+    const lines = subGridLines(map, 1, 3, { subdivision: 0.5, triplets: true });
+    expect(lines.map((l) => +l.beatInBar.toFixed(3))).toEqual([1.333, 2.667]);
+    expect(lines.every((l) => !l.onBeat)).toBe(true);
+  });
+
+  it('in a 3/4 bar has one line, on the third beat, and snaps to it or to the bar lines', () => {
+    expect(subGridLines(m3, 0, 6, halves).map((l) => [l.bar, l.beatInBar])).toEqual([[0, 2], [1, 2]]);
+    // the pattern restarts at each bar line: the second half note of the bar does not fit
+    close(snapTime(m3, 2.4, halves), 2);
+    close(snapTime(m3, 2.6, halves), 3);
+    close(snapTime(m3, 1.7, halves), 2);
+    close(snapTime(m3, 0.4, halves), 0);
+    close(snapTime(m3, 0.9, halves), 0);
+    close(snapTime(m3, 1.1, halves), 2);
+  });
+
+  it('snaps in 4/4 to the bar line or the third beat', () => {
+    close(snapTime(map, 1.4, halves), 1);
+    close(snapTime(map, 1.8, halves), 2);
+    close(snapTime(map, 2.4, halves), 2);
+    close(snapTime(map, 2.6, halves), 3);
+    close(snapTime(map, 2.9, halves), 3);
+  });
+
+  it('is shown while its lines are at least 5 px apart', () => {
+    // 2 beats of 0.5 s: 100 px per second gives 100 px between lines
+    expect(subGridSpacingPx(map, 100, halves)).toBeCloseTo(100);
+    expect(isSubGridVisible(map, 100, halves)).toBe(true);
+    expect(isSubGridVisible(map, 4, halves)).toBe(false);
+  });
+});
+
 describe('snapping', () => {
   const eighths = { subdivision: 2, triplets: false } as const;
   it('snaps to the nearest sub-grid line', () => {

@@ -402,7 +402,7 @@ export function closePanel(): void {
 
 /** « Réglages… » (C7): opens the window, on `tab` when given, else on the tab last seen. */
 export function openSettings(tab?: SettingsTab): void {
-  set((s) => ({ ui: { ...s.ui, panel: 'none', settings: { open: true, tab: tab ?? s.ui.settings.tab } } }));
+  set((s) => ({ ui: { ...s.ui, panel: 'none', settings: { open: true, tab: tab ?? s.ui.settings.tab, direct: tab !== undefined } } }));
 }
 
 export function setSettingsTab(tab: SettingsTab): void {

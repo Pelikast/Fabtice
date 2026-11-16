@@ -100,8 +100,14 @@ export interface PlaybackSettings {
   metronome: boolean;
 }
 
-/** Sub-grid step: lines per beat before triplets (quarter, eighth, sixteenth, thirty-second notes). */
-export type Subdivision = 1 | 2 | 4 | 8;
+/**
+ * Sub-grid step: lines per beat before triplets. 0.5 is the half note (one line every two beats), then
+ * quarter, eighth, sixteenth and thirty-second notes (C3: « Blanches » was added).
+ */
+export type Subdivision = 0.5 | 1 | 2 | 4 | 8;
+
+/** The sub-grid in force when nothing was chosen: « Noires ». */
+export const DEFAULT_SUBDIVISION: Subdivision = 1;
 
 export type ViewMode = 'pistes' | 'grille';
 
@@ -139,11 +145,24 @@ export interface AdvancedSettings {
   formants: boolean;
 }
 
+/** « À l'ouverture » (Réglages → Général): the piece kept on the device is reopened, or the « Nouveau projet » window opens. */
+export type LaunchBehaviour = 'lastProject' | 'newProject';
+
 export interface AppSettings {
   minorNotation: MinorNotation;
   advanced: AdvancedSettings;
+  /** Per device. `lastProject` (the habit) reopens the kept piece at launch. */
+  atLaunch: LaunchBehaviour;
+  /** Per device. « Analyser dès l'import »: a newly opened piece is analysed in the background; off, it waits for « Analyser ce morceau ». */
+  analyseOnImport: boolean;
+  /** Per device. « S'appuyer sur les grilles connues des standards »: the chord analysis looks the title up in the library of standards. */
+  useKnownCharts: boolean;
 }
 
 export const DEFAULT_ADVANCED: AdvancedSettings = { separationModel: 'auto', formants: false };
+
+export function defaultAppSettings(): AppSettings {
+  return { minorNotation: 'm', advanced: { ...DEFAULT_ADVANCED }, atLaunch: 'lastProject', analyseOnImport: true, useKnownCharts: true };
+}
 
 export type { TempoMap };

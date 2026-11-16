@@ -10,7 +10,7 @@ import { accelerationStatus, COMMON_METERS, firstMeter, groupingChoices, groupin
 import { t } from '../i18n';
 import { ACCELERATION_LIMITS, COUNT_IN_BARS, type AccelerationPlan, type BeatLevel } from '../model/metronome';
 import type { Meter } from '../model/tempoMap';
-import { closePanel, toggleMetronome, togglePanel } from '../store/actions';
+import { closePanel, openSettings, toggleMetronome, togglePanel } from '../store/actions';
 import { targetBpm } from '../store/derived';
 import {
   cycleBeatLevel,
@@ -64,8 +64,6 @@ export function MetronomeControl() {
 
 function MetronomePanel({ ref }: { ref: Ref<HTMLDivElement> }) {
   const on = useApp((s) => s.playback.metronome);
-  const volume = useApp((s) => s.metronome.volume);
-  const countIn = useApp((s) => s.metronome.countInBars);
   const fitRef = useFitPanel(ref, true);
   return (
     <div ref={fitRef} className="fenetre panneau-metronome" role="dialog" aria-label={t('metronome.title')} data-testid="panneau-metronome">
@@ -77,6 +75,25 @@ function MetronomePanel({ ref }: { ref: Ref<HTMLDivElement> }) {
         </button>
       </div>
 
+      <MetronomeSettingsBody />
+      <p className="panneau-note panneau-tous">
+        <button className="lien discret" data-testid="tous-reglages-metronome" onClick={() => openSettings('metronome')}>
+          {t('settingsWin.allSettings')}
+        </button>
+      </p>
+    </div>
+  );
+}
+
+/**
+ * Volume, count-in, signature and grouping, strong and weak beats, progressive acceleration: the panel's
+ * settings, shared with the tab « Métronome » of « Réglages ».
+ */
+export function MetronomeSettingsBody() {
+  const volume = useApp((s) => s.metronome.volume);
+  const countIn = useApp((s) => s.metronome.countInBars);
+  return (
+    <>
       <label className="metro-ligne">
         <span>{t('metronome.volume')}</span>
         <input
@@ -108,7 +125,7 @@ function MetronomePanel({ ref }: { ref: Ref<HTMLDivElement> }) {
       <MeterChoice />
       <BeatLevels />
       <Acceleration />
-    </div>
+    </>
   );
 }
 

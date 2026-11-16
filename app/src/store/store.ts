@@ -27,7 +27,8 @@ import { emptyCorrections, type Corrections } from '../model/corrections';
 import { emptyMarkers, type Markers } from '../model/markers';
 import { defaultMetronome, type MetronomeSettings } from '../model/metronome';
 import {
-  DEFAULT_ADVANCED,
+  DEFAULT_SUBDIVISION,
+  defaultAppSettings,
   type AppSettings,
   type LoopState,
   type PlaybackSettings,
@@ -99,8 +100,12 @@ export const SETTINGS_TABS = ['general', 'instruments', 'tempo', 'chords', 'metr
 export type SettingsTab = (typeof SETTINGS_TABS)[number];
 
 export interface UiState {
-  /** « Réglages » (C7): a wide window with tabs; `tab` is kept while the app stays open. */
-  settings: { open: boolean; tab: SettingsTab };
+  /**
+   * « Réglages » (C7): a wide window with tabs; `tab` is kept while the app stays open. `direct`: it was
+   * opened on a named tab (a « Tous les réglages… » link), so the phone form goes straight to that tab
+   * instead of showing the list of the seven first.
+   */
+  settings: { open: boolean; tab: SettingsTab; direct: boolean };
   /** The new-piece dialog. Opened at launch when no project is loaded. */
   newPieceOpen: boolean;
   panel: PanelId;
@@ -181,7 +186,7 @@ export function defaultView(): ViewSettings {
     trackHeight: TRACK_HEIGHT.default,
     // On a phone the lanes scroll at a fixed bar width instead (DESIGN.md).
     auto: !isPhoneLayout(),
-    subdivision: 2,
+    subdivision: DEFAULT_SUBDIVISION,
     triplets: false,
     snap: true,
     follow: true,
@@ -207,10 +212,10 @@ export function initialState(): AppState {
     loop: { region: null, enabled: false },
     playback: { ...DEFAULT_PLAYBACK },
     view: defaultView(),
-    settings: { minorNotation: 'm', advanced: { ...DEFAULT_ADVANCED } },
+    settings: defaultAppSettings(),
     transport: { engine: 'empty', error: null },
     ui: {
-      settings: { open: false, tab: 'general' },
+      settings: { open: false, tab: 'general', direct: false },
       newPieceOpen: true,
       panel: 'none',
       import: { kind: 'idle' },

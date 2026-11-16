@@ -1,27 +1,19 @@
-import { useCallback, useRef } from 'react';
 import { formatDuration } from '../grid/format';
 import { t } from '../i18n';
 import type { ViewMode } from '../model/project';
 import { requestNewProject } from '../project/leave';
-import { closePanel, setViewMode, togglePanel } from '../store/actions';
+import { openSettings, setViewMode } from '../store/actions';
 import { useApp } from '../store/store';
-import { useOutsideClose } from '../ui/useOutsideClose';
 import { AnalysisStatus } from './AnalysisStatus';
 import { ExportMenu } from './ExportMenu';
 import { SeparationStatus } from './SeparationPanel';
-import { SettingsPopover } from './SettingsPopover';
 
 const VIEWS: ViewMode[] = ['pistes', 'grille'];
 
 export function TopBar() {
   const project = useApp((s) => s.project);
   const mode = useApp((s) => s.view.mode);
-  const settingsOpen = useApp((s) => s.ui.panel === 'settings');
-  const buttonRef = useRef<HTMLButtonElement>(null);
-  const phoneButtonRef = useRef<HTMLButtonElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
-  const refs = useRef([buttonRef, phoneButtonRef, panelRef]).current;
-  useOutsideClose(settingsOpen, refs, useCallback(() => closePanel(), []));
+  const settingsOpen = useApp((s) => s.ui.settings.open);
 
   const source = project ? `${formatDuration(project.duration)} · ${t(`source.${project.source.kind}`)}` : '';
 
@@ -63,26 +55,23 @@ export function TopBar() {
         </span>
         <ExportMenu />
         <button
-          ref={buttonRef}
           className="menu cache-tel"
           aria-expanded={settingsOpen}
           aria-haspopup="dialog"
-          onClick={() => togglePanel('settings')}
+          onClick={() => openSettings()}
         >
           {t('top.settings')}
         </button>
         <button
-          ref={phoneButtonRef}
           className="menu menu-plus"
           aria-label={t('top.menu')}
           aria-expanded={settingsOpen}
           aria-haspopup="dialog"
-          onClick={() => togglePanel('settings')}
+          onClick={() => openSettings()}
         >
           ⋯
         </button>
       </nav>
-      {settingsOpen && <SettingsPopover ref={panelRef} />}
     </header>
   );
 }

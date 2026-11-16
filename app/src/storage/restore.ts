@@ -268,6 +268,13 @@ export async function restoreAtLaunch(rawDeps: RestoreDeps): Promise<RestoreOutc
     if (!userIsBusy()) openNewPiece();
     return 'none';
   }
+  // « À l'ouverture » (Réglages → Général): the « Nouveau projet » window rather than the last piece, which stays
+  // kept on the device and is offered in that window (« Rouvrir… »).
+  if (appStore.getState().settings.atLaunch === 'newProject') {
+    setReopenOffer({ title: doc.project.title });
+    openNewPiece();
+    return 'none';
+  }
   // Killed during the last attempt: do not try again by ourselves, let the user decide.
   // The marker stays until the user chooses (open again, or forget), so that quitting without choosing
   // does not make the next launch try again by itself.
