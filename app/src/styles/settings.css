@@ -101,6 +101,7 @@
 .reglages-sous-titre { margin: 14px 0 4px 10px; font-size: 14px; font-weight: 600; color: var(--encre); }
 .reglages-section-corps > .reglages-sous-titre:first-child { margin-top: 0; }
 .reglages-note { margin: 2px 10px 12px; }
+.reglages-section-corps > .panneau-note { margin-left: 10px; margin-right: 10px; }
 
 .reglages-corps .option-colonne select { max-width: 420px; }
 .reglages-corps .option-colonne .bouton-cadre { width: auto; align-self: flex-start; padding: 0 16px; }

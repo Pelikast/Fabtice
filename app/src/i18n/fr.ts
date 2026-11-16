@@ -76,7 +76,7 @@ export const fr = {
   'settingsWin.tempo.tuningNone': 'L’accordage de l’enregistrement est mesuré par l’analyse du morceau.',
   'settingsWin.chords.known': 'S’appuyer sur les grilles connues des standards',
   'settingsWin.chords.knownNote': 'Quand le titre du morceau est celui d’un standard dont la grille est sur cet appareil, l’analyse s’en sert comme filet de sécurité. Ce qui est joué dans l’enregistrement reste le but : la grille connue ne le remplace jamais.',
-  'settingsWin.chords.pieceNote': 'Changer de modèle ne touche pas le morceau ouvert : relancez la détection pour qu’il en profite. Vos corrections sont gardées.',
+  'settingsWin.chords.pieceNote': 'Changer de modèle ne touche pas le morceau ouvert : relancez la détection pour qu’il en profite.',
   'settingsWin.display.auto': 'Zoom « Auto »',
   'settingsWin.display.autoNote': 'Ajuste les pistes à la fenêtre, sans débordement. Les curseurs de zoom l’éteignent.',
   'settingsWin.display.instrument': 'Grille écrite pour',
