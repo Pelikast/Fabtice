@@ -120,6 +120,20 @@ Ouvrez ensuite Fabtice normalement.
    projet récent** (aussi dans le Dock). Le morceau ouvert est remplacé comme
    par un import ; si le fichier est abîmé, une phrase le dit et rien ne
    change. Format : `app/src/project/FORMAT.md`.
+
+   **Enregistrer par-dessus** (1.0.0) : l’app sait où est le fichier du projet
+   ouvert (celui qu’on a ouvert ou le dernier enregistré). **cmd + S** écrit
+   par-dessus, sans fenêtre, en une fraction de seconde : les sons déjà
+   enregistrés dans le fichier sont recopiés tels quels. **Maj + cmd + S**
+   (« Enregistrer sous… ») ouvre le volet d’enregistrement de macOS et fait un
+   nouveau fichier, qui devient celui du projet. Un projet jamais enregistré
+   demande d’abord où. Le titre de la fenêtre montre le nom du fichier, avec le
+   point de macOS dans le bouton rouge tant qu’il y a des modifications non
+   enregistrées. Fermer la fenêtre ou quitter (cmd + Q) dans ce cas ouvre
+   l’alerte « Les modifications du projet en cours n’ont pas été sauvegardées,
+   voulez-vous enregistrer ? » (« Enregistrer », « Ne pas enregistrer »,
+   « Annuler »). Si l’écriture est coupée en route (panne, app tuée), l’ancien
+   fichier reste tel quel.
 7. **Le son ne démarre plus ?** Menu **Aide > Diagnostic…**, puis **Copier le
    journal audio** (il est aussi dans « Copier le diagnostic ») et collez le
    texte dans la conversation. Il donne, avec l’heure, ce que Fabtice a fait de
@@ -197,6 +211,74 @@ Fonctionnement :
   depuis le Finder. Ce qui ne peut pas être essayé ici : le double-clic
   réel dans le Finder et l’icône du type de fichier ; le test de bout en bout
   fait ce que fait macOS (`app.emit('open-file', …)`).
+- **Enregistrer le projet sur son fichier** (étape 1 de la 1.0.0, C5) : le
+  processus principal possède le fichier du projet ouvert et l’écrit ;
+  la page ne connaît jamais un chemin, elle nomme le projet par son
+  identifiant et demande « le fichier du projet » ou « un fichier que
+  l’utilisateur va choisir dans le volet d’enregistrement ».
+  - `src/project-writer.js` : **écriture sûre**, toujours de la même façon :
+    fichier temporaire `<nom>.fab.tmp-<16 hexadécimaux>` dans le même dossier
+    (le renommage final reste sur un seul volume), morceaux ajoutés au fil de
+    l’eau (64 Mo au plus par appel), puis `fsync`, fermeture, **renommage par-dessus
+    la cible** (atomique : l’ancien fichier ou le nouveau, jamais un mélange) et
+    `fsync` du dossier. Un échec, ou une page qui abandonne, supprime le
+    temporaire et ne touche pas à la cible. **Nettoyage au démarrage** : un
+    temporaire de plus de 60 s laissé par une coupure, dans un dossier connu
+    (ceux des fichiers retenus), est supprimé (`cleanStale`, appelé depuis
+    `main.js` au démarrage). Seuls peuvent être écrits : le fichier du projet
+    ouvert (connu parce qu’il a été ouvert, enregistré ou retrouvé) et un chemin
+    choisi dans le volet d’enregistrement, toujours en `.fab`, moins de 4 Go.
+    La page peut aussi **relire** ce fichier par plages de 16 Mo au plus (pour
+    recopier les sons déjà encodés), jamais un autre.
+  - **Fichier retenu par projet** : `project-files.json` dans le dossier de
+    données, une ligne par identifiant de projet (cent au plus, les plus
+    anciens tombent). Au relancement, la page demande le fichier de son projet
+    (`recallProjectFile`) et « Enregistrer » écrase le même fichier. Un fichier
+    disparu n’est pas retrouvé : « Enregistrer » redemande où. Le chemin sert
+    aussi à l’icône du fichier dans la barre de titre.
+  - Les canaux IPC (enregistrés par `src/projects.js`, sauf deux) :
+    `fabtice:project-file-info`, `-read`, `-adopt` (le projet vient d’être
+    ouvert par jeton : Finder, projets récents), `-adopt-chosen` (par le
+    sélecteur de la page : le preload lit le chemin avec
+    `webUtils.getPathForFile`), `-recall`, `-forget` ;
+    `fabtice:project-save-begin`, `-write`, `-restart` (reprendre depuis le
+    début quand la page a dû tout réécrire sans rien emprunter), `-finish`,
+    `-abort` ; dans `main.js` : `fabtice:project-state` (la page dit quel
+    projet est ouvert et s’il est modifié : `setDocumentEdited`,
+    `setRepresentedFilename` ; le titre lui-même est celui de la page) et
+    `fabtice:close-ack` / `fabtice:close-answer`. Une panne du rédacteur n’est
+    jamais une exception qui traverse l’IPC (le message pourrait contenir un
+    chemin) : `{ ok: false, reason }`, avec `reason` parmi `no-file`,
+    `cancelled`, `invalid`, `failed`, `unknown-session`, `too-large`.
+    Côté page : `projectFileInfo`, `readCurrentProjectFile`,
+    `adoptProjectFile`, `adoptChosenProjectFile`, `recallProjectFile`,
+    `forgetProjectFile`, `beginProjectSave`, `writeProjectSave`,
+    `restartProjectSave`, `finishProjectSave`, `abortProjectSave`,
+    `reportProjectState`, `onConfirmClose`, `ackClose`, `answerClose`
+    (`src/preload.js`, types dans `app/src/platform/desktopBridge.ts`, tous
+    facultatifs).
+  - **Garde de fermeture** (`src/close-guard.js`, branchée dans `main.js`) : le
+    processus principal ne sait pas si le projet a changé, la page si. Fermer la
+    fenêtre (bouton rouge, cmd + W : évènement `close`) et cmd + Q / « Quitter »
+    (`before-quit`) sont suspendus ; la fenêtre est ramenée devant, et le
+    processus principal envoie `fabtice:confirm-close` `{ id }`. La page répond
+    tout de suite `fabtice:close-ack` (« j’ai entendu, je demande à
+    l’utilisateur »), puis `fabtice:close-answer` (`true` : fermer, `false` :
+    rester). **Sans accusé de réception en 2 s** (page figée, pas encore
+    chargée, ou page ancienne qui ne connaît pas la question), ou si la page
+    disparaît pendant que l’utilisateur décide, la fenêtre se ferme : elle ne
+    doit jamais rester ouverte pour toujours. Après l’accusé, l’utilisateur a
+    tout le temps qu’il veut (l’alerte, un enregistrement en cours). Une seule
+    question à la fois.
+  - **Passage de test** : `FABTICE_NO_CLOSE_GUARD=1` coupe la garde (jamais
+    posée chez un utilisateur). Les tests de bout en bout ferment des apps qui
+    tiennent des morceaux jamais enregistrés : `test/e2e/helpers.js` la pose par
+    défaut ; seul `project-file.test.js` la rétablit pour essayer la fermeture.
+  - Pas dans `src/menu.js` : aucun raccourci d’enregistrement ni d’annulation n’y
+    est déclaré, la page les prend (`app/src/ui/saveKeys.ts`,
+    `app/src/ui/historyKeys.ts`) ; Édition → Annuler / Rétablir n’agissent que
+    sur le texte. En les ajoutant au menu, veiller à ne pas les déclencher deux
+    fois.
 - Pas de service worker dans l’app Mac : la version web hors ligne
   (`app/src/pwa/`) ne s’inscrit pas sur `fabtice://`, qui les refuse de toute
   façon, et la construction pour le Mac n’a ni manifeste ni `sw.js`.
@@ -311,6 +393,9 @@ la taille totale est inconnue). Les arguments donnés à yt-dlp ne changent pas.
 
 Variables d’environnement de test :
 
+- `FABTICE_NO_CLOSE_GUARD=1` : l’app ferme et quitte sans demander à la page si
+  le projet a des modifications non enregistrées (voir « Garde de fermeture »
+  plus haut) ; posée par `test/e2e/helpers.js` ;
 - `FABTICE_YTDLP_PATH` : chemin d’un autre exécutable à utiliser à la place
   de yt-dlp (par exemple `test/fixtures/stub-yt-dlp.js`, qui copie un fichier
   audio local au lieu de télécharger) ;
@@ -367,6 +452,36 @@ Deux autres fichiers gardent des défauts déjà rencontrés :
   pourcentage ou quantité reçue, préparation du son) avec un démarrage lent et
   une taille inconnue, et le bouton « Copier le rapport du dernier import » de
   la fenêtre de diagnostic.
+
+Étape 1 de la 1.0.0 :
+
+- `test/e2e/project-file.test.js` (étendu, derniers tests du fichier) : un
+  morceau jamais enregistré, cmd/Ctrl + S demande où (dialogue
+  « Enregistrer sous… », volet du système remplacé par une réponse du test),
+  volet fermé sans choix : rien n’est écrit ; le titre montre le morceau puis le
+  fichier, l’icône du fichier, le point « modifié » ; un changement puis
+  cmd/Ctrl + S écrasent **le même** fichier, sûrement (temporaire puis
+  renommage) et vite (les sons déjà encodés recopiés : CRC de chaque entrée
+  comparées avant et après) ; un second fichier devient celui du projet ;
+  fermer la fenêtre et cmd + Q avec des modifications non enregistrées
+  demandent d’abord (« Annuler » reste, « Enregistrer » écrit puis quitte,
+  « Ne pas enregistrer » ferme sans toucher au fichier) ; après un relancement
+  le fichier est retrouvé ; un temporaire laissé par une écriture morte est
+  supprimé ; un autre projet remis par le Finder pose la question des
+  modifications. Une coupure en pleine écriture n’y est pas essayée (une
+  écriture est ici trop rapide pour qu’on la tue au milieu) : c’est
+  `test/unit/project-writer.test.js` qui le fait.
+- `test/e2e/undo.test.js` (nouveau) : Ctrl + Z et Ctrl + Maj + Z (cmd sur Mac)
+  défont et refont un changement du morceau, avec le menu Édition en place
+  (rôles `undo` et `redo`) ; dans un champ de texte, le raccourci reste au champ.
+- `test/unit/project-writer.test.js` (nouveau : écriture sûre, cible protégée,
+  temporaire supprimé à l’échec, droits du fichier gardés, lien suivi, reprise
+  depuis le début, nettoyage, fichiers retenus, plages de lecture, échec simulé
+  en plein milieu et au renommage final) et `test/unit/close-guard.test.js` (nouveau : réponse,
+  refus, accusé de réception, délai de 2 s, page disparue, une question à la
+  fois).
+- Une seule suite e2e de l’app Mac à la fois : tuer « electron » à l’aveugle
+  coupe les tests d’un autre.
 
 Les tests unitaires couvrent aussi `src/progress.js` (les lignes de progression
 exactes du vrai yt-dlp) et `src/report.js` (le rapport copiable).

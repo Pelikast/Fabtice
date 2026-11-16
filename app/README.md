@@ -37,7 +37,9 @@ le stockage.
 | `npm run test:export-memory` | après `build`, au premier plan : la mémoire de l'export de sept pistes de cinq minutes (archive de WAV, de MP3, mélange en WAV, FLAC et MP3), chiffres affichés |
 | `npm run test:metronome` | après `build` (lot 4) : le panneau du métronome (volume, décompte, mesure et regroupement, temps forts et faibles, accélération), ce qui arrive au moteur factice (piste de clics, volume, plan, décompte au moment de Lecture), le palier et le décompte affichés, le panneau dans la fenêtre à 1280 × 800, 960 × 640 et 390 × 844, puis les réglages retrouvés après rechargement (profil persistant). `FABTICE_METRONOME_OUT` pour les captures |
 | `npm run test:markers` | après `build` (lot 4) : boucles gardées (garder, rappeler, renommer, ordonner, supprimer), sections (les lettres de la grille : listées, bouclées, ajoutées, renommées, supprimées, les mêmes dans la grille d'accords), la rangée « Repères » de la règle (clic), le clavier, le téléphone, puis tout retrouvé après rechargement (profil persistant). `FABTICE_MARKERS_OUT` pour les captures |
-| `npm run test:project-file` | après `build` (lot 4) : les projets `.fab` avec des tailles réelles et des profils persistants : un WAV d'une minute importé (vrai moteur), séparé avec deux outils (séparateur factice : de vrais instruments 16 bits), un mixage dans chacun, corrigé, boucle nommée, métronome, transposition, « Appliquer » (rendu factice) ; enregistré avec le **vrai libFLAC** (fichier téléchargé et vérifié : nom, signature, dossiers, tout en FLAC, plus petit que les blocs 16 bits) ; ouvert dans un autre profil (tout revient, instruments à l'échantillon près, rendu entendu tel quel, pas de nouvelle analyse), « Écouter » l'autre séparation (à l'échantillon près, son mixage), rechargé ; copie abîmée, fichier audio choisi comme projet ; projet déposé sur la fenêtre ; mesure du magasin de l'appareil (six instruments de quatre minutes ; `FABTICE_PROJECT_LONG=1` : douze aussi) ; « Nouveau morceau », « Séparations gardées » et les réglages à 1280 × 800 et 390 × 844. Captures dans `FABTICE_PROJECT_OUT` |
+| `npm run test:project-file` | après `build` (lot 4) : les projets `.fab` avec des tailles réelles et des profils persistants : un WAV d'une minute importé (vrai moteur), séparé avec deux outils (séparateur factice : de vrais instruments 16 bits), un mixage dans chacun, corrigé, boucle nommée, métronome, transposition, « Appliquer » (rendu factice) ; enregistré avec le **vrai libFLAC** (fichier téléchargé et vérifié : nom, signature, dossiers, tout en FLAC, plus petit que les blocs 16 bits) ; ouvert dans un autre profil (tout revient, instruments à l'échantillon près, rendu entendu tel quel, pas de nouvelle analyse), « Écouter » l'autre séparation (à l'échantillon près, son mixage), rechargé ; copie abîmée, fichier audio choisi comme projet ; projet déposé sur la fenêtre ; mesure du magasin de l'appareil (six instruments de quatre minutes ; `FABTICE_PROJECT_LONG=1` : douze aussi) ; « Nouveau morceau », « Séparations gardées » et les réglages à 1280 × 800 et 390 × 844 ; **étape 1 (C5)** : « Enregistrer sous… » (volet du système remplacé par une poignée sur un fichier du système de fichiers privé), puis cmd/Ctrl + S par-dessus le **même** fichier, rapide (aucun worker d'encodage lancé : les sons déjà encodés sont recopiés), titre « modifié » puis « enregistré », fichier relu avec le changement ; rechargement (la poignée n'est pas gardée : « Enregistrer » redemande où), « Ouvrir un projet » avec une poignée (le fichier ouvert devient celui du projet) ; sans poignée (Safari, Firefox) le lien d'avant. Captures dans `FABTICE_PROJECT_OUT` |
+| `npm run test:undo` | après `build` (étape 1, C11) : « Annuler » / « Rétablir » dans Chromium, sur le morceau de démonstration, au bureau (1280 × 800, souris, aussi en Mac) et au téléphone (390 × 844, toucher), moteur silencieux : un clic (muet), un curseur tiré lentement (une seule étape, quelles que soient les pauses), un accord tapé dans la grille, une boucle tracée ; Ctrl + Z, Ctrl + Maj + Z, Ctrl + Y (cmd sur Mac) remettent ce qui est à l'écran ; dans un champ de texte, le raccourci défait la saisie et pas le morceau |
+| `npm run test:alert` | après `build` (étape 1, C5) : l'alerte « Les modifications du projet en cours n'ont pas été sauvegardées… » sur un morceau vraiment importé (donc « modifié ») et gardé sur l'appareil, au bureau et au téléphone : texte exact et trois boutons, « Enregistrer » ayant le focus ; « Annuler » (bouton et Échap) ; « Ne pas enregistrer » ; « Enregistrer » (et Entrée) pour un morceau jamais enregistré (demande où, le volet du système étant remplacé par un fichier du système de fichiers privé de la page) puis pour un morceau déjà enregistré (écrase sans fenêtre) ; un enregistrement qui échoue garde l'utilisateur où il est ; morceau non modifié : pas d'alerte. Captures dans `FABTICE_ALERT_OUT` |
 | `npm run test:offline` | après `build` (lot 4) : la version web hors ligne dans Chromium, profil persistant, **vrai moteur** : le service worker s'installe (adresse `?horsligne&debug`), garde les petits fichiers de l'app mais pas les gros WebAssembly d'ONNX Runtime ; un morceau de 5 Mo importé ; réseau coupé (`setOffline`), rechargement : l'app s'ouvre, `crossOriginIsolated` est vrai, le morceau gardé revient et **joue** ; un gros fichier demandé en ligne est gardé et resservi hors ligne avec les en-têtes d'isolation ; la maquette voisine n'est pas touchée ; en ligne, une nouvelle page sur le serveur est celle qu'on voit au chargement suivant ; manifeste et icônes. Captures dans `FABTICE_OFFLINE_OUT` |
 | `npm run test:chart` | après `build` : la grille d'accords comparée à la maquette (même balisage des accords, mêmes tailles, sections, boucle, mesure en cours, instruments, états vide et « analyse en cours », téléphone), puis les gestes (clic, glisser, suivi), l'éditeur d'accord (toujours entier et dans la fenêtre, à 1280 × 800 et 960 × 640), tous les panneaux flottants (Tempo, analyse, réglages, Exporter, accord fin, tonalité : dans la fenêtre, au-dessus du transport, dernier bouton cliquable, à 1280 × 800, 1024 × 700 et 960 × 640 ; `ui/useFitPanel.ts` leur donne une hauteur maximale et un défilement propre quand la fenêtre est trop basse), la tonalité, les sections, le clavier, l'autosauvegarde (rechargement d'un morceau gardé), le toucher réel sur téléphone (390 × 844) et l'impression (feuille de style d'impression, PDF A4 et Letter lus avec `pdftotext`, sauts de page) ; panneaux de corrections et d'accordage ; captures de l'app, de la maquette et des pages imprimées dans `FABTICE_CHART_OUT` (`pdftotext`, `pdfinfo` et `pdftoppm` de poppler sont nécessaires pour la partie impression) |
 
@@ -145,7 +147,11 @@ src/
                       (autosauvegarde), réouverture au lancement
   project/            fichiers de projet `.fab` (lot 4) : conteneur ZIP lu et écrit
                       par tranches (zip.ts), format (fileFormat.ts, FORMAT.md),
-                      « Enregistrer le projet » (save.ts), ouverture (open.ts, choose.ts),
+                      dialogue « Enregistrer le projet » (save.ts), « Enregistrer » et
+                      « Enregistrer sous… » (saveFlow.ts), fichier du projet ouvert
+                      (currentFile.ts), alerte avant de quitter un projet modifié
+                      (leave.ts), titre de la fenêtre et fermeture de l'app Mac
+                      (windowState.ts), ouverture (open.ts, choose.ts),
                       fichiers ouverts depuis le Finder (fromDesktop.ts)
   pwa/                version web hors ligne (lot 4) : service worker écrit à la main
                       (sw.js, complété par la construction) et son inscription
@@ -189,9 +195,11 @@ tests/                vérifications dans Chromium (smoke.mjs, timeline.mjs, imp
   solo, volume, et une référence `AudioRef` vers son audio. Les échantillons
   eux-mêmes sont dans `audio/registry.ts` (`getAudio(track.audio.id)`).
 - `TempoMap` (`model/tempoMap.ts`) : segments de tempo constant (temps, temps
-  musical, BPM) et changements de métrique (mesure, numérateur, dénominateur).
-  Prévue pour un tempo variable ; le lot 1 n'en crée qu'un segment, saisi à la
-  main. Le temps 0 est le premier temps de la mesure 1. **Avant le premier
+  musical, BPM) et changements de métrique (mesure, numérateur, dénominateur ;
+  depuis la version 6, de 1 à 64 sur 4, 8, 16 ou 32 : `METER_NUMERATOR`,
+  `METER_DENOMINATORS`, `isValidMeter`, et plusieurs signatures dans un même
+  morceau : voir « Signatures par mesure »). Prévue pour un tempo variable ; le
+  lot 1 n'en crée qu'un segment, saisi à la main. Le temps 0 est le premier temps de la mesure 1. **Avant le premier
   temps (levée)**, le premier segment et la première métrique se prolongent :
   la mesure d'indice −1 s'affiche « 0 », la −2 « −1 », etc. (numéro affiché =
   indice + 1).
@@ -206,6 +214,40 @@ tests/                vérifications dans Chromium (smoke.mjs, timeline.mjs, imp
   le tempo du morceau n'est pas saisi, le transport parle en pourcentage. Depuis
   le lot 4 il est donné **par temps ressenti** (noire pointée en 6/8 : voir
   `grid/metronome.ts#feltUnits`).
+
+### Document version 6 (étape 1 de la 1.0.0)
+
+La version courante du document est la **6** (`PROJECT_DOCUMENT_VERSION` dans
+`model/document.ts`, qui garde l'historique des versions en tête) : c'est celle
+du `.fab` aussi (`project/FORMAT.md`). Elle **reste la 6** pendant tout le
+travail de la 1.0.0 : un champ de plus va dans la version 6 (type dans
+`model/`, valeur par défaut dans la migration `5:` de
+`storage/documentFormat.ts`, contrôle de forme au même endroit, lecture
+tolérante dans `store/document.ts#fromProjectDocument`, une ligne dans
+`FORMAT.md`), jamais dans une 7. Aucun champ nouveau au premier niveau : tout
+est dans `analysis` et `corrections`.
+
+- **Tonalité par passage** : `analysis.keyChanges` (détectées) et
+  `corrections.keyChanges: KeyChange[] | null` (`null` : suivre l'analyse ; dès
+  que l'utilisateur y touche, la liste entière est la sienne). `KeyChange { time,
+  key }` est dans `model/harmony.ts`. La tonalité principale reste
+  `analysis.key` / `corrections.key`.
+- **Structure** : `analysis.structure: DetectedStructure | null` et
+  `corrections.structure: StructureCorrections` (`model/structure.ts` : mode,
+  parties, lettres ; la règle de fusion est en tête du fichier). Les lettres de
+  section restent `corrections.sections`.
+- **Résultat d'analyse** : `ANALYSIS_RESULT_VERSION = 2` (`model/analysis.ts`) ;
+  un résultat de version 1 est mis à niveau (jamais jeté) par
+  `storage/documentFormat.ts#readAnalysis`.
+- **Signatures** de 1 à 64 sur 4, 8, 16 ou 32, plusieurs par morceau
+  (`tempoMap.meters`, voir plus bas).
+- **Correction de tempo « tapée »** : `TempoFix = AnalysedTempoFix |
+  TappedTempoFix` (`model/corrections.ts`), le second ayant `kind: 'tapped'`,
+  les tapes brutes (`taps`, en secondes) et la fin du passage (`end`). Le type
+  attend ses tapes : la fenêtre est de l'étape 4.
+- **Migration exacte depuis la version 5** (celle de la version publiée), testée
+  sur trois vrais documents (`storage/fixtures/v5-*.json`,
+  `storage/documentVersion6.test.ts`) : un `.fab` publié s'ouvre sans rien perdre.
 
 ### Lot 2 : analyse, corrections, harmonie (document version 2)
 
@@ -972,7 +1014,7 @@ séparation, le rendu, l'export, le registre, le format 16 bits et le stockage.
 | Métronome | `AppState.metronome`, `model/metronome.ts#MetronomeSettings` | volume du clic (0…1), décompte (`countInBars` : 0, 1 ou 2 mesures), motifs par métrique (`patterns`, clé « 7/8 » : regroupement et force de chaque temps, `accent`, `normal`, `soft`, `silent` ; seules les métriques que l'utilisateur a changées y sont, les autres suivent `grid/metronome.ts#defaultPattern`), accélération progressive (`acceleration` : en marche, départ, pas, boucles par palier, objectif, en % du tempo réglé). La marche/arrêt du clic reste `playback.metronome` (lot 1) |
 | Repères | `AppState.markers`, `model/markers.ts#Markers` | les **boucles gardées** (`loops` : identifiant, nom de 1 à 40 caractères, zone en **secondes source** comme `LoopState.region`, calée ou libre comme elle l'était), dans l'ordre choisi par l'utilisateur |
 | Sections | `corrections.sections` (lot 2, **inchangé**) | une seule notion de section : les lettres de la grille d'accords. Une section va de sa barre à la barre de la section suivante (ou à la fin du morceau) : `markers/markers.ts#sectionRanges`. Le panneau des repères et la règle les montrent, en ajoutent, les renomment, les suppriment ; la grille d'accords montre les mêmes |
-| Métrique | `tempoMap.meters` (inchangé) | 2 à 12 temps sur 4 ou 8 (5/4, 7/8, 6/8, 12/8…). Un temps de la grille reste l'unité du dénominateur : une mesure de 7/8 a sept croches. Le tempo s'affiche et se tape **par temps ressenti** (`grid/metronome.ts#feltUnits` : la noire en x/4 et dans les autres x/8, la noire pointée en 6/8, 9/8, 12/8), dans le transport, la règle, le panneau « Tempo et mesures » et l'en-tête de la grille |
+| Métrique | `tempoMap.meters` (inchangé) | 2 à 12 temps sur 4 ou 8 (5/4, 7/8, 6/8, 12/8…) ; **la version 6 élargit à 1 à 64 sur 4, 8, 16 ou 32, mesure par mesure** (voir « Signatures par mesure »). Un temps de la grille reste l'unité du dénominateur : une mesure de 7/8 a sept croches. Le tempo s'affiche et se tape **par temps ressenti** (`grid/metronome.ts#feltUnits` : la noire en x/4 et dans les autres x/8, la noire pointée en 6/8, 9/8, 12/8), dans le transport, la règle, le panneau « Tempo et mesures » et l'en-tête de la grille |
 
 **Document version 4** (`model/document.ts`) : `metronome` et `markers` en plus.
 Migration 3 → 4 (`storage/documentFormat.ts#MIGRATIONS`) : métronome par
@@ -1113,12 +1155,15 @@ fabriquer une grille.
 
 Le format est décrit dans `src/project/FORMAT.md` : une archive ZIP sans
 compression, signée par son entrée `mimetype`, avec un manifeste versionné
-(`formatVersion` 2), le document du projet (version 5, **même lecteur et mêmes
+(`formatVersion` 2), le document du projet (version 6 depuis la 1.0.0 ; la 5 s'ouvre par
+la migration 5 → 6, **même lecteur et mêmes
 migrations** que la copie gardée sur l'appareil), le fichier importé octet pour
 octet, **toutes les séparations** (une par outil) et **le rendu « meilleure
 qualité » gardé**, ces pistes en **FLAC 16 bits sans perte**.
 
-- **Enregistrer** : « Exporter » → « Enregistrer le projet… » (première entrée
+- **Enregistrer** (état d'avant la 1.0.0 ; depuis l'étape 1, « Enregistrer » et
+  « Enregistrer sous… » : voir « Projet enregistré ou non » plus bas, le
+  dialogue ci-dessous sert à « Enregistrer sous… ») : « Exporter » → « Enregistrer le projet… » (première entrée
   du menu ; sur téléphone, dans le menu « ⋯ »). Une petite fenêtre de la
   famille de « Exporter le son » : une phrase, ce qui part dans le fichier (les
   séparations par outil, le rendu), « Préparer le fichier » avec un pourcentage
@@ -1332,6 +1377,252 @@ ferait doublon.
   depuis « Projets récents », copie abîmée, pas de service worker).
 
 ## Contrats pour la suite
+
+### Étape 1 de la 1.0.0 : socle (document version 6)
+
+Quatre contrats que les étapes suivantes appellent. Rien n'a encore d'écran
+(menus : étape 2 ; fenêtres de signature et de tempo tapé : étape 4 ; détection
+et affichage des tonalités et de la structure : étape 5).
+
+#### Historique : annuler, rétablir, « modifié » (`store/history.ts`)
+
+- **Mécanisme générique** autour du magasin (`startHistory`, lancé par
+  `main.tsx`) : il compare, tranche par tranche et par référence, la partie
+  annulable de l'état avant et après chaque changement. **Aucune action n'a été
+  réécrite.** Annulable : `corrections`, `tempoMap`, `loop`, `markers`,
+  `playback` (tonalité, réglage fin, tempo, métronome marche/arrêt),
+  `metronome`, et le mixage des pistes (muet, solo, volume) rangé par
+  identifiant de piste (une piste disparue est sautée, une nouvelle laissée
+  telle quelle ; vrai aussi pour une séparation mise de côté). `analysis` ne
+  l'est que dans une étape explicite : les corrections de tempo à la main
+  (`store/tempoFixActions.ts`) changent la grille, les corrections et les
+  accords analysés d'un coup, et un seul « annuler » rend les trois. **Pas
+  annulables** : import, séparation, analyse complète, rendu appliqué
+  (`keptRender`), réglages de l'app, affichage, préférences d'export, états
+  d'interface et de transport.
+- **Ce qui vide l'historique** : une analyse complète (`analysis` change hors
+  `transact` : aucune étape ancienne ne doit rendre une grille incohérente avec
+  le nouveau résultat) et tout changement de projet (nouveau, ouvert, rouvert au
+  lancement, fermé). Une séparation, l'échange du jeu affiché et le rendu ne le
+  vident pas.
+- **Gestes** : un geste continu (pointeur tenu : curseur tiré, bord de boucle
+  tiré, sélection de mesures) est **une** étape ; `ui/historyKeys.ts` ouvre et
+  ferme le geste sur le pointeur. Les changements rapprochés d'un même champ
+  continu (volume, réglage fin, tempo, accélération, boucle) à moins de
+  `COALESCE_MS` (500 ms) en font une aussi. `transact(libellé, fn)` nomme une
+  étape ou en regroupe plusieurs (c'est ce que fait `store/meterActions.ts`) ;
+  `beginGesture(libellé?)` / `endGesture()` pour un geste que le pointeur ne
+  borne pas. Au plus `HISTORY_LIMIT` (100) étapes, la plus ancienne tombe.
+- **Libellés** : `history.what.*` dans `i18n/fr.ts` (« Annuler : volume de la
+  piste »), choisis d'après les champs changés (`labelFor`, le premier motif qui
+  convient) ou donnés à `transact`. Une nouvelle sorte de changement qui doit
+  avoir son nom ajoute une clé et une ligne de `LABELS`.
+- **Lecture, pour le menu de l'étape 2** : `undo()`, `redo()`, `canUndo()`,
+  `canRedo()`, `undoLabel()`, `redoLabel()`, `useHistoryStatus()` (état
+  `{ canUndo, canRedo, undoLabel, redoLabel, modified }`), `subscribeHistory`
+  (la barre de menus du Mac). Clavier : `ui/historyKeys.ts` (cmd + Z, Maj + cmd
+  + Z ; Ctrl + Z, Ctrl + Maj + Z, Ctrl + Y ailleurs ; **dans un champ de texte
+  le raccourci est laissé au navigateur**), installé par `ui/useGlobalKeys.ts`.
+  Dans l'app Mac, `desktop/src/menu.js` n'a pas été touché : Édition → Annuler
+  agit sur le texte seulement (rôles du système) ; la page prend le raccourci
+  elle-même.
+- **« Modifié »** (C5) : `isModified()`, `useIsModified()`, `markSaved()`,
+  `markModified()`, `resetHistory({ modified })`. Un projet est modifié quand sa
+  partie annulable diffère de celle du dernier point d'enregistrement, ou
+  qu'un changement **non annulable** mais qui fait partie du projet (analyse,
+  séparation, rendu appliqué) a eu lieu depuis. Revenir par « Annuler » au point
+  d'enregistrement redonne « non modifié », sauf si un tel changement a eu lieu
+  entre-temps. Un morceau importé commence modifié (jamais enregistré dans un
+  `.fab`) ; la démonstration non ; un morceau repris de la sauvegarde
+  automatique au lancement est donné modifié (on ne sait pas si son `.fab` lui
+  correspond encore). Ouvrir un `.fab` appelle `markSaved()` une fois le morceau
+  en place (`project/open.ts`). Rien de cela n'est dans le document.
+- Tests : `store/history.test.ts`, `npm run test:undo`,
+  `desktop/test/e2e/undo.test.js`.
+
+#### Signatures par mesure (`store/meterActions.ts`, `grid/meters.ts`)
+
+- **Commandes** (`store/meterActions.ts`) : `setMeterFrom(bar, meter)`
+  (« Changement permanent à partir de cette mesure » : jusqu'au prochain
+  changement déjà là), `setMeterForBar(bar, meter)` (« uniquement pour cette
+  mesure » : la mesure suivante retrouve la signature d'avant),
+  `removeMeterChange(bar)`, `canChangeMeterAt(bar)`. `bar` est un indice (0 =
+  « mesure 1 ») ; `meter` est `{ numerator: 1…64, denominator: 4 | 8 | 16 | 32 }`
+  (`isValidMeter`). Chacune rend `false` sans rien changer si elle refuse (mesure
+  de levée, signature illégale) ou si elle ne change rien. Chacune est **une
+  étape** (« Annuler : signature rythmique », `history.what.meter`) et fait de la
+  grille une correction à la main (`corrected` sur des temps analysés, `manual`
+  sinon) : une nouvelle analyse la garde.
+- **Sélecteurs** : `selectMeterAtBar`, `selectMeterAtTime`, `selectMeterChangeAt`,
+  `selectMeterChanges` (liste `MeterChangeView`). Fonctions pures de la grille
+  dans `grid/meters.ts` : `withMeterFrom`, `withMeterForBar`,
+  `withoutMeterChange`, `meterChangeAt`, `meterChangeList`, `meterAtTime`,
+  `withMetersOf`, `mainMeter(map, duration?)`, `feltBeat`. Dans
+  `grid/tempoMap.ts` : `barBeats`, `beatUnit`, `beatScale`.
+- **Règles** : les **instants des temps ne bougent jamais** (accords, sections et
+  boucles, gardés en secondes, restent avec la musique) ; seules les barres de
+  mesure se replacent. La signature est dans la carte de tempo seule
+  (`tempoMap.meters`, la première comprise) : l'analyse n'en donne qu'une, tout
+  changement après le premier est celui de l'utilisateur ; pas de champ de plus.
+  **« La noire reste la noire »** : les temps de la carte comptent l'unité du
+  dénominateur de la **première** signature ; une mesure de n/d dure n × d₀/d de
+  ces temps (dans un morceau en 4/4, une mesure de 6/8 dure trois noires ; un
+  `meters[].beat` peut être fractionnaire). Écrite en tête de
+  `model/tempoMap.ts` et dans `project/FORMAT.md`.
+- **Règle pour un changement ultérieur de la grille** : quand une mesure change
+  de longueur, les changements de signature placés plus loin gardent leur
+  **instant** (calés sur la barre la plus proche ; à égalité ils gardent leur
+  numéro de mesure), pas leur numéro. Toute fonction qui recalcule une grille
+  (action de tempo à la main, « Revenir à l'analyse », annulation) doit passer
+  par `withMetersOf(cible, source)` pour replacer les changements de
+  l'utilisateur. « Revenir à l'analyse » les garde et rend la première signature
+  analysée. Le tempo affiché est celui de la signature qui couvre la plus grande
+  part du morceau (`mainMeter`), pour qu'une seule mesure en 6/8 ne le fasse pas
+  sauter.
+- **Consommateurs mis à jour** : barres et numéros de mesure, sous-grille et
+  magnétisme, métronome (accents par défaut pour toute signature, décompte ;
+  `grid/metronome.ts` a ses propres bornes de métrique, 2 à 12 sur 4 ou 8, pour
+  le panneau du métronome : **ne pas les confondre** avec
+  `METER_NUMERATOR` / `METER_DENOMINATORS` de `model/tempoMap.ts`), grille
+  d'accords (la signature s'écrit à la mesure où elle change, et en première
+  mesure s'il y en a plusieurs), boucles, repères, réanalyses et corrections de
+  tempo (les signatures posées à la main sont gardées), et l'export iReal Pro :
+  `IREAL_METERS` (les quatorze signatures que le format connaît),
+  `iRealMeterFor(m)` (la plus proche en durée, avec `exact`), `iRealMeterToken`
+  (la vraie signature en commentaire quand elle n'est pas exacte). Deux pannes
+  anciennes corrigées au passage : l'export iReal Pro écrivait un morceau en 6/8
+  comme du 6/4, et une correction de tempo à la main rendait un 6/8 en 6/4.
+- **Limites connues** : après une mesure à nombre impair de croches (7/8, 7/16),
+  les barres suivantes tombent entre deux temps analysés ; les corrections de
+  tempo à la main refusent alors ces mesures en silence (contrôle dans
+  `analysis/runner.ts`, non touché) et l'analyse numérote toujours avec une
+  seule signature (règles figées). Le panneau du métronome ne règle les accents
+  que de la première signature. Pas de signature dessinée sur la règle de
+  l'affichage « Pistes ». L'éditeur d'accord montre un bouton par temps (jusqu'à
+  64 pour une longue mesure : mise en page non vérifiée). À regarder à
+  l'étape 4.
+- Poignée de test : `window.__fabtice.lot2.meter` (le module `meterActions`).
+  Tests : `store/meterActions.test.ts`.
+
+#### Tonalités par passage et structure (`store/keySelectors.ts`, `store/structureSelectors.ts`)
+
+- **Tonalités** : `keyPassages`, `keyPassageAt(s, t)`, `keyAt(s, t)`,
+  `keyChangesInForce`. Commandes (`store/keyActions.ts`) : `addKeyChange(time,
+  key)`, `setKeyChangeKey`, `moveKeyChange(from, to)`, `removeKeyChange`,
+  `resetKeyChanges` ; positions en secondes de la source, tonalités **à la
+  hauteur réelle, dans la tonalité d'origine**
+  (`harmonyActions.ts#untransposeKeyForStorage` pour un choix fait à
+  l'affichage). Chacune rend `false` sans rien changer quand elle ne peut pas
+  s'appliquer.
+- **Règle de fusion des tonalités** : le premier passage (dès 0) est la
+  tonalité principale en vigueur (`corrections.key`, sinon `analysis.key`) ; les
+  suivants sont `corrections.keyChanges` dès que l'utilisateur y a touché (la
+  liste **entière** est alors la sienne : une modulation analysée supprimée en
+  est simplement absente, et une nouvelle analyse ne défait rien), sinon
+  `analysis.keyChanges`. La première modification copie les modulations en
+  vigueur dans `corrections.keyChanges`.
+- **Structure** : `structureInForce`, `sectionsInForce`, `partAt(s, t)`,
+  `lettersAreByHand`, `lettersIn` ; commandes (`store/structureActions.ts`) :
+  `setStructureMode` (`'auto' | 'jazz' | 'pop'`), `addPart`, `editPart`,
+  `removePart`, `resetStructure`, `resetSectionLetters`. Les lettres de section
+  restent `corrections.sections` et s'éditent comme avant
+  (`harmonyActions.ts#setSection`, le panneau des repères), ce qui les marque
+  comme celles de l'utilisateur ; les lettres d'une partie se déduisent, elles
+  ne sont pas stockées.
+- **Règle de fusion de la structure** (détail en tête de `model/structure.ts`) :
+  mode = choix à la main sauf `auto`, sinon le détecté, sinon Jazz ; lettres =
+  celles de l'utilisateur s'il y en a ou s'il y a touché (`lettersByHand`, pour
+  qu'effacer toutes les lettres reste effacé), sinon les détectées ; parties =
+  toutes celles de l'utilisateur, plus les détectées qui ne commencent pas dans
+  un passage retouché (`spans`), coupées là où commence le passage retouché
+  suivant. Éditer une partie détectée la copie dans la couche à la main et
+  ajoute son passage : une nouvelle analyse ne change que les parties que
+  personne n'a touchées.
+- **Pas encore branché** : rien ne détecte ni ne montre ces données (étape 5,
+  qui remplit `analysis.keyChanges` et `analysis.structure`). La grille, les
+  repères et les exports lisent encore `corrections.sections` et **pas**
+  `sectionsInForce` : l'étape 5 les basculera quand des lettres seront
+  détectées. Tests : `store/keyStructure.test.ts`.
+
+#### Projet enregistré ou non (`project/`)
+
+- **Commandes** (`project/saveFlow.ts`) : `saveProject()` (« Enregistrer » :
+  écrase le `.fab` du projet, sans fenêtre, sauf si un nouveau son est à encoder
+  et que cela dure ; un projet sans fichier — jamais enregistré, fichier
+  disparu, navigateur sans poignée d'écriture — passe par « Enregistrer
+  sous… ») et `saveProjectAs()` (le dialogue « Enregistrer le projet », qui
+  choisit ce qui part dedans, puis le volet du système ; le fichier choisi
+  devient celui du projet). Toutes deux rendent `'saved' | 'cancelled' |
+  'failed'` ; aussi `cancelSave`, `saveActivity`. `project/choose.ts#chooseProjectFile()`
+  pour « Ouvrir… ». Le menu de l'étape 2 appelle ces fonctions et
+  `requestNewProject()` (`project/leave.ts`) pour « Nouveau projet ». L'ancien
+  dialogue est gardé : il sert à « Enregistrer sous… » ; « Enregistrer » garde en
+  silence le choix « avec ou sans les instruments » fait au dernier
+  « Enregistrer sous… ».
+- **Écriture** (pour tout fichier) : **rapide**, car l'ancien fichier du projet
+  prête (`readReusableFile`, `WriteOptions.reuse` dans `fileFormat.ts`) ses
+  entrées audio encore identiques (même identifiant, même sorte, même longueur,
+  CRC contrôlé à la copie), recopiées telles quelles : seul ce qui est neuf est
+  encodé (0,4 s au lieu de 2,4 s sur le morceau d'essai) ; si une entrée recopiée
+  ne se relit pas comme enregistrée (`ReuseError`), tout est réécrit sans rien
+  emprunter. **Sûre** : rien ne remplace l'ancien fichier avant que le nouveau
+  soit complet et vidé sur le disque (app Mac : fichier temporaire à côté puis
+  renommage, `desktop/src/project-writer.js` ; Chromium : `createWritable()`
+  écrit dans un fichier d'échange jusqu'à `close()`) ; un échec ou une annulation
+  laisse l'ancien fichier tel quel. **Honnête** : le projet n'est « enregistré »
+  que s'il n'a pas changé pendant l'écriture (sinon il reste « modifié »).
+- **Fichier du projet** (`project/currentFile.ts`) : `getCurrentFile()`,
+  `useCurrentFile()`, `setCurrentFile`, `clearCurrentFile`, `recallDesktopFile`.
+  Il n'est pas dans le document ; il appartient à **un projet** (son
+  identifiant) : un autre projet n'en a pas, donc ne l'écrase jamais par erreur.
+  App Mac : le chemin reste dans le processus principal (la page n'en connaît
+  que le nom) et est retrouvé après un relancement (`project-files.json`).
+  Web, Chromium : la poignée `FileSystemFileHandle`, **non gardée** après un
+  rechargement (le navigateur redemanderait l'autorisation) : « Enregistrer »
+  redemande alors où. Safari et Firefox : pas de poignée, « Enregistrer »
+  télécharge le fichier, comme avant.
+- **Alerte** (`project/leave.ts#confirmLeaveProject()`, résout `true` si l'appelant
+  peut remplacer le projet, `false` s'il doit rester) : « Les modifications du
+  projet en cours n'ont pas été sauvegardées, voulez-vous enregistrer ? », titre
+  « Projet non enregistré », boutons « Ne pas enregistrer », « Annuler »,
+  « Enregistrer » (par défaut, à droite, comme sur macOS ; empilés sur mobile,
+  « Enregistrer » en premier). Pas modifié : `true` aussitôt, sans alerte.
+  « Enregistrer » enregistre (annulé ou en échec : `false`) ; « Ne pas
+  enregistrer » : `true`, rien n'est écrit dans le `.fab` (la sauvegarde
+  automatique locale reste le filet) ; « Annuler » : `false`. **Trois
+  déclencheurs**, appelée avant de rien remplacer : un nouveau projet
+  (`requestNewProject()` et tout import qui remplace le morceau ouvert ; après
+  « Ne pas enregistrer » sur « Nouveau projet », on ne repose pas la question
+  pour l'import fait depuis la fenêtre ainsi ouverte), l'ouverture d'un autre
+  projet (sélecteur, projets récents, Finder, glisser-déposer), et, **app Mac
+  seulement**, la fermeture de la fenêtre ou « Quitter » (cmd + Q) : le
+  processus principal interroge la page (`desktop/src/close-guard.js`). Une page
+  web ne peut pas être interrogée à la fermeture d'un onglet : la sauvegarde
+  automatique le couvre.
+- **Titre de la fenêtre** (`project/windowState.ts`, `windowTitle`,
+  `installProjectWindow`, appelée par `main.tsx`) : app Mac, le nom du fichier
+  (ou le titre du morceau tant qu'il n'est pas enregistré), avec les marques du
+  système (point dans le bouton de fermeture quand il y a des modifications, icône
+  du fichier dans la barre de titre : `reportProjectState`) ; web : « Nom —
+  Fabtice », précédé d'un discret « • » tant qu'il y a des modifications.
+- **Raccourcis** : `ui/saveKeys.ts` (`saveCommandFor`, `installSaveKeys`) : cmd + S
+  et Maj + cmd + S (Ctrl ailleurs). Pris **partout, champ de texte compris**
+  (c'est ce que l'utilisateur veut dire, et « enregistrer la page » du
+  navigateur ne doit jamais s'ouvrir : toujours `preventDefault`) ; la lettre
+  telle que tapée (AZERTY, QWERTZ) ; rien tant qu'une fenêtre de l'app gêne
+  (dialogue d'enregistrement, alerte) ou qu'une touche est tenue. Installés par
+  `ui/useGlobalKeys.ts` comme ceux de l'historique. `desktop/src/menu.js` ne
+  les déclare pas : en les ajoutant au menu (étape 2), veiller à ne pas les
+  déclencher deux fois.
+- **Fragile** : rouvrir un morceau au lancement le donne « modifié » même s'il
+  est identique à son `.fab` ; Safari et Firefox réencodent tout à chaque
+  enregistrement ; une coupure en pleine écriture est couverte par des tests
+  unitaires (l'ancien fichier reste intact), pas de bout en bout ; rien de
+  l'app Mac n'a été vu sur un vrai Mac à la main (volet d'enregistrement du
+  système, point du bouton de fermeture : vérifiés par les tests seulement).
+- Tests : `npm run test:alert`, `npm run test:project-file` (étendu),
+  `desktop/test/e2e/project-file.test.js` (étendu). Côté app Mac, voir
+  `desktop/README.md`.
 
 ### Lot 2 : ce qui existe et ce qui reste, par chantier
 
@@ -2573,6 +2864,16 @@ est `null` si la taille totale est inconnue). `lastImportReport()` (facultatif) 
 rapport du dernier import fait depuis l'interface, pour la fenêtre de diagnostic ; la fenêtre « Nouveau
 morceau » n'affiche le champ de lien que s'il est présent. Si l'API de l'app
 Mac change, changer ces types avec elle.
+
+Étape 1 de la 1.0.0 (C5), le pont gagne, toujours facultatif (une app Mac plus
+ancienne ne l'a pas : le web et elle retombent sur le téléchargement) : le
+fichier du projet ouvert (`projectFileInfo`, `readCurrentProjectFile`,
+`adoptProjectFile`, `adoptChosenProjectFile`, `recallProjectFile`,
+`forgetProjectFile` : la page nomme le projet par son identifiant, jamais un
+chemin), l'écriture sûre par morceaux (`beginProjectSave`, `writeProjectSave`,
+`restartProjectSave`, `finishProjectSave`, `abortProjectSave`), l'état envoyé à
+la fenêtre (`reportProjectState`) et la garde de fermeture (`onConfirmClose`,
+`ackClose`, `answerClose`). Côté app Mac : `desktop/README.md`.
 
 L'interface construite (`desktop/ui/`) charge des modules JavaScript et a
 besoin de l'isolation (COOP/COEP) : l'app Mac doit la servir par un protocole
