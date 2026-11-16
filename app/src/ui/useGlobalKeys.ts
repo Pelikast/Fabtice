@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { escape, togglePlay } from '../store/actions';
 import { appStore } from '../store/store';
+import { installHistoryKeys } from './historyKeys';
 
 /** Elements where Space must keep its own meaning (typing, ticking, choosing). */
 function keepsSpace(target: EventTarget | null): boolean {
@@ -13,9 +14,11 @@ function keepsSpace(target: EventTarget | null): boolean {
 
 /**
  * Space toggles playback (also when a button has the focus: the button is not
- * pressed), Escape closes the open panel, then the dialog.
+ * pressed), Escape closes the open panel, then the dialog. cmd + Z and
+ * Maj + cmd + Z (Ctrl elsewhere) undo and redo (`ui/historyKeys.ts`).
  */
 export function useGlobalKeys(): void {
+  useEffect(() => installHistoryKeys(), []);
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {

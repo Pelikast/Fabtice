@@ -16,11 +16,15 @@ import { startStorage } from './storage';
 import { appStore } from './store/store';
 import { registerServiceWorker } from './pwa/register';
 import { persistPreferences } from './store/preferences';
+import { startHistory } from './store/history';
 import './styles/index.css';
 
 setLanguage('fr');
 persistPreferences(appStore);
 connectEngine(appStore, getEngine());
+// « Annuler » / « Rétablir » and the « modified » state follow the store; a loop put back while playing is heard
+// at once, like any new loop.
+startHistory(appStore, { afterRestore: (s, before) => s.loop !== before.loop && actions.enterLoop() });
 // The audio output goes back to the system on sleep, wake, a device change, a hidden or closed page
 // (the engine also lets it go by itself after a while without playback): see audio/deviceLifecycle.ts.
 {
