@@ -322,14 +322,17 @@ function registerIpc() {
     }
   });
 
-  // « Imprimer la grille »: `window.print()` is no use in Electron (the page just stops answering), so the
-  // interface puts the page in its printed form and asks for the printing here. `print` and `printToPDF`
-  // are read at call time, like `dialog.showSaveDialog` (a test stands in for the system's panels).
+  // « Imprimer »: `window.print()` is no use in Electron (the page just stops answering), so the
+  // interface, whose print dialog holds the sheets and nothing else when printed, asks for the printing here.
+  // `print` and `printToPDF` are read at call time, like `dialog.showSaveDialog` (a test stands in for the system's panels).
   handle('fabtice:print-chart', async (event, options) => {
     const request = printing.parsePrintRequest(options);
     if (!request.ok) return { ok: false, reason: 'failed' };
-    return printing.printPage(event.sender, request);
+    return printing.printPage(event.sender, request, app.getLocale());
   });
+
+  // The printers the system lists, for the choice in the print dialog (a failure just means no choice there).
+  handle('fabtice:list-printers', async (event) => printing.listPrinters(event.sender));
 
   handle('fabtice:save-chart-pdf', async (event, options) => {
     const request = printing.parsePrintRequest(options);

@@ -22,6 +22,7 @@ contextBridge.exposeInMainWorld('fabtice', {
   openInIRealPro: (link) => ipcRenderer.invoke('fabtice:open-ireal', String(link)),
   printChart: (options) => ipcRenderer.invoke('fabtice:print-chart', options),
   saveChartPdf: (options) => ipcRenderer.invoke('fabtice:save-chart-pdf', options),
+  listPrinters: () => ipcRenderer.invoke('fabtice:list-printers'),
   pendingProjects: () => ipcRenderer.invoke('fabtice:pending-projects'),
   readProjectFile: (token, offset, length) => ipcRenderer.invoke('fabtice:read-project', String(token), Number(offset), Number(length)),
   releaseProjectFile: (token) => ipcRenderer.invoke('fabtice:release-project', String(token)),

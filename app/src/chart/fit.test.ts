@@ -3,7 +3,7 @@ import { chord } from '../harmony/chord';
 import { constantTempoMap } from '../grid/tempoMap';
 import { emptyCorrections } from '../model/corrections';
 import { movableBeats, withBarChords, withChordMoved, type BarEntry } from './edits';
-import { chordStart, fitBar, fitChart, FIT_GAP_EM, FIT_MIN_RIGHT, FIT_RATIOS, PRINT_GEOMETRY, type FitChord, type FitGeometry } from './fit';
+import { chordStart, fitBar, fitChart, FIT_GAP_EM, FIT_MIN_RIGHT, FIT_RATIOS, type FitChord, type FitGeometry } from './fit';
 import { chartBars, resolveChords } from './layout';
 
 // A desktop bar: 206 px wide, chords of 30 px; a phone bar: 91 px, chords of 21 px.
@@ -124,7 +124,7 @@ describe('one size for the whole chart', () => {
   });
 
   it('every bar of every beat count, on screen and paper, fits or is the declared last resort', () => {
-    for (const g of [desktop, phone, PRINT_GEOMETRY]) {
+    for (const g of [desktop, phone, { width: 206, padLeft: 16, padRight: 8, base: 30, room: 52 }]) {
       for (const beats of [3, 4, 5, 7]) {
         for (const placed of [[0, 2], [0, 1], [0, 2, 3], [0, 1, 2, 3], [1, 3], [3], [2, 3]]) {
           const chords = placed.filter((b) => b < beats).map((b) => at(b, beats, 3));

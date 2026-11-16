@@ -107,8 +107,11 @@ actif est souligné à l'encre, pas à la braise. Un troisième affichage,
 
 De haut en bas, pour l'affichage Pistes :
 
-1. **Barre du haut** (58 px) : nom de l'app, titre du morceau, puis Nouveau
-   projet, les deux affichages, Exporter, Réglages.
+1. **Barre du haut** (58 px) : le nom de l'app, qui est aussi le bouton du
+   menu Fabtice (même allure, un petit chevron en encre douce, creux de papier
+   au survol), le titre du morceau et ses états, puis les deux affichages.
+   Toutes les commandes sont dans le menu Fabtice : une commande n'a qu'une
+   place.
 2. **Bandeau fixe** : courbe de tempo, accords, numéros de mesure. Il reste
    visible quand on fait défiler les pistes.
 3. **Pistes** (74 px chacune) : à gauche la pastille de couleur, le nom, les
@@ -149,11 +152,8 @@ rencontrent, les accords de la mesure passent au palier de taille inférieur
 passent sur deux rangées plutôt que de devenir illisibles.
 
 À droite de l'en-tête de la grille, après le choix Ut / Si♭ / Mi♭, un bouton
-discret **Imprimer** (petite imprimante, encre douce, pas de braise) ouvre une
-fenêtre de la famille des fenêtres d'export : orientation (portrait, paysage),
-taille (telle quelle, sur une page), puis « Enregistrer en PDF… » et
-« Imprimer… ». La feuille imprimée est la grille seule, encre sur blanc, avec le
-titre, la tonalité, le tempo et l'instrument (Ut, Si♭, Mi♭).
+discret **Imprimer** (petite imprimante, encre douce, pas de braise) ouvre la
+fenêtre d'impression (voir « Fenêtre d'impression »).
 
 **Partition (v2)** : cet affichage n'est pas dans l'interface de la v1. Son
 dessin est validé et conservé dans la maquette, à l'adresse
@@ -163,12 +163,74 @@ Plusieurs instruments cochés donnent un conducteur. Accords au-dessus de la
 première portée, boucle et tête de lecture comme ailleurs. En v2, son onglet
 prendra place après « Grille d'accords ».
 
+## Menu Fabtice
+
+Un clic sur le nom de l'app ouvre le menu sous lui : surface `--papier-clair`,
+filet de 1 px `--trait`, rayon de 8 px, l'ombre chaude des fenêtres, Instrument
+Sans 15 px à l'encre ; filets de séparation en `--trait-fin`. L'entrée survolée
+ou atteinte au clavier se creuse en `--papier-fonce`. Les raccourcis sont à
+droite, en `--encre-douce` 13 px (« cmd + Z », « Maj + cmd + Z » ; « Ctrl » hors
+Mac). Les sous-menus s'ouvrent à droite, au survol ou au clic, marqués d'un
+petit chevron en encre douce. Une entrée impossible reste lisible : encre
+douce à 72 %. Aucune braise, aucune icône en couleur.
+
+Sur téléphone, le menu est une feuille plein écran sur le papier clair :
+en-tête de 52 px (« MENU » en libellé, ou « ‹ Retour »), titre du sous-menu en
+Fraunces 22 px, entrées de 48 px, pas de raccourcis. Un sous-menu s'ouvre au
+toucher, en liste emboîtée.
+
+Dans l'app Mac, la barre de menus du système reprend les mêmes commandes aux
+places habituelles ; une commande grisée dans l'app l'est aussi dans la barre.
+
+## Réglages
+
+Une fenêtre de la famille des fenêtres, large de 820 px au plus et haute de
+580 px au plus, de même hauteur d'un onglet à l'autre ; le corps défile. Titre
+en Fraunces 24 px, puis une rangée de sept onglets en Instrument Sans 14 px :
+« Général », « Instruments », « Tempo et analyse », « Détection des accords »,
+« Métronome », « Affichage », « Avancé ». L'onglet actif est souligné à l'encre
+(2 px), comme les deux affichages, jamais à la braise ; survol
+`--papier-fonce`. Flèches gauche et droite pour changer d'onglet ; Échap ou la
+croix ferme. Le dernier onglet vu est retenu tant que l'app reste ouverte.
+
+Chaque onglet se range en sections titrées en capitales, « Pour l'app » et
+« Pour ce morceau » ; sans morceau ouvert, la seconde est grisée et dit
+pourquoi en une phrase.
+
+Sur téléphone, une feuille plein écran : d'abord la liste des sept onglets en
+grosses lignes (58 px, chevron), un toucher ouvre l'onglet avec un bouton de
+retour. Cases, curseurs et choix d'au moins 44 px ; la liste des raccourcis
+clavier n'y figure pas.
+
+Les petits panneaux (métronome, « Tempo et mesures », accordage) gardent leurs
+commandes rapides et portent, en bas, un lien discret « Tous les réglages… »
+vers l'onglet concerné.
+
+## Fenêtre d'impression
+
+Sur ordinateur, deux zones : à gauche l'aperçu, les feuilles blanches posées
+sur un creux `--papier-fonce`, page par page (« Page 1 sur 3 ») ; à droite les
+options (libellés en capitales, groupes de deux ou trois boutons, cases, une
+liste pour l'échelle) puis, en bas à droite, « Enregistrer en PDF » et
+« Imprimer ». **Le bouton principal d'une fenêtre est à l'encre, jamais à la
+braise.** Sur téléphone, la fenêtre prend tout l'écran : aperçu en haut, pages
+côte à côte, options dessous, les deux boutons collés en bas.
+
+L'aperçu est exactement ce qui sort : mêmes feuilles, même pagination, une
+feuille par page. Sur le papier, les règles de la grille restent vraies
+(quatre mesures par ligne, accords à la place de leur temps, une seule taille
+pour tous les accords, lettres de section, signatures aux changements, encre
+sur blanc), avec le titre, la tonalité, le tempo et l'instrument en tête de la
+première page, et un petit numéro de page en pied quand il y en a plusieurs.
+Dans l'app Mac, l'imprimante et le nombre de copies se choisissent en haut des
+options ; sans imprimante listée, la fenêtre du système s'ouvre.
+
 ## Téléphone
 
 Sous 760 px de large : la colonne des pistes se réduit à 92 px (nom, M, S), la
 zone des pistes défile horizontalement à 86 px par mesure, les deux
-affichages deviennent une rangée d'onglets sous la barre du haut, les autres
-menus se replient derrière un seul bouton, et le transport s'empile en trois
+affichages deviennent une rangée d'onglets sous la barre du haut, toutes les
+commandes sont dans le menu Fabtice (une feuille plein écran), et le transport s'empile en trois
 rangs avec la lecture au pouce. Le zoom se fait en pinçant : la barre d'outils
 ne garde que le magnétisme et Auto. La page elle-même ne défile jamais
 horizontalement.
