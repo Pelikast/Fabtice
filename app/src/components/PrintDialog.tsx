@@ -234,9 +234,44 @@ function PrintBox() {
             </section>
 
             <div className="imp-options pas-imprime" role="group" aria-label={t('print.options')}>
+              {printers.length > 0 && (
+                <Group label={t('print.printer')}>
+                  <div className="imp-imprimante" data-testid="impression-imprimante">
+                    <select
+                      className="imp-liste imp-liste-large"
+                      aria-label={t('print.printer')}
+                      value={chosenPrinter?.name ?? ''}
+                      onChange={(e) => {
+                        setPrinter(e.target.value);
+                        savePrinterName(e.target.value);
+                      }}
+                    >
+                      {printers.map((p) => (
+                        <option key={p.name} value={p.name}>
+                          {p.isDefault ? t('print.printerDefault', { name: p.displayName }) : p.displayName}
+                        </option>
+                      ))}
+                    </select>
+                    <label className="imp-copies">
+                      <span>{t('print.copies')}</span>
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        min={1}
+                        max={99}
+                        value={copies}
+                        data-testid="impression-copies"
+                        onChange={(e) => setCopies(Math.min(99, Math.max(1, Math.round(Number(e.target.value)) || 1)))}
+                      />
+                    </label>
+                  </div>
+                </Group>
+              )}
+
               <div className="imp-rangee">
                 <Group label={t('print.orientation')}>
                   <Radios<PrintOrientation>
+                    label={t('print.orientation')}
                     value={options.orientation}
                     items={PRINT_ORIENTATIONS.map((o) => [o, o === 'portrait' ? t('print.portrait') : t('print.landscape')])}
                     onPick={(orientation) => choose({ orientation })}
@@ -244,12 +279,13 @@ function PrintBox() {
                   />
                 </Group>
                 <Group label={t('print.paper')}>
-                  <Radios<PrintPaper> value={options.paper} items={PRINT_PAPERS.map((p) => [p, p === 'a4' ? t('print.paperA4') : t('print.paperLetter')])} onPick={(paper) => choose({ paper })} />
+                  <Radios<PrintPaper> label={t('print.paper')} value={options.paper} items={PRINT_PAPERS.map((p) => [p, p === 'a4' ? t('print.paperA4') : t('print.paperLetter')])} onPick={(paper) => choose({ paper })} />
                 </Group>
               </div>
 
               <Group label={t('print.margins')}>
                 <Radios<PrintMargins>
+                  label={t('print.margins')}
                   value={options.margins}
                   items={PRINT_MARGINS.map((m) => [m, m === 'etroites' ? t('print.marginsNarrow') : m === 'normales' ? t('print.marginsNormal') : t('print.marginsWide')])}
                   onPick={(margins) => choose({ margins })}
@@ -291,7 +327,7 @@ function PrintBox() {
               </Group>
 
               <Group label={t('print.instrument')}>
-                <Radios<Instrument> value={instrument} items={INSTRUMENTS.map((i) => [i, t(`chart.instrument.${i}`)])} onPick={(i) => setInstrument(i)} accidentals />
+                <Radios<Instrument> label={t('print.instrument')} value={instrument} items={INSTRUMENTS.map((i) => [i, t(`chart.instrument.${i}`)])} onPick={(i) => setInstrument(i)} accidentals />
               </Group>
 
               <Group label={t('print.header')}>
@@ -311,39 +347,6 @@ function PrintBox() {
                 </div>
               </Group>
 
-              {printers.length > 0 && (
-                <Group label={t('print.printer')}>
-                  <div className="imp-imprimante" data-testid="impression-imprimante">
-                    <select
-                      className="imp-liste imp-liste-large"
-                      aria-label={t('print.printer')}
-                      value={chosenPrinter?.name ?? ''}
-                      onChange={(e) => {
-                        setPrinter(e.target.value);
-                        savePrinterName(e.target.value);
-                      }}
-                    >
-                      {printers.map((p) => (
-                        <option key={p.name} value={p.name}>
-                          {p.isDefault ? t('print.printerDefault', { name: p.displayName }) : p.displayName}
-                        </option>
-                      ))}
-                    </select>
-                    <label className="imp-copies">
-                      <span>{t('print.copies')}</span>
-                      <input
-                        type="number"
-                        inputMode="numeric"
-                        min={1}
-                        max={99}
-                        value={copies}
-                        data-testid="impression-copies"
-                        onChange={(e) => setCopies(Math.min(99, Math.max(1, Math.round(Number(e.target.value)) || 1)))}
-                      />
-                    </label>
-                  </div>
-                </Group>
-              )}
             </div>
 
             <div className="imp-pied pas-imprime">
@@ -385,12 +388,14 @@ function Group({ label, children }: { label: string; children: React.ReactNode }
 
 /** A group of buttons of which one is chosen (the look of the « m / – » choice of the settings). */
 function Radios<T extends string>({
+  label,
   value,
   items,
   onPick,
   firstRef,
   accidentals,
 }: {
+  label: string;
   value: T;
   items: [T, string][];
   onPick: (value: T) => void;
@@ -398,7 +403,7 @@ function Radios<T extends string>({
   accidentals?: boolean;
 }) {
   return (
-    <div className="duo imp-duo" role="radiogroup">
+    <div className="duo imp-duo" role="radiogroup" aria-label={label}>
       {items.map(([id, label], i) => (
         <button key={id} ref={i === 0 ? firstRef : undefined} role="radio" aria-checked={value === id} data-choix={id} onClick={() => onPick(id)}>
           {accidentals ? withAccidentals(label) : label}

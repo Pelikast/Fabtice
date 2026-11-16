@@ -99,16 +99,16 @@
   grid-area: options;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 13px;
   min-height: 0;
   overflow-y: auto;
-  padding: 16px 22px 12px;
+  padding: 14px 22px 10px;
   border-left: 1px solid var(--trait-fin);
   scrollbar-width: thin;
   scrollbar-color: var(--trait) transparent;
 }
 .imp-groupe h3 {
-  margin: 0 0 7px;
+  margin: 0 0 6px;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.09em;
@@ -120,7 +120,7 @@
 .imp-duo button {
   flex: 1;
   min-width: 0;
-  min-height: 38px;
+  min-height: 36px;
   padding: 4px 8px;
   font-family: var(--texte);
   font-size: 14px;
@@ -129,7 +129,7 @@
 .imp-duo button[aria-checked="true"] { background: var(--encre); color: var(--papier-clair); }
 .imp-echelle { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 .imp-liste {
-  height: 38px;
+  height: 36px;
   min-width: 96px;
   padding: 0 8px;
   border: 1px solid var(--trait);
@@ -142,7 +142,7 @@
 .imp-liste:disabled { color: var(--encre-douce); background: var(--papier); }
 .imp-liste-large { width: 100%; min-width: 0; text-overflow: ellipsis; }
 .imp-cases { display: flex; flex-wrap: wrap; gap: 4px 16px; }
-.imp-case { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; font-size: 14px; cursor: pointer; }
+.imp-case { display: inline-flex; align-items: center; gap: 8px; min-height: 34px; font-size: 14px; cursor: pointer; }
 .imp-case input { width: 16px; height: 16px; margin: 0; accent-color: var(--encre); }
 .imp-case input:disabled + span { color: var(--encre-douce); }
 .imp-note { min-height: 0; margin: 6px 0 0; font-size: 12.5px; line-height: 1.4; color: var(--encre-douce); }
@@ -152,7 +152,7 @@
 .imp-copies { display: flex; flex-direction: column; gap: 3px; font-size: 12.5px; color: var(--encre-douce); }
 .imp-copies input {
   width: 100%;
-  height: 38px;
+  height: 36px;
   padding: 0 8px;
   border: 1px solid var(--trait);
   border-radius: var(--rayon);
@@ -201,6 +201,7 @@
   }
   .fenetre-impression[data-vide] { grid-template-rows: auto auto; height: auto; max-height: 100%; align-self: end; border-radius: var(--rayon-fenetre) var(--rayon-fenetre) 0 0; }
   .imp-entete { padding: 14px 16px 10px; }
+  .imp-vide { padding: 18px 16px 26px; }
   .imp-entete h2 { font-size: 22px; }
   .imp-apercu-tete { padding: 8px 16px 0; }
   .imp-apercu-defile { padding: 8px 16px 10px; scroll-snap-type: x proximity; }
@@ -265,6 +266,7 @@
   white-space: nowrap;
   text-overflow: ellipsis;
 }
+.pp-infos .alt { margin-right: 0.1em; }
 .pp-numero-page {
   position: absolute;
   right: 0;
