@@ -234,6 +234,12 @@ jour-là :
 - Les prototypes de la phase 0 vivent dans `web/spikes/<nom>/` (pages de test
   ouvrables depuis le site) et ne préjugent pas de l'architecture de la v1.
 - Ne jamais mettre de secret dans le dépôt : il est public.
+- **Changelog à chaque version** (demande du propriétaire) : toute nouvelle
+  version publiée sur GitHub a son changelog sur la page de la version, en
+  français simple, pour qu'il puisse montrer les nouveautés. On l'écrit en
+  tête de `CHANGELOG.md` (section « ## Version du … ») dans le même envoi sur
+  `main` que le changement ; la fabrication recopie cette première section
+  sur la page de la version.
 - **Netlify ne déploie plus automatiquement** : le propriétaire a arrêté les
   builds et déclenche lui-même un déploiement à chaque étape réellement
   terminée, car le quota est limité. Pousser sur `main` ne publie donc rien.

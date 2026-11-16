@@ -194,6 +194,10 @@ jobs:
           - macOS 12 Monterey minimum.
           - Non signée par un développeur identifié : voir « Ouvrir l'app » dans desktop/README.md.
           EOF
+          # The newest section of CHANGELOG.md (from its first "## " heading to the next one).
+          if [ -f "$GITHUB_WORKSPACE/CHANGELOG.md" ]; then
+            { echo; echo '# Nouveautés'; echo; awk '/^## /{n++} n==1' "$GITHUB_WORKSPACE/CHANGELOG.md" | sed 's/^##/###/'; } >> "$RUNNER_TEMP/notes.md"
+          fi
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             gh release edit "$RELEASE_TAG" --prerelease --title 'Fabtice pour Mac — version de test' --notes-file "$RUNNER_TEMP/notes.md"
           else
