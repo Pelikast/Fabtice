@@ -33,11 +33,11 @@ test('Ctrl + Z and Ctrl + Maj + Z undo and redo a change of the piece, with the 
     assert.equal(await page.getAttribute(MUTE, 'aria-pressed'), 'true');
     const label = await page.evaluate(() => window.__fabtice.history.undoLabel());
     assert.equal(label, 'Annuler : piste coupée');
-    await page.keyboard.press('Control+z');
+    await page.keyboard.press('ControlOrMeta+z');
     await page.waitForFunction((sel) => document.querySelector('.piste-tete button.muet')?.getAttribute('aria-pressed') === 'false', MUTE, { timeout: 5000 });
-    await page.keyboard.press('Control+Shift+z');
+    await page.keyboard.press('ControlOrMeta+Shift+z');
     await page.waitForFunction(() => document.querySelector('.piste-tete button.muet')?.getAttribute('aria-pressed') === 'true', null, { timeout: 5000 });
-    await page.keyboard.press('Control+z');
+    await page.keyboard.press('ControlOrMeta+z');
     await page.waitForFunction(() => document.querySelector('.piste-tete button.muet')?.getAttribute('aria-pressed') === 'false', null, { timeout: 5000 });
     const st = await page.evaluate(() => window.__fabtice.history.historyStatus());
     assert.deepEqual([st.canUndo, st.canRedo, st.modified], [false, true, true], 'one step, undone; a new piece is modified (never saved to a file)');

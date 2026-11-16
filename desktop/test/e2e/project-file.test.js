@@ -347,7 +347,7 @@ test('« Enregistrer » and « Enregistrer sous… » in the app: the project\'s
       assert.equal(await lastEdited(app), true, 'the Mac app is told: edited');
 
       // Ctrl/cmd + S on a piece never saved: where? (the dialog of « Enregistrer sous… », then the panel)
-      await page.keyboard.press('Control+s');
+      await page.keyboard.press('ControlOrMeta+s');
       await page.waitForSelector('[data-testid="enregistrer-projet"]');
       // The panel is closed without a choice: nothing is written, the dialog stays.
       await page.click('[data-testid="preparer-projet"]');
@@ -380,7 +380,7 @@ test('« Enregistrer » and « Enregistrer sous… » in the app: the project\'s
       assert.equal(await lastEdited(app), true);
       await wait(20);
       const t1 = Date.now();
-      await page.keyboard.press('Control+s');
+      await page.keyboard.press('ControlOrMeta+s');
       await saved(page);
       const secondMs = Date.now() - t1;
       assert.deepEqual(fs.readdirSync(folder), ['Mon blues.fab'], 'no temporary file left, no other file');
@@ -399,7 +399,7 @@ test('« Enregistrer » and « Enregistrer sous… » in the app: the project\'s
       // « Enregistrer sous… » to a second path: a new file, which becomes the project's; the first is left as it was.
       const firstSha = sha(first);
       await panelAnswers(app, path.join(folder, 'Copie'));
-      await page.keyboard.press('Control+Shift+s');
+      await page.keyboard.press('ControlOrMeta+Shift+s');
       await page.waitForSelector('[data-testid="enregistrer-projet"]');
       await page.click('[data-testid="preparer-projet"]');
       await page.waitForFunction(() => !document.querySelector('[data-testid="enregistrer-projet"]'), null, { timeout: 120000 });
@@ -413,7 +413,7 @@ test('« Enregistrer » and « Enregistrer sous… » in the app: the project\'s
       // The next « Enregistrer » is the new file's.
       const copySha = sha(second);
       await changeSomething(page, 21);
-      await page.keyboard.press('Control+s');
+      await page.keyboard.press('ControlOrMeta+s');
       await saved(page);
       assert.notEqual(sha(second), copySha);
       assert.equal(sha(first), firstSha, 'still untouched');
@@ -461,7 +461,7 @@ test('« Enregistrer » and « Enregistrer sous… » in the app: the project\'s
       assert.equal(fs.existsSync(stale), false, 'the temporary file a dead save left is removed');
       // « Enregistrer » overwrites it with no question.
       const before = sha(second);
-      await page.keyboard.press('Control+s');
+      await page.keyboard.press('ControlOrMeta+s');
       await saved(page);
       assert.notEqual(sha(second), before);
       assert.equal(await page.evaluate(() => !!document.querySelector('[data-testid="enregistrer-projet"]')), false, 'no dialog: it knew the file');
