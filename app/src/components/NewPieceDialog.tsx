@@ -298,9 +298,10 @@ function ImportStems() {
   const offered = offeredStems(choice);
   const offeredKey = offered.join(',');
   // The tool in use may change once the device has been probed: the choice follows what it provides.
-  const before = useRef<StemId[]>([]);
+  // (The first time, nothing has changed: the box is shown again after an import as it was left.)
+  const before = useRef<StemId[] | null>(null);
   useEffect(() => {
-    const next = reconcileStems(stems, before.current, offered);
+    const next = reconcileStems(stems, before.current ?? offered, offered);
     before.current = offered;
     if (next.length !== stems.length || next.some((s, i) => s !== stems[i])) setSeparateOnImport(next.length > 0, next);
     // Only when the tool's instruments change.

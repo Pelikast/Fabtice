@@ -197,13 +197,13 @@ try {
     await sleep(300);
     check('dialog opens', await page.locator('.voile.ouverte').isVisible());
     check('web: no link field, a file button', (await page.locator('.champ').count()) === 0 && (await page.locator('.accueil .plein').innerText()) === 'Choisir un fichier audio');
-    // Lot 3: « Instruments à séparer » is back (off by default). Lot 4: « ouvrir un projet Fabtice », one calm line under the main button.
+    // C9: « Séparer les instruments » (off by default). Opened from « Nouveau projet ▸ À partir d'un fichier audio », the window shows only the file: « ouvrir un projet Fabtice » is on the opening screen.
     check(
-      '« Séparer les instruments » (unticked, no instrument listed), « ouvrir un projet » after the main button',
+      '« Séparer les instruments » (unticked, no instrument listed), only the file (no project to open)',
       (await page.locator('[data-testid="separer-case"]').count()) === 1 &&
         !(await page.locator('[data-testid="separer-case"]').isChecked()) &&
         (await page.locator('.stems-choix .stem').count()) === 0 &&
-        (await page.locator('[data-testid="ouvrir-projet"]').count()) === 1 &&
+        (await page.locator('[data-testid="ouvrir-projet"]').count()) === 0 &&
         (await page.locator('.accueil input[type="file"]').count()) === 1,
     );
     await page.keyboard.press('Escape');

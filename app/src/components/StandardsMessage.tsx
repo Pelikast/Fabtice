@@ -32,11 +32,12 @@ import { StandardsProgress } from './StandardsProgress';
 
 /** The step of the message now; follows the standards state and the windows that may be in its way. */
 export function useMessageStep(): MessageStep {
-  const subscribe = (listener: () => void) => {
-    const offs = [standardsStore.subscribe(listener), subscribeWindows(listener)];
-    return () => offs.forEach((off) => off());
-  };
-  return useSyncExternalStore(subscribe, currentMessageStep, () => null);
+  return useSyncExternalStore(subscribeMessage, currentMessageStep, () => null);
+}
+
+function subscribeMessage(listener: () => void): () => void {
+  const offs = [standardsStore.subscribe(listener), subscribeWindows(listener)];
+  return () => offs.forEach((off) => off());
 }
 
 const FOCUSABLE = 'button, input, [tabindex]';

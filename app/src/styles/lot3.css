@@ -43,19 +43,6 @@
 .stem.coche { position: relative; }
 .stem.coche:focus-within { outline: 2px solid var(--encre); outline-offset: 2px; }
 .accueil .stems-note, .stems-note { margin: 0 0 4px; font-size: 13.5px; color: var(--encre-douce); }
-.stems-note p { margin: 0 0 6px; }
-.stems-note ul { margin: 0 0 6px; padding-left: 18px; }
-.pied-separation {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px 12px;
-  flex-wrap: wrap;
-  margin-top: 8px;
-  font-size: 13.5px;
-  color: var(--encre-douce);
-}
-.pied-separation .lien { font-size: 13.5px; min-height: 32px; text-align: left; }
 
 /* The way into the separation, under the last track header. It sits in the room the
    plan keeps under the tracks (`--pied-pistes`): the header column never gets taller than
