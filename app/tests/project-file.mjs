@@ -7,7 +7,14 @@
 //      instruments of the piece's length), the mix set in each, corrected by
 //      hand, a named loop, metronome settings, transposition, « Appliquer »
 //      (the stand-in renderer) ; « Exporter » → « Enregistrer le projet… »: the
-//      REAL libFLAC encoder in its workers; the file is downloaded and checked;
+//      REAL libFLAC encoder in its workers. « Enregistrer sous… » ends in the browser's save panel: the check
+//      stands in for it with a handle on a file of the page's private file system (what Chromium gives), which is
+//      then copied out through a download and checked; then a change, and cmd/Ctrl + S (« Enregistrer »): the
+//      SAME file is overwritten, fast (no encoder worker is started, the sounds already encoded are copied),
+//      the title shows « modified » then « saved »; the file read back holds the change; a reload (the file
+//      handle is not kept: « Enregistrer » asks where), then « Ouvrir un projet » with a handle: the file
+//      opened becomes the project's file; a browser with no file handles (Safari, Firefox) gets the link of
+//      old, whose click reads « saved »;
 //   2. profile B, nothing kept: « Ouvrir un projet Fabtice » → the file →
 //      everything comes back (current instruments to the sample, the render
 //      heard as it is), without analysing again; the other separation is on the
@@ -91,10 +98,41 @@ if (fs.statfsSync) {
 }
 const cleanups = [];
 
-async function browserWith(viewport = { width: 1280, height: 800 }) {
+/**
+ * What the pages are given before anything runs: the encoder workers are counted (a save that encodes starts some);
+ * « Enregistrer sous… » is answered by a file of the page's private file system (`savePicker`), « Ouvrir un projet »
+ * by one that exists already (`openPicker`); without them the page meets a browser with no file handles.
+ */
+function filePickers({ savePicker, openPicker }) {
+  window.__picks = [];
+  window.__workers = 0;
+  const RealWorker = window.Worker;
+  window.Worker = class extends RealWorker {
+    constructor(...args) {
+      super(...args);
+      window.__workers++;
+    }
+  };
+  delete window.showSaveFilePicker;
+  delete window.showOpenFilePicker;
+  if (savePicker) {
+    window.showSaveFilePicker = async (options) => {
+      const name = (options && options.suggestedName) || 'Projet.fab';
+      window.__picks.push(name);
+      return (await navigator.storage.getDirectory()).getFileHandle(name, { create: true });
+    };
+  }
+  if (openPicker) {
+    window.__openName = null;
+    window.showOpenFilePicker = async () => [await (await navigator.storage.getDirectory()).getFileHandle(window.__openName)];
+  }
+}
+
+async function browserWith(viewport = { width: 1280, height: 800 }, pickers = { savePicker: true, openPicker: false }) {
   const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'fabtice-project-profile-'));
   profiles.push(profile);
   const context = await chromium.launchPersistentContext(profile, { args: ['--no-sandbox', '--autoplay-policy=no-user-gesture-required'], viewport, acceptDownloads: true });
+  await context.addInitScript(filePickers, pickers);
   const page = context.pages()[0] ?? (await context.newPage());
   // A renderer crash is a failure of its own, said as such (a user relaunching would get it).
   // Playwright starts Chromium with --disable-dev-shm-usage: its shared memory lives in the temporary folder, and a
@@ -135,22 +173,64 @@ const snapshot = (page) =>
     return { doc, applied: f.lot3.render.selectApplyState(s), instruments: Object.fromEntries(all.filter((t) => t.audio.origin === 'separated').map((t) => [t.audio.id, probe(t.audio.id)])) };
   });
 
-async function saveProject(page, { shot }) {
+let copies = 0;
+/** A file of the page's private file system, copied out through a download. */
+async function copyOut(page, name) {
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.evaluate(async (n) => {
+      const file = await (await (await navigator.storage.getDirectory()).getFileHandle(n)).getFile();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(file);
+      a.download = n;
+      document.body.append(a);
+      a.click();
+      a.remove();
+    }, name),
+  ]);
+  const target = path.join(work, `copie-${++copies}-${name}`);
+  await download.saveAs(target);
+  return target;
+}
+
+/** « Exporter » → « Enregistrer le projet… » (« Enregistrer sous… »): the dialog, then the panel (stood in for), then the file. */
+async function saveProjectAs(page, { shot }) {
   await page.click('button.menu:has-text("Exporter")');
   await page.click('.menu-export [data-export="project"]');
   await page.waitForSelector('[data-testid="enregistrer-projet"]');
   const contents = (await page.locator('[data-testid="contenu-projet"]').textContent().catch(() => '')) ?? '';
+  const label = await page.textContent('[data-testid="preparer-projet"]');
   if (shot) await page.screenshot({ path: path.join(out, shot) });
   const t0 = Date.now();
   await page.click('[data-testid="preparer-projet"]');
-  await page.waitForSelector('[data-testid="fichier-projet"]', { timeout: 300000 });
+  await page.waitForFunction(() => !document.querySelector('[data-testid="enregistrer-projet"]'), null, { timeout: 300000 });
   const prepareMs = Date.now() - t0;
-  const announced = await page.textContent('[data-testid="enregistrer-projet"] .export-resume');
-  const [download] = await Promise.all([page.waitForEvent('download'), page.click('[data-testid="fichier-projet"]')]);
-  const target = path.join(work, download.suggestedFilename());
-  await download.saveAs(target);
-  await page.click('[data-testid="enregistrer-projet"] .fermer');
-  return { target, name: download.suggestedFilename(), announced, contents, prepareMs };
+  const name = await page.evaluate(() => window.__picks[window.__picks.length - 1]);
+  return { name, contents, label, prepareMs, target: await copyOut(page, name) };
+}
+
+/** The CRC and size of each entry of a ZIP, from its central directory. */
+function zipCrcs(buf) {
+  let end = buf.length - 22;
+  while (end >= 0 && buf.readUInt32LE(end) !== 0x06054b50) end--;
+  const count = buf.readUInt16LE(end + 10);
+  let at = buf.readUInt32LE(end + 16);
+  const entries = {};
+  for (let i = 0; i < count; i++) {
+    const n = buf.readUInt16LE(at + 28);
+    entries[buf.toString('utf8', at + 46, at + 46 + n)] = `${buf.readUInt32LE(at + 16)}:${buf.readUInt32LE(at + 24)}`;
+    at += 46 + n + buf.readUInt16LE(at + 30) + buf.readUInt16LE(at + 32);
+  }
+  return entries;
+}
+
+/** The alert about changes not saved is up: its text and its three buttons; answers with `choice`. */
+async function answerAlert(page, choice) {
+  await page.waitForSelector('[data-testid="alerte-projet"]', { timeout: 10000 });
+  const text = (await page.textContent('[data-testid="alerte-texte"]')).trim();
+  await page.click(`[data-testid="alerte-${choice}"]`);
+  await page.waitForFunction(() => !document.querySelector('[data-testid="alerte-projet"]'), null, { timeout: 60000 });
+  return text;
 }
 
 let saved;
@@ -159,7 +239,7 @@ let otherBefore;
 try {
   // ------------------------------------------------------------ 1. a worked-on piece, saved
   {
-    const { context, page, errors } = await browserWith();
+    const { context, page, errors } = await browserWith({ width: 1280, height: 800 }, { savePicker: true, openPicker: true });
     await page.locator('.accueil input[type="file"]').setInputFiles(wav);
     await ready(page);
     // Two separations, two tools, each with its own mix.
@@ -207,19 +287,107 @@ try {
     before = await snapshot(page);
     check('the render applied is kept with the piece', before.doc.keptRender !== null && before.applied === 'applied', before.applied);
     check('the piece is separated in several instruments', Object.keys(before.instruments).length >= 3, Object.keys(before.instruments).length);
-    saved = await saveProject(page, { shot: 'enregistrer-projet.png' });
-    const size = fs.statSync(saved.target).size;
-    check('the file is named after the piece', saved.name === 'Lover Man.fab', saved.name);
-    check('the dialog says what goes in: both separations, the render', saved.contents.includes('HTDemucs') && saved.contents.includes('BS-RoFormer') && saved.contents.includes('rendu'), saved.contents);
+    // « Enregistrer sous… »: the dialog, then the panel (here, a file of the page's private file system).
+    const first = await saveProjectAs(page, { shot: 'enregistrer-projet.png' });
+    const size = fs.statSync(first.target).size;
+    check('the file is named after the piece', first.name === 'Lover Man.fab', first.name);
+    check('the button leads to the save panel', first.label.includes('Choisir où enregistrer'), first.label);
+    check('the dialog says what goes in: both separations, the render', first.contents.includes('HTDemucs') && first.contents.includes('BS-RoFormer') && first.contents.includes('rendu'), first.contents);
     // 60 s of a 44.1 kHz stereo WAV (10.6 MB) as imported, then seven stereo instruments and two rendered tracks
     // of 60 s at 48 kHz: 11.5 MB each in 16 bits, about 60 % of that in FLAC.
     const blocks = 9 * 11_520_000;
-    check('realistic size, the tracks in FLAC: less than in 16 bits', size > wavBytes + 0.3 * blocks && size < wavBytes + blocks, `${(size / 1e6).toFixed(1)} MB (16-bit blocks would be ${(blocks / 1e6).toFixed(0)} MB), prepared in ${(saved.prepareMs / 1000).toFixed(1)} s with the real libFLAC; dialog said « ${saved.announced} »`);
-    const head = fs.readFileSync(saved.target).subarray(0, 59).toString('latin1');
+    check('realistic size, the tracks in FLAC: less than in 16 bits', size > wavBytes + 0.3 * blocks && size < wavBytes + blocks, `${(size / 1e6).toFixed(1)} MB (16-bit blocks would be ${(blocks / 1e6).toFixed(0)} MB), prepared in ${(first.prepareMs / 1000).toFixed(1)} s with the real libFLAC`);
+    const head = fs.readFileSync(first.target).subarray(0, 59).toString('latin1');
     check('it starts with the Fabtice signature', head.slice(30) === 'mimetypeapplication/x-fabtice');
-    const names = zipNames(fs.readFileSync(saved.target));
+    const names = zipNames(fs.readFileSync(first.target));
     check('every separation in its folder, the render apart, all in FLAC', names.filter((n) => n.startsWith('separations/HTDemucs')).length >= 3 && names.filter((n) => n.startsWith('separations/BS-RoFormer')).length >= 2 && names.some((n) => n.startsWith('rendu/')) && names.filter((n) => /^(separations|rendu)\//.test(n)).every((n) => n.endsWith('.flac')), names.join(', '));
+    check('« saved »: the title is the piece\'s, with no mark; nothing is modified', (await page.title()) === 'Lover Man — Fabtice' && !(await page.evaluate(() => window.__fabtice.history.isModified())), await page.title());
+    check('the first save does encode (the real encoder\'s workers started)', (await page.evaluate(() => window.__workers)) > 0);
+    await page.waitForSelector('[data-testid="projet-enregistre"]', { timeout: 5000 });
+    await page.screenshot({ path: path.join(out, 'projet-enregistre.png') });
+
+    // A change: « modified » (a mark in the title); then cmd/Ctrl + S overwrites THE SAME file, fast, without encoding.
+    await page.evaluate(() => window.__fabtice.store.setState((s) => ({ corrections: { ...s.corrections, tuningCents: 22 } })));
+    await page.waitForFunction(() => document.title.startsWith('• '), null, { timeout: 5000 });
+    check('a change: the title shows the mark', (await page.title()) === '• Lover Man — Fabtice', await page.title());
+    const workersBefore = await page.evaluate(() => window.__workers);
+    const sizeBeforeSecond = await page.evaluate(async () => (await (await (await navigator.storage.getDirectory()).getFileHandle('Lover Man.fab')).getFile()).size);
+    const t1 = Date.now();
+    await page.keyboard.press('Control+s');
+    await page.waitForFunction(() => !document.title.startsWith('• ') && document.querySelector('[data-testid="projet-enregistre"]'), null, { timeout: 120000 });
+    const secondMs = Date.now() - t1;
+    const info = await page.evaluate(() => ({ workers: window.__workers, picks: window.__picks.length, modified: window.__fabtice.history.isModified() }));
+    check('« Enregistrer » did not start the encoder again', info.workers === workersBefore, `${info.workers} vs ${workersBefore}`);
+    check('« Enregistrer » did not ask where: the same file', info.picks === 1, String(info.picks));
+    check('« Enregistrer » is measurably faster than the first save', secondMs < Math.max(4000, first.prepareMs / 2), `${(secondMs / 1000).toFixed(1)} s against ${(first.prepareMs / 1000).toFixed(1)} s`);
+    check('saved: the mark is gone, nothing is modified', !info.modified && (await page.title()) === 'Lover Man — Fabtice');
+    before = await snapshot(page);
+    const second = { name: 'Lover Man.fab', target: await copyOut(page, 'Lover Man.fab') };
+    check('the same file was overwritten (it holds the change)', before.doc.corrections.tuningCents === 22 && fs.statSync(second.target).size > 0 && sizeBeforeSecond > 0, `${sizeBeforeSecond} -> ${fs.statSync(second.target).size} bytes`);
+    const crcA = zipCrcs(fs.readFileSync(first.target));
+    const crcB = zipCrcs(fs.readFileSync(second.target));
+    const sound = (n) => n.endsWith('.flac') || n.startsWith('audio/');
+    check('every sound is byte for byte the first file\'s (copied, not encoded again)', Object.keys(crcA).filter(sound).length >= 10 && Object.keys(crcA).filter(sound).every((n) => crcA[n] === crcB[n]), Object.keys(crcA).filter(sound).filter((n) => crcA[n] !== crcB[n]).join(', '));
+    check('only the document differs', crcA['projet.json'] !== crcB['projet.json'] && crcA['fabtice.json'] !== undefined);
+    saved = second;
+
+    // A reload: restored from the autosave, modified; the file handle is not kept, « Enregistrer » asks where.
+    await sleep(1500);
+    await page.reload();
+    await page.waitForFunction(() => window.__fabtice, null, { timeout: 30000 });
+    await ready(page);
+    check('after a reload the piece reads « modified » (restored from the autosave)', await page.evaluate(() => window.__fabtice.history.isModified()));
+    await page.keyboard.press('Control+s');
+    await page.waitForSelector('[data-testid="enregistrer-projet"]', { timeout: 10000 });
+    check('after a reload « Enregistrer » asks where (the dialog of « Enregistrer sous… »)', true);
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(() => !document.querySelector('[data-testid="enregistrer-projet"]'));
+    check('cmd/Ctrl + S never opens the browser\'s « save the page »: no download, no page change', (await page.evaluate(() => window.__fabtice.store.getState().project.id)) === before.doc.project.id);
+    // « Ouvrir un projet » with a handle (Chromium): the piece reads « modified » (restored), the alert asks, and the file
+    // opened becomes the project's file: a change then cmd/Ctrl + S overwrites it, no panel.
+    await page.evaluate(() => {
+      window.__openName = 'Lover Man.fab';
+      window.__fabtice.actions.openNewPiece();
+    });
+    await page.click('[data-testid="ouvrir-projet"]');
+    await answerAlert(page, 'abandonner');
+    // The piece plays once its instruments are in; the other separation and the render follow, and only then does it
+    // read « not modified » and know its file.
+    await page.waitForFunction(() => window.__fabtice.project.getCurrentFile() !== null && !window.__fabtice.history.isModified(), null, { timeout: 120000 });
+    check('a project opened from its file reads « not modified », titled by its name', !(await page.evaluate(() => window.__fabtice.history.isModified())) && (await page.title()) === 'Lover Man — Fabtice', await page.title());
+    check('it knows its file', (await page.evaluate(() => window.__fabtice.project.getCurrentFile()?.name)) === 'Lover Man.fab');
+    const crcBefore = zipCrcs(fs.readFileSync(saved.target));
+    await page.evaluate(() => window.__fabtice.store.setState((s) => ({ corrections: { ...s.corrections, tuningCents: 31 } })));
+    await page.keyboard.press('Control+s');
+    await page.waitForFunction(() => !document.title.startsWith('• ') && document.querySelector('[data-testid="projet-enregistre"]'), null, { timeout: 120000 });
+    check('« Enregistrer » on a file opened with a handle: no panel, the same file', (await page.evaluate(() => window.__picks.length)) === 0);
+    const crcAfter = zipCrcs(fs.readFileSync(await copyOut(page, 'Lover Man.fab')));
+    check('it holds the new document and the same sounds', crcAfter['projet.json'] !== crcBefore['projet.json'] && Object.keys(crcBefore).filter((n) => n.endsWith('.flac')).every((n) => crcBefore[n] === crcAfter[n]));
     check('no page errors (saving)', errors.length === 0, errors.join(' | '));
+    await context.close();
+  }
+
+  // ------------------------------------------------------------ 1b. no file handles (Safari, Firefox): the link of old
+  {
+    const { context, page, errors } = await browserWith({ width: 1280, height: 800 }, { savePicker: false, openPicker: false });
+    await page.locator('.accueil input[type="file"]').setInputFiles(wav);
+    await ready(page);
+    await page.click('button.menu:has-text("Exporter")');
+    await page.click('.menu-export [data-export="project"]');
+    await page.waitForSelector('[data-testid="enregistrer-projet"]');
+    check('without file handles the button says « Préparer le fichier »', (await page.textContent('[data-testid="preparer-projet"]')).includes('Préparer le fichier'));
+    await page.click('[data-testid="preparer-projet"]');
+    await page.waitForSelector('[data-testid="fichier-projet"]', { timeout: 300000 });
+    check('still « modified » until the link is used', await page.evaluate(() => window.__fabtice.history.isModified()));
+    const [download] = await Promise.all([page.waitForEvent('download'), page.click('[data-testid="fichier-projet"]')]);
+    check('the link downloads the project', download.suggestedFilename() === 'Lover Man.fab', download.suggestedFilename());
+    check('the click reads « saved »', !(await page.evaluate(() => window.__fabtice.history.isModified())));
+    await page.click('[data-testid="enregistrer-projet"] .fermer');
+    await page.evaluate(() => window.__fabtice.store.setState((s) => ({ corrections: { ...s.corrections, tuningCents: 9 } })));
+    await page.keyboard.press('Control+s');
+    await page.waitForSelector('[data-testid="enregistrer-projet"]');
+    check('without a file, cmd/Ctrl + S is « Enregistrer sous… »: its dialog', true);
+    check('no page errors (download fallback)', errors.length === 0, errors.join(' | '));
     await context.close();
   }
 
@@ -290,6 +458,9 @@ try {
     await page.evaluate(() => window.__fabtice.actions.openNewPiece());
     const [c2] = await Promise.all([page.waitForEvent('filechooser'), page.click('[data-testid="ouvrir-projet"]')]);
     await c2.setFiles(cut);
+    // The piece reads « modified » (restored from the autosave, then another separation heard): the alert comes first.
+    const alertText = await answerAlert(page, 'abandonner');
+    check('opening another project with changes not saved: the alert, with its exact text', alertText === 'Les modifications du projet en cours n’ont pas été sauvegardées, voulez-vous enregistrer ?', alertText);
     await page.waitForSelector('.import-erreur');
     const damaged = await page.textContent('.import-erreur');
     check('a damaged file: a calm sentence', damaged.includes('incomplet ou abîmé') && damaged.includes('reste tel quel'), damaged);
@@ -297,6 +468,7 @@ try {
     await page.click('button:has-text("Réessayer")');
     const [c3] = await Promise.all([page.waitForEvent('filechooser'), page.click('[data-testid="ouvrir-projet"]')]);
     await c3.setFiles(wav);
+    await answerAlert(page, 'abandonner');
     await page.waitForSelector('.import-erreur');
     const notProject = await page.textContent('.import-erreur');
     check('an audio file chosen as a project: says so, and where to go', notProject.includes('n’est pas un projet Fabtice'), notProject);
@@ -315,6 +487,16 @@ try {
       dt.items.add(new File([blob], name));
       for (const type of ['dragenter', 'dragover', 'drop']) window.dispatchEvent(new DragEvent(type, { dataTransfer: dt, bubbles: true, cancelable: true }));
     }, saved.name);
+    // Still modified (the failed attempts changed nothing): the alert, « Annuler » first (nothing opens), then the drop again.
+    await answerAlert(page, 'annuler');
+    check('« Annuler »: the open piece stays, nothing was opened', (await page.evaluate(() => window.__fabtice.store.getState().separation.result?.modelId)) === 'htdemucs-6s');
+    await page.evaluate(async () => {
+      const blob = await (await fetch('./essai-depot.fab')).arrayBuffer();
+      const dt = new DataTransfer();
+      dt.items.add(new File([blob], 'Lover Man.fab'));
+      for (const type of ['dragenter', 'dragover', 'drop']) window.dispatchEvent(new DragEvent(type, { dataTransfer: dt, bubbles: true, cancelable: true }));
+    });
+    await answerAlert(page, 'abandonner');
     await page.waitForFunction(() => window.__fabtice.store.getState().separation.result?.modelId === 'bs-roformer-sw', null, { timeout: 120000 });
     await ready(page);
     await sleep(1000);
