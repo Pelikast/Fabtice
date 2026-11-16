@@ -13,6 +13,11 @@
 const PHONE = '(max-width: 760px)';
 
 const isPhone = (page) => page.evaluate((q) => window.matchMedia(q).matches, PHONE);
+/** A touch where the page has a touch screen (`hasTouch`), a click elsewhere. */
+async function press(page, locator) {
+  if (await page.evaluate(() => navigator.maxTouchPoints > 0)) await locator.tap();
+  else await locator.click();
+}
 
 /** The entry labelled `label` in the menus open now (the deepest list first on a phone). */
 function entry(page, phone, label) {
@@ -31,8 +36,7 @@ export async function openMenu(page) {
   const phone = await isPhone(page);
   const button = page.locator('button.marque');
   if ((await button.getAttribute('aria-expanded')) !== 'true') {
-    if (phone) await button.tap();
-    else await button.click();
+    await press(page, button);
   }
   await page.locator(phone ? '.feuille-menu' : '#menu-fabtice').waitFor({ timeout: 5000 });
   return phone;
@@ -50,8 +54,7 @@ async function reach(page, labels) {
     const item = entry(page, phone, label);
     await item.waitFor({ timeout: 5000 });
     if ((await item.getAttribute('aria-disabled')) === 'true') throw new Error(`menu: « ${label} » is greyed out`);
-    if (phone) await item.tap();
-    else await item.click();
+    await press(page, item);
   }
   const last = entry(page, phone, labels[labels.length - 1]);
   await last.waitFor({ timeout: 5000 });
@@ -60,10 +63,9 @@ async function reach(page, labels) {
 
 /** Opens the menu, goes down `labels` and chooses the last one (click or touch). */
 export async function menuCommand(page, ...labels) {
-  const { phone, last } = await reach(page, labels);
+  const { last } = await reach(page, labels);
   if ((await last.getAttribute('aria-disabled')) === 'true') throw new Error(`menu: « ${labels.join(' ▸ ')} » is greyed out`);
-  if (phone) await last.tap();
-  else await last.click();
+  await press(page, last);
 }
 
 /** Opens the menu down to the last of `labels` and says what it shows; the menu is closed again. */

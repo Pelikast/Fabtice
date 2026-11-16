@@ -19,7 +19,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const zlib = require('node:zlib');
-const { launchInterface, pieceReady, assertClean } = require('./helpers');
+const { launchInterface, pieceReady, assertClean, menuCommand } = require('./helpers');
 
 /** The files of a ZIP, from its central directory. */
 function readZip(buf) {
@@ -82,11 +82,10 @@ test('the sound exported in the app lands on disk: a WAV mix, a ZIP of tracks, a
       return { total: Math.round(s.project.duration * 48000), tracks: s.tracks.map((t) => t.name) };
     });
 
-    /** « Exporter » → « Le son… », the format, « Exporter », then the click on the link: returns the finished download. */
+    /** Menu Fabtice → Exporter ▸ Audio…, the format, « Exporter », then the click on the link: returns the finished download. */
     async function exportFile({ what, format }) {
       const before = (await app.evaluate(() => globalThis.__downloads.length));
-      await page.click('button:has-text("Exporter")');
-      await page.click('.menu-export [data-export="audio"]');
+      await menuCommand(page, 'Exporter', 'Audio…');
       await page.waitForSelector('[data-testid="export-son"]');
       await page.click(`.choix-export .choix:has-text("${what === 'mix' ? 'Le mélange' : 'Les pistes'}")`);
       await page.click(`.formats-export button[data-format="${format}"]`);

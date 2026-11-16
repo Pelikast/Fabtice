@@ -15,7 +15,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { launchInterface, pieceReady, assertClean } = require('./helpers');
+const { launchInterface, pieceReady, assertClean, menuCommand } = require('./helpers');
 
 // A reader of the link written here from the format (app/src/export/IREAL-FORMAT.md), not the app's own code.
 function unhussle(text) {
@@ -95,15 +95,14 @@ test('the file downloads inside the app and decodes to the chart; « Ouvrir dans
       });
     }, saveDir);
 
-    // The menu: the file entry and, in the app only, « Ouvrir dans iReal Pro ».
-    await page.click('button:has-text("Exporter")');
-    await page.waitForSelector('.menu-export a[data-export="ireal"]', { timeout: 10000 });
-    const items = await page.$$eval('.menu-export [role="menuitem"]', (els) => els.map((e) => `${e.dataset.export}:${e.tagName}:${e.getAttribute('download') || ''}`));
-    assert.deepEqual(items, ['project:BUTTON:', 'ireal:A:Blues du dimanche.html', 'ireal-open:BUTTON:', 'print:BUTTON:', 'audio:BUTTON:']);
+    // The menu Fabtice: Exporter ▸ iReal Pro ▸ the file entry and, in the app only, « Ouvrir dans iReal Pro ».
+    await menuCommand(page, 'Exporter', 'iReal Pro');
+    const items = await page.$$eval('.sous-menu .sous-menu [role="menuitem"]', (els) => els.map((e) => `${e.dataset.commande}:${e.getAttribute('aria-disabled') || ''}`));
+    assert.deepEqual(items, ['irealFile:', 'irealOpen:']);
 
     // The download: no navigation, no new window, and the file lands.
     const url0 = page.url();
-    await page.click('.menu-export a[data-export="ireal"]');
+    await menuCommand(page, 'Fichier iReal Pro…');
     for (let i = 0; i < 100 && (await app.evaluate(() => globalThis.__downloads.length)) === 0; i++) await page.waitForTimeout(100);
     const downloads = await app.evaluate(() => globalThis.__downloads);
     assert.equal(downloads.length, 1, 'one download');
@@ -132,8 +131,7 @@ test('the file downloads inside the app and decodes to the chart; « Ouvrir dans
       for (let i = 0; i < 5; i++) window.__fabtice.actions.stepSemitones(1);
     });
     await page.waitForTimeout(300);
-    await page.click('button:has-text("Exporter")');
-    await page.click('.menu-export a[data-export="ireal"]');
+    await menuCommand(page, 'Exporter', 'iReal Pro', 'Fichier iReal Pro…');
     for (let i = 0; i < 100 && (await app.evaluate(() => globalThis.__downloads.length)) < 2; i++) await page.waitForTimeout(100);
     const second = (await app.evaluate(() => globalThis.__downloads))[1];
     assert.equal(second.state, 'completed');
@@ -145,11 +143,10 @@ test('the file downloads inside the app and decodes to the chart; « Ouvrir dans
     // « Ouvrir dans iReal Pro »: the system gets that link and nothing else.
     await page.evaluate(() => window.__fabtice.actions.resetTransposition());
     await page.waitForTimeout(300);
-    await page.click('button:has-text("Exporter")');
-    await page.click('.menu-export [data-export="ireal-open"]');
+    await menuCommand(page, 'Exporter', 'iReal Pro', 'Ouvrir dans iReal Pro');
     for (let i = 0; i < 50 && (await app.evaluate(() => globalThis.__opened.length)) === 0; i++) await page.waitForTimeout(100);
     assert.deepEqual(await app.evaluate(() => globalThis.__opened), [links[0]], 'openExternal got the chart link, once');
-    assert.equal(await page.locator('.menu-export').count(), 0, 'the menu closed');
+    assert.equal(await page.locator('#menu-fabtice').count(), 0, 'the menu closed');
 
     // The bridge refuses everything else, and never reaches the system for it.
     const refused = await page.evaluate(async () => {
@@ -163,15 +160,18 @@ test('the file downloads inside the app and decodes to the chart; « Ouvrir dans
     assert.deepEqual(await page.evaluate(() => window.fabtice.openInIRealPro(`irealb://${'a'.repeat(199991)}`)), { ok: true });
     assert.equal((await app.evaluate(() => globalThis.__opened.length)), 2, 'a link of exactly the bound passes');
 
-    // iReal Pro missing: the system refuses, the interface says so and keeps the menu open on the file entry.
+    // iReal Pro missing: the system refuses, the menu opens again on that entry, with the sentence under it,
+    // the file entry next to it.
     await app.evaluate(() => {
       globalThis.__openFails = true;
     });
-    await page.click('button:has-text("Exporter")');
-    await page.click('.menu-export [data-export="ireal-open"]');
-    await page.locator('.menu-export .option-erreur').waitFor({ timeout: 10000 });
-    assert.match(await page.locator('.menu-export .option-erreur').innerText(), /iReal Pro n’a pas pu être ouvert/);
-    assert.equal(await page.locator('.menu-export a[data-export="ireal"]').count(), 1, 'the file entry is still offered');
+    await menuCommand(page, 'Exporter', 'iReal Pro', 'Ouvrir dans iReal Pro');
+    await page.locator('.menu-fabtice .menu-erreur').waitFor({ timeout: 10000 });
+    assert.match(await page.locator('.menu-fabtice .menu-erreur').innerText(), /iReal Pro n’a pas pu être ouvert/);
+    assert.equal(await page.locator('.menu-fabtice [data-commande="irealFile"]').count(), 1, 'the file entry is still offered');
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('Escape');
     assert.equal((await app.evaluate(() => globalThis.__opened.length)), 2);
 
     // The protections that were there stay.

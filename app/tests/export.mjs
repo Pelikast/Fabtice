@@ -1,7 +1,7 @@
 // Browser checks of the export to iReal Pro in Chromium, on the built interface
 // served from web/ with the isolation headers:
 //   npm run build && npm run test:export
-// The « Exporter » menu, the file the browser downloads, and the link inside it
+// « Exporter ▸ iReal Pro » in the menu Fabtice, the file the browser downloads, and the link inside it
 // read back (by a reader written here, from the format described in
 // src/export/IREAL-FORMAT.md) and compared with the chords the chart view
 // shows, with a transposition set. Playwright and Chromium are expected
@@ -11,6 +11,7 @@
 import { createRequire } from 'node:module';
 import fs from 'node:fs';
 import { startServer } from './serve.mjs';
+import { closeMenu, menuCommand, menuEntry, openMenu } from './lib/menu.mjs';
 
 const require = createRequire(process.env.PLAYWRIGHT_MODULE_DIR || '/opt/node-tools/');
 const { chromium } = require('playwright');
@@ -108,10 +109,7 @@ async function open(query, viewport = { width: 1280, height: 800 }) {
 
 /** Downloads through the menu and returns the file's text and name. */
 async function download(page) {
-  await page.click('button:has-text("Exporter")');
-  const entry = page.locator('.menu-export [data-export="ireal"]');
-  await entry.waitFor({ state: 'visible' });
-  const [dl] = await Promise.all([page.waitForEvent('download'), entry.click()]);
+  const [dl] = await Promise.all([page.waitForEvent('download'), menuCommand(page, 'Exporter', 'iReal Pro', 'Fichier iReal Pro…')]);
   const file = await dl.path();
   return { name: dl.suggestedFilename(), html: fs.readFileSync(file, 'utf8') };
 }
@@ -139,13 +137,15 @@ try {
   // ------------------------------------------------------------ the demo piece: menu, file, link
   {
     const { page, context, errors } = await open('?demo');
-    await page.click('button:has-text("Exporter")');
-    const items = await page.$$eval('.menu-export [role="menuitem"]', (els) => els.map((e) => ({ key: e.dataset.export, tag: e.tagName, href: e.getAttribute('href'), download: e.getAttribute('download'), disabled: e.disabled === true, text: e.innerText.trim() })));
-    const ireal = items.find((i) => i.key === 'ireal');
-    check('menu: « Grille pour iReal Pro » is a normal link to a file named after the piece', ireal && ireal.tag === 'A' && /^blob:/.test(ireal.href) && ireal.download === 'Blues du dimanche.html' && ireal.text === 'Grille pour iReal Pro', JSON.stringify(ireal));
-    check('menu: in a browser there is no « Ouvrir dans iReal Pro » (the Mac app adds it)', !items.some((i) => i.key === 'ireal-open'));
-    check('menu: the project (lot 4), then print and audio entries are still there', items.map((i) => i.key).join(',') === 'project,ireal,print,audio');
-    await page.keyboard.press('Escape');
+    // The menu Fabtice (C6): Exporter ▸ iReal Pro ▸ Fichier iReal Pro… (and, in the Mac app only, Ouvrir dans iReal Pro).
+    await openMenu(page);
+    await page.click('[data-sous-menu="export"]');
+    await page.click('[data-sous-menu="ireal"]');
+    const items = await page.$$eval('.sous-menu .sous-menu [role="menuitem"]', (els) => els.map((e) => ({ key: e.dataset.commande, disabled: e.getAttribute('aria-disabled') === 'true', text: e.innerText.trim() })));
+    check('menu: « Fichier iReal Pro… », available', items.length >= 1 && items[0].key === 'irealFile' && !items[0].disabled && items[0].text === 'Fichier iReal Pro…', JSON.stringify(items));
+    check('menu: in a browser there is no « Ouvrir dans iReal Pro » (the Mac app adds it)', !items.some((i) => i.key === 'irealOpen'));
+    check('menu: the sound and PDF entries are still there', (await page.locator('.sous-menu [data-commande="exportAudio"]').count()) === 1 && (await page.locator('.sous-menu [data-commande="pdf"]').count()) === 1);
+    await closeMenu(page);
 
     // The file.
     const { name, html } = await download(page);
@@ -155,7 +155,7 @@ try {
     check('file: the link is plain ASCII, no spaces', /^irealb:\/\/[\x21-\x7e]+$/.test(link), `${link.length} characters`);
     let song = readLink(link);
     check('link: title, unknown composer, style, key of the piece, tempo', song.title === 'Blues du dimanche' && song.composer === 'Unknown' && song.style === 'Medium Swing' && song.key === 'Ab' && song.feel === 'Jazz-Medium Swing' && song.bpm === 110, JSON.stringify({ ...song, bars: undefined }));
-    check('link: the menu closed after the click', (await page.locator('.menu-export').count()) === 0);
+    check('link: the menu closed after the click', (await page.locator('#menu-fabtice').count()) === 0);
 
     // Compared with the chart view.
     await page.evaluate(() => window.__fabtice.actions.setViewMode('grille'));
@@ -223,9 +223,8 @@ try {
   // ------------------------------------------------------------ nothing to export without chords
   {
     const { page, context, errors } = await open('?demo&analyse=aucune');
-    await page.click('button:has-text("Exporter")');
-    const entry = page.locator('.menu-export [data-export="ireal"]');
-    check('no chords yet: the entry is inactive and says why', (await entry.isDisabled()) && (await entry.innerText()).includes('il faut d’abord une grille'), await entry.innerText());
+    const entry = await menuEntry(page, 'Exporter', 'iReal Pro');
+    check('no chords yet: « iReal Pro » is greyed out', !entry.enabled, JSON.stringify(entry));
     check('no page errors (no chords)', errors.length === 0, errors.join(' | '));
     await context.close();
   }
@@ -233,12 +232,13 @@ try {
   // ------------------------------------------------------------ the entry follows an analysis that ends
   {
     const { page, context, errors } = await open('?demo&analyse=lente');
-    await page.click('button:has-text("Exporter")');
-    const entry = page.locator('.menu-export [data-export="ireal"]');
-    check('analysis running: the entry waits', await entry.isDisabled());
-    await page.waitForFunction(() => document.querySelector('.menu-export a[data-export="ireal"]'), null, { timeout: 30000 });
-    check('analysis done: the menu offers the file by itself', (await page.locator('.menu-export a[data-export="ireal"]').count()) === 1);
-    await page.keyboard.press('Escape');
+    await openMenu(page);
+    await page.click('[data-sous-menu="export"]');
+    const entry = page.locator('[data-sous-menu="ireal"]');
+    check('analysis running: the entry waits', (await entry.getAttribute('aria-disabled')) === 'true');
+    await page.waitForFunction(() => document.querySelector('[data-sous-menu="ireal"]') && !document.querySelector('[data-sous-menu="ireal"]').hasAttribute('aria-disabled'), null, { timeout: 30000 });
+    check('analysis done: the open menu offers it by itself', (await entry.getAttribute('aria-disabled')) === null);
+    await closeMenu(page);
     const { html } = await download(page);
     check('the file of the analysed piece decodes', readLink(linkOf(html)).bars.length > 20);
     check('no page errors (analysis)', errors.length === 0, errors.join(' | '));
