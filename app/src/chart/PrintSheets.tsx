@@ -21,16 +21,21 @@ import type { ChartBar, ChartLine } from './layout';
 import { headerInfo, headerTitle, type PrintChart } from './printChart';
 import { printBarGeometry, sheetNumberShown, type PrintHeader, type PrintLayout } from './printLayout';
 
-/** The unit the sheets are drawn in: sheet size, margins and so on, as CSS variables in mm. */
+/**
+ * What the style sheet draws from, as CSS variables: the sheet and its margins in mm, and everything that depends on
+ * the scale already multiplied by it (the width of the content, a line, the unit of the drawing: a 206th of a bar),
+ * and the scale itself (`--e`) for the lengths the style sheet writes in mm and pt. The content is never scaled by a
+ * transform: the browser cuts a page by layout height, so what is drawn must have the height it prints at.
+ */
 function sheetStyle(layout: PrintLayout): CSSProperties {
   return {
     '--pl': `${layout.sheet.w}mm`,
     '--ph': `${layout.sheet.h}mm`,
     '--marge': `${layout.margin}mm`,
-    '--larg': `${layout.content.w}mm`,
-    '--u': `${layout.unitMm}mm`,
-    '--echelle': layout.scale,
-    '--ligne': `${layout.lineMm}mm`,
+    '--larg': `${layout.content.w * layout.scale}mm`,
+    '--u': `${layout.unitMm * layout.scale}mm`,
+    '--e': layout.scale,
+    '--ligne': `${layout.lineMm * layout.scale}mm`,
   } as CSSProperties;
 }
 
@@ -183,6 +188,9 @@ export function fitPrintSheets(root: HTMLElement, layout: Pick<PrintLayout, 'lin
   const title = root.querySelector<HTMLElement>('.pp-titre');
   if (title) {
     title.style.removeProperty('font-size');
-    if (title.scrollWidth > title.clientWidth + 1) title.style.fontSize = `${Math.max(14, Math.floor((26 * title.clientWidth) / title.scrollWidth))}pt`;
+    if (title.scrollWidth > title.clientWidth + 1) {
+      const natural = px(getComputedStyle(title).fontSize);
+      title.style.fontSize = `${Math.max(natural * 0.55, (natural * title.clientWidth) / title.scrollWidth - 0.5)}px`;
+    }
   }
 }

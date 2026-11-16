@@ -164,7 +164,12 @@ function PrintBox() {
     }
   };
 
+  // Space chooses and ticks in this window; it must not reach the app's own Space (play and pause, `ui/useGlobalKeys.ts`).
+  const keepSpace = (e: KeyboardEvent) => {
+    if (e.key === ' ') e.stopPropagation();
+  };
   const onKeyDown = (e: KeyboardEvent) => {
+    keepSpace(e);
     if (e.key === 'Escape' && !working) {
       e.stopPropagation();
       closePrint();
@@ -199,6 +204,7 @@ function PrintBox() {
         if (e.target === e.currentTarget && !working) closePrint();
       }}
       onKeyDown={onKeyDown}
+      onKeyUp={keepSpace}
     >
       <div className="fenetre-impression" ref={box} data-vide={printable ? undefined : ''}>
         <div className="imp-entete pas-imprime">

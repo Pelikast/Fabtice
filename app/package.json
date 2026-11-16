@@ -20,6 +20,7 @@
     "test:timeline": "node tests/timeline.mjs",
     "test:import": "node tests/import.mjs",
     "test:chart": "node tests/chart.mjs",
+    "test:print": "node tests/print.mjs",
     "test:export": "node tests/export.mjs",
     "test:export-audio": "node tests/export-audio.mjs",
     "test:export-memory": "node tests/export-memory.mjs",

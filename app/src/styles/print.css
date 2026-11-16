@@ -233,35 +233,35 @@
   -webkit-user-select: none;
   user-select: none;
 }
-/* The content is laid out at its natural size and scaled as a whole around the middle of the sheet. */
+/* The content is the size it is on paper (--e is the scale chosen: every length below is multiplied by it, nothing is
+   scaled by a transform: the browser fragments by layout height, so a box scaled afterwards would be cut in two at
+   the page). It is centred on the sheet: --larg is already the width at that scale. */
 .pp-contenu {
   position: absolute;
   top: var(--marge);
-  left: var(--marge);
+  left: calc(var(--marge) + (var(--pl) - 2 * var(--marge) - var(--larg)) / 2);
   width: var(--larg);
-  transform: scale(var(--echelle, 1));
-  transform-origin: 50% 0;
 }
-.pp-tete { padding-bottom: 5mm; }
+.pp-tete { padding-bottom: calc(5mm * var(--e)); }
 .pp-titre {
-  height: 11mm;
+  height: calc(11mm * var(--e));
   margin: 0;
   overflow: hidden;
   font-family: var(--titre);
-  font-size: 26pt;
+  font-size: calc(26pt * var(--e));
   font-weight: 500;
   font-variation-settings: "opsz" 72, "SOFT" 60;
   letter-spacing: -0.01em;
-  line-height: 11mm;
+  line-height: calc(11mm * var(--e));
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .pp-infos {
-  height: 6mm;
+  height: calc(6mm * var(--e));
   margin: 0;
   overflow: hidden;
-  font-size: 11pt;
-  line-height: 6mm;
+  font-size: calc(11pt * var(--e));
+  line-height: calc(6mm * var(--e));
   white-space: nowrap;
   text-overflow: ellipsis;
 }
@@ -278,21 +278,21 @@
 }
 
 .pp-ligne { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); height: var(--ligne); }
-.pp-ligne > .pp-case:last-child { border-right: 0.4mm solid var(--encre); }
+.pp-ligne > .pp-case:last-child { border-right: calc(0.4mm * var(--e)) solid var(--encre); }
 .pp-case {
   /* --pg: from the bar line to beat 1; --pd: kept at the other end; --haut: taken by the number and the section
      letter; --corps: the size of the chords (the whole chart goes down the steps of --r together). */
   --pg: calc(16 * var(--u));
   --pd: calc(8 * var(--u));
   --haut: calc(14 * var(--u));
-  --corps: min(calc(30 * var(--u)), 8.5mm);
+  --corps: min(calc(30 * var(--u)), calc(8.5mm * var(--e)));
   --r: 1;
   --rangs: 1;
   position: relative;
   height: 100%;
   overflow: hidden;
-  border-left: 0.4mm solid var(--encre);
-  border-bottom: 0.25mm solid #bdb2a3;
+  border-left: calc(0.4mm * var(--e)) solid var(--encre);
+  border-bottom: calc(0.25mm * var(--e)) solid #bdb2a3;
   color: var(--encre);
   font-family: var(--titre);
   font-size: calc(var(--corps) * var(--r));
@@ -307,28 +307,28 @@
 .pp-case[data-taille="4"] { --r: 0.38; }
 /* Crowded bars: two rows, one up and one down by turns. */
 .pp-case[data-rangs="2"] { --rangs: 2; }
-.pp-case.pp-double { border-left: 1.6mm double var(--encre); }
+.pp-case.pp-double { border-left: calc(1.6mm * var(--e)) double var(--encre); }
 .pp-case.pp-signee { --pg: calc(30 * var(--u)); }
 .pp-numero {
   position: absolute;
-  top: 1.4mm;
-  right: 1.8mm;
+  top: calc(1.4mm * var(--e));
+  right: calc(1.8mm * var(--e));
   font-family: var(--texte);
-  font-size: 8pt;
+  font-size: calc(8pt * var(--e));
   font-weight: 600;
   line-height: 1;
   color: var(--encre-douce);
 }
 .pp-section {
   position: absolute;
-  top: 1.4mm;
-  left: 1.8mm;
-  min-width: 5mm;
-  padding: 0 1.2mm;
-  border: 0.35mm solid var(--encre);
-  font-size: 10pt;
+  top: calc(1.4mm * var(--e));
+  left: calc(1.8mm * var(--e));
+  min-width: calc(5mm * var(--e));
+  padding: 0 calc(1.2mm * var(--e));
+  border: calc(0.35mm * var(--e)) solid var(--encre);
+  font-size: calc(10pt * var(--e));
   font-weight: 620;
-  line-height: 13pt;
+  line-height: calc(13pt * var(--e));
   text-align: center;
 }
 .pp-signature {
@@ -339,7 +339,7 @@
   flex-direction: column;
   align-items: center;
   transform: translateY(-50%);
-  font-size: 9pt;
+  font-size: calc(9pt * var(--e));
   font-weight: 640;
   line-height: 0.95;
 }
