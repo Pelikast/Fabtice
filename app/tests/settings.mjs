@@ -332,7 +332,7 @@ try {
     await page.check('[data-testid="formants"]');
     check('advanced: « Conserver le timbre » acts on the store, kept on the device', (await state(page)).settings.advanced.formants === true && (await saved(page)).formants === true);
     await page.waitForSelector('[data-testid="place-appareil"]');
-    check('advanced: the room taken on the device, the entry of the collections, the audio journal (web app)', (await page.locator('[data-testid="standards-gerer"]').count()) === 1 && (await page.locator('[data-testid="journal-audio"]').count()) === 1);
+    check('advanced: the room taken on the device, the entry of the collections, the audio journal (web app)', (await page.locator('[data-testid="standards-section"]').count()) === 1 && (await page.locator('[data-testid="journal-audio"]').count()) === 1);
     // Reset: a confirmation first; « Annuler » changes nothing.
     await page.click('[data-testid="reinitialiser-demande"]');
     check('advanced: « Rétablir les réglages d\'origine » asks first', (await page.locator('[data-testid="reinitialiser"]').innerText()).includes('Remettre tous les réglages de cet appareil à leur valeur d’origine ?'));

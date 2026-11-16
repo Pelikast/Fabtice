@@ -45,17 +45,19 @@ export function CheckRow({
   label,
   note,
   testId,
+  disabled,
 }: {
   checked: boolean;
   onChange: (checked: boolean) => void;
   label: string;
   note?: string;
   testId?: string;
+  disabled?: boolean;
 }) {
   return (
     <label className="option option-colonne">
       <span className="option-ligne">
-        <input type="checkbox" checked={checked} data-testid={testId} onChange={(e) => onChange(e.target.checked)} />
+        <input type="checkbox" checked={checked} disabled={disabled} data-testid={testId} onChange={(e) => onChange(e.target.checked)} />
         <span>{label}</span>
       </span>
       {note && <small>{note}</small>}

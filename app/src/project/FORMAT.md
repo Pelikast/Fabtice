@@ -2,7 +2,7 @@
 
 Un projet Fabtice tient dans **un seul fichier** que l'on peut garder, copier,
 envoyer et rouvrir : « Exporter » → « Enregistrer le projet… », puis « Ouvrir
-un projet Fabtice » dans la fenêtre « Nouveau morceau », un fichier déposé sur
+un projet Fabtice » dans la fenêtre « Nouveau projet », un fichier déposé sur
 la fenêtre, ou (app Mac) un double-clic dans le Finder, « Ouvrir avec », les
 projets récents.
 

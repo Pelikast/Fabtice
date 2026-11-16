@@ -116,15 +116,16 @@ try {
       {
         const { page, errors } = await open('?debug&moteur=factice', vp);
         await page.waitForSelector('.voile.ouverte');
-        const chips = await page.locator('.stems-choix .stem').evaluateAll((els) => els.map((e) => [e.textContent, e.getAttribute('aria-pressed')]));
-        check(`${tag}: new-piece dialog lists the instruments, none ticked`, chips.length >= 4 && chips.every(([, p]) => p === 'false'), JSON.stringify(chips));
+        check(`${tag}: « Séparer les instruments » is unticked, with no instrument listed`, !(await page.locator('[data-testid="separer-case"]').isChecked()) && (await page.locator('.stems-choix .stem').count()) === 0);
         check(`${tag}: no estimate before a tick`, (await page.locator('[data-testid="estimation-import"]').count()) === 0);
-        await page.click('.stems-choix .stem[data-stem="vocals"]');
-        await page.click('.stems-choix .stem[data-stem="bass"]');
+        await page.click('[data-testid="separer-case"]');
+        const chips = await page.locator('.stems-choix .stem').evaluateAll((els) => els.map((e) => [e.textContent, e.getAttribute('aria-pressed')]));
+        check(`${tag}: ticked, the instruments are listed, all selected`, chips.length >= 4 && chips.every(([, p]) => p === 'true'), JSON.stringify(chips));
         const estimate = await page.locator('[data-testid="estimation-import"]').innerText();
         check(`${tag}: ticking shows an honest estimate`, /environ .+ pour un morceau de quatre minutes/.test(estimate), estimate);
-        await page.click('.pied-separation .lien');
-        check(`${tag}: « Aller plus loin » promises no tool the list does not have`, (await page.locator('[data-testid="aller-plus-loin"]').innerText()).includes('Aucun outil de séparation détaillée'));
+        await page.click('.stems-choix .stem[data-stem="vocals"]');
+        check(`${tag}: a click unselects an instrument`, (await page.locator('.stems-choix .stem[data-stem="vocals"]').getAttribute('aria-pressed')) === 'false' && (await page.locator('.stems-choix .stem[aria-pressed="true"]').count()) === chips.length - 1);
+        check(`${tag}: « Aller plus loin » is gone`, (await page.locator('[data-testid="aller-plus-loin"]').count()) === 0 && !(await page.locator('.accueil').innerText()).includes('Aller plus loin'));
         check(`${tag}: the dialog fits the window`, (await fitsAboveTransport(page, '.accueil')).ok, (await fitsAboveTransport(page, '.accueil')).why);
         await page.screenshot({ path: path.join(out, `dialogue-instruments-${tag}.png`) });
         check(`${tag}: no page errors (dialog)`, errors.length === 0, errors.join(' | '));
@@ -237,7 +238,9 @@ try {
     {
       const { page, errors } = await open('?debug&moteur=factice&separation=instant');
       await page.waitForSelector('.voile.ouverte');
-      await page.click('.stems-choix .stem[data-stem="vocals"]');
+      await page.click('[data-testid="separer-case"]');
+      // Every instrument is selected: only « Voix » is kept.
+      for (const stem of await page.locator('.stems-choix .stem').evaluateAll((els) => els.map((e) => e.dataset.stem))) if (stem !== 'vocals') await page.click(`.stems-choix .stem[data-stem="${stem}"]`);
       await page.locator('.accueil input[type="file"]').setInputFiles(path.join(path.dirname(new URL(import.meta.url).pathname), 'fixtures', 'tone.wav'));
       await page.waitForFunction(() => window.__fabtice.store.getState().separation.result, null, { timeout: 30000 });
       const s = await state(page);

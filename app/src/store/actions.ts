@@ -413,16 +413,20 @@ export function closeSettings(): void {
   if (get().ui.settings.open) set((s) => ({ ui: { ...s.ui, settings: { ...s.ui.settings, open: false } } }));
 }
 
-/** Opens the new-piece dialog; `from` says which entry of « Nouveau projet ▸ » asked (null: the whole opening screen). */
+/**
+ * Opens the new-project window; `from` says which entry of « Nouveau projet ▸ » asked (null: the whole opening
+ * screen). « Séparer les instruments » is unticked each time it opens (no instrument selected).
+ */
 export function openNewPiece(from: NewPieceFrom = null): void {
-  set((s) => ({ ui: { ...s.ui, newPieceOpen: true, newPieceFrom: from, panel: 'none' } }));
+  set((s) => ({ ui: { ...s.ui, newPieceOpen: true, newPieceFrom: from, panel: 'none', importStems: [] } }));
 }
 
 /** Closes the dialog, unless there is nothing behind it (no project) or an import is running. */
 export function closeNewPiece(): void {
   const s = get();
   if (!s.project || s.ui.import.kind === 'busy') return;
-  set({ ui: { ...s.ui, newPieceOpen: false, import: { kind: 'idle' } } });
+  // Closed without importing: the instruments ticked there are not for the piece that stays open.
+  set({ ui: { ...s.ui, newPieceOpen: false, import: { kind: 'idle' }, importStems: [] } });
 }
 
 export function setImportStatus(status: ImportStatus): void {

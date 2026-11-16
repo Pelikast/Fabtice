@@ -1,6 +1,6 @@
 'use strict';
 
-// The offer to download the chord charts of standards, inside the Mac app, end to end: the main process
+// The message that offers the chord charts of standards (C9) and the section of Réglages → Avancé, inside the Mac app, end to end: the main process
 // does the download (a page cannot read another site) from a fixed list of hosts. A local fake server
 // stands in for the real hosts through the test seam FABTICE_STANDARDS_TEST_ORIGIN (only active with
 // FABTICE_HOLD_WINDOW, i.e. in these tests): the app asks for `https://<allowed host><path>` and the
@@ -8,7 +8,7 @@
 //
 // What it covers: the bridge call (allowed host, a refused host, plain http, a redirect to an allowed
 // host followed, a redirect to another host refused, no cookie and a generic user agent), then the whole
-// offer in the interface: official page, a forum thread with an attached file, a login page that is not
+// message in the interface (« Oui (recommandé) » downloads every collection of the list): official page, a forum thread with an attached file, a login page that is not
 // a playlist, a refused redirect that falls through to the next page, the result, the library found
 // again after a reload.
 //
@@ -67,7 +67,7 @@ test('the Mac app downloads the chart collections itself: bridge rules, then the
   });
   const userData = fs.mkdtempSync(path.join(os.tmpdir(), 'fabtice-e2e-standards-'));
   const { app, page, problems } = await launchInterface(
-    { FABTICE_STANDARDS_TEST_ORIGIN: net.origin, FABTICE_E2E_QUERY: '?debug&outils=distant' },
+    { FABTICE_STANDARDS_TEST_ORIGIN: net.origin, FABTICE_E2E_QUERY: '?debug&outils=distant&grilles=message' },
     userData,
   );
   try {
@@ -98,32 +98,19 @@ test('the Mac app downloads the chart collections itself: bridge rules, then the
     assert.deepEqual(await call('https://www.irealpro.com/nothing-here'), { ok: false, error: 'http', status: 404 });
     assert.ok(!net.seen.some((s) => /evil|steal/.test(s.url)), 'nothing was requested from a host outside the list');
 
-    // ---------------------------------------------------------------- the offer in the interface
-    await page.waitForSelector('[data-testid="standards-offre"]', { timeout: 30000 });
-    // The remote list was read through the bridge (the sizes are the shrunk ones of the fake list).
-    // The card is compact; the detail (list, hosts) is in the window « Choisir les recueils… ».
-    assert.equal(await page.locator('[data-testid="standards-offre"] input[type="checkbox"]').count(), 0, 'no checkbox in the card');
-    await page.getByRole('button', { name: 'Choisir les recueils…' }).click();
-    await page.waitForSelector('[data-testid="standards-fenetre"]');
-    await page.waitForFunction(() => document.querySelector('[data-testid="standards-fenetre"]')?.textContent?.includes('20 grilles'), null, { timeout: 15000 });
-    const rows = await page.locator('[data-testid="standards-fenetre"] .recueil').evaluateAll((els) => els.map((e) => e.innerText.replace(/\s+/g, ' ').trim()));
-    assert.equal(rows.length, 5);
-    assert.ok(rows[0].startsWith('Jazz 1460') && rows[0].includes('depuis irealpro.com'), rows[0]);
-    assert.ok(rows.every((r) => !r.includes('à importer depuis un fichier')), 'in the Mac app every collection can be downloaded directly');
-    const ticked = await page.locator('[data-testid="standards-fenetre"] input[type="checkbox"]').evaluateAll((els) => els.map((e) => e.checked));
-    assert.deepEqual(ticked, [true, true, true, true, true]);
-    assert.ok(!(await page.locator('[data-testid="standards-fenetre"]').innerText()).includes('Dans la version web'), 'the web note is not shown in the app');
-    await page.keyboard.press('Escape');
-    await page.waitForFunction(() => !document.querySelector('[data-testid="standards-fenetre"]'));
-
-    await page.locator('[data-testid="standards-telecharger"]').click();
-    await page.waitForSelector('[data-testid="standards-resultat"]', { timeout: 30000 });
-    const result = (await page.locator('[data-testid="standards-resultat"]').innerText()).replace(/\s+/g, ' ');
-    // Jazz 21 + Latin 20 + Blues 20 (official page) + Brazilian 20 (attached file) = 81; Dixieland: a login page.
-    assert.ok(result.includes('81 grilles gardées sur cet appareil.'), result);
-    assert.ok(result.includes('Réglages → Avancé → Grilles des standards'), result);
-    assert.ok(!result.includes('Dixieland'), 'one short line, the detail is in the settings');
-    assert.ok(!result.includes('Brésil 220 :'), 'Brazilian was found through its forum attachment');
+    // ---------------------------------------------------------------- the message in the interface
+    await page.waitForSelector('[data-testid="grilles-message"][data-etape="ask"]', { timeout: 30000 });
+    assert.equal(
+      (await page.locator('[data-testid="grilles-texte"]').innerText()).replace(/\s+/g, ' '),
+      'Voulez-vous importer automatiquement les grilles des standards de iReal Pro ? Cela permet d’améliorer la détection des accords.',
+    );
+    assert.equal(await page.locator('[data-testid="grilles-ne-plus"]').isChecked(), false);
+    await page.locator('[data-testid="grilles-oui"]').click();
+    await page.waitForSelector('[data-testid="grilles-message"][data-etape="done"]', { timeout: 60000 });
+    const result = (await page.locator('[data-testid="grilles-bilan"]').innerText()).replace(/\s+/g, ' ');
+    // Jazz 21 + Latin 20 + Blues 20 (official page) + Brazilian 20 (attached file) = 81 in 4 collections of the 15 of the list;
+    // Dixieland: a login page, and the others are on no page of the fake internet: they can be tried again in the settings.
+    assert.equal(result, '4 recueils sur 15 téléchargés : 81 grilles gardées sur cet appareil. Les autres se retentent dans Réglages → Avancé.', result);
 
     // The shared official page was fetched once for the three collections it holds.
     const officialHits = net.seen.filter((s) => s.url === OFFICIAL).length;
@@ -132,13 +119,28 @@ test('the Mac app downloads the chart collections itself: bridge rules, then the
     assert.ok(net.seen.some((s) => s.url === '/forums.irealpro.com/attachments/brazilian-220-html.77/'));
 
     await page.getByRole('button', { name: 'Terminer' }).click();
-    await page.waitForFunction(() => !document.querySelector('[data-testid="standards-offre"]'));
+    await page.waitForFunction(() => !document.querySelector('[data-testid="grilles-message"]'));
+
+    // ---------------------------------------------------------------- the section of Réglages → Avancé, in the Mac app
+    await page.evaluate(() => window.__fabtice.actions.openSettings('advanced'));
+    await page.waitForSelector('[data-testid="standards-section"]');
+    const rows = await page.locator('[data-testid="standards-recueils"] .recueil').evaluateAll((els) => els.map((e) => e.innerText.replace(/\s+/g, ' ').trim()));
+    assert.equal(rows.length, 15);
+    assert.ok(rows[0].startsWith('Jazz 1460') && rows[0].includes('21 grilles') && rows[0].includes('Source : irealpro.com'), rows[0]);
+    assert.ok(rows.every((r) => !r.includes('à importer par fichier')), 'in the Mac app every collection can be downloaded directly');
+    assert.equal(await page.locator('[data-garde="oui"]').count(), 4);
+    // « Vérifier les mises à jour de grilles »: nothing changed on the fake internet, nothing new.
+    await page.locator('[data-testid="standards-verifier"]').click();
+    await page.waitForSelector('[data-testid="standards-resultat"]', { timeout: 60000 });
+    assert.ok((await page.locator('[data-testid="standards-resultat"]').innerText()).includes('Tout est à jour.'));
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(() => !document.querySelector('[data-testid="reglages"]'));
 
     // ---------------------------------------------------------------- kept on the device, found again
     await page.reload();
     await page.waitForFunction(() => window.__fabtice && window.__fabtice.standards);
-    await page.waitForTimeout(1000);
-    assert.equal(await page.locator('[data-testid="standards-offre"]').count(), 0, 'the offer does not come back');
+    await page.waitForTimeout(1500);
+    assert.equal(await page.locator('[data-testid="grilles-message"]').count(), 0, 'the message does not come back');
     const found = await page.evaluate(async () => {
       const found = await window.__fabtice.standards.findStandard('Bill Evans - Autumn Leaves (1959) [Remastered]');
       const st = await window.__fabtice.standards.standardsStatus();

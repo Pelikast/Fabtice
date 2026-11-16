@@ -226,3 +226,20 @@
 .projets-recents li .lien { text-align: left; }
 .projets-recents > .lien { min-height: 30px; font-size: 13px; }
 .projets-recents small { color: var(--encre-douce); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+
+/* « Nouveau projet »: « Séparer les instruments » is a box of the settings' kind under the way in. */
+.stems-choix .option { width: auto; margin-left: -10px; }
+.stems-choix .option span { color: var(--encre); }
+.stems-choix .option small { color: var(--encre-douce); }
+.stems-liste { margin-top: 6px; }
+@media (max-width: 760px) {
+  /* A sheet at the bottom of the screen, nearly full: touch targets of 44 px, nothing wider than the screen. */
+  .voile-projet { padding: 0; place-items: end stretch; }
+  .voile-projet .accueil { width: 100%; max-height: 100dvh; padding: 22px 18px calc(18px + env(safe-area-inset-bottom)); border-width: 1px 0 0; border-radius: var(--rayon-fenetre) var(--rayon-fenetre) 0 0; }
+  .voile-projet .accueil .plein { min-height: 46px; }
+  .voile-projet .champ input { flex: none; }
+  .stems-choix .option { min-height: 48px; margin-left: -6px; }
+  .stems-choix .option input[type="checkbox"] { width: 22px; height: 22px; flex: none; }
+  .stems-choix .stem { min-height: 44px; }
+  .voile-projet .ouvrir-projet .lien, .voile-projet .sinon .lien { min-height: 40px; }
+}

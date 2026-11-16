@@ -188,7 +188,7 @@ test('a project saved in the app opens in a fresh app from the Finder, everythin
       await pieceReady(page);
       assert.deepEqual(await snapshot(page), before, 'kept on the device as it was opened');
 
-      // « Projets récents » in « Nouveau morceau »: the file opened from the Finder, opened again from there.
+      // « Projets récents » in « Nouveau projet »: the file opened from the Finder, opened again from there.
       await page.evaluate(() => window.__fabtice.actions.openNewPiece());
       await page.waitForSelector('[data-testid="projets-recents"] .lien', { timeout: 10000 });
       assert.equal((await page.textContent('[data-testid="projets-recents"] .lien')).trim(), 'Blues du dimanche');

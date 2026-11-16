@@ -80,6 +80,7 @@
   .accord-case.libre { min-width: 36px; height: 48px; }
   .case .numero { top: 4px; right: 5px; }
   .analyse-bouton { padding: 4px 6px; font-size: 12px; }
+  .analyse-bouton.en-cours { font-size: 13.5px; }
   .panneau-analyse { position: fixed; top: 50px; left: 10px; right: 10px; width: auto; }
 
   .bas {

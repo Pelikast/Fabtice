@@ -84,7 +84,7 @@ export function AnalysisStatus() {
       {text && (
         <button
           ref={buttonRef}
-          className={`analyse-bouton${run.status === 'error' ? ' erreur' : ''}`}
+          className={`analyse-bouton${run.status === 'error' ? ' erreur' : ''}${run.status === 'running' ? ' en-cours' : ''}`}
           aria-expanded={open}
           aria-haspopup="dialog"
           data-testid="analyse-etat"

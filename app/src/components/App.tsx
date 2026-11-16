@@ -6,7 +6,6 @@ import { saveActivity } from '../project/saveFlow';
 import { startKeptRenderWatch, startRenderWatch } from '../render/controller';
 import { startAutoSeparation } from '../separation/runner';
 import { t } from '../i18n';
-import { useStandards } from '../standards/offer';
 import { useApp } from '../store/store';
 import { useFileDrop } from '../ui/useFileDrop';
 import { useGlobalKeys } from '../ui/useGlobalKeys';
@@ -20,7 +19,7 @@ import { PrintDialog } from './PrintDialog';
 import { SaveProjectDialog } from './SaveProjectDialog';
 import { SettingsDialog } from './SettingsDialog';
 import { SeparationPanelHost } from './SeparationPanel';
-import { StandardsDialog } from './StandardsOffer';
+import { StandardsMessage, useMessageStep } from './StandardsMessage';
 import { StorageNotice } from './StorageNotice';
 import { TopBar } from './TopBar';
 import { TempoFixMenu } from './TempoFixMenu';
@@ -30,11 +29,12 @@ import { Transport } from './Transport';
 export function App() {
   const mode = useApp((s) => s.view.mode);
   const dialogOpen = useApp((s) => s.ui.newPieceOpen || s.ui.exportAudioOpen || s.ui.printOpen || s.ui.saveProjectOpen || s.ui.settings.open || s.render.status === 'rendering' || s.render.status === 'error');
-  const standardsOpen = useStandards((s) => s.panelOpen);
+  // The message of the chord charts (C9) is a window too, over the opening screen or the open piece.
+  const messageOpen = useMessageStep() !== null;
   // The alert about changes not saved, and the progress or the error of « Enregistrer », are windows too.
   const leaving = useStore(leaveDialog, (s) => s.open);
   const saving = useStore(saveActivity, (s) => (s.phase === 'working' && s.visible) || s.phase === 'error');
-  const inert = dialogOpen || standardsOpen || leaving || saving;
+  const inert = dialogOpen || messageOpen || leaving || saving;
   const dragging = useFileDrop();
   useGlobalKeys();
   // Each newly opened piece is analysed in the background once it can play (analysis/runner.ts).
@@ -54,7 +54,7 @@ export function App() {
       <SeparationPanelHost />
       <StorageNotice />
       <NewPieceDialog />
-      <StandardsDialog />
+      <StandardsMessage />
       <ExportAudioDialog />
       <PrintDialog />
       <SaveProjectDialog />
