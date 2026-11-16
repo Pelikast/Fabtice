@@ -1,4 +1,4 @@
-/* « Nouveau morceau » on a short window (the Mac app at 800 or 640 px high): the same dialog, closer
+/* « Nouveau projet » on a short window (the Mac app at 800 or 640 px high): the same dialog, closer
    together, so that it fits without scrolling. Nothing is hidden or changed in colour. */
 @media (min-width: 761px) and (max-height: 820px) {
   .accueil { padding: 20px 28px 14px; }
@@ -12,11 +12,7 @@
   .stems { gap: 6px; margin-bottom: 6px; }
   .stem { min-height: 36px; padding: 5px 10px 5px 8px; }
   .pied-separation .lien { min-height: 28px; }
-  .standards-compact { margin-top: 8px; padding: 8px 14px 4px; }
-  .standards-compact .standards-phrase { margin-bottom: 4px; font-size: 13.5px; }
-  .standards-compact .standards-actions { gap: 4px 12px; }
-  .standards-compact .standards-actions .bouton-standards { min-height: 36px; padding: 0 16px; }
-  .standards-compact .standards-actions .lien { min-height: 30px; }
+  .stems-choix .option { min-height: 32px; padding: 4px 10px; }
   .pied { margin-top: 8px; padding-top: 8px; }
 }
 
@@ -32,6 +28,5 @@
   .accueil h3 { margin-bottom: 4px; }
   .stems { gap: 5px; margin-bottom: 4px; }
   .stem { min-height: 34px; }
-  .standards-compact { margin-top: 6px; padding: 6px 14px 2px; }
   .pied { margin-top: 6px; padding-top: 6px; }
 }

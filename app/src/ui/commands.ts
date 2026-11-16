@@ -21,6 +21,7 @@ import { getDesktopBridge } from '../platform/desktopBridge';
 import { chooseProjectFile } from '../project/choose';
 import { leaveDialog, requestNewProject } from '../project/leave';
 import { saveActivity, saveProject, saveProjectAs } from '../project/saveFlow';
+import { standardsMessageOpen } from '../standards/messageStep';
 import { standardsStore } from '../standards/offer';
 import { openSettings } from '../store/actions';
 import { selectHasChords } from '../store/chartSelectors';
@@ -28,6 +29,7 @@ import { openExportAudio, openPrint } from '../store/exportActions';
 import { historyStatus, redo, subscribeHistory, undo, type HistoryStatus } from '../store/history';
 import { appStore, type AppState } from '../store/store';
 import { isMacPlatform, isTextField } from './historyKeys';
+import { otherWindowOpen } from './windows';
 
 export const COMMAND_IDS = [
   'undo',
@@ -340,21 +342,9 @@ export function shortcutAccelerator(shortcut: Shortcut): string {
 
 // ---------------------------------------------------------------- the context, live
 
-/** A window of the app stands in front of the piece (not the « Nouveau projet » window: `opening`). */
+/** A window of the app stands in front of the piece (not the « Nouveau projet » window: `opening`), the start-up message included. */
 function windowInTheWay(s: AppState): boolean {
-  const save = saveActivity.getState();
-  return (
-    s.ui.exportAudioOpen ||
-    s.ui.printOpen ||
-    s.ui.saveProjectOpen ||
-    s.ui.settings.open ||
-    s.render.status === 'rendering' ||
-    s.render.status === 'error' ||
-    standardsStore.getState().panelOpen ||
-    leaveDialog.getState().open ||
-    (save.phase === 'working' && save.visible) ||
-    save.phase === 'error'
-  );
+  return otherWindowOpen(s) || standardsMessageOpen();
 }
 
 /** The context now. */

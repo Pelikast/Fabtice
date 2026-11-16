@@ -9,17 +9,24 @@ import { forgetKeptPiece, reopenKeptPiece } from '../storage';
 import { closeNewPiece, setImportStatus } from '../store/actions';
 import { useApp, type ImportStatus, type ReopenOffer } from '../store/store';
 import { CloseIcon } from '../ui/icons';
-import { getModelList } from '../separation/models';
 import { estimateWait, useSeparationChoice } from '../separation/useChoice';
+import { isSeparateTicked, reconcileStems, setSeparateOnImport } from '../separation/importChoice';
+import type { StemId } from '../model/separation';
 import { toggleImportStem } from '../store/separationActions';
 import { offeredStems, StemChips } from './SeparationPanel';
-import { StandardsCard } from './StandardsOffer';
+import { useMessageStep } from './StandardsMessage';
+import { CheckRow } from './settings/parts';
 
 /**
- * « Nouveau morceau »: a link (Mac app only) or an audio file. Shown over the
- * empty shell at launch; while an import runs (or the kept piece is reopened)
- * it shows its progress, then its error if it fails. In the Mac app it also
- * proposes, discreetly, a newer version of the import tool.
+ * « Nouveau projet »: a link (Mac app only) or an audio file. Shown over the
+ * empty shell at launch (the whole opening screen: a link, a file, a `.fab`
+ * project, the recent ones); opened from the menu « Nouveau projet ▸ » it
+ * shows only the way asked for (`ui.newPieceFrom`). While an import runs (or
+ * the kept piece is reopened) it shows its progress, then its error if it
+ * fails. In the Mac app it also proposes, discreetly, a newer version of the
+ * import tool. « Séparer les instruments » (unticked by default) is under
+ * the way in; the case « Alléger le travail pour l'appareil » (C2, stage 6)
+ * takes its place right after it (`ImportStems`).
  */
 export function NewPieceDialog() {
   const open = useApp((s) => s.ui.newPieceOpen);
@@ -27,10 +34,13 @@ export function NewPieceDialog() {
   const hasProject = useApp((s) => s.project !== null);
   const desktop = useMemo(() => getDesktopBridge() !== null, []);
   const canClose = hasProject && status.kind !== 'busy';
+  // The message of the chord charts comes over this window: this one waits, out of reach, behind it.
+  const behindMessage = useMessageStep() !== null;
 
   return (
     <div
-      className={`voile${open ? ' ouverte' : ''}`}
+      className={`voile voile-projet${open ? ' ouverte' : ''}`}
+      inert={behindMessage}
       role="dialog"
       aria-modal="true"
       aria-labelledby="accueil-titre"
@@ -83,14 +93,14 @@ function ReopenOfferCard({ offer, withLine }: { offer: ReopenOffer; withLine: bo
             >
               {t('restore.forgetYes')}
             </button>
-            <button className="plein" autoFocus onClick={() => setConfirming(false)}>
+            <button className="plein encre" autoFocus onClick={() => setConfirming(false)}>
               {t('restore.forgetNo')}
             </button>
           </div>
         </div>
       ) : (
         <div className="reprise-actions">
-          <button className="plein" onClick={() => void reopenKeptPiece()}>
+          <button className="plein encre" onClick={() => void reopenKeptPiece()}>
             {title ? t('restore.reopen', { title }) : t('restore.reopenUnknown')}
           </button>
           <button className="lien discret" onClick={() => setConfirming(true)}>
@@ -155,31 +165,93 @@ function Choices({ open, desktop }: { open: boolean; desktop: boolean }) {
     </>
   );
 
+  const noticeAndLead = (lead: string) => (
+    <>
+      {noticeLine}
+      <p>{lead}</p>
+    </>
+  );
+  const formatsLine = (
+    <div className="pied">
+      <span>{t('new.formats')}</span>
+      <span>{t('new.dropHint')}</span>
+    </div>
+  );
+  const updateOffer = toolUpdate && (
+    <div className="mise-a-jour">
+      <span>{t('new.updateOffer')}</span>{' '}
+      <button className="lien" onClick={() => void startToolUpdate()}>
+        {t('new.updateAction')}
+      </button>
+    </div>
+  );
+  const linkForm = (
+    <form
+      className="champ"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (link.trim()) void startLinkImport(link.trim());
+      }}
+    >
+      <input
+        ref={linkRef}
+        type="url"
+        inputMode="url"
+        placeholder={t('new.linkPlaceholder')}
+        aria-label={t('new.linkLabel')}
+        value={link}
+        onChange={(e) => setLink(e.target.value)}
+      />
+      <button className="plein encre" type="submit">
+        {t('new.import')}
+      </button>
+    </form>
+  );
+  const fileButton = (
+    <button ref={fileButtonRef} className="plein encre" onClick={chooseFile}>
+      {t('new.chooseFileButton')}
+    </button>
+  );
+
+  // « Nouveau projet ▸ À partir d'un lien YouTube »: only the link (Mac app); on the web, the sentence that sends to the Mac app.
+  if (from === 'link') {
+    if (!desktop) {
+      return (
+        <>
+          {noticeLine}
+          <p className="accueil-avis" role="status" data-testid="lien-app-mac">
+            {t('menu.linkOnMac')}
+          </p>
+        </>
+      );
+    }
+    return (
+      <>
+        {noticeAndLead(t('new.leadLink'))}
+        {linkForm}
+        {updateOffer}
+        <ImportStems />
+      </>
+    );
+  }
+  // « Nouveau projet ▸ À partir d'un fichier audio »: only the file.
+  if (from === 'file') {
+    return (
+      <>
+        {noticeAndLead(t('new.leadFile'))}
+        {fileButton}
+        {fileInput}
+        <ImportStems />
+        {formatsLine}
+      </>
+    );
+  }
+  // The whole opening screen: a project of the app (`.fab`, recent), a link (Mac app), a file.
   if (desktop) {
     return (
       <>
-        {noticeLine}
-        <p>{t('new.leadLink')}</p>
-        <form
-          className="champ"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (link.trim()) void startLinkImport(link.trim());
-          }}
-        >
-          <input
-            ref={linkRef}
-            type="url"
-            inputMode="url"
-            placeholder={t('new.linkPlaceholder')}
-            aria-label={t('new.linkLabel')}
-            value={link}
-            onChange={(e) => setLink(e.target.value)}
-          />
-          <button className="plein" type="submit">
-            {t('new.import')}
-          </button>
-        </form>
+        {noticeAndLead(t('new.leadLink'))}
+        {linkForm}
         <div className="sinon">
           {t('new.or')}{' '}
           <button ref={fileButtonRef} className="lien" onClick={chooseFile}>
@@ -189,44 +261,20 @@ function Choices({ open, desktop }: { open: boolean; desktop: boolean }) {
         {fileInput}
         {projectLine}
         <RecentProjects open={open} />
-        {toolUpdate && (
-          <div className="mise-a-jour">
-            <span>{t('new.updateOffer')}</span>{' '}
-            <button className="lien" onClick={() => void startToolUpdate()}>
-              {t('new.updateAction')}
-            </button>
-          </div>
-        )}
+        {updateOffer}
         <ImportStems />
-        {open && <StandardsCard />}
-        <div className="pied">
-          <span>{t('new.formats')}</span>
-          <span>{t('new.dropHint')}</span>
-        </div>
+        {formatsLine}
       </>
     );
   }
   return (
     <>
-      {noticeLine}
-      {/* « À partir d'un lien YouTube » on the web: the link is imported in the Mac app. */}
-      {from === 'link' && (
-        <p className="accueil-avis" role="status" data-testid="lien-app-mac">
-          {t('menu.linkOnMac')}
-        </p>
-      )}
-      <p>{t('new.leadFile')}</p>
-      <button ref={fileButtonRef} className="plein" onClick={chooseFile}>
-        {t('new.chooseFileButton')}
-      </button>
+      {noticeAndLead(t('new.leadFile'))}
+      {fileButton}
       {fileInput}
       {projectLine}
       <ImportStems />
-      {open && <StandardsCard />}
-      <div className="pied">
-        <span>{t('new.formats')}</span>
-        <span>{t('new.dropHint')}</span>
-      </div>
+      {formatsLine}
     </>
   );
 }
@@ -235,55 +283,48 @@ function Choices({ open, desktop }: { open: boolean; desktop: boolean }) {
 const TYPICAL_PIECE_SECONDS = 240;
 
 /**
- * « Instruments à séparer » (the mockup): none ticked by default. Ticked
- * instruments are separated once the piece has been imported and can play,
- * in the background; the estimate is honest (this device, a typical piece).
- * Only the instruments the tool in use provides are offered.
+ * « Séparer les instruments », unticked by default. Ticked, it shows « Instruments à séparer » with every
+ * instrument the tool in use provides selected; a click on an instrument unselects it (none left is the same as
+ * unticked). The selected instruments are separated once the piece has been imported and can play, in the
+ * background; the estimate is honest (this device, a typical piece).
+ *
+ * Stage 6 (C2) adds « Alléger le travail pour l'appareil » here, right after this box.
  */
 function ImportStems() {
   const stems = useApp((s) => s.ui.importStems);
-  // The graphics chip is asked only once an instrument is ticked (the estimate depends on it).
-  const choice = useSeparationChoice(stems.length > 0);
-  const [more, setMore] = useState(false);
+  const ticked = isSeparateTicked(stems);
+  // The graphics chip is asked only once the box is ticked (the estimate depends on it).
+  const choice = useSeparationChoice(ticked);
   const offered = offeredStems(choice);
-  const details = getModelList().list.models.filter((m) => m.kind === 'detail');
+  const offeredKey = offered.join(',');
+  // The tool in use may change once the device has been probed: the choice follows what it provides.
+  const before = useRef<StemId[]>([]);
+  useEffect(() => {
+    const next = reconcileStems(stems, before.current, offered);
+    before.current = offered;
+    if (next.length !== stems.length || next.some((s, i) => s !== stems[i])) setSeparateOnImport(next.length > 0, next);
+    // Only when the tool's instruments change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [offeredKey]);
   return (
-    <section className="stems-choix" aria-labelledby="stems-titre">
-      <h3 id="stems-titre">{t('new.stemsTitle')}</h3>
-      {choice ? (
-        <StemChips stems={offered} pressed={stems} onToggle={toggleImportStem} label={t('new.stemsTitle')} />
-      ) : (
-        <p className="stems-note">{t('new.stemsNone')}</p>
-      )}
-      {choice && stems.length > 0 && (
-        <p className="stems-note" data-testid="estimation-import">
-          {t('new.stemsEstimate', { time: estimateWait(choice, TYPICAL_PIECE_SECONDS) })} {stems.length < offered.length && t('new.stemsOthers')}
-        </p>
-      )}
-      {more && (
-        <div className="stems-note" data-testid="aller-plus-loin">
-          {details.length === 0 ? (
-            <p>{t('new.detailNone')}</p>
-          ) : (
-            <>
-              <p>{t('new.detailAvailable')}</p>
-              <ul>
-                {details.map((m) => (
-                  <li key={m.id}>
-                    <strong>{m.name}</strong> — {m.summary}
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
+    <section className="stems-choix" aria-label={t('new.separate')}>
+      <CheckRow
+        checked={ticked}
+        onChange={(on) => setSeparateOnImport(on, offered)}
+        label={t('new.separate')}
+        note={choice ? t('new.separateNote') : t('new.stemsNone')}
+        disabled={!choice}
+        testId="separer-case"
+      />
+      {ticked && choice && (
+        <div className="stems-liste" data-testid="stems-liste">
+          <h3 id="stems-titre">{t('new.stemsTitle')}</h3>
+          <StemChips stems={offered} pressed={stems} onToggle={toggleImportStem} label={t('new.stemsTitle')} />
+          <p className="stems-note" data-testid="estimation-import">
+            {t('new.stemsEstimate', { time: estimateWait(choice, TYPICAL_PIECE_SECONDS) })} {stems.length < offered.length && t('new.stemsOthers')}
+          </p>
         </div>
       )}
-      <div className="pied-separation">
-        <button className="lien" aria-expanded={more} onClick={() => setMore((m) => !m)}>
-          {t('new.stemsMore')}
-        </button>
-        <span>{t('new.stemsLater')}</span>
-      </div>
     </section>
   );
 }

@@ -53,9 +53,13 @@ export function getCollectionList(): LoadedCollectionList {
   return current ?? { list: bundledCollectionList(), source: 'bundled', problem: null };
 }
 
-/** Fetches the remote list once (the bundled one stays in use if that fails); never rejects. */
-export function refreshCollectionList(): Promise<LoadedCollectionList> {
-  loading ??= loadCollectionList({ fetchFn: listFetch() }).then((l) => (current = l));
+/**
+ * Fetches the remote list once (the bundled one stays in use if that fails); never rejects. `force`: read it again
+ * (« Vérifier les mises à jour de grilles »), whatever was read before; `fetchFn` is for the tests.
+ */
+export function refreshCollectionList(options: { force?: boolean; fetchFn?: typeof fetch } = {}): Promise<LoadedCollectionList> {
+  if (options.force) loading = null;
+  loading ??= loadCollectionList({ fetchFn: options.fetchFn ?? listFetch() }).then((l) => (current = l));
   return loading;
 }
 
@@ -206,10 +210,18 @@ export type FailureReason =
   /** Every page that could be tried failed or was not the right one. */
   | 'not-found';
 
+/**
+ * What a kept collection did to the library: `new` (it was not there), `updated` (the page now gives other
+ * charts than the ones kept), `same` (nothing changed: it is not written again).
+ */
+export type CollectionChange = 'new' | 'updated' | 'same';
+
 export interface CollectionOutcome {
   id: string;
   name: string;
   state: 'kept' | 'failed' | 'cancelled';
+  /** Set when `state` is `kept`. */
+  change: CollectionChange | null;
   tunes: number;
   reason: FailureReason | null;
   /** The host label of the page it came from (« GitHub »), when kept. */
@@ -225,7 +237,7 @@ export interface DownloadProgress {
 
 export interface DownloadResult {
   outcomes: CollectionOutcome[];
-  /** Tunes kept by this run. */
+  /** Tunes written by this run (a collection found unchanged is not counted). */
   tunes: number;
   cancelled: boolean;
 }
@@ -255,6 +267,13 @@ export async function downloadCollections(ids: readonly string[], options: Downl
   const now = options.now ?? (() => new Date());
   const { signal } = options;
   const specs = ids.map((id) => list.collections.find((c) => c.id === id)).filter((c): c is CollectionSpec => !!c);
+  // What is kept already: a collection read again that gives the same charts is not written again.
+  const before = new Map<string, StoredCollection>();
+  try {
+    for (const r of await store.list()) before.set(r.id, r);
+  } catch {
+    // unreadable storage: everything counts as new
+  }
 
   const rows: DownloadProgress['rows'] = specs.map((c) => ({ id: c.id, name: c.name, state: 'waiting', tunes: 0, host: null, page: 0, pages: readablePages(c, env).length }));
   const emit = (): void => {
@@ -284,7 +303,7 @@ export async function downloadCollections(ids: readonly string[], options: Downl
     if (signal?.aborted) {
       cancelled = true;
       row.state = 'cancelled';
-      outcomes.push({ id: spec.id, name: spec.name, state: 'cancelled', tunes: 0, reason: null, host: null });
+      outcomes.push({ id: spec.id, name: spec.name, state: 'cancelled', change: null, tunes: 0, reason: null, host: null });
       continue;
     }
     const pages = readablePages(spec, env);
@@ -308,25 +327,29 @@ export async function downloadCollections(ids: readonly string[], options: Downl
     }
     if (cancelled && !kept) {
       row.state = 'cancelled';
-      outcomes.push({ id: spec.id, name: spec.name, state: 'cancelled', tunes: 0, reason: null, host: null });
+      outcomes.push({ id: spec.id, name: spec.name, state: 'cancelled', change: null, tunes: 0, reason: null, host: null });
       continue;
     }
     if (kept) {
       const record: StoredCollection = { id: spec.id, name: spec.name, tunes: kept.result.tunes, source: kept.result.source, date: now().toISOString(), links: kept.result.links.join('\n') };
+      const old = before.get(spec.id);
+      const change: CollectionChange = !old ? 'new' : old.links === record.links ? 'same' : 'updated';
       try {
-        await store.put(record);
-        invalidateIndex();
+        if (change !== 'same') {
+          await store.put(record);
+          invalidateIndex();
+          tunes += record.tunes;
+        }
         row.state = 'kept';
         row.tunes = record.tunes;
-        tunes += record.tunes;
-        outcomes.push({ id: spec.id, name: spec.name, state: 'kept', tunes: record.tunes, reason: null, host: kept.host });
+        outcomes.push({ id: spec.id, name: spec.name, state: 'kept', change, tunes: record.tunes, reason: null, host: kept.host });
       } catch {
         row.state = 'failed';
-        outcomes.push({ id: spec.id, name: spec.name, state: 'failed', tunes: 0, reason: 'not-found', host: null });
+        outcomes.push({ id: spec.id, name: spec.name, state: 'failed', change: null, tunes: 0, reason: 'not-found', host: null });
       }
     } else {
       row.state = 'failed';
-      outcomes.push({ id: spec.id, name: spec.name, state: 'failed', tunes: 0, reason: pages.length === 0 ? 'file-needed' : 'not-found', host: null });
+      outcomes.push({ id: spec.id, name: spec.name, state: 'failed', change: null, tunes: 0, reason: pages.length === 0 ? 'file-needed' : 'not-found', host: null });
     }
     emit();
   }
