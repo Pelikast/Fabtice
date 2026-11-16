@@ -14,7 +14,8 @@ const path = require('node:path');
 const { createProjectWriter, WriterError, withExtension } = require('../../src/project-writer');
 
 function tempDir() {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'fabtice-writer-'));
+  // The real path: on macOS the temporary folder is reached through a link (/var -> /private/var).
+  return fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'fabtice-writer-')));
 }
 
 const bytesOf = (n, seed = 1) => Buffer.from(Array.from({ length: n }, (_, i) => (i * 31 + seed) & 255));

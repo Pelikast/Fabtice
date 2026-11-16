@@ -316,7 +316,7 @@ const exited = (app) =>
   });
 
 test('« Enregistrer » and « Enregistrer sous… » in the app: the project\'s file, written safely and fast; the alert on closing and quitting', { timeout: 900000 }, async () => {
-  const base = fs.mkdtempSync(path.join(os.tmpdir(), 'fabtice-e2e-enregistrer-'));
+  const base = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'fabtice-e2e-enregistrer-')));
   const userA = path.join(base, 'a');
   const folder = path.join(base, 'Mes projets');
   fs.mkdirSync(userA);

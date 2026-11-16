@@ -348,7 +348,8 @@ function createProjectWriter(options) {
       for (const name of names) {
         if (!TEMP_PATTERN.test(name)) continue;
         const full = path.join(dir, name);
-        if (session && session.temp === full) continue;
+        // By name (16 random hex digits): the folder may be reached through a link, the session keeps its real path.
+        if (session && path.basename(session.temp) === name) continue;
         try {
           const st = await files.stat(full);
           if (st.isFile() && now() - st.mtimeMs > STALE_MS) await files.rm(full, { force: true });
