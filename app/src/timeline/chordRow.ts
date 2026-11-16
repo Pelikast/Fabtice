@@ -57,14 +57,14 @@ export interface RowChord {
   beatInBar: number;
   /** Source time of the beat on the grid in force. */
   time: Seconds;
-  /** Ordering key: bar × 16 + beat in bar. */
+  /** Ordering key: bar × 64 + beat in bar. */
   order: number;
   /** The bar holds several written chords: written smaller, as the mockup's `.accord.deux`. */
   small: boolean;
 }
 
-/** The bar-and-beat ordering key (a bar has at most seven beats). */
-export const orderKey = (bar: number, beatInBar: number): number => bar * 16 + beatInBar;
+/** The bar-and-beat ordering key (a bar has at most 64 beats: signatures up to 64/32, C13). */
+export const orderKey = (bar: number, beatInBar: number): number => bar * 64 + beatInBar;
 
 /**
  * The chords the row writes, in order: those of the chart's bars without the
