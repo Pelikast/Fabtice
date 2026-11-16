@@ -8,6 +8,46 @@ récente en haut. La première section est recopiée sur la page de la version.
 En préparation. Chaque étape du plan (`v1/PLAN.md`) ajoute ici ses nouveautés,
 en français simple.
 
+### Nouvelle organisation de l'app
+- **Menu Fabtice** : un clic sur le logo, en haut à gauche, ouvre le menu de
+  l'app : Annuler, Rétablir, Nouveau projet (à partir d'un lien YouTube ou
+  d'un fichier audio), Ouvrir, Enregistrer, Enregistrer sous…, Exporter,
+  Imprimer, Réglages, Quitter. Les anciens menus « Exporter » et « ⋯ » ont
+  disparu : tout est là. Sur téléphone, le même menu s'ouvre en pleine page.
+- **Barre de menus du Mac** : les mêmes commandes, avec leurs raccourcis
+  (cmd + O, cmd + S, cmd + P, cmd + virgule pour les Réglages…). Une
+  commande impossible sur le moment est grisée.
+- **Réglages** : une seule fenêtre large, à sept onglets : Général,
+  Instruments, Tempo et analyse, Détection des accords, Métronome, Affichage,
+  Avancé. Les petits panneaux (métronome, tempo, accordage) restent pour les
+  réglages rapides, avec un lien « Tous les réglages… ».
+- Nouveaux réglages : ce que fait l'app à l'ouverture (reprendre le dernier
+  projet ou proposer « Nouveau projet »), analyser ou non dès l'import,
+  s'appuyer ou non sur les grilles connues, et « Rétablir les réglages
+  d'origine ».
+- **« Nouveau morceau » devient « Nouveau projet »**, avec une case « Séparer
+  les instruments », décochée par défaut. Cochée, tous les instruments sont
+  sélectionnés ; un clic en retire un.
+- **Grilles des standards** : au démarrage, un message propose de télécharger
+  en un clic les grilles des standards de iReal Pro, pour mieux reconnaître
+  les accords (« Oui (recommandé) », « Non merci », « Ne plus afficher ce
+  message »). Réglages → Avancé montre la liste des recueils, permet d'en
+  télécharger ou d'en retirer un, et de « Vérifier les mises à jour de
+  grilles ». Sept recueils de plus sont proposés dans l'app Mac (samba,
+  choro, Real Book I à III, Beatles…).
+- **Imprimer** : cmd + P ouvre une fenêtre avec l'aperçu de la grille, page
+  par page, tel qu'il sortira, et les options : format du papier, portrait ou
+  paysage, marges, échelle ou « Tenir sur une page », instrument (Ut, Si♭,
+  Mi♭), en-tête ; dans l'app Mac, l'imprimante et le nombre de copies.
+  « Enregistrer en PDF » est dans la même fenêtre.
+- **Chargement plus visible** : pendant une analyse ou une séparation, le
+  texte qui l'annonce en haut de l'écran est plus grand, en rouge braise, et
+  un reflet le parcourt.
+- **Sous-grille** : « Blanches » s'ajoute à la liste, et « Noires » est le
+  choix de départ.
+- Un projet rouvert au lancement n'est plus annoncé « modifié » quand il est
+  identique à son fichier enregistré.
+
 ### Annuler, enregistrer
 - **Annuler et Rétablir** : cmd + Z défait la dernière modification du morceau
   (un accord, une section, la boucle, un repère, un volume, le tempo, la

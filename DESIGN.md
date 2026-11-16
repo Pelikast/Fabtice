@@ -127,6 +127,8 @@ De haut en bas, pour l'affichage Pistes :
 La grille des pistes a deux niveaux : les barres de mesure, nettes
 (encre à 26 %), et la sous-grille, plus pâle (`--trait-fin`). La sous-grille
 s'efface d'elle-même quand ses traits seraient à moins de 5 px l'un de l'autre.
+La liste de la sous-grille va des blanches aux triples-croches ; un morceau
+neuf s'ouvre sur « Noires ».
 
 La boucle se lit à deux endroits : une bande de laiton pleine dans la règle des
 mesures, un voile de laiton sur les pistes. Elle commence et finit sur la
@@ -205,6 +207,30 @@ clavier n'y figure pas.
 Les petits panneaux (métronome, « Tempo et mesures », accordage) gardent leurs
 commandes rapides et portent, en bas, un lien discret « Tous les réglages… »
 vers l'onglet concerné.
+
+## Chargement en cours
+
+**Exception à « une seule chose rouge » (demande du propriétaire, 16 novembre
+2026).** Le texte qui annonce une analyse ou une séparation en cours, dans la
+barre du haut, prend la braise du « t » de Fabtice, un à deux pixels plus
+grand que le texte voisin, et un reflet de lumière le parcourt de gauche à
+droite toutes les 2,5 s (un dégradé découpé par le texte). Sans reflet quand
+le système demande de réduire les animations : la couleur et la taille
+restent. Une erreur ou un état terminé reprennent l'allure normale.
+
+## Nouveau projet et message des grilles
+
+« Nouveau projet » et le message « Grilles des standards » sont des fenêtres
+de la famille : papier clair, titre en Fraunces, bouton principal plein **à
+l'encre**, bouton secondaire en papier foncé. « Nouveau projet » ne montre que
+ce qu'on a demandé (le lien, ou le fichier) ; au lancement, elle montre tout.
+La case « Séparer les instruments » déplie la rangée des instruments, chacun
+avec la pastille de sa teinte. Le message des grilles se pose par-dessus la
+fenêtre d'ouverture, qui attend derrière ; pendant le téléchargement, un
+pourcentage et un filet d'encre qui avancent régulièrement, le recueil en
+cours et « n sur N ». Sur téléphone, ces fenêtres sont des feuilles posées en
+bas, boutons empilés sur toute la largeur, le principal en premier, cibles
+d'au moins 40 px.
 
 ## Fenêtre d'impression
 

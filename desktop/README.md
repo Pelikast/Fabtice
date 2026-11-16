@@ -78,7 +78,7 @@ Ouvrez ensuite Fabtice normalement.
 
 ## Utiliser l’app
 
-1. Au lancement, la fenêtre « Nouveau morceau » propose de coller un lien
+1. Au lancement, la fenêtre « Nouveau projet » propose de coller un lien
    YouTube (vidéo de 20 minutes au plus, pas de direct) ou de choisir un
    fichier audio. Au premier import par lien, l’app télécharge l’outil
    officiel yt-dlp (environ 37 Mo) depuis sa page GitHub, vérifie son
@@ -99,16 +99,20 @@ Ouvrez ensuite Fabtice normalement.
    du morceau, temps avant la première ligne de progression, vitesse du
    téléchargement), puis le détail technique. Collez-le dans la conversation.
 
-4. **Clic droit** : dans un champ de texte (le lien du « Nouveau morceau » par
+4. **Clic droit** : dans un champ de texte (le lien du « Nouveau projet » par
    exemple), « Couper », « Copier », « Coller » et « Tout sélectionner », chacun
    utilisable selon ce qui est possible à cet endroit ; sur un texte sélectionné,
    « Copier » ; ailleurs, rien. On colle donc un lien YouTube sans le clavier.
-5. **Imprimer la grille** : dans l’affichage « Grille d’accords », le bouton
-   « Imprimer » (ou **Exporter > Imprimer la grille…**) ouvre une petite fenêtre :
-   portrait ou paysage, taille telle quelle ou sur une page, puis **Imprimer…**
-   (la fenêtre d’impression de macOS) ou **Enregistrer en PDF…** (le volet
-   d’enregistrement de macOS, dans le dossier Téléchargements, au nom du morceau).
-6. **Projets** : **Exporter > Enregistrer le projet…** fait un seul fichier
+5. **Imprimer la grille** : **cmd + P**, **Fichier > Imprimer…** ou le bouton
+   « Imprimer » de l’affichage « Grille d’accords » ouvrent la fenêtre
+   d’impression : à gauche l’aperçu, page par page, exactement ce qui sortira ;
+   à droite l’imprimante et le nombre de copies, le papier (A4 ou Lettre),
+   portrait ou paysage, les marges, l’échelle (ou « Tenir sur une page »),
+   l’instrument (Ut, Si♭, Mi♭) et ce qu’on écrit en tête (titre, tonalité,
+   tempo). Puis **Imprimer** ou **Enregistrer en PDF** (le
+   volet d’enregistrement de macOS, dans le dossier Téléchargements, au nom du
+   morceau). Sans imprimante listée, la fenêtre d’impression de macOS s’ouvre.
+6. **Projets** : **Fichier > Enregistrer** (cmd + S) fait un seul fichier
    `.fab` qui garde tout : le morceau tel qu’importé, la grille, les accords,
    vos corrections, les boucles et repères, le métronome, **toutes** les
    séparations faites (une par outil) et le dernier rendu « meilleure
@@ -116,7 +120,7 @@ Ouvrez ensuite Fabtice normalement.
    macOS s’ouvre au nom du morceau. Pour le rouvrir : **double-clic** sur le
    fichier dans le Finder (ou clic droit > **Ouvrir avec** > Fabtice), le
    déposer sur la fenêtre, « ouvrir un projet Fabtice » ou un des **projets
-   récents** dans la fenêtre « Nouveau morceau », ou **Fichier > Ouvrir un
+   récents** dans la fenêtre « Nouveau projet », ou **Fichier > Ouvrir un
    projet récent** (aussi dans le Dock). Le morceau ouvert est remplacé comme
    par un import ; si le fichier est abîmé, une phrase le dit et rien ne
    change. Format : `app/src/project/FORMAT.md`.
@@ -274,15 +278,41 @@ Fonctionnement :
     posée chez un utilisateur). Les tests de bout en bout ferment des apps qui
     tiennent des morceaux jamais enregistrés : `test/e2e/helpers.js` la pose par
     défaut ; seul `project-file.test.js` la rétablit pour essayer la fermeture.
-  - Pas dans `src/menu.js` : aucun raccourci d’enregistrement ni d’annulation n’y
-    est déclaré, la page les prend (`app/src/ui/saveKeys.ts`,
-    `app/src/ui/historyKeys.ts`) ; Édition → Annuler / Rétablir n’agissent que
-    sur le texte. En les ajoutant au menu, veiller à ne pas les déclencher deux
-    fois.
+  - Les raccourcis (cmd + S, cmd + Z, cmd + P…) sont écrits dans la barre de
+    menus (`src/menu.js`) mais c’est la page qui les traite : voir « Barre de
+    menus » plus bas.
 - Pas de service worker dans l’app Mac : la version web hors ligne
   (`app/src/pwa/`) ne s’inscrit pas sur `fabtice://`, qui les refuse de toute
   façon, et la construction pour le Mac n’a ni manifeste ni `sw.js`.
-- Menu en français : `src/menu.js`. Menu du clic droit, en français, pour toutes
+- **Barre de menus** (étape 2 de la 1.0.0) : `src/menu.js`, en français.
+  Fabtice (À propos, Réglages… cmd + ,, Quitter), Fichier (Nouveau projet → À
+  partir d’un lien YouTube… / d’un fichier audio…, Ouvrir…, Ouvrir un projet
+  récent, Enregistrer, Enregistrer sous…, Exporter → Audio… / iReal Pro /
+  PDF…, Imprimer…), Édition (Annuler, Rétablir, puis couper, copier, coller),
+  Présentation, Fenêtre, Aide (Diagnostic…). Les commandes sont **celles du
+  menu Fabtice de la page** (`app/src/ui/commands.ts`), sous les mêmes
+  identifiants (`MENU_COMMANDS`, `LABELS`, `ACCELERATORS`).
+  - La page dit à l’app ce qui est possible : canal `fabtice:menu-state`
+    (pont `reportMenuState`), relu par `parseMenuState` ; la barre grise les
+    commandes et reprend les libellés (« Annuler : accord »). Un clic dans la
+    barre exécute `commandScript(id)` dans la page, qui reçoit l’événement
+    `fabtice-menu-command` (`app/src/ui/menuBar.ts`).
+  - **Un raccourci ne part qu’une fois** : sur macOS la barre reçoit le
+    raccourci et la page aussi ; `menuBar.ts` ignore la commande de la barre
+    si le clavier vient de la traiter (garde de 600 ms). Ailleurs les
+    raccourcis ne sont pas enregistrés par la barre (`registerAccelerator:
+    false`). Dans un champ de texte, cmd + Z défait la saisie ; hors champ,
+    Édition → Annuler / Rétablir agissent sur le morceau.
+  - « Quitter » de la page : canal `fabtice:quit` (pont `quitApp`), qui passe
+    par la garde de fermeture.
+  - Ajouter une commande : son identifiant dans `MENU_COMMANDS`, son libellé
+    dans `LABELS`, son raccourci dans `ACCELERATORS`, puis `command('id')` à
+    sa place dans le modèle. Test : `test/e2e/menu-bar.test.js`.
+  - Imprimantes : canal `fabtice:list-printers` (pont `listPrinters`) ;
+    `fabtice:print-chart` et `fabtice:save-chart-pdf` reçoivent le papier,
+    l’imprimante et le nombre de copies (`parsePrintRequest` dans
+    `src/printing.js`).
+- Menu du clic droit, en français, pour toutes
   les fenêtres : `src/context-menu.js` (le modèle des entrées est une fonction
   pure, testée ; Electron n'en montre aucun de lui-même).
 - Impression de la grille : `src/printing.js`. `window.print()` ne marche pas dans

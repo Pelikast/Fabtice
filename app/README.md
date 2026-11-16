@@ -40,6 +40,12 @@ le stockage.
 | `npm run test:project-file` | après `build` (lot 4) : les projets `.fab` avec des tailles réelles et des profils persistants : un WAV d'une minute importé (vrai moteur), séparé avec deux outils (séparateur factice : de vrais instruments 16 bits), un mixage dans chacun, corrigé, boucle nommée, métronome, transposition, « Appliquer » (rendu factice) ; enregistré avec le **vrai libFLAC** (fichier téléchargé et vérifié : nom, signature, dossiers, tout en FLAC, plus petit que les blocs 16 bits) ; ouvert dans un autre profil (tout revient, instruments à l'échantillon près, rendu entendu tel quel, pas de nouvelle analyse), « Écouter » l'autre séparation (à l'échantillon près, son mixage), rechargé ; copie abîmée, fichier audio choisi comme projet ; projet déposé sur la fenêtre ; mesure du magasin de l'appareil (six instruments de quatre minutes ; `FABTICE_PROJECT_LONG=1` : douze aussi) ; « Nouveau morceau », « Séparations gardées » et les réglages à 1280 × 800 et 390 × 844 ; **étape 1 (C5)** : « Enregistrer sous… » (volet du système remplacé par une poignée sur un fichier du système de fichiers privé), puis cmd/Ctrl + S par-dessus le **même** fichier, rapide (aucun worker d'encodage lancé : les sons déjà encodés sont recopiés), titre « modifié » puis « enregistré », fichier relu avec le changement ; rechargement (la poignée n'est pas gardée : « Enregistrer » redemande où), « Ouvrir un projet » avec une poignée (le fichier ouvert devient celui du projet) ; sans poignée (Safari, Firefox) le lien d'avant. Captures dans `FABTICE_PROJECT_OUT` |
 | `npm run test:undo` | après `build` (étape 1, C11) : « Annuler » / « Rétablir » dans Chromium, sur le morceau de démonstration, au bureau (1280 × 800, souris, aussi en Mac) et au téléphone (390 × 844, toucher), moteur silencieux : un clic (muet), un curseur tiré lentement (une seule étape, quelles que soient les pauses), un accord tapé dans la grille, une boucle tracée ; Ctrl + Z, Ctrl + Maj + Z, Ctrl + Y (cmd sur Mac) remettent ce qui est à l'écran ; dans un champ de texte, le raccourci défait la saisie et pas le morceau |
 | `npm run test:alert` | après `build` (étape 1, C5) : l'alerte « Les modifications du projet en cours n'ont pas été sauvegardées… » sur un morceau vraiment importé (donc « modifié ») et gardé sur l'appareil, au bureau et au téléphone : texte exact et trois boutons, « Enregistrer » ayant le focus ; « Annuler » (bouton et Échap) ; « Ne pas enregistrer » ; « Enregistrer » (et Entrée) pour un morceau jamais enregistré (demande où, le volet du système étant remplacé par un fichier du système de fichiers privé de la page) puis pour un morceau déjà enregistré (écrase sans fenêtre) ; un enregistrement qui échoue garde l'utilisateur où il est ; morceau non modifié : pas d'alerte. Captures dans `FABTICE_ALERT_OUT` |
+| `npm run test:menu` | après `build` (étape 2, C6) : le menu Fabtice au bureau et au téléphone : chaque commande atteinte à la souris, au clavier et au toucher, sous-menus, commandes grisées, raccourcis, anciens menus disparus, projet repris de la sauvegarde automatique donné « enregistré » quand il l'est |
+| `npm run test:settings` | après `build` (étape 2, C7) : Réglages à sept onglets (liste puis page au téléphone), chaque réglage retrouvé à l'identique après déplacement, liens « Tous les réglages… », sous-grille « Noires » par défaut et « Blanches », « Rétablir les réglages d'origine » |
+| `npm run test:print` | après `build` (étape 2, C4) : la fenêtre d'impression (cmd + P, menu, bouton), l'aperçu page par page comparé au PDF produit par Chromium (mêmes pages), options, téléphone |
+| `npm run test:new-project` | après `build` (étape 2, C9 et C1) : la fenêtre « Nouveau projet » (lancement, lien, fichier, case « Séparer les instruments »), le texte de chargement en braise |
+| `npm run test:standards` | après `build` : le message des grilles au démarrage (les quatre chemins), le téléchargement et son pourcentage, la section des grilles de Réglages → Avancé, « Vérifier les mises à jour de grilles », faux serveurs |
+| `npm run captures -- <dossier>` | après `build` : les captures des écrans de l'étape 2 dans les deux formes, dans un dossier **hors du dépôt** (voir « Étape 2 de la 1.0.0 ») |
 | `npm run test:offline` | après `build` (lot 4) : la version web hors ligne dans Chromium, profil persistant, **vrai moteur** : le service worker s'installe (adresse `?horsligne&debug`), garde les petits fichiers de l'app mais pas les gros WebAssembly d'ONNX Runtime ; un morceau de 5 Mo importé ; réseau coupé (`setOffline`), rechargement : l'app s'ouvre, `crossOriginIsolated` est vrai, le morceau gardé revient et **joue** ; un gros fichier demandé en ligne est gardé et resservi hors ligne avec les en-têtes d'isolation ; la maquette voisine n'est pas touchée ; en ligne, une nouvelle page sur le serveur est celle qu'on voit au chargement suivant ; manifeste et icônes. Captures dans `FABTICE_OFFLINE_OUT` |
 | `npm run test:chart` | après `build` : la grille d'accords comparée à la maquette (même balisage des accords, mêmes tailles, sections, boucle, mesure en cours, instruments, états vide et « analyse en cours », téléphone), puis les gestes (clic, glisser, suivi), l'éditeur d'accord (toujours entier et dans la fenêtre, à 1280 × 800 et 960 × 640), tous les panneaux flottants (Tempo, analyse, réglages, Exporter, accord fin, tonalité : dans la fenêtre, au-dessus du transport, dernier bouton cliquable, à 1280 × 800, 1024 × 700 et 960 × 640 ; `ui/useFitPanel.ts` leur donne une hauteur maximale et un défilement propre quand la fenêtre est trop basse), la tonalité, les sections, le clavier, l'autosauvegarde (rechargement d'un morceau gardé), le toucher réel sur téléphone (390 × 844) et l'impression (feuille de style d'impression, PDF A4 et Letter lus avec `pdftotext`, sauts de page) ; panneaux de corrections et d'accordage ; captures de l'app, de la maquette et des pages imprimées dans `FABTICE_CHART_OUT` (`pdftotext`, `pdfinfo` et `pdftoppm` de poppler sont nécessaires pour la partie impression) |
 
@@ -1377,6 +1383,95 @@ ferait doublon.
   depuis « Projets récents », copie abîmée, pas de service worker).
 
 ## Contrats pour la suite
+
+### Étape 2 de la 1.0.0 : interface
+
+Ce qui suit remplace, là où ils se contredisent, les passages plus anciens de
+ce document : il n'y a plus de menu « Exporter » ni de menu « ⋯ »
+(`ExportMenu.tsx`, `SettingsPopover.tsx` sont supprimés), « Nouveau morceau »
+s'appelle « Nouveau projet », et l'offre des grilles en carte
+(`StandardsOffer.tsx`) est remplacée par un message et une section de
+Réglages → Avancé. La version du document ne change pas (6).
+
+**Commandes (C6).** Une seule table, `ui/commands.ts` : `COMMANDS` (par
+identifiant : libellé, raccourci, `enabled(ctx)`, `offered(ctx)`, `run`),
+`FABTICE_MENU` (l'arbre du menu, sous-menus et séparateurs), `commandContext()`
+/ `useCommandContext()` (ce qui est possible maintenant), `commandStates()`,
+`runCommand(id)`, `subscribeCommands`. Trois lecteurs : le menu sous le logo
+(`components/FabticeMenu.tsx`, `styles/menu.css` ; feuille plein écran au
+téléphone), le clavier (`ui/commandKeys.ts#installCommandKeys`,
+`shortcutCommandFor`) et la barre de menus du Mac (`ui/menuBar.ts`, voir
+`desktop/README.md`). **Ajouter une commande** : une entrée dans `COMMANDS`,
+sa place dans `FABTICE_MENU`, sa clé `menu.*` dans `i18n/fr.ts` ; pour la
+barre du Mac, son identifiant dans `desktop/src/menu.js`. Une fenêtre ouverte
+(`ui/windows.ts#otherWindowOpen`) grise tout sauf Nouveau projet, Ouvrir et
+Réglages. Dans les tests : `tests/lib/menu.mjs` (`menuCommand(page,
+...libellés)`, `openMenu`, `closeMenu`, `menuEntry`) et
+`window.__fabtice.project.commandContext / commandStates / runCommand`.
+
+**État « enregistré » repris au lancement.** `storage/savedState.ts` range
+dans `localStorage` (`fabtice.etatEnregistre`) l'identifiant du projet et s'il
+est modifié ; `project/restoredState.ts#restoreSavedState` le rend au
+lancement (et, dans l'app Mac, le chemin du fichier) : un morceau repris de la
+sauvegarde automatique n'est plus donné « modifié » s'il est identique à son
+`.fab`.
+
+**Réglages (C7).** `ui.settings: { open, tab, direct }`, `openSettings(tab?)`,
+`setSettingsTab`, `closeSettings` (`store/store.ts`, `SETTINGS_TABS`).
+`components/SettingsDialog.tsx` et un fichier par onglet dans
+`components/settings/` (`GeneralTab`, `InstrumentsTab`, `TempoTab`,
+`ChordsTab`, `MetronomeTab`, `DisplayTab`, `AdvancedTab`, et `parts.tsx` :
+`Section`, `SubTitle`, `CheckRow`). Les réglages de l'appareil (`model/project.ts` : `AppSettings`,
+`defaultAppSettings()`) sont gardés par `store/preferences.ts`
+(`resetPreferences`) et se changent par `store/settingsActions.ts`
+(`setAtLaunch`, `setAnalyseOnImport`, `setUseKnownCharts`,
+`resetDeviceSettings`). **Ajouter un réglage** : son champ et son défaut dans
+`AppSettings`, son action, sa ligne dans l'onglet. Les petits panneaux
+(métronome, tempo et mesures, accordage) partagent leurs corps avec les
+onglets et portent un lien « Tous les réglages… ». Sous-grille :
+`Subdivision` = 0,5 (blanches), 1, 2, 4, 8 ; `DEFAULT_SUBDIVISION` = 1 ; les
+appareils qui avaient l'ancien défaut passent une fois à « Noires »
+(`subdivisionVersion`). Tests : `tests/lib/settings.mjs` (`openSettingsTab`…).
+
+**Impression (C4).** `chart/printLayout.ts` (pur : `paginate`, `fitScale`,
+`normalizePrintOptions`, `printBarGeometry`), `chart/printChart.ts`
+(`usePrintChart`, `printLines`, `headerInfo`), `chart/PrintSheets.tsx` (les
+feuilles : les mêmes pour l'aperçu et pour le papier), `chart/print.ts`,
+`components/PrintDialog.tsx`, `styles/print.css`. Préférences :
+`fabtice.print`, `fabtice.print.printer`. `tests/pdf-read.mjs` relit le PDF.
+L'étape 5 (« ce qu'on imprime » : grille complète ou simplifiée) ajoute un
+champ `what` à `PrintOptions` / `normalizePrintOptions`, le lit dans
+`printLines`, et pose un groupe dans `PrintDialog` avant « Marges ».
+
+**Nouveau projet (C9).** `ui.newPieceFrom: 'link' | 'file' | null`,
+`openNewPiece(from)`, `requestNewProject(from)` (alerte d'abord) ;
+`components/NewPieceDialog.tsx` ; `separation/importChoice.ts`
+(`setSeparateOnImport`, `reconcileStems`, `isSeparateTicked`). La case
+« Alléger » (étape 6) se pose dans `ImportStems`, après la case « Séparer les
+instruments » : un commentaire marque l'endroit.
+
+**Grilles des standards.** `standards/offer.ts` : le message
+(`messageStep`, `acceptMessage`, `declineMessage`, `setDontShow`,
+`acknowledgeLastWord`, `leaveMessageRunning`, `finishMessage`,
+`markLaunched`) et les actions de la section (`downloadAllStandards`,
+`downloadOneStandard`, `checkStandardsUpdates`, `removeStandard`,
+`reportText`) ; `components/StandardsMessage.tsx`, `StandardsProgress.tsx`,
+`settings/StandardsSection.tsx` ; `standards/smooth.ts` (pourcentage
+régulier). « Tous » veut dire ceux que cette forme de l'app sait lire : 5
+recueils sur 15 pour l'app web (les autres pages refusent un navigateur), 15
+pour l'app Mac. Le message ne se montre pas sur les adresses de test
+(`?debug`, `?demo`, `localhost`) sauf avec `?grilles=message`. La liste des
+recueils (`standards/collections.json`) se vérifie sur les Mac de GitHub
+(`collectionAddresses.real.test.ts`, `FABTICE_COLLECTIONS_ONLINE=1`).
+
+**Chargement (C1).** Classe `en-cours` sur le texte d'état de l'analyse
+(`AnalysisStatus.tsx`) et de la séparation (`SeparationPanel.tsx`) (braise, reflet de 2,5 s, `prefers-reduced-motion`).
+
+**Captures pour le propriétaire.** `npm run build` puis `npm run captures --
+/chemin/hors/du/depot` (`tests/captures.mjs`) : menu ouvert et sous-menus,
+chaque onglet de Réglages, « Nouveau projet », message des grilles, fenêtre
+d'impression, chargement en cours, au bureau (1280 × 800) et au téléphone
+(390 × 844).
 
 ### Étape 1 de la 1.0.0 : socle (document version 6)
 

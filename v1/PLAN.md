@@ -248,6 +248,15 @@ la case, déjà téléchargé).
   format `.als` et de projets de référence libres ; s'appuie sur le fichier
   MIDI de C pour le repli.
 
+**Ce que l'étape 2 a laissé** (voir `v1/bilan-etape-2.md`). Le sous-menu
+« Exporter » existe déjà (Audio…, iReal Pro → Fichier… / Ouvrir dans iReal
+Pro, PDF…) : « Audio… » ouvre l'ancienne fenêtre `ExportAudioDialog.tsx`, à
+remplacer ; « PDF… » ouvre la fenêtre d'impression. Ajouter « Dossier pour
+Logic Pro » et « Projet Ableton Live » : une entrée dans `COMMANDS` et
+`FABTICE_MENU` (`app/src/ui/commands.ts`), une clé `menu.*`, et la même dans
+`desktop/src/menu.js`. Le travail de l'agent B est donc réduit à vérifier
+iReal Pro et PDF dans ce menu.
+
 **Points d'attention.** Mesure avant le premier temps : le fichier MIDI doit
 placer le premier temps sur une barre de mesure alors que les pistes
 commencent toutes à zéro (une mesure d'attente dont le tempo est calculé pour
@@ -338,6 +347,15 @@ version et fabrication).
 - C (modèle fort, effort moyen) : numéro 1.0.0 partout, fabrication qui
   publie une vraie version numérotée avec son fichier de version et le
   changelog, sans casser le lancement à la main sur une branche.
+
+**Ce que l'étape 2 a laissé.** La case « Alléger » se pose à deux endroits :
+dans « Nouveau projet » (`NewPieceDialog.tsx`, composant `ImportStems`, un
+commentaire marque la place) et dans Réglages → Général (avec son curseur de
+20 à 99 %). Les entrées de mise à jour (« Rechercher une mise à jour… »,
+numéro de version) vont dans Réglages → Général ou Avancé et, pour l'app Mac,
+dans le menu « Fabtice » de la barre (`desktop/src/menu.js`) : rien n'est
+posé. Un réglage s'ajoute par `AppSettings` (`app/src/model/project.ts`),
+`store/settingsActions.ts` et une ligne dans l'onglet.
 
 **Vérifié quand.** Sur les Mac de GitHub, une app « 1.0.0 » se met à jour vers
 une version factice plus récente et se relance, sur les deux puces ; une
