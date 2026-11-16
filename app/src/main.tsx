@@ -11,7 +11,7 @@ import { checkToolUpdate } from './import/controller';
 import { refreshModelList } from './separation/models';
 import { setLanguage } from './i18n';
 import * as standardsLibrary from './standards/library';
-import { initStandards } from './standards/offer';
+import { initStandards, markLaunched } from './standards/offer';
 import { startStorage } from './storage';
 import { appStore } from './store/store';
 import { registerServiceWorker } from './pwa/register';
@@ -56,7 +56,8 @@ const localPage = ['localhost', '127.0.0.1', '[::1]'].includes(window.location.h
 const testAddress = params.has('debug') || params.has('demo') || params.get('moteur') === 'factice' || localPage;
 if (!testAddress || params.get('outils') === 'distant') void refreshModelList();
 // The chord charts of standards: what is on the device, and the remote list of collections (same rule as above).
-void initStandards({ remoteList: !testAddress || params.get('outils') === 'distant' });
+// The message that offers them (C9) is for the real pages; a test address shows it only when `?grilles=message` asks.
+void initStandards({ remoteList: !testAddress || params.get('outils') === 'distant', message: !testAddress || params.get('grilles') === 'message' });
 // The dialog stays closed from the first paint instead of flashing: it opens
 // once we know whether a piece is kept on the device (see storage/restore.ts).
 appStore.setState((s) => ({ ui: { ...s.ui, newPieceOpen: false } }));
@@ -77,7 +78,10 @@ if (params.has('demo')) {
   }
   // Autosave on, then the kept piece reopened, else the new-piece dialog. Then (Mac app) the `.fab`
   // files opened from the Finder, which replace it as an import would.
-  void startStorage().then(() => import('./project/fromDesktop').then((m) => m.followOpenedProjects()));
+  // The message of the chord charts waits for the start-up to be over (`markLaunched`).
+  void startStorage()
+    .then(() => import('./project/fromDesktop').then((m) => m.followOpenedProjects()))
+    .finally(markLaunched);
   // Mac app: is a newer version of the import tool available? (a discreet offer, never a prompt)
   void checkToolUpdate();
 }

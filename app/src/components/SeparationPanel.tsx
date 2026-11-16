@@ -85,7 +85,7 @@ export function SeparationStatus() {
   if (run.status === 'idle') return null;
   return (
     <button
-      className="analyse-bouton separation-bouton"
+      className={`analyse-bouton separation-bouton${run.status === 'running' ? ' en-cours' : ''}`}
       data-testid="separation-etat"
       aria-haspopup="dialog"
       onClick={() => togglePanel('separation')}

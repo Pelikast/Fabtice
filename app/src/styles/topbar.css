@@ -104,6 +104,32 @@ label.option:hover { background: var(--papier-fonce); }
   transition: background var(--vite) var(--courbe), color var(--vite) var(--courbe);
 }
 .analyse-bouton:hover, .analyse-bouton[aria-expanded="true"] { background: var(--papier-fonce); color: var(--encre); }
+/* C1: while an analysis or a separation runs, its text takes the ember of the « t » of Fabtice (an exception wanted by
+   the owner to « one single red thing », DESIGN.md), a little larger, and a reflection of light crosses it from left to
+   right every 2.5 s: a gradient cut out by the text. No reflection with reduced motion; colour and size stay. */
+.analyse-bouton.en-cours {
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--braise);
+  --reflet: linear-gradient(100deg, var(--braise) 0%, var(--braise) 40%, #e58f6f 50%, var(--braise) 60%, var(--braise) 100%);
+  background: var(--reflet) 100% 0 / 260% 100% no-repeat;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: reflet 2.5s linear infinite;
+}
+/* The hover and the open panel keep the shaded ground under the text without losing the cut-out gradient. */
+.analyse-bouton.en-cours:hover, .analyse-bouton.en-cours[aria-expanded="true"] {
+  color: var(--braise);
+  background: var(--reflet) 100% 0 / 260% 100% no-repeat, var(--papier-fonce);
+  -webkit-background-clip: text, border-box;
+  background-clip: text, border-box;
+}
+@keyframes reflet { from { background-position: 100% 0; } to { background-position: 0 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .analyse-bouton.en-cours, .analyse-bouton.en-cours:hover, .analyse-bouton.en-cours[aria-expanded="true"] { animation: none; -webkit-text-fill-color: currentColor; background: none; }
+  .analyse-bouton.en-cours:hover, .analyse-bouton.en-cours[aria-expanded="true"] { background: var(--papier-fonce); }
+}
 .panneau-analyse {
   top: calc(100% + 10px);
   left: 0;
