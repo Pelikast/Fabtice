@@ -750,8 +750,10 @@ export const fr = {
   'standards.done': 'Terminer',
   'standards.close': 'Fermer',
   // The sentence that ends a download (the message, and the line under the buttons of the settings)
-  'standards.report.all': 'Tout est téléchargé : {total} recueils, {tunes} grilles gardées sur cet appareil.',
-  'standards.report.kept': '{n} recueils sur {total} téléchargés : {tunes} grilles gardées sur cet appareil.',
+  'standards.report.all.one': 'Tout est téléchargé : {total} recueil, {tunes} grilles gardées sur cet appareil.',
+  'standards.report.all.other': 'Tout est téléchargé : {total} recueils, {tunes} grilles gardées sur cet appareil.',
+  'standards.report.kept.one': '{n} recueil sur {total} téléchargé : {tunes} grilles gardées sur cet appareil.',
+  'standards.report.kept.other': '{n} recueils sur {total} téléchargés : {tunes} grilles gardées sur cet appareil.',
   'standards.report.others': 'Les autres',
   'standards.report.retry': 'se retentent dans Réglages → Avancé',
   'standards.report.fileOrMac': 'se téléchargent dans l’app Mac ou s’importent par fichier',
@@ -774,7 +776,8 @@ export const fr = {
   // « Réglages → Avancé »
   'standards.sectionNote': 'Des grilles d’accords déposées par des utilisateurs d’iReal Pro : Fabtice s’en sert pour retrouver les accords d’un standard. Elles se téléchargent depuis leur emplacement public et restent sur cet appareil ; Fabtice ne les redistribue pas.',
   'standards.summaryNone': 'Aucune grille sur cet appareil.',
-  'standards.summary': '{n} recueils sur {total} gardés sur cet appareil : {tunes} grilles.',
+  'standards.summary.one': '{n} recueil sur {total} gardé sur cet appareil : {tunes} grilles.',
+  'standards.summary.other': '{n} recueils sur {total} gardés sur cet appareil : {tunes} grilles.',
   'standards.check': 'Vérifier les mises à jour de grilles',
   'standards.downloadAll': 'Tout télécharger',
   'standards.collections': 'Recueils',

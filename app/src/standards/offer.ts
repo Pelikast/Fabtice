@@ -290,8 +290,9 @@ export interface StandardsDeps {
   can?: (spec: CollectionSpec) => boolean;
 }
 let deps: StandardsDeps = {};
+/** Puts these deps in force, over the ones already there. */
 export function setStandardsDeps(next: StandardsDeps): void {
-  deps = next;
+  deps = { ...deps, ...next };
 }
 
 let controller: AbortController | null = null;
@@ -347,13 +348,13 @@ export function reportText(r: RunReport): string {
     const lead = done.length > 0 ? `${done.join(t('standards.report.and'))}.` : t('standards.report.upToDateExcept');
     return r.failed > 0 ? `${lead} ${tp('standards.report.notChecked', r.failed)}` : lead;
   }
-  if (r.cancelled) return r.keptListed > 0 ? `${t('standards.report.cancelled')} ${t('standards.report.kept', numbers)}` : t('standards.report.cancelled');
+  if (r.cancelled) return r.keptListed > 0 ? `${t('standards.report.cancelled')} ${tp('standards.report.kept', r.keptListed, numbers)}` : t('standards.report.cancelled');
   if (r.keptListed === 0) return t('standards.report.none');
-  if (r.keptListed === r.listed) return t('standards.report.all', numbers);
+  if (r.keptListed === r.listed) return tp('standards.report.all', r.listed, numbers);
   const tails: string[] = [];
   if (r.failed > 0) tails.push(t('standards.report.retry'));
   if (r.fileOnly > 0) tails.push(t('standards.report.fileOrMac'));
-  return tails.length === 0 ? t('standards.report.kept', numbers) : `${t('standards.report.kept', numbers)} ${t('standards.report.others')} ${tails.join(t('standards.report.or'))}.`;
+  return tails.length === 0 ? tp('standards.report.kept', r.keptListed, numbers) : `${tp('standards.report.kept', r.keptListed, numbers)} ${t('standards.report.others')} ${tails.join(t('standards.report.or'))}.`;
 }
 
 async function startRun(op: RunOp, origin: RunOrigin, pick: (list: CollectionList, status: StandardsStatus) => string[], options: { readList?: boolean } = {}): Promise<void> {
@@ -362,12 +363,13 @@ async function startRun(op: RunOp, origin: RunOrigin, pick: (list: CollectionLis
   const signal = controller.signal;
   set({ importNote: null, run: { kind: 'running', op, origin, progress: idleProgress(), reading: options.readList === true } });
   let listProblem = false;
+  let list = getCollectionList().list;
   if (options.readList) {
     const loaded = await (deps.refreshList ?? ((o) => refreshCollectionList(o)))({ force: true });
     listProblem = loaded.source === 'bundled' && loaded.problem !== null;
+    list = loaded.list;
     set({ listVersion: get().listVersion + 1 });
   }
-  const list = getCollectionList().list;
   const before = await standardsStatus(deps.download?.store);
   const ids = signal.aborted ? [] : pick(list, before);
   addKnown(ids);

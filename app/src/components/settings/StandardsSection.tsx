@@ -158,7 +158,7 @@ export function StandardsSection() {
       <p className="panneau-note reglages-note">{t('standards.sectionNote')}</p>
       <div className="option option-colonne grilles-etat">
         <small data-testid="standards-etat">
-          {total === 0 ? t('standards.summaryNone') : t('standards.summary', { n: formatCount(keptListed + others.length), total: formatCount(list.collections.length), tunes: new Intl.NumberFormat(t('meta.locale')).format(total) })}
+          {total === 0 ? t('standards.summaryNone') : t(keptListed + others.length === 1 ? 'standards.summary.one' : 'standards.summary.other', { n: formatCount(keptListed + others.length), total: formatCount(list.collections.length), tunes: new Intl.NumberFormat(t('meta.locale')).format(total) })}
         </small>
         <div className="grilles-boutons">
           <button type="button" className="bouton-cadre" data-testid="standards-verifier" disabled={running} onClick={() => void checkStandardsUpdates()}>
