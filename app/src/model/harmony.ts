@@ -61,7 +61,7 @@ export interface Key {
  * A modulation (document version 6): from `time` (source seconds, after 0)
  * on, the music is in `key`, until the next change. The key before the first
  * change, from 0, is the piece's main key (`AnalysisResult.key`,
- * `Corrections.key`).
+ * `Corrections.key`). In force: `store/keySelectors.ts`; commands: `store/keyActions.ts`.
  */
 export interface KeyChange {
   time: Seconds;

@@ -7,8 +7,9 @@
 //     analysis keeps it, « Revenir à l'analyse » in the panel drops it with the
 //     other grid corrections;
 //   - the analysed chords from the chosen bar on, decoded on the new grid;
-//     those before it stay as they were. The analysed beats and the analysed
-//     key stay as they were (they are what « Revenir à l'analyse » goes back to);
+//     those before it stay as they were. The analysed beats, the analysed
+//     key, modulations and structure stay as they were (they are what
+//     « Revenir à l'analyse » goes back to);
 //   - `corrections.tempoFixes`: where it starts and the grid just before it.
 // What it never changes: what was done by hand. Hand chords, rewritten
 // stretches, section letters, loops and named loops are kept in source time
@@ -40,7 +41,9 @@ export function applyTempoFix(result: AnalysisResult, fix: TempoFix): void {
         ...result,
         beats: old.beats,
         key: old.key,
+        keyChanges: old.keyChanges,
         tuning: old.tuning,
+        structure: old.structure,
         chords: [...old.chords.filter((c) => c.time < fix.time - EPS), ...result.chords.filter((c) => c.time >= fix.time - EPS)],
       }
     : result;

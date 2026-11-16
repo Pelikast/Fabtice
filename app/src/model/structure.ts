@@ -17,7 +17,7 @@
 //   bar lies inside it (« Thème 1 (AABA) »). Correcting the letters is placing
 //   or removing section marks, as today.
 //
-// Merge rules (what is in force)
+// Merge rules (what is in force: `store/structureSelectors.ts`; commands: `store/structureActions.ts`)
 //   - Mode: the hand choice unless `auto`; then the detected mode; Jazz when
 //     nothing was detected.
 //   - Letters: the user's (`Corrections.sections`) when there is at least one,
