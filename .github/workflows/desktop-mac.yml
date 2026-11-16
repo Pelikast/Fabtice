@@ -53,6 +53,21 @@ jobs:
           npm run typecheck
           npm test
 
+      # Downloads every address of the chart collection list and reads it with the app's
+      # reader. Network and forum pages are not ours: reported, not required. The test
+      # itself only fails for a collection already in place; a candidate is listed in the
+      # report (ci-logs branch: collections/addresses.txt and 00b-collections.log).
+      - name: Interface - collection addresses (online)
+        id: collections
+        working-directory: app
+        continue-on-error: true
+        run: |
+          source "$GITHUB_WORKSPACE/desktop/ci/log-step.sh" 00b-collections
+          mkdir -p "$RUNNER_TEMP/ci-logs/collections"
+          FABTICE_COLLECTIONS_ONLINE=1 \
+          FABTICE_COLLECTIONS_REPORT="$RUNNER_TEMP/ci-logs/collections/addresses.txt" \
+          npx vitest run src/standards/collectionAddresses.real --silent=false
+
       - name: Interface - build for the Mac app
         id: ui-build
         working-directory: app

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-11-15",
+  "updated": "2026-11-16",
   "collections": [
     {
       "id": "jazz-1460",
@@ -290,6 +290,231 @@
           "verified": true,
           "followAttachments": false,
           "note": "Copie dans le dépôt de test d'un projet libre (figée à une révision). Téléchargée et lue ici : 50 morceaux, nom « Country 50 »."
+        }
+      ]
+    },
+    {
+      "id": "samba-de-roda",
+      "name": "Samba de roda",
+      "summary": "Environ 295 sambas et pagodes (Fundo de Quintal, Zeca Pagodinho, Paulinho da Viola…) déposés sur le forum.",
+      "tunes": 295,
+      "minTunes": 150,
+      "playlistName": null,
+      "genres": ["samba", "brazilian"],
+      "recommended": false,
+      "candidate": true,
+      "sourcePage": "https://forums.irealpro.com/threads/11680/",
+      "licence": "aucune licence publiée ; listes déposées par des membres du forum d'iReal Pro, droits réservés par défaut",
+      "licenceUnclear": true,
+      "pages": [
+        {
+          "url": "https://forums.irealpro.com/threads/11680/",
+          "kind": "html-with-ireal-links",
+          "role": "forum",
+          "host": "forums.irealpro.com",
+          "verified": false,
+          "followAttachments": true,
+          "note": "Candidat : fil « Samba de Roda List » du forum, repéré par une recherche web (titre et numéro de fil lus dans les résultats) ; ni la page ni la pièce jointe n'ont pu être ouvertes d'ici. À confirmer par le test des adresses en ligne."
+        }
+      ]
+    },
+    {
+      "id": "choro-melhor",
+      "name": "Choro : O Melhor do Choro Brasileiro",
+      "summary": "Les choros des deux volumes du recueil « O Melhor do Choro Brasileiro », déposés sur le forum.",
+      "tunes": null,
+      "minTunes": 30,
+      "playlistName": null,
+      "genres": ["choro", "brazilian"],
+      "recommended": false,
+      "candidate": true,
+      "sourcePage": "https://forums.irealpro.com/threads/13040/",
+      "licence": "aucune licence publiée ; listes déposées par des membres du forum d'iReal Pro, droits réservés par défaut",
+      "licenceUnclear": true,
+      "pages": [
+        {
+          "url": "https://forums.irealpro.com/threads/13040/",
+          "kind": "html-with-ireal-links",
+          "role": "forum",
+          "host": "forums.irealpro.com",
+          "verified": false,
+          "followAttachments": true,
+          "note": "Candidat : fil « O Melhor Do Choro Brasileiro Vol. I, II list » du forum, repéré par une recherche web (titre et numéro de fil lus dans les résultats) ; ni la page ni la pièce jointe n'ont pu être ouvertes d'ici. À confirmer par le test des adresses en ligne."
+        }
+      ]
+    },
+    {
+      "id": "jobim-40",
+      "name": "Antonio Carlos Jobim",
+      "summary": "Une quarantaine de morceaux de Jobim déposés sur le forum (bossa nova et chansons).",
+      "tunes": 40,
+      "minTunes": 25,
+      "playlistName": null,
+      "genres": ["bossa-nova", "brazilian"],
+      "recommended": false,
+      "candidate": true,
+      "sourcePage": "https://forums.irealpro.com/threads/35180/",
+      "licence": "aucune licence publiée ; listes déposées par des membres du forum d'iReal Pro, droits réservés par défaut",
+      "licenceUnclear": true,
+      "pages": [
+        {
+          "url": "https://forums.irealpro.com/threads/35180/",
+          "kind": "html-with-ireal-links",
+          "role": "forum",
+          "host": "forums.irealpro.com",
+          "verified": false,
+          "followAttachments": true,
+          "note": "Candidat : fil « Antonio Carlos jobim » du forum, repéré par une recherche web (titre et numéro de fil lus dans les résultats) ; ni la page ni la pièce jointe n'ont pu être ouvertes d'ici. À confirmer par le test des adresses en ligne."
+        }
+      ]
+    },
+    {
+      "id": "disco-bossa",
+      "name": "Disco Bossa",
+      "summary": "Une trentaine de bossas de Jobim, Baden Powell, Bonfá… déposées sur le forum.",
+      "tunes": 30,
+      "minTunes": 20,
+      "playlistName": null,
+      "genres": ["bossa-nova", "brazilian"],
+      "recommended": false,
+      "candidate": true,
+      "sourcePage": "https://forums.irealpro.com/threads/12074/",
+      "licence": "aucune licence publiée ; listes déposées par des membres du forum d'iReal Pro, droits réservés par défaut",
+      "licenceUnclear": true,
+      "pages": [
+        {
+          "url": "https://forums.irealpro.com/threads/12074/",
+          "kind": "html-with-ireal-links",
+          "role": "forum",
+          "host": "forums.irealpro.com",
+          "verified": false,
+          "followAttachments": true,
+          "note": "Candidat : fil « Disco bossa list » du forum, repéré par une recherche web (titre et numéro de fil lus dans les résultats) ; ni la page ni la pièce jointe n'ont pu être ouvertes d'ici. À confirmer par le test des adresses en ligne."
+        }
+      ]
+    },
+    {
+      "id": "great-gig-book",
+      "name": "Great Gig Book (Blue Book)",
+      "summary": "Environ 770 standards et chansons de répertoire de bal et de soirée (Great American Songbook, Noël…) ; recoupe en partie le Jazz 1460.",
+      "tunes": 772,
+      "minTunes": 500,
+      "playlistName": null,
+      "genres": ["jazz", "standards", "swing"],
+      "recommended": false,
+      "candidate": true,
+      "sourcePage": "https://forums.irealpro.com/threads/13431/",
+      "licence": "aucune licence publiée ; listes déposées par des membres du forum d'iReal Pro, droits réservés par défaut",
+      "licenceUnclear": true,
+      "pages": [
+        {
+          "url": "https://forums.irealpro.com/threads/13431/",
+          "kind": "html-with-ireal-links",
+          "role": "forum",
+          "host": "forums.irealpro.com",
+          "verified": false,
+          "followAttachments": true,
+          "note": "Candidat : fil « The Great Gig Book (Blue Book) » du forum, repéré par une recherche web (titre et numéro de fil lus dans les résultats) ; ni la page ni la pièce jointe n'ont pu être ouvertes d'ici. À confirmer par le test des adresses en ligne."
+        }
+      ]
+    },
+    {
+      "id": "real-book-1",
+      "name": "Real Book, volume I",
+      "summary": "Les morceaux du premier volume du Real Book, déposés sur le forum.",
+      "tunes": null,
+      "minTunes": 150,
+      "playlistName": null,
+      "genres": ["jazz", "standards"],
+      "recommended": false,
+      "candidate": true,
+      "sourcePage": "https://forums.irealpro.com/threads/10464/",
+      "licence": "aucune licence publiée ; listes déposées par des membres du forum d'iReal Pro, droits réservés par défaut",
+      "licenceUnclear": true,
+      "pages": [
+        {
+          "url": "https://forums.irealpro.com/threads/10464/",
+          "kind": "html-with-ireal-links",
+          "role": "forum",
+          "host": "forums.irealpro.com",
+          "verified": false,
+          "followAttachments": true,
+          "note": "Candidat : fil « Real Book I list » du forum, repéré par une recherche web (titre et numéro de fil lus dans les résultats) ; ni la page ni la pièce jointe n'ont pu être ouvertes d'ici. À confirmer par le test des adresses en ligne. Il existe un second fil du même nom (4528) et un fil « RealBook1 list » (7555), non retenus."
+        }
+      ]
+    },
+    {
+      "id": "real-book-2",
+      "name": "Real Book, volume II",
+      "summary": "Les morceaux du deuxième volume du Real Book, déposés sur le forum.",
+      "tunes": null,
+      "minTunes": 150,
+      "playlistName": null,
+      "genres": ["jazz", "standards"],
+      "recommended": false,
+      "candidate": true,
+      "sourcePage": "https://forums.irealpro.com/threads/10489/",
+      "licence": "aucune licence publiée ; listes déposées par des membres du forum d'iReal Pro, droits réservés par défaut",
+      "licenceUnclear": true,
+      "pages": [
+        {
+          "url": "https://forums.irealpro.com/threads/10489/",
+          "kind": "html-with-ireal-links",
+          "role": "forum",
+          "host": "forums.irealpro.com",
+          "verified": false,
+          "followAttachments": true,
+          "note": "Candidat : fil « Real Book II list » du forum, repéré par une recherche web (titre et numéro de fil lus dans les résultats) ; ni la page ni la pièce jointe n'ont pu être ouvertes d'ici. À confirmer par le test des adresses en ligne. Un second fil du même nom existe (4512)."
+        }
+      ]
+    },
+    {
+      "id": "real-book-3",
+      "name": "Real Book, volume III",
+      "summary": "Les morceaux du troisième volume du Real Book (environ 290), déposés sur le forum.",
+      "tunes": null,
+      "minTunes": 150,
+      "playlistName": null,
+      "genres": ["jazz", "standards"],
+      "recommended": false,
+      "candidate": true,
+      "sourcePage": "https://forums.irealpro.com/threads/10544/",
+      "licence": "aucune licence publiée ; listes déposées par des membres du forum d'iReal Pro, droits réservés par défaut",
+      "licenceUnclear": true,
+      "pages": [
+        {
+          "url": "https://forums.irealpro.com/threads/10544/",
+          "kind": "html-with-ireal-links",
+          "role": "forum",
+          "host": "forums.irealpro.com",
+          "verified": false,
+          "followAttachments": true,
+          "note": "Candidat : fil « Real Book III list » du forum, repéré par une recherche web (titre et numéro de fil lus dans les résultats) ; ni la page ni la pièce jointe n'ont pu être ouvertes d'ici. À confirmer par le test des adresses en ligne."
+        }
+      ]
+    },
+    {
+      "id": "beatles",
+      "name": "The Beatles",
+      "summary": "Les chansons des Beatles déposées sur le forum (plusieurs versions de certaines).",
+      "tunes": null,
+      "minTunes": 30,
+      "playlistName": null,
+      "genres": ["pop", "rock"],
+      "recommended": false,
+      "candidate": true,
+      "sourcePage": "https://forums.irealpro.com/threads/1188/",
+      "licence": "aucune licence publiée ; listes déposées par des membres du forum d'iReal Pro, droits réservés par défaut",
+      "licenceUnclear": true,
+      "pages": [
+        {
+          "url": "https://forums.irealpro.com/threads/1188/",
+          "kind": "html-with-ireal-links",
+          "role": "forum",
+          "host": "forums.irealpro.com",
+          "verified": false,
+          "followAttachments": true,
+          "note": "Candidat : fil « The Beatles » du forum, repéré par une recherche web (titre et numéro de fil lus dans les résultats) ; ni la page ni la pièce jointe n'ont pu être ouvertes d'ici. À confirmer par le test des adresses en ligne."
         }
       ]
     }
