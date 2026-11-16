@@ -67,7 +67,14 @@ test('the app starts on the real interface, isolated, with the link field', asyn
     assert.equal(headers.coep, 'require-corp');
     assert.match(headers.csp, /default-src 'none'/);
 
-    // The new-piece dialog offers the link field only because the bridge is there.
+    // On the real address (not a test one) the message of the chord charts (C9) comes over the opening screen:
+    // « Non merci » makes way for the new-project window.
+    await page.waitForSelector('[data-testid="grilles-message"]', { timeout: 30000 });
+    assert.equal(await page.locator('.voile-projet').evaluate((el) => el.inert), true, 'the opening screen waits behind the message');
+    await page.getByRole('button', { name: 'Non merci' }).click();
+    await page.waitForFunction(() => !document.querySelector('[data-testid="grilles-message"]'));
+
+    // The new-project window offers the link field only because the bridge is there.
     const link = page.locator('.accueil input[type="url"]');
     await link.waitFor({ state: 'visible', timeout: 10000 });
     assert.equal(await link.count(), 1);
