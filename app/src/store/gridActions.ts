@@ -3,10 +3,15 @@
 // bar, back to the analysed grid. Beat times never move: chords and sections
 // (stored in time) stay with the music. The lot 1 entry (tempo typed or
 // tapped) stays in `actions.ts#setManualGrid` and makes a constant grid.
+//
+// Signatures changed bar by bar (C13, `store/meterActions.ts`) go through
+// every one of these: they keep their place in the music (`grid/meters.ts`).
+// The panel's beats per bar are those of the first signature.
 
 import { getEngine } from '../audio';
 import { tempoMapFromBeats } from '../grid/beats';
 import { canDoubleTempo, canHalveTempo, doubleTempo, downbeatNear, halveTempo, isBeatGrid, shiftDownbeat, withNumerator } from '../grid/corrections';
+import { withMetersOf } from '../grid/meters';
 import { withManualGrid } from '../grid/tempoMap';
 import type { TempoMap } from '../model/tempoMap';
 import { appStore, type AppState } from './store';
@@ -51,13 +56,18 @@ export function placeDownbeatAtPlayhead(): void {
   correct((m) => (isBeatGrid(m) ? downbeatNear(m, t) : withManualGrid(m, { firstDownbeat: t })));
 }
 
-/** Back to the analysed grid, dropping the grid corrections (the user asked). */
+/**
+ * Back to the analysed grid, dropping the grid corrections (the user asked):
+ * beats, first downbeat, tempo actions and the first signature are the
+ * analysis' again. The signatures changed further in the piece are kept, on
+ * the nearest bar lines of the analysed grid (the grid is then `corrected`).
+ */
 export function resetGridToAnalysis(): void {
   const { analysis } = get();
   if (!analysis) return;
   try {
     set((s) => ({
-      tempoMap: tempoMapFromBeats(analysis.beats.times, analysis.beats.downbeat, analysis.beats.meter, 'analysis'),
+      tempoMap: withMetersOf(tempoMapFromBeats(analysis.beats.times, analysis.beats.downbeat, analysis.beats.meter, 'analysis'), s.tempoMap),
       corrections: s.corrections.tempoFixes.length ? { ...s.corrections, tempoFixes: [] } : s.corrections,
     }));
   } catch {

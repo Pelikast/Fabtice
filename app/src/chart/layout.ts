@@ -7,14 +7,20 @@
 // on the grid in force: a chord goes to the NEAREST BEAT, a section to the
 // NEAREST BAR LINE. That is how they stay with the music when the grid is
 // corrected (first beat moved, tempo doubled…).
+//
+// Signatures bar by bar (C13): a beat is a beat of the bar's own signature
+// (the eighths of a 6/8 bar in a 4/4 piece), every bar keeps the width of the
+// others whatever its length (as in a Real Book), and the signature is
+// written in the bar where it changes, and in the first bar when the piece
+// has more than one.
 
-import { barStartTime, barToBeat, beatToBar, beatToTime, meterAtBar, timeToBar, timeToBeat } from '../grid/tempoMap';
+import { barBeatToBeat, barStartTime, barToBeat, beatToBar, beatToTime, meterAtBar, sameMeter, timeToBar, timeToBeat } from '../grid/tempoMap';
 import { loopCoverage, type LoopCoverage } from '../grid/loops';
 import type { AnalysedChord } from '../model/analysis';
 import type { Corrections, SectionMark } from '../model/corrections';
 import type { ChordSymbol } from '../model/harmony';
 import type { Seconds, TimeRange } from '../model/project';
-import type { TempoMap } from '../model/tempoMap';
+import type { Meter, TempoMap } from '../model/tempoMap';
 
 /** Bars per line of the chart (DESIGN.md, mockup). */
 export const BARS_PER_LINE = 4;
@@ -23,7 +29,7 @@ export const BARS_PER_LINE = 4;
 export interface ChartChord {
   /** Stored position (source time). */
   time: Seconds;
-  /** Nearest beat of the grid in force (beats from the first downbeat). */
+  /** Nearest beat of the grid in force (map beats from the first downbeat; a beat of its bar's own signature, so fractional after a 7/8 bar). */
   beat: number;
   chord: ChordSymbol | null;
   origin: 'analysis' | 'manual';
@@ -34,9 +40,16 @@ export interface ChartChord {
   alternatives: ChordSymbol[];
 }
 
+/** The beat nearest `time`, a beat of the bar's own signature, as a map beat position. */
 export function nearestBeat(map: TempoMap, time: Seconds): number {
-  return Math.round(timeToBeat(map, time));
+  const beat = timeToBeat(map, time);
+  if (map.meters.length === 1) return Math.round(beat);
+  const pos = beatToBar(map, beat);
+  const k = Math.round(pos.beatInBar);
+  return k >= pos.meter.numerator ? barToBeat(map, pos.bar + 1) : barBeatToBeat(map, pos.bar, k);
 }
+
+const sameBeat = (a: number, b: number) => Math.abs(a - b) < 1e-9;
 
 /** Whole beats [first, end) covered by a hand span, on the grid in force. */
 function spanBeats(map: TempoMap, span: TimeRange): [number, number] {
@@ -63,7 +76,7 @@ export function resolveChords(map: TempoMap, analysed: readonly AnalysedChord[] 
   out.sort((a, b) => a.beat - b.beat || a.time - b.time);
   const unique: ChartChord[] = [];
   for (const c of out) {
-    if (unique.length && unique[unique.length - 1]!.beat === c.beat) unique[unique.length - 1] = c;
+    if (unique.length && sameBeat(unique[unique.length - 1]!.beat, c.beat)) unique[unique.length - 1] = c;
     else unique.push(c);
   }
   return unique;
@@ -80,8 +93,16 @@ export interface ChartBar {
   bar: number;
   start: Seconds;
   end: Seconds;
-  /** Beats in this bar. */
+  /** Beats in this bar (the numerator of its signature). */
   beats: number;
+  /** Its signature. */
+  meter: Meter;
+  /**
+   * The signature written in the bar: where it changes, and in the first bar
+   * of the chart when the piece has more than one; null elsewhere (a piece
+   * with one signature has it in the title line only).
+   */
+  signature: Meter | null;
   /** Chords starting in this bar, in order. */
   chords: BarChord[];
   /** No chord starts here but one is going on: the chart writes the bar-repeat sign. */
@@ -132,14 +153,21 @@ export function chartBars({ map, chords, sections, duration }: ChartInput): Char
   // The chord going on when the chart starts (a chord before the first bar shown cannot exist: `first` covers them).
   let going: ChordSymbol | null | undefined;
   const out: ChartBar[] = [];
+  const several = map.meters.length > 1;
+  let previous: Meter | null = null;
   for (let bar = first; bar <= last; bar++) {
     const own = byBar.get(bar) ?? [];
     const section = sectionAt.get(bar) ?? null;
+    const meter = meterAtBar(map, bar);
+    const written = several && (previous === null || !sameMeter(previous, meter));
+    previous = meter;
     out.push({
       bar,
       start: barStartTime(map, bar),
       end: barStartTime(map, bar + 1),
-      beats: meterAtBar(map, bar).numerator,
+      beats: meter.numerator,
+      meter: { ...meter },
+      signature: written ? { ...meter } : null,
       chords: own,
       repeat: own.length === 0 && going !== undefined && going !== null,
       section,
@@ -197,7 +225,7 @@ export function barProgress(map: TempoMap, time: Seconds): { bar: number; progre
 
 /** Source time of beat `beatInBar` (0-based) of bar `bar`. */
 export function timeOfBeatInBar(map: TempoMap, bar: number, beatInBar: number): Seconds {
-  return beatToTime(map, barToBeat(map, bar) + beatInBar);
+  return beatToTime(map, barBeatToBeat(map, bar, beatInBar));
 }
 
 /**

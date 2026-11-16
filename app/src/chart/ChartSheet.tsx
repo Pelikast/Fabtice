@@ -56,8 +56,9 @@ function ChartHeader({ canPrint }: { canPrint: boolean }) {
   const title = useApp((s) => s.project!.title);
   const ctx = useApp(selectDisplayContext);
   const minor = useApp((s) => s.settings.minorNotation);
+  // The signature the piece starts with; later ones are written in their bars (chart/layout.ts#ChartBar.signature).
   const meter = useApp((s) => s.tempoMap.meters[0]!.meter);
-  const bpm = useApp((s) => (isTempoKnown(s.tempoMap) ? shownBpm(s.tempoMap, nominalBpm(s.tempoMap, s.project?.duration)) : null));
+  const bpm = useApp((s) => (isTempoKnown(s.tempoMap) ? shownBpm(s.tempoMap, nominalBpm(s.tempoMap, s.project?.duration), s.project?.duration) : null));
   const instrument = useApp((s) => s.view.instrument);
   return (
     <>

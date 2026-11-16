@@ -176,10 +176,11 @@ export function meterChangeList(map: TempoMap): MeterChangeView[] {
 /**
  * The signature changes of `source` (all but the first) placed on `target`
  * by time, on the nearest bar lines (see the head of this file). The first
- * signature stays `target`'s. Same map when `source` has a single signature.
+ * signature stays `target`'s; `target`'s own changes are replaced. Same map
+ * when nothing changes.
  */
 export function withMetersOf(target: TempoMap, source: TempoMap): TempoMap {
-  if (source.meters.length <= 1) return target;
+  if (source.meters.length <= 1 && target.meters.length <= 1) return target;
   const floating = source.meters.slice(1).map((m) => ({ beat: timeToBeat(target, barStartTime(source, m.bar)), meter: m.meter, bar: m.bar }));
   const meters = placeMeters({ ...target.meters[0]!.meter }, [], floating);
   if (sameList(meters, target.meters)) return target;

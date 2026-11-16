@@ -9,7 +9,7 @@
 import { chartBars, resolveChords, type ChartBar } from '../chart/layout';
 import { transposeChord, chordText } from '../harmony/chord';
 import { transposeKey } from '../harmony/key';
-import { nominalBpm } from '../grid/tempoMap';
+import { nominalBpm, sameMeter } from '../grid/tempoMap';
 import type { ChordSymbol, Key } from '../model/harmony';
 import type { Meter } from '../model/tempoMap';
 import { keyInForce } from '../store/chartSelectors';
@@ -36,7 +36,7 @@ export interface ExportBar {
   doubleBarBefore: boolean;
   /** Time signature, given on the first bar and where it changes; null elsewhere. */
   timeSignature: Meter | null;
-  /** Chords starting in this bar, in order. */
+  /** Chords starting in this bar, in order (`beat` in the bar's own beats). */
   chords: ExportChord[];
   /** No chord starts here but the previous one goes on (iReal: one-bar repeat « x » or the chord again). */
   repeat: boolean;
@@ -75,8 +75,9 @@ export function buildExportChart({ title, bars, key, semitones, tempo }: ExportC
   const writtenKey = key ? transposeKey(key, semitones) : null;
   let meter: Meter | null = null;
   const out: ExportBar[] = bars.map((b, i) => {
-    const m: Meter = { numerator: b.beats, denominator: 4 };
-    const changed = !meter || meter.numerator !== m.numerator;
+    // The bar's own signature (C13: any of 1…64 over 4, 8, 16, 32; the encoder writes what its format knows).
+    const m: Meter = { ...b.meter };
+    const changed = !meter || !sameMeter(meter, m);
     meter = m;
     return {
       bar: b.bar,
