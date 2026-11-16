@@ -15,7 +15,9 @@ import { createRequire } from 'node:module';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { openSettingsTab } from './lib/settings.mjs';
 import { startServer } from './serve.mjs';
+import { menuCommand } from './lib/menu.mjs';
 
 const require = createRequire(process.env.PLAYWRIGHT_MODULE_DIR || '/opt/node-tools/');
 const { chromium } = require('playwright');
@@ -62,13 +64,10 @@ async function open(query, viewport = { width: 1280, height: 800 }, context = nu
 const state = (page) => page.evaluate(() => window.__fabtice.store.getState());
 const phone = (page) => page.viewportSize().width < 760;
 
-/** Opens the separation panel from where it is on this size (the track column, or the phone menu). */
+/** Opens the separation panel from under the track column (« Séparer » on a phone). */
 async function openSeparationPanel(page) {
   if ((await page.locator('[data-testid="panneau-separation"]').count()) > 0) return;
-  if (phone(page)) {
-    await page.click('.menu-plus');
-    await page.click('[data-separation-entry]');
-  } else await page.click('[data-testid="separer"]');
+  await page.click('[data-testid="separer"]');
   await page.waitForSelector('[data-testid="panneau-separation"]');
 }
 
@@ -187,12 +186,11 @@ try {
       }
       {
         const { page } = await open('?demo&moteur=factice', vp);
-        await page.click(phone(page) ? '.menu-plus' : 'button.menu:has-text("Réglages")');
-        await page.click('[data-testid="reglages-avances"]');
+        await openSettingsTab(page, 'instruments');
         await sleep(300);
-        const fit = await fitsAboveTransport(page, '.reglages-app');
-        check(`${tag}: advanced settings inside the window`, fit.ok, fit.why);
-        await page.screenshot({ path: path.join(out, `reglages-avances-${tag}.png`) });
+        const fit = await fitsAboveTransport(page, '[data-testid="reglages"]');
+        check(`${tag}: the Instruments tab of the settings inside the window`, fit.ok, fit.why);
+        await page.screenshot({ path: path.join(out, `reglages-instruments-${tag}.png`) });
         await page.close();
       }
       {
@@ -300,11 +298,11 @@ try {
     // Advanced settings: another tool, formants; kept on this device.
     {
       const { page } = await open('?demo&moteur=factice&separation=entier');
-      await page.click('button.menu:has-text("Réglages")');
-      await page.click('[data-testid="reglages-avances"]');
-      const auto = await page.locator('.reglages-app small').first().innerText();
+      const instruments = await openSettingsTab(page, 'instruments');
+      const auto = await instruments.locator('small').first().innerText();
       check('advanced: the automatic choice says why', auto.includes('BS-RoFormer SW') && auto.includes('carte graphique Apple'), auto);
       await page.selectOption('[data-testid="outil-separation"]', 'scnet');
+      await openSettingsTab(page, 'advanced');
       await page.check('[data-testid="formants"]');
       const s = await state(page);
       check('advanced: tool and formants in the settings', s.settings.advanced.separationModel === 'scnet' && s.settings.advanced.formants === true);
@@ -340,8 +338,7 @@ try {
   if (part('export')) {
     const { page, errors } = await open('?demo&moteur=factice&separation=faite');
     await page.waitForFunction(() => window.__fabtice.store.getState().separation.result);
-    await page.click('button:has-text("Exporter")');
-    await page.click('[data-export="audio"]');
+    await menuCommand(page, 'Exporter', 'Audio…');
     await page.waitForSelector('[data-testid="export-son"]');
     await page.click('[data-testid="exporter-son"]');
     await page.waitForSelector('[data-testid="fichier-son"]', { timeout: 30000 });

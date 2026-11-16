@@ -110,6 +110,11 @@ export interface RestoreDeps {
   decode?: (stored: StoredAudio, onFraction: (fraction: number | null) => void) => Promise<DecodedAudio>;
   /** Replaces the time limits (tests). */
   limits?: Partial<RestoreLimits>;
+  /**
+   * The piece is open again (`whole`: false when its separated instruments could not be read back): its « saved or
+   * modified » state comes back (`project/restoredState.ts`). Not awaited.
+   */
+  onRestored?: (projectId: string, whole: boolean) => void;
 }
 
 /**
@@ -204,6 +209,7 @@ async function attempt(deps: ReturnType<typeof resolve>, doc: ProjectDocument): 
     await withTimeout(restoreProject(opened, audio, () => current), limits.prepare, 'prepare');
     keeper.adopt(doc.project.id);
     marker.clear();
+    deps.onRestored?.(doc.project.id, !instrumentsLost);
     if (instrumentsLost) {
       setSeparationNotice(t('separation.lostAtRestore'));
       // The kept document still names the lost instruments: keep the whole piece instead, now.
@@ -266,6 +272,13 @@ export async function restoreAtLaunch(rawDeps: RestoreDeps): Promise<RestoreOutc
   // Nothing to reopen, or the user was faster than the device (a file already dropped): leave things be.
   if (!doc || doc.project.source.kind === 'demo' || userIsBusy()) {
     if (!userIsBusy()) openNewPiece();
+    return 'none';
+  }
+  // « À l'ouverture » (Réglages → Général): the « Nouveau projet » window rather than the last piece, which stays
+  // kept on the device and is offered in that window (« Rouvrir… »).
+  if (appStore.getState().settings.atLaunch === 'newProject') {
+    setReopenOffer({ title: doc.project.title });
+    openNewPiece();
     return 'none';
   }
   // Killed during the last attempt: do not try again by ourselves, let the user decide.

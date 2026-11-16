@@ -211,8 +211,37 @@ function makeWavFile(file, { seconds = 35, rate = 44100 } = {}) {
   return { bytes: head.length + data.length, seconds };
 }
 
+/** An entry of the menu Fabtice open now, by its exact label (a trailing `*`: the start of it). */
+function menuEntryLocator(page, label) {
+  const prefix = label.endsWith('*');
+  const escaped = (prefix ? label.slice(0, -1) : label).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return page
+    .locator('.menu-fabtice [role="menuitem"]')
+    .filter({ has: page.locator('.menu-texte', { hasText: new RegExp(`^\\s*${escaped}${prefix ? '' : '\\s*$'}`) }) })
+    .first();
+}
+
+/**
+ * The menu Fabtice (C6, the logo of the page): opens it and clicks the path of entries given by their labels,
+ * as `app/tests/lib/menu.mjs` does in the browser checks (the Mac app's window is always the computer form).
+ * An entry greyed out throws.
+ */
+async function menuCommand(page, ...labels) {
+  const button = page.locator('button.marque');
+  if ((await button.getAttribute('aria-expanded')) !== 'true') await button.click();
+  await page.locator('#menu-fabtice').waitFor({ timeout: 5000 });
+  for (const label of labels) {
+    const item = menuEntryLocator(page, label);
+    await item.waitFor({ timeout: 10000 });
+    if ((await item.getAttribute('aria-disabled')) === 'true') throw new Error(`menu: « ${label} » is greyed out`);
+    await item.click();
+  }
+}
+
 module.exports = {
   ROOT,
+  menuCommand,
+  menuEntryLocator,
   FIXTURES,
   launchApp,
   windowByUrl,

@@ -32,7 +32,7 @@ import { newId } from '../util/id';
 import { clampScale, clampTrackHeight } from '../view/zoom';
 import { clampCents, clampSemitones, originalBpm, steppedTempoRatio, TEMPO_RATIO } from './derived';
 import { fromProjectDocument } from './document';
-import { appStore, DEFAULT_PLAYBACK, type AppState, type ImportStatus, type PanelId, type ReopenOffer, type SettingsTab, type StorageNotice } from './store';
+import { appStore, DEFAULT_PLAYBACK, type AppState, type ImportStatus, type NewPieceFrom, type PanelId, type ReopenOffer, type SettingsTab, type StorageNotice } from './store';
 
 const get = () => appStore.getState();
 const set = (patch: Partial<AppState> | ((s: AppState) => Partial<AppState>)) => appStore.setState(patch);
@@ -402,7 +402,7 @@ export function closePanel(): void {
 
 /** « Réglages… » (C7): opens the window, on `tab` when given, else on the tab last seen. */
 export function openSettings(tab?: SettingsTab): void {
-  set((s) => ({ ui: { ...s.ui, panel: 'none', settings: { open: true, tab: tab ?? s.ui.settings.tab } } }));
+  set((s) => ({ ui: { ...s.ui, panel: 'none', settings: { open: true, tab: tab ?? s.ui.settings.tab, direct: tab !== undefined } } }));
 }
 
 export function setSettingsTab(tab: SettingsTab): void {
@@ -413,8 +413,9 @@ export function closeSettings(): void {
   if (get().ui.settings.open) set((s) => ({ ui: { ...s.ui, settings: { ...s.ui.settings, open: false } } }));
 }
 
-export function openNewPiece(): void {
-  set((s) => ({ ui: { ...s.ui, newPieceOpen: true, panel: 'none' } }));
+/** Opens the new-piece dialog; `from` says which entry of « Nouveau projet ▸ » asked (null: the whole opening screen). */
+export function openNewPiece(from: NewPieceFrom = null): void {
+  set((s) => ({ ui: { ...s.ui, newPieceOpen: true, newPieceFrom: from, panel: 'none' } }));
 }
 
 /** Closes the dialog, unless there is nothing behind it (no project) or an import is running. */

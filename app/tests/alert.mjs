@@ -16,6 +16,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { startServer } from './serve.mjs';
+import { menuCommand } from './lib/menu.mjs';
 
 const require = createRequire(process.env.PLAYWRIGHT_MODULE_DIR || '/opt/node-tools/');
 const { chromium } = require('playwright');
@@ -122,15 +123,9 @@ const state = (page) =>
     return { id: s.project?.id ?? null, dialog: s.ui.newPieceOpen, alert: !!document.querySelector('[data-testid="alerte-projet"]'), saveDialog: !!document.querySelector('[data-testid="enregistrer-projet"]'), writes: window.__writes, picks: window.__picks.length };
   });
 
-/** « Nouveau projet »: the button of the top bar on a computer, the entry of the settings menu on a phone. */
-async function newProject(page, touch) {
-  if (touch) {
-    // The menu stays open when the alert is answered « Annuler ».
-    if (!(await page.locator('.lien-option').isVisible())) await page.tap('.menu-plus');
-    await page.tap('.lien-option');
-  } else {
-    await page.click('button.menu:has-text("Nouveau projet")');
-  }
+/** « Nouveau projet »: the menu Fabtice (C6), at the mouse on a computer, at a touch on a phone. */
+async function newProject(page) {
+  await menuCommand(page, 'Nouveau projet', 'À partir d’un fichier audio');
 }
 
 async function closeNewProjectDialog(page) {

@@ -6,13 +6,14 @@
 //      with two tools (the stand-in separator of `?debug`: real 16-bit
 //      instruments of the piece's length), the mix set in each, corrected by
 //      hand, a named loop, metronome settings, transposition, « Appliquer »
-//      (the stand-in renderer) ; « Exporter » → « Enregistrer le projet… »: the
+//      (the stand-in renderer) ; menu Fabtice → « Enregistrer sous… »: the
 //      REAL libFLAC encoder in its workers. « Enregistrer sous… » ends in the browser's save panel: the check
 //      stands in for it with a handle on a file of the page's private file system (what Chromium gives), which is
 //      then copied out through a download and checked; then a change, and cmd/Ctrl + S (« Enregistrer »): the
 //      SAME file is overwritten, fast (no encoder worker is started, the sounds already encoded are copied),
-//      the title shows « modified » then « saved »; the file read back holds the change; a reload (the file
-//      handle is not kept: « Enregistrer » asks where), then « Ouvrir un projet » with a handle: the file
+//      the title shows « modified » then « saved »; the file read back holds the change; a reload (the piece
+//      still reads « saved », the autosave keeps that state; the file handle is not kept: « Enregistrer » asks
+//      where; a change after the reload reads « modified »), then « Ouvrir un projet » with a handle: the file
 //      opened becomes the project's file; a browser with no file handles (Safari, Firefox) gets the link of
 //      old, whose click reads « saved »;
 //   2. profile B, nothing kept: « Ouvrir un projet Fabtice » → the file →
@@ -34,7 +35,9 @@ import { createRequire } from 'node:module';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { openSettingsTab } from './lib/settings.mjs';
 import { startServer } from './serve.mjs';
+import { menuCommand } from './lib/menu.mjs';
 
 const require = createRequire(process.env.PLAYWRIGHT_MODULE_DIR || '/opt/node-tools/');
 const { chromium } = require('playwright');
@@ -193,10 +196,9 @@ async function copyOut(page, name) {
   return target;
 }
 
-/** « Exporter » → « Enregistrer le projet… » (« Enregistrer sous… »): the dialog, then the panel (stood in for), then the file. */
+/** Menu Fabtice → « Enregistrer sous… »: the dialog, then the panel (stood in for), then the file. */
 async function saveProjectAs(page, { shot }) {
-  await page.click('button.menu:has-text("Exporter")');
-  await page.click('.menu-export [data-export="project"]');
+  await menuCommand(page, 'Enregistrer sous…');
   await page.waitForSelector('[data-testid="enregistrer-projet"]');
   const contents = (await page.locator('[data-testid="contenu-projet"]').textContent().catch(() => '')) ?? '';
   const label = await page.textContent('[data-testid="preparer-projet"]');
@@ -336,7 +338,11 @@ try {
     await page.reload();
     await page.waitForFunction(() => window.__fabtice, null, { timeout: 30000 });
     await ready(page);
-    check('after a reload the piece reads « modified » (restored from the autosave)', await page.evaluate(() => window.__fabtice.history.isModified()));
+    // The autosave kept « saved » beside the document: the piece is still the one in its file.
+    await page.waitForFunction(() => !window.__fabtice.history.isModified(), null, { timeout: 10000 }).catch(() => {});
+    check('after a reload the piece still reads « saved » (identical to its file), no mark in the title', !(await page.evaluate(() => window.__fabtice.history.isModified())) && (await page.title()) === 'Lover Man — Fabtice', await page.title());
+    await page.evaluate(() => window.__fabtice.store.setState((s) => ({ corrections: { ...s.corrections, tuningCents: 23 } })));
+    check('a change after the reload: « modified »', await page.evaluate(() => window.__fabtice.history.isModified()));
     await page.keyboard.press('Control+s');
     await page.waitForSelector('[data-testid="enregistrer-projet"]', { timeout: 10000 });
     check('after a reload « Enregistrer » asks where (the dialog of « Enregistrer sous… »)', true);
@@ -372,8 +378,7 @@ try {
     const { context, page, errors } = await browserWith({ width: 1280, height: 800 }, { savePicker: false, openPicker: false });
     await page.locator('.accueil input[type="file"]').setInputFiles(wav);
     await ready(page);
-    await page.click('button.menu:has-text("Exporter")');
-    await page.click('.menu-export [data-export="project"]');
+    await menuCommand(page, 'Enregistrer sous…');
     await page.waitForSelector('[data-testid="enregistrer-projet"]');
     check('without file handles the button says « Préparer le fichier »', (await page.textContent('[data-testid="preparer-projet"]')).includes('Préparer le fichier'));
     await page.click('[data-testid="preparer-projet"]');
@@ -557,16 +562,15 @@ try {
     const { context, page, errors } = await browserWith(viewport);
     await page.goto(`${url}/?demo`);
     await page.waitForFunction(() => window.__fabtice && window.__fabtice.store.getState().project, null, { timeout: 30000 });
-    await page.click(viewport.width < 760 ? '.menu-plus' : 'button.menu:has-text("Réglages")');
-    await page.click('[data-testid="reglages-avances"]');
+    await openSettingsTab(page, 'advanced');
     await page.waitForSelector('[data-testid="place-appareil"]');
     await page.waitForFunction(() => !document.querySelector('[data-testid="place-appareil"]').textContent.includes('Mesure en cours'));
     const panel = await page.evaluate(() => {
-      const el = document.querySelector('.reglages-app');
+      const el = document.querySelector('[data-testid="reglages"]');
       const r = el.getBoundingClientRect();
-      return { inside: r.left >= 0 && r.right <= window.innerWidth && r.top >= 0 && r.bottom <= window.innerHeight, text: el.textContent };
+      return { inside: r.left >= 0 && r.right <= window.innerWidth && r.top >= 0 && r.bottom <= window.innerHeight, text: document.querySelector('[data-testid="reglages-panneau"]').textContent };
     });
-    check(`settings (${tag}): basic first, advanced unfolded with the tool's cost and licence and the room on this device, inside the window`, panel.inside && panel.text.indexOf('Suivre la tête de lecture') < panel.text.indexOf('Réglages avancés') && panel.text.includes('Licence des poids') && panel.text.includes('Place sur cet appareil'), panel.inside ? '' : 'outside the window');
+    check(`settings (${tag}): the Avancé tab shows the room on this device, inside the window`, panel.inside && panel.text.includes('Place sur cet appareil'), panel.inside ? '' : 'outside the window');
     await page.locator('[data-testid="place-appareil"]').scrollIntoViewIfNeeded();
     await page.screenshot({ path: path.join(out, `reglages-${tag}.png`) });
     check(`no page errors (settings ${tag})`, errors.length === 0, errors.join(' | '));

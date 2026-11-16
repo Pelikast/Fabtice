@@ -5,3 +5,5 @@ export { getCurrentFile, setCurrentFile, clearCurrentFile } from './currentFile'
 export { confirmLeaveProject, requestNewProject } from './leave';
 export { saveProject, saveProjectAs } from './saveFlow';
 export { windowTitle } from './windowState';
+// The command table (C6): what the menus and the keyboard would do now.
+export { commandContext, commandStates, runCommand } from '../ui/commands';

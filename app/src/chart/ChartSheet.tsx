@@ -99,7 +99,7 @@ function ChartHeader({ canPrint }: { canPrint: boolean }) {
   );
 }
 
-function InstrumentChoice({ value }: { value: Instrument }) {
+export function InstrumentChoice({ value }: { value: Instrument }) {
   return (
     <span className="duo instrument" role="group" aria-label={t('chart.instrumentLabel')} title={t('chart.instrumentHint')}>
       {INSTRUMENTS.map((i) => (

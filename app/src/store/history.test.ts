@@ -437,7 +437,7 @@ describe('modified since the last save (C5)', () => {
     actions.setViewMode('grille');
     actions.seek(10);
     setExportPrefs({ format: 'mp3' });
-    actions.openPanel('export');
+    actions.openPanel('grid');
     expect(history.isModified()).toBe(false);
     actions.stepSemitones(1);
     applyAnalysis(demoSwingResult(DURATION));

@@ -27,7 +27,8 @@ import { emptyCorrections, type Corrections } from '../model/corrections';
 import { emptyMarkers, type Markers } from '../model/markers';
 import { defaultMetronome, type MetronomeSettings } from '../model/metronome';
 import {
-  DEFAULT_ADVANCED,
+  DEFAULT_SUBDIVISION,
+  defaultAppSettings,
   type AppSettings,
   type LoopState,
   type PlaybackSettings,
@@ -51,7 +52,7 @@ export interface ReopenOffer {
 }
 
 /** Small floating panels; only one is open at a time. */
-export type PanelId = 'none' | 'settings' | 'grid' | 'tuning' | 'export' | 'analysis' | 'separation' | 'metronome' | 'markers';
+export type PanelId = 'none' | 'grid' | 'tuning' | 'analysis' | 'separation' | 'metronome' | 'markers';
 
 /**
  * The analysis of the open piece, as the interface shows it (never saved).
@@ -98,11 +99,23 @@ export type StorageNotice = 'unavailable' | 'full' | 'renderFull';
 export const SETTINGS_TABS = ['general', 'instruments', 'tempo', 'chords', 'metronome', 'display', 'advanced'] as const;
 export type SettingsTab = (typeof SETTINGS_TABS)[number];
 
+/** What « Nouveau projet ▸ » was asked from: « À partir d'un lien YouTube », « À partir d'un fichier audio », or neither. */
+export type NewPieceFrom = 'link' | 'file' | null;
+
 export interface UiState {
-  /** « Réglages » (C7): a wide window with tabs; `tab` is kept while the app stays open. */
-  settings: { open: boolean; tab: SettingsTab };
+  /**
+   * « Réglages » (C7): a wide window with tabs; `tab` is kept while the app stays open. `direct`: it was
+   * opened on a named tab (a « Tous les réglages… » link), so the phone form goes straight to that tab
+   * instead of showing the list of the seven first.
+   */
+  settings: { open: boolean; tab: SettingsTab; direct: boolean };
   /** The new-piece dialog. Opened at launch when no project is loaded. */
   newPieceOpen: boolean;
+  /**
+   * Where « Nouveau projet ▸ » started from (C6): a YouTube link, an audio file, or null for the whole opening
+   * screen (at launch, « Ouvrir… », a project being opened).
+   */
+  newPieceFrom: NewPieceFrom;
   panel: PanelId;
   import: ImportStatus;
   /** A calm sentence shown in the dialog above the choices (e.g. the last piece could not be reopened). */
@@ -181,7 +194,7 @@ export function defaultView(): ViewSettings {
     trackHeight: TRACK_HEIGHT.default,
     // On a phone the lanes scroll at a fixed bar width instead (DESIGN.md).
     auto: !isPhoneLayout(),
-    subdivision: 2,
+    subdivision: DEFAULT_SUBDIVISION,
     triplets: false,
     snap: true,
     follow: true,
@@ -207,11 +220,12 @@ export function initialState(): AppState {
     loop: { region: null, enabled: false },
     playback: { ...DEFAULT_PLAYBACK },
     view: defaultView(),
-    settings: { minorNotation: 'm', advanced: { ...DEFAULT_ADVANCED } },
+    settings: defaultAppSettings(),
     transport: { engine: 'empty', error: null },
     ui: {
-      settings: { open: false, tab: 'general' },
+      settings: { open: false, tab: 'general', direct: false },
       newPieceOpen: true,
+      newPieceFrom: null,
       panel: 'none',
       import: { kind: 'idle' },
       notice: null,

@@ -1,7 +1,7 @@
 import type { Ref } from 'react';
 import { formatSigned } from '../grid/format';
 import { formatNumber, t } from '../i18n';
-import { resetTransposition, setCents } from '../store/actions';
+import { openSettings, resetTransposition, setCents } from '../store/actions';
 import { tuningInForce, tuningOffer } from '../store/chartSelectors';
 import { CENTS } from '../store/derived';
 import { compensateTuning, dismissTuningOffer } from '../store/harmonyActions';
@@ -40,6 +40,11 @@ export function TuningPanel({ ref }: { ref: Ref<HTMLDivElement> }) {
           {t('key.reset')}
         </button>
       </div>
+      <p className="panneau-note panneau-tous">
+        <button className="lien discret" data-testid="tous-reglages-accordage" onClick={() => openSettings('tempo')}>
+          {t('settingsWin.allSettings')}
+        </button>
+      </p>
     </div>
   );
 }
@@ -52,7 +57,7 @@ const hertz = (cents: number) => 440 * 2 ** (cents / 1200);
  * the offer to compensate it with the cents above (once compensated or
  * declined, only the measure stays).
  */
-function RecordingTuning() {
+export function RecordingTuning() {
   // Primitive selections only: a new object each time would re-render forever.
   const measured = useApp((s) => tuningInForce(s).cents);
   const compensation = useApp((s) => tuningOffer(s)?.compensation ?? null);

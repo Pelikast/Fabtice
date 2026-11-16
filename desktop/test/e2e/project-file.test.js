@@ -33,7 +33,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { launchInterface, pieceReady, assertClean, makeWavFile } = require('./helpers');
+const { launchInterface, pieceReady, assertClean, makeWavFile, menuCommand } = require('./helpers');
 
 // This machine has no graphics chip: the separation's device check says so in a warning, which is not a fault.
 const NO_ADAPTER = /No available adapters|WebGPU.*(unavailable|not supported)|Failed to create WebGPU/i;
@@ -127,8 +127,7 @@ test('a project saved in the app opens in a fresh app from the Finder, everythin
           return { canceled: false, filePath: `${dir}/${options.defaultPath.split('/').pop()}` };
         };
       }, saveDir);
-      await page.click('button:has-text("Exporter")');
-      await page.click('.menu-export [data-export="project"]');
+      await menuCommand(page, 'Enregistrer sous…');
       await page.waitForSelector('[data-testid="enregistrer-projet"]');
       await page.click('[data-testid="preparer-projet"]');
       await page.waitForFunction(() => !document.querySelector('[data-testid="enregistrer-projet"]'), null, { timeout: 120000 });
@@ -196,9 +195,11 @@ test('a project saved in the app opens in a fresh app from the Finder, everythin
       await page.screenshot({ path: path.join(base, 'recents.png') });
       if (process.env.FABTICE_E2E_SHOTS) fs.copyFileSync(path.join(base, 'recents.png'), path.join(process.env.FABTICE_E2E_SHOTS, 'projets-recents.png'));
       await page.click('[data-testid="projets-recents"] .lien');
-      // The piece restored from the device's copy reads « modified »: the alert about changes not saved comes first.
-      await page.waitForSelector('[data-testid="alerte-projet"]', { timeout: 10000 });
-      await page.click('[data-testid="alerte-abandonner"]');
+      // The piece restored from the device's copy is the one in its file (opened from it, nothing changed since): it
+      // reads « not modified », so no alert about changes not saved.
+      assert.equal(await page.evaluate(() => window.__fabtice.history.isModified()), false, 'restored, identical to its file');
+      await page.waitForTimeout(1000);
+      assert.equal(await page.locator('[data-testid="alerte-projet"]').count(), 0, 'no alert');
       await page.waitForFunction(() => window.__fabtice.store.getState().ui.import.kind === 'busy', null, { timeout: 10000 }).catch(() => {});
       await pieceReady(page);
       assert.deepEqual(await snapshot(page), before, 'opened again from the recent projects');
@@ -333,6 +334,18 @@ test('« Enregistrer » and « Enregistrer sous… » in the app: the project\'s
     try {
       await stubPanel(app);
       await spyWindow(app);
+      // Counts the FLAC encoders the page starts (one worker per track encoded): « fast » is proved by this count
+      // not moving on the second save, not by a duration (which turns round on a machine under load).
+      await page.evaluate(() => {
+        window.__encodeWorkers = 0;
+        const Native = window.Worker;
+        window.Worker = class extends Native {
+          constructor(url, options) {
+            super(url, options);
+            if (options && options.name === 'fabtice-encode') window.__encodeWorkers++;
+          }
+        };
+      });
       await page.locator('.accueil input[type="file"]').setInputFiles(wav);
       await pieceReady(page);
       await page.waitForFunction(() => window.__fabtice && window.__fabtice.lot3, null, { timeout: 30000 });
@@ -353,12 +366,12 @@ test('« Enregistrer » and « Enregistrer sous… » in the app: the project\'s
       await page.click('[data-testid="preparer-projet"]');
       await page.waitForFunction(() => !!document.querySelector('[data-testid="preparer-projet"]'), null, { timeout: 15000 });
       assert.equal(fs.readdirSync(folder).length, 0, 'panel closed: nothing written');
-      const t0 = Date.now();
       await panelAnswers(app, path.join(folder, 'Mon blues'));
       await page.click('[data-testid="preparer-projet"]');
       await page.waitForFunction(() => !document.querySelector('[data-testid="enregistrer-projet"]'), null, { timeout: 120000 });
-      const firstMs = Date.now() - t0;
       await saved(page);
+      const encodedFirst = await page.evaluate(() => window.__encodeWorkers);
+      assert.ok(encodedFirst >= 2, `the first save encodes the instruments (${encodedFirst} encoders started)`);
       assert.deepEqual(fs.readdirSync(folder), ['Mon blues.fab'], 'the .fab extension is added, no temporary file left');
       const panel = (await app.evaluate(() => globalThis.__panels)).pop();
       assert.equal(panel.title, 'Enregistrer le projet');
@@ -379,10 +392,8 @@ test('« Enregistrer » and « Enregistrer sous… » in the app: the project\'s
       await page.waitForTimeout(300);
       assert.equal(await lastEdited(app), true);
       await wait(20);
-      const t1 = Date.now();
       await page.keyboard.press('ControlOrMeta+s');
       await saved(page);
-      const secondMs = Date.now() - t1;
       assert.deepEqual(fs.readdirSync(folder), ['Mon blues.fab'], 'no temporary file left, no other file');
       assert.notEqual(sha(first), before.sha, 'the content changed');
       assert.ok(fs.statSync(first).mtimeMs > before.mtime, 'the file was written again');
@@ -391,7 +402,8 @@ test('« Enregistrer » and « Enregistrer sous… » in the app: the project\'s
       assert.ok(sounds.length >= 3, `sounds in the file: ${sounds.join(', ')}`);
       assert.deepEqual(sounds.map((n) => after[n]), sounds.map((n) => before.crcs[n]), 'every sound is the first save\'s, copied');
       assert.notEqual(after['projet.json'], before.crcs['projet.json']);
-      assert.ok(secondMs < Math.max(firstMs, 2500), `fast: ${secondMs} ms against ${firstMs} ms`);
+      // Fast: no sound was encoded again, they were copied (no clock involved).
+      assert.equal(await page.evaluate(() => window.__encodeWorkers), encodedFirst, 'fast: the second save starts no FLAC encoder');
       assert.equal(await lastEdited(app), false);
       assert.equal(await windowTitle(app), 'Mon blues');
       assert.equal(await page.evaluate(() => window.__fabtice.project.getCurrentFile().name), 'Mon blues.fab');
@@ -454,12 +466,13 @@ test('« Enregistrer » and « Enregistrer sous… » in the app: the project\'s
       await pieceReady(page);
       await spyWindow(app);
       await stubPanel(app);
-      // Restored from the device's copy: modified (the last work is not in a file), and the file is found again.
-      assert.equal(await page.evaluate(() => window.__fabtice.history.isModified()), true);
+      // Restored from the device's copy, and the file is found again. (Whether it reads « modified » depends on
+      // whether the autosave had written the last change before the quit: menu-bar.test.js checks that state.)
       await page.waitForFunction(() => window.__fabtice.project.getCurrentFile()?.name === 'Copie.fab', null, { timeout: 15000 });
       for (let i = 0; i < 50 && fs.existsSync(stale); i++) await wait(100);
       assert.equal(fs.existsSync(stale), false, 'the temporary file a dead save left is removed');
       // « Enregistrer » overwrites it with no question.
+      await changeSomething(page, 37);
       const before = sha(second);
       await page.keyboard.press('ControlOrMeta+s');
       await saved(page);

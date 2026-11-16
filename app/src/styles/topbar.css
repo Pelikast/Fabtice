@@ -53,7 +53,6 @@
 .menu:hover:not(:disabled) { background: var(--papier-fonce); color: var(--encre); }
 .menu:disabled { color: var(--encre-pale); }
 .menu[aria-expanded="true"] { background: var(--papier-fonce); color: var(--encre); }
-.menu-plus { display: none; }
 
 /* The two views: a group of their own, the active one underlined in ink. */
 .modes {
@@ -77,12 +76,6 @@
   background: var(--encre);
 }
 
-/* Settings popover */
-.reglages-app {
-  top: 52px;
-  right: 16px;
-  width: 290px;
-}
 .option {
   display: flex;
   align-items: center;
@@ -96,14 +89,8 @@
   text-align: left;
 }
 label.option { cursor: pointer; justify-content: flex-start; }
-label.option:hover, .lien-option:hover { background: var(--papier-fonce); }
+label.option:hover { background: var(--papier-fonce); }
 .option input[type="checkbox"] { width: 16px; height: 16px; margin: 0; accent-color: var(--encre); }
-.lien-option {
-  display: none;
-  border-top: 1px solid var(--trait-fin);
-  border-radius: 0 0 var(--rayon) var(--rayon);
-  font-weight: 600;
-}
 
 /* Analysis status, next to the title: discreet, ink only. */
 .analyse-etat { position: relative; flex: none; align-self: center; }
@@ -141,22 +128,3 @@ label.option:hover, .lien-option:hover { background: var(--papier-fonce); }
 .analyse-sources li + li { margin-top: 3px; }
 .analyse-sources strong { color: var(--encre); font-weight: 600; }
 
-/* Exporter: a small menu under its button. */
-.menu-ancre { position: relative; display: inline-flex; }
-.menu-export {
-  top: calc(100% + 8px);
-  right: 0;
-  width: 290px;
-}
-.menu-export .option { flex-direction: column; align-items: flex-start; gap: 1px; }
-.menu-export .option:hover:not(:disabled) { background: var(--papier-fonce); }
-.menu-export .option:disabled { color: var(--encre-douce); cursor: default; }
-.menu-export .option small { font-size: 12px; font-style: italic; color: var(--encre-douce); }
-
-/* « Exporter » inside the phone menu: hidden elsewhere (the top bar has the menu). */
-.export-tel { display: none; margin-top: 4px; padding: 10px 0 0; border-top: 1px solid var(--trait-fin); }
-.export-tel .libelle { display: block; padding: 0 10px 4px; }
-.export-tel .option { flex-direction: column; align-items: flex-start; gap: 1px; }
-.export-tel .option:hover:not(:disabled) { background: var(--papier-fonce); }
-.export-tel .option:disabled { color: var(--encre-douce); cursor: default; }
-.export-tel .option small { font-size: 12px; font-style: italic; color: var(--encre-douce); }

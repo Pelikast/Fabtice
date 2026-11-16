@@ -39,7 +39,7 @@ export interface StandardsState {
   postponed: boolean;
   /** « Ne plus proposer »: kept on the device. */
   declined: boolean;
-  /** The settings window (reached from « Réglages avancés »). */
+  /** The settings window (reached from « Réglages → Avancé »). */
   panelOpen: boolean;
   /** Bumped when the remote list of collections has replaced the bundled one (components redraw). */
   listVersion: number;

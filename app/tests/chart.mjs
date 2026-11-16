@@ -12,6 +12,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { startServer } from './serve.mjs';
+import { closeMenu, menuCommand, menuEntry, openMenu } from './lib/menu.mjs';
 
 const require = createRequire(process.env.PLAYWRIGHT_MODULE_DIR || '/opt/node-tools/');
 const { chromium } = require('playwright');
@@ -268,16 +269,10 @@ try {
     check('stored chords unchanged (concert pitch, original key)', JSON.stringify((await state(page)).analysis.chords) === storedBefore);
     await page.click('.duo.instrument button:has-text("Ut")');
 
-    // Export menu
-    await page.click('button:has-text("Exporter")');
-    // The iReal Pro file is written asynchronously: wait for the link (the entry is disabled until then).
-    await page.waitForSelector('.menu-export a[data-export="ireal"]', { timeout: 5000 }).catch(() => {});
-    const items = await page.$$eval('.menu-export [role="menuitem"]', (els) => els.map((e) => `${e.dataset.export}:${e.disabled}:${e.querySelector('small')?.textContent ?? ''}`));
-    // The iReal Pro entry is a link to the page it writes (tests/export.mjs checks it); an anchor has no `disabled`.
-    // Lot 3: the sound is available too (« Exporter le son », tests/separation.mjs).
-    // Lot 4: « Enregistrer le projet… » first, off for the demo piece (never kept nor saved), saying why.
-    check('Exporter: the project (off for the demo), iReal Pro is a link, printing and the sound available', items.join('|') === 'project:true:pas pour la démonstration|ireal:undefined:|print:false:|audio:false:', items.join('|'));
-    await page.keyboard.press('Escape');
+    // The menu Fabtice (C6): the sound, iReal Pro, PDF and printing available; « Enregistrer » off for the demo piece.
+    const items = [];
+    for (const p of [['Exporter', 'Audio…'], ['Exporter', 'iReal Pro', 'Fichier iReal Pro…'], ['Exporter', 'PDF…'], ['Imprimer…'], ['Enregistrer']]) items.push(`${p.at(-1)}:${(await menuEntry(page, ...p)).enabled}`);
+    check('menu: the sound, iReal Pro, PDF and printing available, « Enregistrer » off for the demo', items.join('|') === 'Audio…:true|Fichier iReal Pro…:true|PDF…:true|Imprimer…:true|Enregistrer:false', items.join('|'));
 
     check('no page errors (desktop)', errors.length === 0, errors.join(' | '));
     await page.close();
@@ -816,13 +811,12 @@ try {
     }
   }
 
-  // ------------------------------------------------------------ every panel stays in the window, above the transport
+  // ------------------------------------------------------------ every panel stays in the window, above the transport (« Réglages » is a window of its own: test:settings)
   {
     const panels = [
       { name: 'grid panel (Tempo)', sel: '.panneau-grille', view: 'pistes', open: (page) => page.click('.rang-tete.tempo') },
       { name: 'analysis panel', sel: '.panneau-analyse', view: 'pistes', open: (page) => page.evaluate(() => window.__fabtice.actions.openPanel('analysis')) },
-      { name: 'settings', sel: '.reglages-app', view: 'pistes', open: (page) => page.click('button:has-text("Réglages")') },
-      { name: 'Exporter menu', sel: '.menu-export', view: 'pistes', open: (page) => page.click('button:has-text("Exporter")') },
+      { name: 'menu Fabtice', sel: '#menu-fabtice', view: 'pistes', open: (page) => openMenu(page) },
       { name: 'fine tuning', sel: '.panneau-accord', up: true, view: 'pistes', open: (page) => page.evaluate(() => window.__fabtice.actions.openPanel('tuning')) },
       { name: 'key editor', sel: '.cle-editeur', view: 'grille', open: (page) => page.click('[data-testid="cle-bouton"]') },
     ];
@@ -1153,13 +1147,15 @@ try {
     });
     await page.evaluate(() => window.__fabtice.actions.setViewMode('pistes'));
     await sleep(100);
-    await page.tap('.menu-plus');
+    await openMenu(page);
+    await page.tap('.feuille-menu [data-sous-menu="export"]');
     await sleep(300);
-    const items = await page.$$eval('.export-tel [role="menuitem"]', (els) => els.map((e) => `${e.dataset.export}:${e.disabled}`));
-    check('phone: the « ⋯ » menu lists the export entries (project, iReal Pro, print, audio)', items.map((i) => i.split(':')[0]).join() === 'project,ireal,print,audio', items.join());
-    check('phone: « Imprimer la grille » is available there', items.includes('print:false'));
+    const items = await page.$$eval('.feuille-menu-liste [role="menuitem"]', (els) => els.map((e) => `${e.querySelector('.menu-texte').textContent}:${e.getAttribute('aria-disabled') === 'true'}`));
+    check('phone: the menu Fabtice lists the export entries (Audio…, iReal Pro, PDF…)', items.map((i) => i.split(':')[0]).join() === 'Audio…,iReal Pro,PDF…', items.join());
+    check('phone: « PDF… » is available there', items.includes('PDF…:false'));
     await page.screenshot({ path: path.join(out, 'app-390-menu-export.png') });
-    await page.tap('.export-tel [data-export="print"]');
+    await closeMenu(page);
+    await menuCommand(page, 'Imprimer…');
     await page.waitForSelector('[data-testid="impression"]');
     await page.screenshot({ path: path.join(out, 'impression-dialogue-390.png') });
     await page.tap('[data-testid="impression-imprimer"]');
@@ -1273,10 +1269,8 @@ try {
 
     // From the tracks view, by the menu.
     await page.evaluate(() => window.__fabtice.actions.setViewMode('pistes'));
-    await page.click('button:has-text("Exporter")');
-    const printItem = page.locator('.menu-export [data-export="print"]');
-    check('Exporter: « Imprimer la grille… » is available', (await printItem.isEnabled()) && (await printItem.innerText()).startsWith('Imprimer la grille…'));
-    await printItem.click();
+    check('menu: « Imprimer… » is available', (await menuEntry(page, 'Imprimer…')).enabled);
+    await menuCommand(page, 'Imprimer…');
     await page.waitForSelector('[data-testid="impression"]');
     await page.click('[data-testid="impression-imprimer"]');
     await page.waitForFunction(() => window.__printed !== null, null, { timeout: 5000 });

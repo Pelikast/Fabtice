@@ -22,6 +22,7 @@ import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { openSettingsTab } from './lib/settings.mjs';
 import { startServer } from './serve.mjs';
 import { forumPage, link, LOGIN_PAGE, officialPage, playlistFile, shrinkList, tunes } from './standards-fixtures.mjs';
 
@@ -171,7 +172,7 @@ try {
     const result = (await page.locator('[data-testid="standards-resultat"]').innerText()).replace(/\s+/g, ' ');
     note(`result: ${result}`);
     check('one result line: tunes kept (jazz 21 + blues 20)', result.includes('41 grilles gardées sur cet appareil.'), result.slice(0, 80));
-    check('some collections need a file: one short line points to the settings', result.includes('Réglages avancés → Grilles des standards') && !result.includes('Latin 50') && !result.includes('Importer un fichier'), result);
+    check('some collections need a file: one short line points to the settings', result.includes('Réglages → Avancé → Grilles des standards') && !result.includes('Latin 50') && !result.includes('Importer un fichier'), result);
     check('no page of an irealpro.com site was requested from the web app', !seen.some((s) => /irealpro|irealb/.test(s)), seen.join(', '));
     check('only the ticked collections were requested', seen.filter((s) => s.startsWith('raw.githubusercontent.com') && !/collections\.json|models\.json/.test(s)).length === 3, seen.join(', '));
     const kept = await records(page);
@@ -207,12 +208,9 @@ try {
     const { context } = await persistentContext();
     const { page, errors } = await openPage(context, '?demo&moteur=factice&outils=distant');
     await page.waitForFunction(() => window.__fabtice?.store.getState().project, null, { timeout: 20000 });
-    await page.locator('button:has-text("Réglages"):visible').first().click();
-    await sleep(300);
-    const advanced = page.locator('[data-testid="reglages-avances"]');
-    check('« Réglages avancés » is there', (await advanced.count()) === 1);
-    await advanced.click();
+    await openSettingsTab(page, 'advanced');
     await sleep(500);
+    check('the Avancé tab holds the entry of the collections', (await page.locator('[data-testid="standards-gerer"]').count()) === 1);
     await shot(page, '3a-reglages-avances');
     check('the settings say that nothing is on the device', (await page.locator('[data-testid="standards-etat"]').innerText()).includes('Aucune grille sur cet appareil'));
     await page.locator('[data-testid="standards-gerer"]').click();

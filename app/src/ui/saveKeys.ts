@@ -8,11 +8,8 @@
 //     without Latin letters.
 //   - Nothing while a window of the app is in the way (the save panel's own
 //     dialog, the alert) or a key is held down.
-
-import { appStore } from '../store/store';
-import { leaveDialog } from '../project/leave';
-import { saveProject, saveProjectAs } from '../project/saveFlow';
-import { isMacPlatform } from './historyKeys';
+// The keys are read here; `ui/commandKeys.ts` follows them with the other
+// shortcuts, through the command table (`ui/commands.ts`).
 
 export type SaveCommand = 'save' | 'saveAs';
 
@@ -26,20 +23,4 @@ export function saveCommandFor(e: KeyLike, mac: boolean): SaveCommand | null {
   const latin = /^[a-z]$/.test(key);
   if (!(latin ? key === 's' : e.code === 'KeyS')) return null;
   return e.shiftKey ? 'saveAs' : 'save';
-}
-
-/** Follows the keyboard on `win`. Returns the stop function. */
-export function installSaveKeys(win: Window = window, mac = isMacPlatform()): () => void {
-  const onKeyDown = (e: KeyboardEvent) => {
-    const command = saveCommandFor(e, mac);
-    if (!command) return;
-    // Taken here: the browser's own « save the page » never opens.
-    e.preventDefault();
-    if (e.repeat) return;
-    const s = appStore.getState();
-    if (!s.project || s.ui.saveProjectOpen || leaveDialog.getState().open || s.ui.import.kind === 'busy') return;
-    void (command === 'save' ? saveProject() : saveProjectAs());
-  };
-  win.addEventListener('keydown', onKeyDown);
-  return () => win.removeEventListener('keydown', onKeyDown);
 }

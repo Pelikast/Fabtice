@@ -154,7 +154,7 @@ describe('store and engine wiring', () => {
 
   it('closes panels before the dialog on Escape, never the dialog without a project', () => {
     actions.openNewPiece();
-    actions.openPanel('settings');
+    actions.openPanel('grid');
     actions.escape();
     expect(appStore.getState().ui).toMatchObject({ panel: 'none', newPieceOpen: true });
     actions.escape();

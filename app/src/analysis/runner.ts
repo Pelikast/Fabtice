@@ -121,7 +121,8 @@ async function launch(fix: TempoFixRun | null): Promise<void> {
     if (running === mine) running = null;
     return;
   }
-  const knownCharts = await knownChartsFor(project.title);
+  // « S'appuyer sur les grilles connues des standards » (Réglages → Détection des accords): off, the title is not looked up.
+  const knownCharts = s.settings.useKnownCharts ? await knownChartsFor(project.title) : null;
   if (!stillMine()) {
     if (running === mine) running = null;
     return;
@@ -157,7 +158,9 @@ async function launch(fix: TempoFixRun | null): Promise<void> {
 
 /**
  * Starts the automatic analysis: each newly opened piece without an analysis
- * is analysed once it can play. Returns the unsubscribe function.
+ * is analysed once it can play, unless « Analyser dès l'import » is off (and
+ * if it is switched on later, the open piece is then analysed). Returns the
+ * unsubscribe function.
  */
 export function startAutoAnalysis(enabled = !autoAnalysisDisabled()): () => void {
   const store = appStore;
@@ -169,7 +172,8 @@ export function startAutoAnalysis(enabled = !autoAnalysisDisabled()): () => void
       previousProject = id;
       if (running && running.projectId !== id) cancelAnalysis();
     }
-    if (!enabled || !id || s.analysis || triedFor === id) return;
+    // « Analyser dès l'import » (Réglages → Tempo et analyse): off, the piece waits for « Analyser ce morceau ».
+    if (!enabled || !s.settings.analyseOnImport || !id || s.analysis || triedFor === id) return;
     if (s.transport.engine !== 'ready' && s.transport.engine !== 'playing') return;
     if (s.analysisRun.status !== 'idle') return;
     triedFor = id;

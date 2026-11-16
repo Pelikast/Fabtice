@@ -126,7 +126,7 @@ describe('autosave', () => {
   it('ignores what is not in the document: view mode, transport, panels', async () => {
     store.setState((s) => ({ view: { ...s.view, mode: 'grille' } }));
     store.setState((s) => ({ transport: { ...s.transport, engine: 'playing' } }));
-    store.setState((s) => ({ ui: { ...s.ui, panel: 'settings' } }));
+    store.setState((s) => ({ ui: { ...s.ui, panel: 'grid' } }));
     await vi.advanceTimersByTimeAsync(AUTOSAVE_DELAY_MS * 4);
     expect(storage.writes).toBe(0);
   });

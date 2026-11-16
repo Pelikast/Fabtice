@@ -18,8 +18,7 @@
   .projet { padding-left: 12px; }
   .projet-titre { font-size: 16px; }
   .menus { display: contents; }
-  .cache-tel, .long { display: none; }
-  .menu-plus { display: block; font-size: 20px; line-height: 1; padding: 6px 10px; min-width: 40px; min-height: 40px; }
+  .long { display: none; }
   .modes {
     order: 5;
     flex: 1 0 100%;
@@ -30,9 +29,6 @@
   }
   .mode { flex: 1; min-height: 40px; padding: 9px 4px; border-radius: 0; }
   .mode[aria-selected="true"]::after { left: 22%; right: 22%; bottom: 0; }
-  .reglages-app { top: 48px; right: 10px; }
-  .lien-option { display: flex; }
-  .export-tel { display: block; }
 
   .rang-tete { padding: 0 8px; font-size: 9.5px; letter-spacing: 0.06em; }
   .rang-tete .chevron { display: none; }

@@ -29,7 +29,8 @@ import { MarkersControl } from './MarkersPanel';
 import { accelerationText, MetronomeControl } from './MetronomePanel';
 import { TuningPanel } from './TuningPanel';
 
-const SUBDIVISIONS: Subdivision[] = [1, 2, 4, 8];
+/** The sub-grid steps, coarsest first: half, quarter, eighth, sixteenth and thirty-second notes. */
+export const SUBDIVISIONS: Subdivision[] = [0.5, 1, 2, 4, 8];
 
 export function Transport() {
   const mode = useApp((s) => s.view.mode);
@@ -114,20 +115,27 @@ function PositionReadout() {
   );
 }
 
-function SubGridControls() {
+/** The list of sub-grid steps (shared with the tab « Tempo et analyse » of « Réglages »). */
+export function SubdivisionSelect({ id }: { id?: string }) {
   const subdivision = useApp((s) => s.view.subdivision);
+  return (
+    <select id={id} value={subdivision} onChange={(e) => setSubdivision(Number(e.target.value) as Subdivision)}>
+      {SUBDIVISIONS.map((n) => (
+        <option key={n} value={n}>
+          {t(`sub.${n}`)}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+function SubGridControls() {
   const triplets = useApp((s) => s.view.triplets);
   return (
     <div className="sous-grille" role="group" aria-label={t('sub.label')}>
       <label className="choix">
         <span className="reglage-nom">{t('sub.label')}</span>
-        <select value={subdivision} onChange={(e) => setSubdivision(Number(e.target.value) as Subdivision)}>
-          {SUBDIVISIONS.map((n) => (
-            <option key={n} value={n}>
-              {t(`sub.${n}`)}
-            </option>
-          ))}
-        </select>
+        <SubdivisionSelect />
       </label>
       <button className="bascule" aria-pressed={triplets} onClick={toggleTriplets}>
         <TripletIcon />

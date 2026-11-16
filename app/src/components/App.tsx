@@ -18,6 +18,7 @@ import { SaveActivity } from './SaveActivity';
 import { NewPieceDialog } from './NewPieceDialog';
 import { PrintDialog } from './PrintDialog';
 import { SaveProjectDialog } from './SaveProjectDialog';
+import { SettingsDialog } from './SettingsDialog';
 import { SeparationPanelHost } from './SeparationPanel';
 import { StandardsDialog } from './StandardsOffer';
 import { StorageNotice } from './StorageNotice';
@@ -28,7 +29,7 @@ import { Transport } from './Transport';
 
 export function App() {
   const mode = useApp((s) => s.view.mode);
-  const dialogOpen = useApp((s) => s.ui.newPieceOpen || s.ui.exportAudioOpen || s.ui.printOpen || s.ui.saveProjectOpen || s.render.status === 'rendering' || s.render.status === 'error');
+  const dialogOpen = useApp((s) => s.ui.newPieceOpen || s.ui.exportAudioOpen || s.ui.printOpen || s.ui.saveProjectOpen || s.ui.settings.open || s.render.status === 'rendering' || s.render.status === 'error');
   const standardsOpen = useStandards((s) => s.panelOpen);
   // The alert about changes not saved, and the progress or the error of « Enregistrer », are windows too.
   const leaving = useStore(leaveDialog, (s) => s.open);
@@ -57,6 +58,7 @@ export function App() {
       <ExportAudioDialog />
       <PrintDialog />
       <SaveProjectDialog />
+      <SettingsDialog />
       <SaveActivity />
       <LeaveProjectDialog />
       <ApplyWaiting />

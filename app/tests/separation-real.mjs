@@ -293,10 +293,7 @@ try {
       await page.setViewportSize({ width: w, height: h });
       await sleep(400);
       if ((await page.locator('[data-testid="panneau-separation"]').count()) === 0) {
-        if (w < 760) {
-          await page.click('.menu-plus');
-          await page.click('[data-separation-entry]');
-        } else await page.click('[data-testid="separer"]');
+        await page.click('[data-testid="separer"]');
         await page.waitForSelector('[data-testid="panneau-separation"]');
       }
       await sleep(350);

@@ -1,8 +1,8 @@
 'use strict';
 
 // « Annuler » / « Rétablir » from the keyboard in the Mac app (C11): the
-// application menu has Édition › Annuler and Rétablir (roles that act on text
-// only), with the same shortcuts. The interface takes the shortcut itself
+// application menu has Édition › Annuler and Rétablir (the page's commands,
+// menu-bar.test.js), with the same shortcuts. The interface takes the shortcut itself
 // outside a text field, so it reaches the piece with the menu in place; in a
 // text field it is left to the field. (Here on Linux the shortcut is Ctrl; on
 // a Mac, cmd.)
@@ -26,8 +26,8 @@ test('Ctrl + Z and Ctrl + Maj + Z undo and redo a change of the piece, with the 
   try {
     await page.locator('.accueil input[type="file"]').setInputFiles(path.join(APP_FIXTURES, 'tone.wav'));
     await pieceReady(page);
-    const roles = await app.evaluate(({ Menu }) => Menu.getApplicationMenu().items.flatMap((m) => m.submenu?.items ?? []).map((i) => i.role).filter(Boolean));
-    assert.ok(roles.includes('undo') && roles.includes('redo'), 'the Edit menu has its undo and redo entries');
+    const ids = await app.evaluate(({ Menu }) => Menu.getApplicationMenu().items.flatMap((m) => m.submenu?.items ?? []).map((i) => i.id).filter(Boolean));
+    assert.ok(ids.includes('undo') && ids.includes('redo'), 'the Edit menu has its undo and redo entries');
 
     await page.click(MUTE);
     assert.equal(await page.getAttribute(MUTE, 'aria-pressed'), 'true');

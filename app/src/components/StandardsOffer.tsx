@@ -1,7 +1,7 @@
 // The offer to download the chord charts of standards, in two places that share one design:
 //   - `StandardsCard`: a quiet card in the opening dialog, only while nothing is on the device and the
 //     user has neither declined nor postponed it (or while a download runs, or its result is shown);
-//   - `StandardsDialog`: the same content as a window of its own, reached from « Réglages avancés »,
+//   - `StandardsDialog`: the same content as a window of its own, reached from « Réglages → Avancé »,
 //     where one can also see what is kept, import a file, or remove everything.
 // Ink and paper only: the ember stays on the play button, brass marks the notes (DESIGN.md).
 
@@ -298,7 +298,7 @@ function Kept() {
   );
 }
 
-/** The window opened from « Réglages avancés ». */
+/** The window opened from « Réglages → Avancé ». */
 export function StandardsDialog() {
   const open = useStandards((s) => s.panelOpen);
   const kind = useStandards((s) => s.run.kind);
@@ -350,7 +350,7 @@ export function StandardsDialog() {
   );
 }
 
-/** The line in « Réglages avancés »: what is kept, and the way into the window. */
+/** The line in « Réglages → Avancé »: what is kept, and the way into the window. */
 export function StandardsSettingsEntry({ onOpen }: { onOpen: () => void }) {
   const total = useStandards((s) => s.status?.total ?? 0);
   return (
