@@ -41,7 +41,7 @@ describe('undo and redo shortcuts', () => {
     expect(isMacPlatform({ platform: 'MacIntel' })).toBe(true);
     expect(isMacPlatform({ platform: 'Win32' })).toBe(false);
     expect(isMacPlatform({ platform: '', userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)' })).toBe(true);
-    expect(isMacPlatform(undefined)).toBe(false);
+    expect(isMacPlatform(null)).toBe(false);
   });
 
   it('nothing is a text field outside a page', () => {

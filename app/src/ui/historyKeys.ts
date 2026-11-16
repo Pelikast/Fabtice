@@ -14,7 +14,7 @@ import { beginGesture, endGesture, redo, undo } from '../store/history';
 export type HistoryCommand = 'undo' | 'redo';
 
 /** Whether the page runs on a Mac (cmd rather than Ctrl). */
-export function isMacPlatform(nav: { platform?: string; userAgent?: string } | undefined = typeof navigator === 'undefined' ? undefined : navigator): boolean {
+export function isMacPlatform(nav: { platform?: string; userAgent?: string } | null | undefined = typeof navigator === 'undefined' ? undefined : navigator): boolean {
   if (!nav) return false;
   return /Mac|iPhone|iPad|iPod/i.test(nav.platform || nav.userAgent || '');
 }
