@@ -23,6 +23,7 @@ import { addKeyChange, moveKeyChange, removeKeyChange, resetKeyChanges, setKeyCh
 import { keyAt, keyChangesInForce, keyPassageAt, keyPassages } from './keySelectors';
 import { appStore, initialState } from './store';
 import { applyTempoFix, undoTempoFix } from './tempoFixActions';
+import { redo, startHistory, undo, undoLabel } from './history';
 import { addPart, editPart, mergeRanges, removePart, resetSectionLetters, resetStructure, setStructureMode } from './structureActions';
 import { partAt, sectionsInForce, structureInForce } from './structureSelectors';
 
@@ -329,5 +330,33 @@ describe('a tapped tempo fix (data only)', () => {
     undoTempoFix(8);
     expect(get().tempoMap).toBe(previous);
     expect(get().corrections.tempoFixes).toEqual([]);
+  });
+});
+
+describe('undo and redo of the version-6 hand data', () => {
+  it('modulations, mode, parts and letters are each one step', () => {
+    applyAnalysis(result());
+    let now = 0;
+    const stop = startHistory(appStore, { now: () => (now += 1000) });
+    try {
+      addKeyChange(20, k(7));
+      setStructureMode('pop');
+      editPart('d-solo1', { instrument: 'trumpet' });
+      setSection(6, 'C');
+      expect(undoLabel()).not.toBeNull();
+      undo();
+      expect(sectionsInForce(get()).map((m) => m.label)).toEqual(['A', 'B', 'A', 'B', 'A']);
+      expect(get().corrections.structure.lettersByHand).toBe(false);
+      undo();
+      expect(structureInForce(get()).parts.every((p) => p.origin === 'analysis')).toBe(true);
+      undo();
+      expect(structureInForce(get()).mode).toBe('jazz');
+      undo();
+      expect(get().corrections.keyChanges).toBeNull();
+      redo();
+      expect(keyAt(get(), 21)).toEqual(k(7));
+    } finally {
+      stop();
+    }
   });
 });
