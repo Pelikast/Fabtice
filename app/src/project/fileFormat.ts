@@ -17,7 +17,7 @@ import { PROJECT_DOCUMENT_VERSION, type ProjectDocument } from '../model/documen
 import type { Track } from '../model/project';
 import type { StoredAudio } from '../storage/ProjectStorage';
 import { readDocument } from '../storage/documentFormat';
-import { readEntry, readEntryBytes, readZipDirectory, ZipFormatError, ZipStreamWriter, type ByteSink, type ByteSource, type ZipEntryInfo } from './zip';
+import { entryDataOffset, readEntry, readEntryBytes, readZipDirectory, ZipFormatError, ZipStreamWriter, type ByteSink, type ByteSource, type ZipEntryInfo } from './zip';
 
 /** First entry of every `.fab` file, stored as is: its name and content sit at fixed offsets (bytes 30 to 58). */
 export const MIMETYPE_ENTRY = 'mimetype';
@@ -107,9 +107,20 @@ export function projectFileName(title: string): string {
   return `${safeEntryName(title, 'Morceau')}${FILE_EXTENSION}`;
 }
 
+/** A FLAC track the document names, with what says whether an earlier file already holds the same audio. */
+export interface PlannedTrack {
+  id: string;
+  kind: 'separated' | 'render';
+  entry: string;
+  /** Length in frames, as the document says (an audio is immutable under its id: id + frames + format identify it). */
+  frames: number;
+  sampleRate: number | null;
+  channels: number;
+}
+
 /** Where each FLAC track goes in the archive: `separations/<outil>/<instrument>.flac`, `rendu/<piste>.flac`. */
-export function trackEntries(doc: ProjectDocument): { id: string; kind: 'separated' | 'render'; entry: string }[] {
-  const out: { id: string; kind: 'separated' | 'render'; entry: string }[] = [];
+export function trackEntries(doc: ProjectDocument): PlannedTrack[] {
+  const out: PlannedTrack[] = [];
   const used = new Set<string>();
   const unique = (dir: string, name: string) => {
     let entry = `${dir}/${name}.flac`;
@@ -124,10 +135,14 @@ export function trackEntries(doc: ProjectDocument): { id: string; kind: 'separat
   for (const o of sep.others ?? []) sets.push({ tool: o.result.modelName, tracks: o.tracks });
   for (const set of sets) {
     const dir = `separations/${safeEntryName(set.tool, 'outil')}`;
-    for (const tr of set.tracks) out.push({ id: tr.audio.id, kind: 'separated', entry: unique(dir, safeEntryName(tr.name, 'instrument')) });
+    for (const tr of set.tracks) {
+      out.push({ id: tr.audio.id, kind: 'separated', entry: unique(dir, safeEntryName(tr.name, 'instrument')), frames: tr.audio.frames, sampleRate: tr.audio.sampleRate, channels: tr.audio.channels });
+    }
   }
   const names = new Map(doc.tracks.map((tr) => [tr.id, tr.name]));
-  for (const t of doc.keptRender?.tracks ?? []) out.push({ id: t.audioId, kind: 'render', entry: unique('rendu', safeEntryName(names.get(t.trackId) ?? 'piste', 'piste')) });
+  for (const t of doc.keptRender?.tracks ?? []) {
+    out.push({ id: t.audioId, kind: 'render', entry: unique('rendu', safeEntryName(names.get(t.trackId) ?? 'piste', 'piste')), frames: t.frames, sampleRate: null, channels: t.channels });
+  }
   return out;
 }
 
@@ -136,16 +151,49 @@ export function trackEntries(doc: ProjectDocument): { id: string; kind: 'separat
 /** Encodes a track in FLAC (16-bit, lossless; mono when `pcm.mono`). The app's is libFLAC in a worker. */
 export type FlacEncode = (pcm: PcmAudio, options: { onProgress?: (fraction: number) => void; signal?: AbortSignal }) => Promise<Blob>;
 
+/** An original audio file not yet read: what the manifest needs is known, its bytes come when their turn does. */
+export interface LazyOriginal {
+  fileName: string;
+  mimeType: string;
+  byteLength: number;
+  load(): Promise<StoredAudio>;
+}
+
 export interface ProjectFileInput {
   document: ProjectDocument;
-  /** The original audio of each original track, by `AudioRef.id`. */
-  originals: ReadonlyMap<string, StoredAudio>;
+  /**
+   * The original audio of each original track, by `AudioRef.id`: the bytes, or a `LazyOriginal` (read only if
+   * the earlier file does not already hold them, see `WriteOptions.reuse`).
+   */
+  originals: ReadonlyMap<string, StoredAudio | LazyOriginal>;
   /**
    * The samples of every FLAC track the document names (`trackEntries`), by
    * audio id, each read when it is its turn (from memory or the device) and
-   * let go after: only a few are held at a time.
+   * let go after: only a few are held at a time. A track the earlier file
+   * already holds is not asked for.
    */
   tracks: ReadonlyMap<string, () => Promise<PcmAudio>>;
+}
+
+/**
+ * An earlier `.fab` file of the same project, read by ranges, whose entries
+ * are copied as they are instead of being encoded again (« Enregistrer » is
+ * fast: most of the time only the document changed). An entry is reused only
+ * when it is the same audio: same id, same kind, same length and format, and
+ * its CRC is checked while it is copied.
+ */
+export interface ReusableFile {
+  manifest: ProjectManifest;
+  entries: ReadonlyMap<string, ZipEntryInfo>;
+  source: ByteSource;
+}
+
+/** An entry of the earlier file did not read back as it was (changed on disk, cut short): save again without it. */
+export class ReuseError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ReuseError';
+  }
 }
 
 export interface WriteOptions {
@@ -158,19 +206,71 @@ export interface WriteOptions {
   signal?: AbortSignal;
   /** Tracks encoded at the same time (one worker each). */
   parallel?: number;
+  /** The earlier file to copy unchanged entries from. A copy that does not match rejects with `ReuseError`. */
+  reuse?: ReusableFile | null;
 }
 
 const json = (v: unknown) => new TextEncoder().encode(JSON.stringify(v, null, 1)) as Uint8Array<ArrayBuffer>;
 const SLICE = 4 * 1024 * 1024;
 
+const isLazy = (o: StoredAudio | LazyOriginal): o is LazyOriginal => typeof (o as LazyOriginal).load === 'function';
+const originalInfo = (o: StoredAudio | LazyOriginal) => (isLazy(o) ? { fileName: o.fileName, mimeType: o.mimeType, bytes: o.byteLength } : { fileName: o.fileName, mimeType: o.mimeType, bytes: o.bytes.byteLength });
+
+/**
+ * Reads what `writeProjectFile` needs of an earlier file: its directory and its manifest (the document and the
+ * audio are not read). Null when it cannot serve (not a project of this layout, damaged): reusing is only a
+ * speed-up, a file that cannot be reused is simply written whole.
+ */
+export async function readReusableFile(source: ByteSource): Promise<ReusableFile | null> {
+  try {
+    const signature = MIMETYPE_ENTRY + PROJECT_MIME;
+    if (source.size < 30 + signature.length) return null;
+    const head = await source.read(0, 30 + signature.length);
+    if (new TextDecoder('latin1').decode(head.subarray(30)) !== signature) return null;
+    const entries = await readZipDirectory(source);
+    const byName = new Map(entries.map((e) => [e.name, e]));
+    const manifestEntry = byName.get(MANIFEST_ENTRY);
+    if (!manifestEntry) return null;
+    const manifest = readManifest(JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(await readEntryBytes(source, manifestEntry))) as unknown);
+    return { manifest, entries: byName, source };
+  } catch {
+    return null;
+  }
+}
+
+/** The entry of `reuse` that holds exactly this track, or null. */
+function reusableTrack(reuse: ReusableFile | null | undefined, p: PlannedTrack): { meta: ManifestTrack; entry: ZipEntryInfo } | null {
+  if (!reuse) return null;
+  const meta = reuse.manifest.tracks.find((m) => m.id === p.id);
+  if (!meta || meta.kind !== p.kind || meta.frames !== p.frames || meta.channelCount !== p.channels) return null;
+  if (p.sampleRate !== null && meta.sampleRate !== p.sampleRate) return null;
+  const entry = reuse.entries.get(meta.entry);
+  return entry && entry.size > 0 ? { meta, entry } : null;
+}
+
+/** The original audio of `id` as the earlier file holds it, when it is the same file (same id and same size). */
+function reusableOriginal(reuse: ReusableFile | null | undefined, id: string, bytes: number): { meta: ManifestAudio; entry: ZipEntryInfo } | null {
+  if (!reuse) return null;
+  const meta = reuse.manifest.audio.find((a) => a.id === id);
+  const entry = meta && reuse.entries.get(meta.entry);
+  return meta && entry && meta.bytes === bytes && entry.size === bytes ? { meta, entry } : null;
+}
+
 /**
  * Writes the project file into `sink`, piece by piece. Rejects with
- * `ProjectFileError('too-large')` when the file would pass 4 GB, or with an
- * `AbortError` when `signal` is aborted.
+ * `ProjectFileError('too-large')` when the file would pass 4 GB, with an
+ * `AbortError` when `signal` is aborted, or with `ReuseError` when an entry
+ * copied from `options.reuse` did not read back as the earlier file said (the
+ * sink then holds a partial file: write again without `reuse`).
  */
-export async function writeProjectFile(input: ProjectFileInput, sink: ByteSink, options: WriteOptions): Promise<{ bytes: number; manifest: ProjectManifest }> {
+export async function writeProjectFile(
+  input: ProjectFileInput,
+  sink: ByteSink,
+  options: WriteOptions,
+): Promise<{ bytes: number; manifest: ProjectManifest; reused: string[]; encoded: string[] }> {
   const now = options.now ?? new Date();
   const doc = input.document;
+  const reuse = options.reuse ?? null;
   const tick = options.tick ?? (async () => {});
   const aborted = () => {
     if (options.signal?.aborted) throw new DOMException('cancelled', 'AbortError');
@@ -181,16 +281,24 @@ export async function writeProjectFile(input: ProjectFileInput, sink: ByteSink, 
   const planned = trackEntries(doc);
   for (const p of planned) if (!input.tracks.has(p.id)) throw new Error(`no audio for ${p.entry}`);
 
-  // 1. The FLAC tracks, a few at a time (the encoding is the long part): each Blob may live on disk.
+  // 1. The FLAC tracks that are new, a few at a time (the encoding is the long part): each Blob may live on disk.
+  const kept = new Map<string, { meta: ManifestTrack; entry: ZipEntryInfo }>();
+  for (const p of planned) {
+    const r = reusableTrack(reuse, p);
+    if (r) kept.set(p.id, r);
+  }
+  const toEncode = planned.filter((p) => !kept.has(p.id));
   const encoded = new Map<string, { blob: Blob; pcm: Omit<PcmAudio, 'chunks'> }>();
-  const fractions = new Array<number>(planned.length).fill(0);
-  const report = () => options.onProgress?.(0.95 * (planned.length ? fractions.reduce((a, b) => a + b, 0) / planned.length : 1));
+  const fractions = new Array<number>(toEncode.length).fill(0);
+  // The share of the progress the encoding takes: all of it but the writing, which is short unless the file is copied.
+  const encodeShare = toEncode.length ? 0.9 : 0;
+  const report = () => options.onProgress?.(encodeShare * (toEncode.length ? fractions.reduce((a, b) => a + b, 0) / toEncode.length : 1));
   let next = 0;
   const lane = async () => {
-    while (next < planned.length) {
+    while (next < toEncode.length) {
       const i = next++;
       aborted();
-      const p = planned[i]!;
+      const p = toEncode[i]!;
       const pcm = await input.tracks.get(p.id)!();
       const view: PcmAudio = pcm.mono ? { ...pcm, channelCount: 1 } : pcm;
       const blob = await options.encode(view, {
@@ -206,41 +314,82 @@ export async function writeProjectFile(input: ProjectFileInput, sink: ByteSink, 
       encoded.set(p.id, { blob, pcm: meta });
     }
   };
-  await Promise.all(Array.from({ length: Math.max(1, Math.min(options.parallel ?? 1, planned.length)) }, lane));
+  await Promise.all(Array.from({ length: Math.max(1, Math.min(options.parallel ?? 1, toEncode.length)) }, lane));
   aborted();
 
-  // 2. The archive.
+  // 2. The archive. The original audio is read from the earlier file when it holds it, else from where the input says.
+  const originals = [...input.originals].map(([id, o]) => ({ id, source: o, info: originalInfo(o) }));
   const manifest: ProjectManifest = {
     format: 'fabtice',
     formatVersion: PROJECT_FILE_VERSION,
     documentVersion: doc.version,
     title: doc.project.title,
     savedAt: now.toISOString(),
-    audio: [...input.originals].map(([id, a], i) => ({
+    audio: originals.map(({ id, info }, i) => ({
       id,
-      entry: `audio/${i > 0 ? `${i + 1}-` : ''}${safeEntryName(a.fileName, 'morceau')}`,
-      fileName: a.fileName,
-      mimeType: a.mimeType,
-      bytes: a.bytes.byteLength,
+      entry: `audio/${i > 0 ? `${i + 1}-` : ''}${safeEntryName(info.fileName, 'morceau')}`,
+      fileName: info.fileName,
+      mimeType: info.mimeType,
+      bytes: info.bytes,
     })),
     tracks: planned.map((p) => {
-      const m = encoded.get(p.id)!.pcm;
+      const old = kept.get(p.id);
+      const m = old ? old.meta : encoded.get(p.id)!.pcm;
       return { id: p.id, kind: p.kind, entry: p.entry, frames: m.frames, sampleRate: m.sampleRate, channelCount: m.channelCount, mono: m.mono };
     }),
   };
-  const total = [...input.originals.values()].reduce((n, a) => n + a.bytes.byteLength, 0) + [...encoded.values()].reduce((n, e) => n + e.blob.size, 0);
+  const total = manifest.audio.reduce((n, a) => n + a.bytes, 0) + planned.reduce((n, p) => n + (kept.get(p.id)?.entry.size ?? encoded.get(p.id)!.blob.size), 0);
   let done = 0;
   const wrote = (n: number) => {
     done += n;
-    options.onProgress?.(0.95 + 0.05 * Math.min(1, done / Math.max(1, total)));
+    options.onProgress?.(encodeShare + (1 - encodeShare) * Math.min(1, done / Math.max(1, total)));
+  };
+  const reused: string[] = [];
+  /** Copies an entry of the earlier file as it is; the CRC computed on the way must be the one it was written with. */
+  const copy = async (zip: ZipStreamWriter, name: string, from: ZipEntryInfo): Promise<void> => {
+    const fail = (message: string): never => {
+      throw new ReuseError(message);
+    };
+    let start: number;
+    try {
+      start = await entryDataOffset(reuse!.source, from);
+    } catch (e) {
+      return fail(e instanceof Error ? e.message : String(e));
+    }
+    await zip.begin(name);
+    for (let at = 0; at < from.size; at += SLICE) {
+      const n = Math.min(SLICE, from.size - at);
+      let bytes: Uint8Array;
+      try {
+        bytes = await reuse!.source.read(start + at, n);
+      } catch (e) {
+        return fail(e instanceof Error ? e.message : String(e));
+      }
+      if (bytes.length !== n) fail(`${from.name} cut short`);
+      await zip.write(bytes.slice() as Uint8Array<ArrayBuffer>);
+      wrote(n);
+      await tick();
+      aborted();
+    }
+    const end = await zip.end();
+    if (end.crc !== from.crc || end.size !== from.size) fail(`${from.name} is not what the earlier file recorded`);
   };
   try {
     const zip = new ZipStreamWriter(sink, now);
     await zip.addSmall(MIMETYPE_ENTRY, new TextEncoder().encode(PROJECT_MIME) as Uint8Array<ArrayBuffer>);
     await zip.addSmall(MANIFEST_ENTRY, json(manifest));
     await zip.addSmall(DOCUMENT_ENTRY, json(doc));
-    for (const a of manifest.audio) {
-      const bytes = new Uint8Array(input.originals.get(a.id)!.bytes);
+    for (const [i, a] of manifest.audio.entries()) {
+      const old = reusableOriginal(reuse, a.id, a.bytes);
+      if (old) {
+        await copy(zip, a.entry, old.entry);
+        reused.push(a.entry);
+        continue;
+      }
+      const o = originals[i]!.source;
+      const stored = isLazy(o) ? await o.load() : o;
+      const bytes = new Uint8Array(stored.bytes);
+      if (bytes.length !== a.bytes) throw new Error(`audio ${a.id}: ${bytes.length} bytes, ${a.bytes} expected`);
       await zip.begin(a.entry);
       for (let at = 0; at < bytes.length; at += SLICE) {
         await zip.write(bytes.slice(at, Math.min(bytes.length, at + SLICE)));
@@ -251,6 +400,12 @@ export async function writeProjectFile(input: ProjectFileInput, sink: ByteSink, 
       await zip.end();
     }
     for (const t of manifest.tracks) {
+      const old = kept.get(t.id);
+      if (old) {
+        await copy(zip, t.entry, old.entry);
+        reused.push(t.entry);
+        continue;
+      }
       const blob = encoded.get(t.id)!.blob;
       await zip.begin(t.entry);
       for (let at = 0; at < blob.size; at += SLICE) {
@@ -262,7 +417,7 @@ export async function writeProjectFile(input: ProjectFileInput, sink: ByteSink, 
     }
     await zip.finish();
     options.onProgress?.(1);
-    return { bytes: zip.written, manifest };
+    return { bytes: zip.written, manifest, reused, encoded: [...encoded.keys()] };
   } catch (e) {
     if (e instanceof ZipFormatError && e.code === 'too-large') throw new ProjectFileError('too-large', e.message);
     throw e;

@@ -10,7 +10,7 @@ import type { Track } from '../model/project';
 import type { SeparationSummary } from '../model/separation';
 import { nodeFlacEncode } from '../test/flacEncode';
 import { sampleDocument } from '../test/sampleDocument';
-import { openProjectFile, PROJECT_FILE_VERSION, projectFileName, ProjectFileError, trackEntries, writeProjectFile, type ProjectFileInput } from './fileFormat';
+import { openProjectFile, PROJECT_FILE_VERSION, projectFileName, ProjectFileError, readReusableFile, ReuseError, trackEntries, writeProjectFile, type FlacEncode, type ProjectFileInput } from './fileFormat';
 import { bytesSource, readZipDirectory, ZipStreamWriter, type ByteSink, type ByteSource } from './zip';
 
 const SR = 48000;
@@ -129,7 +129,7 @@ describe('the .fab file', () => {
     expect(opened.manifest.formatVersion).toBe(PROJECT_FILE_VERSION);
     expect(opened.document).toEqual(JSON.parse(JSON.stringify(input.document)));
     const original = await opened.readOriginal('audio-1');
-    expect(new Uint8Array(original.bytes)).toEqual(new Uint8Array(input.originals.get('audio-1')!.bytes));
+    expect(new Uint8Array(original.bytes)).toEqual(new Uint8Array((input.originals.get('audio-1') as { bytes: ArrayBuffer }).bytes));
     for (const [id, p] of pcm) {
       const back = await opened.readTrack(id);
       expect(samePcm(back, p), id).toBe(true);
@@ -249,6 +249,122 @@ describe('the .fab file', () => {
     expect(projectFileName('Blue Bossa / take 2')).toBe('take 2.fab');
     expect(projectFileName('Lover Man')).toBe('Lover Man.fab');
     expect(projectFileName('  ')).toBe('Morceau.fab');
+  });
+});
+
+// ---------------------------------------------------------------- « Enregistrer »: reusing the earlier file
+
+describe('writing again over an earlier file', () => {
+  /** The encoder, counting what it is given. */
+  const counting = () => {
+    const calls: number[] = [];
+    const encode: FlacEncode = (pcm, o) => {
+      calls.push(pcm.frames);
+      return nodeFlacEncode(pcm, o);
+    };
+    return { encode, calls };
+  };
+
+  it('reuses every unchanged entry as it is: no track is encoded, the audio reads back identical', async () => {
+    const { input, pcm } = workedOn();
+    const first = await write(input);
+    const reuse = await readReusableFile(bytesSource(first.file));
+    expect(reuse).not.toBeNull();
+    const spy = counting();
+    const sink = memorySink();
+    // Only the document changed (a title edit and a corrected key).
+    const document = { ...input.document, project: { ...input.document.project, title: 'Blues du lundi' } };
+    const out = await writeProjectFile({ ...input, document }, sink, { encode: spy.encode, reuse, now: new Date('2026-11-16T09:00:00Z') });
+    expect(spy.calls).toEqual([]);
+    expect(out.encoded).toEqual([]);
+    expect(out.reused.length).toBe(trackEntries(document).length + 1);
+    const file = sink.bytes();
+    const opened = await openProjectFile(bytesSource(file));
+    await opened.verify();
+    expect(opened.document.project.title).toBe('Blues du lundi');
+    for (const [id, p] of pcm) expect(samePcm(await opened.readTrack(id), p), id).toBe(true);
+    expect(new Uint8Array((await opened.readOriginal('audio-1')).bytes)).toEqual(new Uint8Array((input.originals.get('audio-1') as { bytes: ArrayBuffer }).bytes));
+    // The audio entries are byte for byte those of the first file.
+    const a = await readZipDirectory(bytesSource(first.file));
+    const b = await readZipDirectory(bytesSource(file));
+    for (const e of a.filter((x) => x.name.endsWith('.flac') || x.name.startsWith('audio/'))) {
+      const f = b.find((x) => x.name === e.name)!;
+      expect([f.crc, f.size]).toEqual([e.crc, e.size]);
+    }
+  });
+
+  it('encodes only what is new (a track added, a render replaced) and copies the rest', async () => {
+    const { input } = workedOn();
+    const first = await write(input);
+    const reuse = await readReusableFile(bytesSource(first.file));
+    // A new render: new audio ids; the separations stay.
+    const frames = input.document.keptRender!.tracks[0]!.frames;
+    const fresh = new Map<string, PcmAudio>([
+      ['r2-0', pcmFromChannels([tone(frames, 70), tone(frames, 71)], SR)],
+      ['r2-1', pcmFromChannels([tone(frames, 90), tone(frames, 91)], SR)],
+    ]);
+    const document: ProjectDocument = { ...input.document, keptRender: { ...input.document.keptRender!, tracks: input.document.keptRender!.tracks.map((t, i) => ({ ...t, audioId: `r2-${i}` })) } };
+    const tracks = new Map(input.tracks);
+    tracks.delete('r-0');
+    tracks.delete('r-1');
+    for (const [id, p] of fresh) tracks.set(id, async () => p);
+    const spy = counting();
+    const sink = memorySink();
+    const out = await writeProjectFile({ document, originals: input.originals, tracks }, sink, { encode: spy.encode, reuse });
+    expect(spy.calls.length).toBe(2);
+    expect(out.encoded.sort()).toEqual(['r2-0', 'r2-1']);
+    expect(out.reused.some((n) => n.startsWith('separations/'))).toBe(true);
+    const opened = await openProjectFile(bytesSource(sink.bytes()));
+    await opened.verify();
+    for (const [id, p] of fresh) expect(samePcm(await opened.readTrack(id), p), id).toBe(true);
+  });
+
+  it('does not reuse a track whose length or format is not the same (same id, other audio)', async () => {
+    const { input } = workedOn();
+    const first = await write(input);
+    const reuse = await readReusableFile(bytesSource(first.file));
+    const changed = { ...input.document, tracks: input.document.tracks.map((t, i) => (i === 0 ? { ...t, audio: { ...t.audio, frames: t.audio.frames + 1 } } : t)) };
+    const pcm = pcmFromChannels([tone(changed.tracks[0]!.audio.frames, 55), tone(changed.tracks[0]!.audio.frames, 56)], SR);
+    const tracks = new Map(input.tracks);
+    tracks.set(changed.tracks[0]!.audio.id, async () => pcm);
+    const spy = counting();
+    await writeProjectFile({ document: changed, originals: input.originals, tracks }, memorySink(), { encode: spy.encode, reuse });
+    expect(spy.calls).toEqual([pcm.frames]);
+  });
+
+  it('reads the original from the device only when the earlier file does not hold it', async () => {
+    const { input } = workedOn();
+    const first = await write(input);
+    const reuse = await readReusableFile(bytesSource(first.file));
+    const stored = input.originals.get('audio-1') as { bytes: ArrayBuffer; mimeType: string; fileName: string };
+    let loads = 0;
+    const lazy = new Map([['audio-1', { fileName: stored.fileName, mimeType: stored.mimeType, byteLength: stored.bytes.byteLength, load: async () => (loads++, stored) }]]);
+    await writeProjectFile({ ...input, originals: lazy }, memorySink(), { encode: nodeFlacEncode, reuse });
+    expect(loads).toBe(0);
+    await writeProjectFile({ ...input, originals: lazy }, memorySink(), { encode: nodeFlacEncode, reuse: null });
+    expect(loads).toBe(1);
+  });
+
+  it('an entry that no longer reads back as recorded is a ReuseError, never a silently wrong file', async () => {
+    const { input } = workedOn();
+    const first = await write(input);
+    const reuse = (await readReusableFile(bytesSource(first.file)))!;
+    // The earlier file changed under us after its directory was read.
+    const flipped = first.file.slice();
+    const flac = reuse.entries.get('separations/HTDemucs 6 sources/Basse.flac')!;
+    flipped[flac.headerOffset + 30 + new TextEncoder().encode(flac.name).length + 500] = flipped[flac.headerOffset + 30 + new TextEncoder().encode(flac.name).length + 500]! ^ 0xff;
+    const damaged = { ...reuse, source: bytesSource(flipped) };
+    await expect(writeProjectFile(input, memorySink(), { encode: nodeFlacEncode, reuse: damaged })).rejects.toBeInstanceOf(ReuseError);
+    // The earlier file gone or cut short.
+    const cut = { ...reuse, source: { size: 10, read: async () => { throw new Error('gone'); } } };
+    await expect(writeProjectFile(input, memorySink(), { encode: nodeFlacEncode, reuse: cut })).rejects.toBeInstanceOf(ReuseError);
+  });
+
+  it('an earlier file that is not a project, or is cut short, is simply not reused', async () => {
+    const { input } = workedOn();
+    const first = await write(input);
+    expect(await readReusableFile(bytesSource(new Uint8Array(1000)))).toBeNull();
+    expect(await readReusableFile(bytesSource(first.file.subarray(0, first.file.length - 100)))).toBeNull();
   });
 });
 
