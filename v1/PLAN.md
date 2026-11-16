@@ -108,7 +108,7 @@ refait.
   parfois sous la charge : les relancer seules avant de chercher une panne.
   `test:engine`, `test:render`, `test:memory` se lancent au premier plan.
 - Avant le message de fin d'étape :
-  `git log --name-only --format= origin/main..HEAD | grep -iE "claude|scratchpad|/tmp/"`
+  `git log --name-only --format= origin/main..HEAD | grep -iE "\.claude/|scratchpad|(^|/)tmp/"`
   ne doit rien renvoyer (pas de fichier de brouillon dans le dépôt).
 
 ### Ce que chaque étape rend
