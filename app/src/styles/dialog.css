@@ -237,6 +237,7 @@
   .voile-projet { padding: 0; place-items: end stretch; }
   .voile-projet .accueil { width: 100%; max-height: 100dvh; padding: 22px 18px calc(18px + env(safe-area-inset-bottom)); border-width: 1px 0 0; border-radius: var(--rayon-fenetre) var(--rayon-fenetre) 0 0; }
   .voile-projet .accueil .plein { min-height: 46px; }
+  .voile-projet .champ input { flex: none; }
   .stems-choix .option { min-height: 48px; margin-left: -6px; }
   .stems-choix .option input[type="checkbox"] { width: 22px; height: 22px; flex: none; }
   .stems-choix .stem { min-height: 44px; }

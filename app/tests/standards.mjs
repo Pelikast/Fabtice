@@ -1,5 +1,5 @@
-// Browser checks of the offer to download the chord charts of standards, in Chromium, on the built
-// interface served from web/ (the web app: only pages that allow cross-origin reads can be downloaded).
+// Browser checks of the chord charts of standards (C9), in Chromium, on the built interface served from web/
+// (the web app: only pages that allow cross-origin reads can be downloaded).
 //   npm run build && npm run test:standards
 //
 // A fake internet stands in for the real sites: a local server answers `/<host><path>`, and the
@@ -7,12 +7,18 @@
 // real playlist is needed: the tunes are invented, see standards-fixtures.mjs). The remote list of
 // collections is served the same way (`?outils=distant`), with small sizes.
 //
-// What it covers: the offer at opening (sentence, recommended collections ticked, source host of each,
-// the ones the web cannot download said plainly), the download with progress and an honest result
-// (kept count, a login page named as « introuvable », the file import as the alternative), the file
-// import, the library found again after a reload (a PERSISTENT profile: a throw-away context keeps
-// IndexedDB in memory and cannot show that), « Plus tard » and « Ne plus proposer », the settings
-// window, cancelling, storage that is not available, a phone width, and the title lookup from the page.
+// What it covers, on a computer (1280 × 800, a mouse) and on a phone (390 × 844, touch):
+//  - the message at start-up (`?grilles=message`, which test addresses need): its exact words, its window
+//    over the opening screen, « Oui (recommandé) » with the progress (a percentage that advances steadily,
+//    the collection, « n sur N »), the sentence that ends it, and nothing at the next launch;
+//  - « Non merci » (it comes back at the next launch), « Non merci » with « Ne plus afficher ce message »
+//    (the last word, « OK », never again), Escape, the window left while the download goes on;
+//  - a web page with nothing it can download: no message;
+//  - « Réglages → Avancé »: the section in place (list, source and licence, one collection at a time,
+//    « Tout télécharger », « Vérifier les mises à jour de grilles »: nothing new, a collection that
+//    changed), the file import, removal after a question;
+//  - storage that is not available, and the library found again after a reload (a PERSISTENT profile: a
+//    throw-away context keeps IndexedDB in memory and cannot show that).
 // Screenshots go to $FABTICE_STANDARDS_OUT (default: a temporary folder), deviceScaleFactor 1.
 // Playwright and Chromium are expected preinstalled (/opt/node-tools); set PLAYWRIGHT_MODULE_DIR to load them from elsewhere.
 
@@ -24,7 +30,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { openSettingsTab } from './lib/settings.mjs';
 import { startServer } from './serve.mjs';
-import { forumPage, link, LOGIN_PAGE, officialPage, playlistFile, shrinkList, tunes } from './standards-fixtures.mjs';
+import { link, LOGIN_PAGE, playlistFile, shrinkList, tunes } from './standards-fixtures.mjs';
 
 const require = createRequire(process.env.PLAYWRIGHT_MODULE_DIR || '/opt/node-tools/');
 const { chromium } = require('playwright');
@@ -48,6 +54,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // ---------------------------------------------------------------- the fake internet
 
 const list = shrinkList(bundled);
+const LISTED = list.collections.length;
 const mirrorOf = (id) => list.collections.find((c) => c.id === id).pages.find((p) => p.role === 'mirror')?.url;
 const pathOf = (url) => {
   const u = new URL(url);
@@ -55,6 +62,9 @@ const pathOf = (url) => {
 };
 const NAMES = { 'jazz-1460': 'Jazz 1460', 'latin-50': 'Latin 50', 'blues-50': 'Blues 50', 'brazilian-220': 'Brazilian 220', 'pop-400': 'Pop 400', 'country-50': 'Country 50' };
 const playlistOf = (id, count = 20) => link([...tunes(count, `${NAMES[id]} Tune`), ...(id === 'jazz-1460' ? [{ title: 'Autumn Leaves', composer: 'Kosma Joseph' }] : [])], NAMES[id]);
+// The collections a web page can read: those with a copy on GitHub (a login page for one of them, so that one fails).
+const WEB_IDS = list.collections.filter((c) => c.pages.some((p) => p.role === 'mirror')).map((c) => c.id);
+const WEB_COUNT = WEB_IDS.length;
 
 /** What each path answers; `delay` in ms. Replaced per scenario. */
 let pages = {};
@@ -94,8 +104,9 @@ async function routeInternet(context) {
 
 const { srv, url } = await startServer(0);
 const browser = await chromium.launch({ args: ['--no-sandbox'] });
+const MESSAGE = '?debug&moteur=factice&outils=distant&grilles=message';
 
-async function openPage(context, query = '?debug&moteur=factice&outils=distant') {
+async function openPage(context, query = MESSAGE) {
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
@@ -104,17 +115,28 @@ async function openPage(context, query = '?debug&moteur=factice&outils=distant')
   await page.waitForFunction(() => window.__fabtice, null, { timeout: 15000 });
   return { page, errors };
 }
+const PHONE = { width: 390, height: 844 };
 async function persistentContext(viewport = { width: 1280, height: 800 }) {
   const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'fabtice-standards-profile-'));
-  const context = await chromium.launchPersistentContext(profile, { args: ['--no-sandbox'], viewport, deviceScaleFactor: 1 });
+  const phone = viewport.width < 760;
+  const context = await chromium.launchPersistentContext(profile, { args: ['--no-sandbox'], viewport, deviceScaleFactor: 1, hasTouch: phone, isMobile: false });
   await routeInternet(context);
-  return { context, profile };
+  return { context, profile, phone };
+}
+/** A touch on a phone, a click on a computer. */
+async function press(page, locator) {
+  if (await page.evaluate(() => navigator.maxTouchPoints > 0)) await locator.tap();
+  else await locator.click();
 }
 const shot = (page, name) => page.screenshot({ path: path.join(out, `${name}.png`) });
-const waitOffer = (page) => page.waitForSelector('[data-testid="standards-offre"]', { timeout: 15000 });
+const MSG = '[data-testid="grilles-message"]';
+const waitMessage = (page, step) => page.waitForSelector(`${MSG}${step ? `[data-etape="${step}"]` : ''}`, { timeout: 15000 });
+const noMessage = async (page, wait = 1500) => {
+  await sleep(wait);
+  return (await page.locator(MSG).count()) === 0;
+};
 const noOverflow = (page) => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth);
-/** Texts of the rows of a list, whitespace squeezed. */
-const rowTexts = (page, sel) => page.locator(`${sel} .recueil`).evaluateAll((els) => els.map((e) => e.innerText.replace(/\s+/g, ' ').trim()));
+const text = async (locator) => (await locator.innerText()).replace(/\s+/g, ' ').trim();
 const records = (page) =>
   page.evaluate(
     () =>
@@ -133,160 +155,252 @@ const records = (page) =>
       }),
   );
 
-try {
-  // ------------------------------------------------------------ 1. the offer, the download, the result
+const QUESTION = 'Voulez-vous importer automatiquement les grilles des standards de iReal Pro ? Cela permet d’améliorer la détection des accords.';
+
+/** The four paths of the message, in one form of the app (`tag`: « bureau » or « telephone »). */
+async function messagePaths(viewport, tag) {
+  const phone = viewport.width < 760;
+  // ------------------------------------------------------------ « Oui (recommandé) »
   {
     resetPages();
+    for (const id of WEB_IDS) pages[pathOf(mirrorOf(id))].delay = 700;
     seen.length = 0;
-    const { context } = await persistentContext();
+    const { context } = await persistentContext(viewport);
     const { page, errors } = await openPage(context);
-    await waitOffer(page);
-    const offer = page.locator('[data-testid="standards-offre"]');
-    const sentence = (await offer.innerText()).replace(/\s+/g, ' ');
-    check('the offer shows the sentence in French', sentence.includes('Télécharger les grilles des standards de jazz ? Cela améliore la détection des accords des standards.'));
-    check('the card is compact: no checkbox, no list of collections', (await offer.locator('input[type="checkbox"]').count()) === 0 && (await offer.locator('.recueil').count()) === 0);
-    check('« Télécharger », « Plus tard », « Ne plus proposer » and one discreet link to choose the collections', (await offer.getByRole('button', { name: 'Télécharger' }).count()) === 1 && (await offer.getByRole('button', { name: 'Plus tard' }).count()) === 1 && (await offer.getByRole('button', { name: 'Ne plus proposer' }).count()) === 1 && (await offer.getByRole('button', { name: 'Choisir les recueils…' }).count()) === 1);
-    const state0 = await page.evaluate(() => ({ open: window.__fabtice.store.getState().ui.newPieceOpen }));
-    check('the opening dialog is open and the import choices are still there', state0.open && (await page.getByRole('button', { name: 'Choisir un fichier audio' }).count()) === 1);
-    check('no horizontal overflow (desktop)', await noOverflow(page));
-    await shot(page, '1-offre-bureau');
-
-    // The detail, in the window: list, hosts, web note, « ne redistribue pas »
-    await offer.getByRole('button', { name: 'Choisir les recueils…' }).click();
-    await page.waitForSelector('[data-testid="standards-fenetre"]');
-    const win = page.locator('[data-testid="standards-fenetre"]');
-    const rows = await rowTexts(page, '[data-testid="standards-fenetre"]');
-    note(`rows: ${JSON.stringify(rows)}`);
-    check('five recommended collections, each with its name, count and source host', rows.length === 5 && rows[0].startsWith('Jazz 1460') && rows[0].includes('20 grilles') && rows[0].includes('GitHub'), `${rows.length} rows`);
-    check('web: the collections that cannot be downloaded directly are said plainly', rows.some((r) => r.startsWith('Brésil 220') && r.includes('à importer depuis un fichier')) && rows.some((r) => r.startsWith('Dixieland') && r.includes('à importer depuis un fichier')));
-    const ticked = await win.locator('input[type="checkbox"]').evaluateAll((els) => els.map((e) => [e.checked, e.disabled]));
-    check('the downloadable recommended ones are ticked, the others disabled', JSON.stringify(ticked) === JSON.stringify([[true, false], [false, true], [true, false], [true, false], [false, true]]), JSON.stringify(ticked));
-    const winText = await win.innerText();
-    check('the web note and the « ne redistribue pas » line are in the window', winText.includes('Dans la version web') && winText.includes('ne redistribue pas') && winText.includes('Importer un fichier…'));
-    await page.keyboard.press('Escape');
-    await page.waitForFunction(() => !document.querySelector('[data-testid="standards-fenetre"]'));
-
-    // The download: one calm line, then one result line
-    await offer.getByRole('button', { name: 'Télécharger' }).click();
-    await page.waitForSelector('[data-testid="standards-resultat"]', { timeout: 20000 });
-    const result = (await page.locator('[data-testid="standards-resultat"]').innerText()).replace(/\s+/g, ' ');
-    note(`result: ${result}`);
-    check('one result line: tunes kept (jazz 21 + blues 20)', result.includes('41 grilles gardées sur cet appareil.'), result.slice(0, 80));
-    check('some collections need a file: one short line points to the settings', result.includes('Réglages → Avancé → Grilles des standards') && !result.includes('Latin 50') && !result.includes('Importer un fichier'), result);
-    check('no page of an irealpro.com site was requested from the web app', !seen.some((s) => /irealpro|irealb/.test(s)), seen.join(', '));
-    check('only the ticked collections were requested', seen.filter((s) => s.startsWith('raw.githubusercontent.com') && !/collections\.json|models\.json/.test(s)).length === 3, seen.join(', '));
-    const kept = await records(page);
-    check('the library is kept in its own IndexedDB database', kept.length === 2 && kept.some((r) => r.id === 'jazz-1460' && r.tunes === 21) && kept.some((r) => r.id === 'blues-50' && r.tunes === 20), JSON.stringify(kept));
-    await shot(page, '2-resultat-bureau');
-    await page.getByRole('button', { name: 'Terminer' }).click();
-    await page.waitForFunction(() => !document.querySelector('[data-testid="standards-offre"]'));
-    check('once something is kept, the card is gone from this window', true);
-    check('no page errors', errors.length === 0, errors.join(' | '));
-    await page.close();
-    check('no page errors', errors.length === 0, errors.join(' | '));
-    await page.close();
-
-    // Reload: the library is found again, the offer does not come back
-    const { page: again, errors: errors2 } = await openPage(context);
-    await sleep(1200);
-    check('after a reload the offer does not come back', (await again.locator('[data-testid="standards-offre"]').count()) === 0);
-    const found = await again.evaluate(async () => {
-      const list = await window.__fabtice.standards.findStandard('Kosma - Autumn Leaves (1960) [Remastered]');
-      const st = await window.__fabtice.standards.standardsStatus();
-      return { top: list[0] ? { title: list[0].chart.title, id: list[0].collectionId, bars: list[0].chart.bars.length, score: list[0].score } : null, total: st.total, persistent: st.persistent, ids: st.collections.map((c) => c.id) };
+    await waitMessage(page, 'ask');
+    const box = page.locator(MSG);
+    check(`${tag}: the question, in its exact words`, (await text(box.locator('[data-testid="grilles-texte"]'))) === QUESTION);
+    check(`${tag}: two buttons, « Oui (recommandé) » and « Non merci », and the box « Ne plus afficher ce message » unticked`, (await box.getByRole('button', { name: 'Oui (recommandé)' }).count()) === 1 && (await box.getByRole('button', { name: 'Non merci' }).count()) === 1 && (await box.getByLabel('Ne plus afficher ce message').count()) === 1 && !(await box.getByLabel('Ne plus afficher ce message').isChecked()));
+    const colours = await page.evaluate(() => {
+      const css = (sel) => getComputedStyle(document.querySelector(sel));
+      return { yes: css('[data-testid="grilles-oui"]').backgroundColor, ember: getComputedStyle(document.documentElement).getPropertyValue('--braise').trim() };
     });
-    check('the charts are found again after the reload, by a noisy video title', found.top?.title === 'Autumn Leaves' && found.top.id === 'jazz-1460' && found.top.bars > 0, JSON.stringify(found));
-    check('two collections, 41 tunes, persistent', found.total === 41 && found.persistent && found.ids.length === 2, JSON.stringify(found));
+    check(`${tag}: the main button is in ink, never in ember`, colours.yes === 'rgb(43, 31, 23)', colours.yes);
+    check(`${tag}: it is over the opening screen, which waits behind it (out of reach)`, (await page.locator('.voile.ouverte').count()) === 2 && (await page.locator('.voile-projet').evaluate((el) => el.inert)) && (await page.locator('.app').evaluate((el) => el.inert)));
+    check(`${tag}: the focus is in the window, on « Oui (recommandé) »`, (await page.evaluate(() => document.activeElement?.getAttribute('data-testid'))) === 'grilles-oui');
+    for (let i = 0; i < 5; i++) await page.keyboard.press('Tab');
+    check(`${tag}: Tab stays inside the window`, await page.evaluate(() => !!document.activeElement?.closest('[data-testid="grilles-message"]')));
+    check(`${tag}: no horizontal overflow`, await noOverflow(page));
+    if (phone) {
+      const geometry = await page.evaluate(() => [...document.querySelectorAll('[data-testid="grilles-message"] button, [data-testid="grilles-message"] label')].map((e) => [e.textContent.trim(), Math.round(e.getBoundingClientRect().height), Math.round(e.getBoundingClientRect().top), Math.round(e.getBoundingClientRect().right)]));
+      note(`${tag} geometry: ${JSON.stringify(geometry)}`);
+      check(`${tag}: targets of at least 40 px, nothing past the screen`, geometry.every(([, h, , right]) => h >= 40 && right <= viewport.width), JSON.stringify(geometry));
+      const yes = geometry.find(([n]) => n === 'Oui (recommandé)');
+      const no = geometry.find(([n]) => n === 'Non merci');
+      check(`${tag}: buttons stacked, the main one first`, yes[2] < no[2]);
+    }
+    await shot(page, `1-message-${tag}`);
 
-    check('no page errors after the reload', errors2.length === 0, errors2.join(' | '));
+    await press(page, page.locator('[data-testid="grilles-oui"]'));
+    await waitMessage(page, 'running');
+    const lineSeen = await page.evaluate(() => document.querySelector('[data-testid="standards-courant"]')?.textContent ?? '');
+    check(`${tag}: the collection being read and « n sur N »`, new RegExp(`\\d sur ${WEB_COUNT}$`).test(lineSeen), lineSeen);
+    check(`${tag}: it can be cancelled, or left while it goes on`, (await page.locator('[data-testid="grilles-annuler"]').count()) === 1 && (await page.locator('[data-testid="grilles-arriere-plan"]').count()) === 1);
+    // The percentage advances steadily: sampled while it runs, never backwards, in more than a few steps.
+    const samples = [];
+    for (let i = 0; i < 40; i++) {
+      const s = await page.locator('[data-testid="standards-pourcent"]').innerText({ timeout: 500 }).catch(() => null);
+      if (s === null) break;
+      samples.push(Number.parseInt(s, 10));
+      if (i === 4) await shot(page, `2-progression-${tag}`);
+      await sleep(150);
+    }
+    const distinct = [...new Set(samples.filter((n) => !Number.isNaN(n)))];
+    note(`${tag} percentages: ${distinct.join(' ')}`);
+    check(`${tag}: the percentage never goes back and takes more steps than there are collections`, samples.every((n, i) => i === 0 || Number.isNaN(n) || Number.isNaN(samples[i - 1]) || n >= samples[i - 1]) && distinct.length > WEB_COUNT, distinct.join(','));
+    await waitMessage(page, 'done');
+    const result = await text(page.locator('[data-testid="grilles-bilan"]'));
+    note(`${tag} result: ${result}`);
+    // Jazz 21 + Blues 20 + Pop 20 + Country 20; Latin: a login page. The others: not readable from a web page.
+    check(`${tag}: one simple sentence: how many collections out of how many, how many charts, what to do with the others`, result === `4 recueils sur ${LISTED} téléchargés : 81 grilles gardées sur cet appareil. Les autres se retentent dans Réglages → Avancé ; se téléchargent dans l’app Mac ou s’importent par fichier.`, result);
+    check(`${tag}: no page of an irealpro.com site was requested from the web app`, !seen.some((s) => /irealpro|irealb/.test(s)), seen.join(', '));
+    await shot(page, `3-bilan-${tag}`);
+    await press(page, page.getByRole('button', { name: 'Terminer' }));
+    check(`${tag}: « Terminer » closes the message and the opening screen is usable`, (await noMessage(page, 300)) && !(await page.locator('.voile-projet').evaluate((el) => el.inert)));
+    const kept = await records(page);
+    check(`${tag}: the collections are kept in their own IndexedDB database`, kept.length === 4 && kept.some((r) => r.id === 'jazz-1460' && r.tunes === 21), JSON.stringify(kept));
+    check(`${tag}: no page errors`, errors.length === 0, errors.join(' | '));
+    await page.close();
+
+    // The next launch: something is kept, no message; the charts are found again.
+    const { page: again } = await openPage(context);
+    check(`${tag}: at the next launch there is no message`, await noMessage(again));
+    const found = await again.evaluate(async () => {
+      const found = await window.__fabtice.standards.findStandard('Kosma - Autumn Leaves (1960) [Remastered]');
+      return found[0] ? { title: found[0].chart.title, id: found[0].collectionId } : null;
+    });
+    check(`${tag}: the charts are found again by a noisy video title`, found?.title === 'Autumn Leaves' && found.id === 'jazz-1460', JSON.stringify(found));
     await context.close();
   }
 
-  // ------------------------------------------------------------ 2. settings window, on a project
+  // ------------------------------------------------------------ « Non merci »
   {
     resetPages();
+    const { context } = await persistentContext(viewport);
+    const { page } = await openPage(context);
+    await waitMessage(page, 'ask');
+    await press(page, page.getByRole('button', { name: 'Non merci' }));
+    check(`${tag}: « Non merci » closes the message`, await noMessage(page, 300));
+    check(`${tag}: the opening screen is there, nothing was downloaded`, (await page.locator('.voile-projet.ouverte').count()) === 1 && (await records(page)).length === 0);
+    await page.reload();
+    await page.waitForFunction(() => window.__fabtice);
+    await waitMessage(page, 'ask');
+    check(`${tag}: … and it comes back at the next launch`, true);
+    // Escape is « Non merci » too.
+    await page.keyboard.press('Escape');
+    check(`${tag}: Escape on the question is « Non merci »`, await noMessage(page, 300));
+    await context.close();
+  }
+
+  // ------------------------------------------------------------ « Non merci » with the box
+  {
+    resetPages();
+    const { context } = await persistentContext(viewport);
+    const { page } = await openPage(context);
+    await waitMessage(page, 'ask');
+    await press(page, page.getByLabel('Ne plus afficher ce message'));
+    await press(page, page.getByRole('button', { name: 'Non merci' }));
+    await waitMessage(page, 'last');
+    const last = await text(page.locator('[data-testid="grilles-dernier"]'));
+    check(`${tag}: the last word, in its exact words, and a single button « OK »`, last === 'Ce choix reste disponible dans le menu de réglages avancé de l’application.' && (await page.locator(`${MSG} button`).count()) === 1 && (await page.locator(`${MSG} button`).innerText()) === 'OK', last);
+    await shot(page, `4-dernier-${tag}`);
+    await press(page, page.getByRole('button', { name: 'OK' }));
+    check(`${tag}: « OK » closes it`, await noMessage(page, 300));
+    await page.reload();
+    await page.waitForFunction(() => window.__fabtice);
+    check(`${tag}: … and it never comes back`, await noMessage(page, 2000));
+    check(`${tag}: the choice is remembered on the device`, (await page.evaluate(() => localStorage.getItem('fabtice.standards.offer.v1'))) === 'declined');
+    await context.close();
+  }
+}
+
+try {
+  // ------------------------------------------------------------ 1. the message on a computer, then on a phone
+  await messagePaths({ width: 1280, height: 800 }, 'bureau');
+  await messagePaths(PHONE, 'telephone');
+
+  // ------------------------------------------------------------ 2. the window left while the download goes on
+  {
+    resetPages();
+    for (const id of WEB_IDS) pages[pathOf(mirrorOf(id))].delay = 1500;
     const { context } = await persistentContext();
+    const { page } = await openPage(context);
+    await waitMessage(page, 'ask');
+    await page.locator('[data-testid="grilles-oui"]').click();
+    await waitMessage(page, 'running');
+    await page.locator('[data-testid="grilles-arriere-plan"]').click();
+    check('in the background: the window is closed and the opening screen is usable', (await noMessage(page, 200)) && !(await page.locator('.voile-projet').evaluate((el) => el.inert)));
+    for (let i = 0; i < 80 && (await records(page)).length < 4; i++) await sleep(500);
+    check('… and the download goes on to its end', (await records(page)).length === 4, JSON.stringify(await records(page)));
+    check('… without the message coming back', await noMessage(page, 600));
+    await context.close();
+  }
+
+  // ------------------------------------------------------------ 3. cancelling
+  {
+    resetPages();
+    pages[pathOf(mirrorOf('jazz-1460'))].delay = 3000;
+    const { context } = await persistentContext();
+    const { page } = await openPage(context);
+    await waitMessage(page, 'ask');
+    await page.locator('[data-testid="grilles-oui"]').click();
+    await waitMessage(page, 'running');
+    await page.locator('[data-testid="grilles-annuler"]').click();
+    await waitMessage(page, 'done');
+    const cancelled = await text(page.locator('[data-testid="grilles-bilan"]'));
+    check('cancelling says so and keeps nothing', cancelled === 'Téléchargement annulé.' && (await records(page)).length === 0, cancelled);
+    await context.close();
+  }
+
+  // ------------------------------------------------------------ 4. a web page with nothing it can download: no message
+  {
+    resetPages();
+    const noMirror = { ...list, collections: list.collections.map((c) => ({ ...c, pages: c.pages.filter((p) => p.role !== 'mirror') })).filter((c) => c.pages.length > 0) };
+    pages[pathOf(REMOTE_LIST)] = { body: JSON.stringify(noMirror), type: 'application/json' };
+    const { context } = await persistentContext();
+    const { page } = await openPage(context);
+    check('web: with no collection it can read, there is no message', await noMessage(page, 2500));
+    check('… and the opening screen is the one of a file', (await page.locator('.voile-projet.ouverte').count()) === 1);
+    await context.close();
+  }
+
+  // ------------------------------------------------------------ 5. the section of « Réglages → Avancé »
+  for (const viewport of [{ width: 1280, height: 800 }, PHONE]) {
+    const tag = viewport.width < 760 ? 'telephone' : 'bureau';
+    resetPages();
+    const { context } = await persistentContext(viewport);
     const { page, errors } = await openPage(context, '?demo&moteur=factice&outils=distant');
     await page.waitForFunction(() => window.__fabtice?.store.getState().project, null, { timeout: 20000 });
     await openSettingsTab(page, 'advanced');
-    await sleep(500);
-    check('the Avancé tab holds the entry of the collections', (await page.locator('[data-testid="standards-gerer"]').count()) === 1);
-    await shot(page, '3a-reglages-avances');
-    check('the settings say that nothing is on the device', (await page.locator('[data-testid="standards-etat"]').innerText()).includes('Aucune grille sur cet appareil'));
-    await page.locator('[data-testid="standards-gerer"]').click();
-    await page.waitForSelector('[data-testid="standards-fenetre"]');
-    await shot(page, '3-fenetre-reglages');
-    await page.locator('[data-testid="standards-fenetre"] [data-testid="standards-telecharger"]').click();
-    await page.waitForSelector('[data-testid="standards-fenetre"] [data-testid="standards-resultat"]', { timeout: 20000 });
-    await page.getByRole('button', { name: 'Terminer' }).click();
-    await page.waitForSelector('[data-testid="standards-gardees"]');
-    const keptRows = await rowTexts(page, '[data-testid="standards-gardees"]');
-    check('the window lists what is kept, with counts', keptRows.length === 2 && keptRows.some((r) => r.startsWith('Jazz 1460') && r.includes('21 grilles')), JSON.stringify(keptRows));
+    await sleep(600);
+    const section = page.locator('[data-testid="standards-section"]');
+    check(`${tag}: Réglages → Avancé holds the section in place (no window of its own)`, (await section.count()) === 1 && (await page.locator('[data-testid="standards-fenetre"]').count()) === 0);
+    check(`${tag}: it says that nothing is on the device`, (await text(page.locator('[data-testid="standards-etat"]'))) === 'Aucune grille sur cet appareil.');
+    const rows = await page.locator('[data-testid="standards-recueils"] .recueil').evaluateAll((els) => els.map((e) => e.innerText.replace(/\s+/g, ' ').trim()));
+    check(`${tag}: one row per collection of the list (${LISTED}), with its name`, rows.length === LISTED && rows[0].startsWith('Jazz 1460'), `${rows.length} rows`);
+    check(`${tag}: each row has its style, its number of charts, its source and the known licence`, rows[0].includes('Jazz') && rows[0].includes('20 grilles') && rows[0].includes('Source : irealpro.com') && rows[0].includes('Licence : aucune licence publiée'), rows[0]);
+    check(`${tag}: the collections a web page cannot read are said plainly`, rows.some((r) => r.startsWith('Brésil 220') && r.includes('à importer par fichier, ou à télécharger dans l’app Mac')));
+    check(`${tag}: « Vérifier les mises à jour de grilles », « Tout télécharger » and the file import are there`, (await page.locator('[data-testid="standards-verifier"]').count()) === 1 && (await page.locator('[data-testid="standards-tout"]').count()) === 1 && (await page.locator('[data-testid="standards-importer"]').count()) === 1);
+    await shot(page, `5-reglages-avance-${tag}`);
+    if (viewport.width < 760) {
+      const small = await page.evaluate(() => [...document.querySelectorAll('[data-testid="standards-section"] button')].filter((e) => e.getBoundingClientRect().height < 40).map((e) => e.textContent));
+      check(`${tag}: touch targets of at least 40 px`, small.length === 0, small.join(' | '));
+      check(`${tag}: no horizontal overflow`, await noOverflow(page));
+    }
+
+    // One collection from its row.
+    await press(page, page.locator('[data-id="blues-50"] [data-testid="standards-telecharger"]'));
+    await page.waitForSelector('[data-testid="standards-resultat"]', { timeout: 20000 });
+    check(`${tag}: one collection downloaded from its row`, (await text(page.locator('[data-testid="standards-resultat"]'))).includes('« Blues 50 » est gardé sur cet appareil.'));
+    await press(page, page.locator('[data-testid="standards-resultat-ok"]'));
+    // « Tout télécharger »: the others that this page can read.
+    await press(page, page.locator('[data-testid="standards-tout"]'));
+    await page.waitForSelector('[data-testid="standards-resultat"]', { timeout: 20000 });
+    const all = await text(page.locator('[data-testid="standards-resultat"]'));
+    check(`${tag}: « Tout télécharger » says what was kept, what failed and what needs the Mac app or a file`, all.startsWith(`4 recueils sur ${LISTED} téléchargés`) && all.includes('se retentent dans Réglages → Avancé'), all);
+    await press(page, page.locator('[data-testid="standards-resultat-ok"]'));
+    check(`${tag}: the list shows what is kept, with the date`, (await page.locator('[data-garde="oui"]').count()) === 4 && (await text(page.locator('[data-id="jazz-1460"]'))).includes('21 grilles') && /gardé le/.test(await text(page.locator('[data-id="jazz-1460"]'))));
+
+    // « Vérifier les mises à jour de grilles »: nothing new, then a collection that changed.
+    await press(page, page.locator('[data-testid="standards-verifier"]'));
+    await page.waitForSelector('[data-testid="standards-resultat"]', { timeout: 20000 });
+    check(`${tag}: « Vérifier »: nothing new, « Tout est à jour. »`, (await text(page.locator('[data-testid="standards-resultat"]'))) === 'Tout est à jour. Terminer');
+    await shot(page, `6-a-jour-${tag}`);
+    await press(page, page.locator('[data-testid="standards-resultat-ok"]'));
+    pages[pathOf(mirrorOf('jazz-1460'))] = { body: link([...tunes(25, 'Jazz 1460 Tune')], 'Jazz 1460'), type: 'text/plain' };
+    await press(page, page.locator('[data-testid="standards-verifier"]'));
+    await page.waitForFunction(() => /mis à jour/.test(document.querySelector('[data-testid="standards-resultat"]')?.textContent ?? ''), null, { timeout: 20000 });
+    check(`${tag}: « Vérifier »: a collection that changed is replaced, and said`, (await text(page.locator('[data-testid="standards-resultat"]'))).startsWith('1 recueil mis à jour.') && (await records(page)).find((r) => r.id === 'jazz-1460')?.tunes === 25);
+    await press(page, page.locator('[data-testid="standards-resultat-ok"]'));
+
+    // The file import (the way in for what a web page cannot read).
     const file = path.join(work, 'Brazilian 220.html');
     fs.writeFileSync(file, playlistFile(tunes(20, 'Brazilian Tune'), 'Brazilian 220'));
-    await page.locator('[data-testid="standards-fenetre"] [data-testid="standards-fichier"]').setInputFiles(file);
-    await page.waitForSelector('.standards-note', { timeout: 10000 });
-    check('the file import says how many grids it added', (await page.locator('.standards-note').innerText()).includes('20 grilles ajoutées depuis le fichier.'));
-    const afterImport = await records(page);
-    check('the file is kept under the collection it is', afterImport.some((r) => r.id === 'brazilian-220' && r.tunes === 20 && r.source === 'file:Brazilian 220.html'), JSON.stringify(afterImport));
+    await page.locator('[data-testid="standards-fichier"]').setInputFiles(file);
+    await page.waitForSelector('[data-testid="standards-import-note"]', { timeout: 10000 });
+    check(`${tag}: the file import says how many charts it added`, (await text(page.locator('[data-testid="standards-import-note"]'))).includes('20 grilles ajoutées depuis le fichier.'));
+    check(`${tag}: the file is kept under the collection it is`, (await records(page)).some((r) => r.id === 'brazilian-220' && r.tunes === 20 && r.source === 'file:Brazilian 220.html'));
     const bad = path.join(work, 'login.html');
     fs.writeFileSync(bad, LOGIN_PAGE);
-    await page.locator('[data-testid="standards-fenetre"] [data-testid="standards-fichier"]').setInputFiles(bad);
-    await page.waitForFunction(() => document.querySelector('.standards-note')?.textContent?.includes('aucune grille'), null, { timeout: 10000 });
-    check('a page that holds no chart is refused plainly', true);
-    await shot(page, '4-fenetre-gardees');
-    await page.getByRole('button', { name: 'Retirer toutes les grilles' }).click();
-    await page.getByRole('button', { name: 'Oui, les retirer' }).click();
-    await page.waitForFunction(() => !document.querySelector('[data-testid="standards-gardees"]'));
-    check('everything can be removed, after a confirmation', (await records(page)).length === 0);
-    await page.keyboard.press('Escape');
-    await page.waitForFunction(() => !document.querySelector('[data-testid="standards-fenetre"]'));
-    check('Escape closes the window', true);
-    check('no page errors (settings)', errors.length === 0, errors.join(' | '));
+    await page.locator('[data-testid="standards-fichier"]').setInputFiles(bad);
+    await page.waitForFunction(() => document.querySelector('[data-testid="standards-import-note"]')?.textContent?.includes('aucune grille'), null, { timeout: 10000 });
+    check(`${tag}: a page that holds no chart is refused plainly`, true);
+
+    // Removal, after a question; « Vérifier » does not bring it back.
+    await press(page, page.locator('[data-id="blues-50"] [data-testid="standards-retirer"]'));
+    check(`${tag}: removing asks first`, (await page.locator('[data-id="blues-50"] [role="group"]').count()) === 1 && (await records(page)).some((r) => r.id === 'blues-50'));
+    await shot(page, `7-retirer-${tag}`);
+    await press(page, page.locator('[data-id="blues-50"] [data-testid="standards-retirer-oui"]'));
+    await page.waitForFunction(() => document.querySelector('[data-id="blues-50"]')?.getAttribute('data-garde') === 'non');
+    check(`${tag}: the collection is removed`, !(await records(page)).some((r) => r.id === 'blues-50'));
+    await press(page, page.locator('[data-testid="standards-verifier"]'));
+    await page.waitForSelector('[data-testid="standards-resultat"]', { timeout: 20000 });
+    check(`${tag}: « Vérifier » does not bring back what was removed on purpose`, !(await records(page)).some((r) => r.id === 'blues-50'));
+    check(`${tag}: no page errors (settings)`, errors.length === 0, errors.join(' | '));
     await context.close();
   }
 
-  // ------------------------------------------------------------ 3. « Plus tard » and « Ne plus proposer »
-  {
-    const { context } = await persistentContext();
-    const { page } = await openPage(context);
-    await waitOffer(page);
-    await page.getByRole('button', { name: 'Plus tard' }).click();
-    check('« Plus tard » hides the offer for this visit', (await page.locator('[data-testid="standards-offre"]').count()) === 0);
-    await page.reload();
-    await page.waitForFunction(() => window.__fabtice);
-    await waitOffer(page);
-    check('… and it comes back at the next visit', true);
-    await page.getByRole('button', { name: 'Ne plus proposer' }).click();
-    check('« Ne plus proposer » hides it', (await page.locator('[data-testid="standards-offre"]').count()) === 0);
-    await page.reload();
-    await page.waitForFunction(() => window.__fabtice);
-    await sleep(1500);
-    check('… and it stays hidden after a reload (remembered on the device)', (await page.locator('[data-testid="standards-offre"]').count()) === 0);
-    check('the import choices are untouched', (await page.getByRole('button', { name: 'Choisir un fichier audio' }).count()) === 1);
-    await context.close();
-  }
-
-  // ------------------------------------------------------------ 4. cancelling a slow download
-  {
-    resetPages();
-    pages[pathOf(mirrorOf('jazz-1460'))].delay = 4000;
-    const { context } = await persistentContext();
-    const { page } = await openPage(context);
-    await waitOffer(page);
-    await page.locator('[data-testid="standards-telecharger"]').click();
-    await page.waitForSelector('[data-testid="standards-encours"]');
-    const running = (await page.locator('[data-testid="standards-encours"]').innerText()).replace(/\s+/g, ' ');
-    check('while downloading: a single calm line with a percentage', running.includes('Téléchargement des grilles…') && /\d+ %/.test(running) && !running.includes('en attente'), running);
-    await shot(page, '5-telechargement');
-    await page.getByRole('button', { name: 'Annuler' }).click();
-    await page.waitForSelector('[data-testid="standards-resultat"]', { timeout: 10000 });
-    const cancelled = (await page.locator('[data-testid="standards-resultat"]').innerText()).replace(/\s+/g, ' ');
-    check('cancelling says so and keeps nothing', cancelled.includes('Téléchargement annulé.') && (await records(page)).length === 0, cancelled.slice(0, 80));
-    await context.close();
-  }
-
-  // ------------------------------------------------------------ 5. storage that is not available
+  // ------------------------------------------------------------ 6. storage that is not available
   {
     resetPages();
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
@@ -295,56 +409,11 @@ try {
       Object.defineProperty(window, 'indexedDB', { value: undefined, configurable: true });
     });
     const { page } = await openPage(context);
-    await waitOffer(page);
-    await page.locator('[data-testid="standards-telecharger"]').click();
-    await page.waitForSelector('[data-testid="standards-resultat"]', { timeout: 20000 });
-    const text = (await page.locator('[data-testid="standards-resultat"]').innerText()).replace(/\s+/g, ' ');
-    check('without storage the download still works, and says the charts will not outlast the page', text.includes('41 grilles gardées') && text.includes('jusqu’à la fermeture de la page'), text.slice(0, 120));
-    await context.close();
-  }
-
-  // ------------------------------------------------------------ 6. a phone
-  {
-    resetPages();
-    const { context } = await persistentContext({ width: 390, height: 844 });
-    const { page, errors } = await openPage(context);
-    await waitOffer(page);
-    await page.locator('[data-testid="standards-offre"]').scrollIntoViewIfNeeded();
-    await shot(page, '6-offre-telephone');
-    check('phone: no horizontal overflow', await noOverflow(page));
-    const tooWide = await page.locator('.standards, .standards *').evaluateAll((els) => els.filter((e) => e.getBoundingClientRect().right > window.innerWidth + 1).length);
-    check('phone: nothing of the offer goes past the screen', tooWide === 0, `${tooWide} element(s)`);
-    const buttons = await page.locator('.standards button, .standards .recueil label').evaluateAll((els) => els.filter((e) => e.getBoundingClientRect().height < 36).map((e) => e.textContent));
-    check('phone: targets are at least 36 px high', buttons.length === 0, buttons.join(' | '));
-    await page.locator('[data-testid="standards-telecharger"]').click();
-    await page.waitForSelector('[data-testid="standards-resultat"]', { timeout: 20000 });
-    await page.locator('[data-testid="standards-resultat"]').scrollIntoViewIfNeeded();
-    await shot(page, '7-resultat-telephone');
-    check('phone: result without horizontal overflow', await noOverflow(page));
-    check('no page errors (phone)', errors.length === 0, errors.join(' | '));
-    await context.close();
-  }
-  // ------------------------------------------------------------ 7. the card never pushes the import out of view
-  for (const [w, h] of [[1280, 800], [960, 640], [390, 844]]) {
-    resetPages();
-    const { context } = await persistentContext({ width: w, height: h });
-    const { page } = await openPage(context);
-    await waitOffer(page);
-    await sleep(400);
-    const m = await page.evaluate(() => {
-      const box = (sel) => {
-        const r = document.querySelector(sel)?.getBoundingClientRect();
-        return r ? { top: r.top, bottom: r.bottom } : null;
-      };
-      const dlg = document.querySelector('.voile.ouverte .accueil');
-      return { vh: window.innerHeight, scrolls: dlg.scrollHeight > dlg.clientHeight, importBtn: box('.accueil .plein'), stems: box('.stems-choix'), offer: box('[data-testid="standards-offre"]') };
-    });
-    note(`${w}x${h}: ${JSON.stringify(m)}`);
-    check(`${w}x${h}: the import button is in view`, m.importBtn && m.importBtn.top >= 0 && m.importBtn.bottom <= m.vh);
-    check(`${w}x${h}: the instruments come before the offer`, m.stems && m.offer && m.stems.top < m.offer.top);
-    if (w >= 960 && h >= 800) check(`${w}x${h}: the instruments are in view`, m.stems.bottom <= m.vh, `bottom ${m.stems.bottom}`);
-    check(`${w}x${h}: no horizontal overflow`, await noOverflow(page));
-    await shot(page, `8-ouverture-${w}x${h}`);
+    await waitMessage(page, 'ask');
+    await page.locator('[data-testid="grilles-oui"]').click();
+    await waitMessage(page, 'done');
+    const t = await text(page.locator(MSG));
+    check('without storage the download still works, and says the charts will not outlast the page', t.includes('4 recueils sur') && t.includes('jusqu’à la fermeture de la page'), t.slice(0, 160));
     await context.close();
   }
 } finally {

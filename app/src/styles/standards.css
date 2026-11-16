@@ -9,7 +9,7 @@
 .accueil.message-grilles { width: min(500px, 100%); padding-bottom: 24px; }
 .message-grilles h2 { font-size: 24px; margin-bottom: 10px; }
 .accueil.message-grilles p { margin: 0 0 14px; color: var(--encre); font-size: 16px; line-height: 1.45; }
-.accueil.message-grilles .message-bilan { font-family: var(--titre); font-size: 18px; font-weight: 480; }
+
 .message-grilles .message-case { margin: 0 0 0 -10px; width: auto; }
 .message-grilles .message-case span { color: var(--encre); }
 .accueil.message-grilles .message-note { margin: 10px 0 0; font-size: 13.5px; color: var(--encre-douce); }

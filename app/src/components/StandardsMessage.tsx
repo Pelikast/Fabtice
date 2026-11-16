@@ -52,6 +52,7 @@ function MessageBox({ step }: { step: Exclude<MessageStep, null> }) {
   const run = useStandards((s) => s.run);
   const dontShow = useStandards((s) => s.dontShow);
   const report = useStandards((s) => (s.run.kind === 'done' ? s.run.report : null));
+  const memoryOnly = useStandards((s) => s.status !== null && !s.status.persistent && s.status.total > 0);
 
   // The focus is taken for the window, and given back when it closes (to where it was, else the logo).
   useEffect(() => {
@@ -139,6 +140,7 @@ function MessageBox({ step }: { step: Exclude<MessageStep, null> }) {
             <p className="message-bilan" role="status" data-testid="grilles-bilan">
               {reportText(report)}
             </p>
+            {memoryOnly && <p className="stems-note message-note">{t('standards.memoryOnly')}</p>}
             <div className="message-actions">
               <button className="plein encre" data-principal data-testid="grilles-terminer" onClick={finishMessage}>
                 {t('standards.done')}

@@ -199,9 +199,10 @@ try {
     check('web: no link field, a file button', (await page.locator('.champ').count()) === 0 && (await page.locator('.accueil .plein').innerText()) === 'Choisir un fichier audio');
     // Lot 3: « Instruments à séparer » is back (off by default). Lot 4: « ouvrir un projet Fabtice », one calm line under the main button.
     check(
-      'the instrument choice (none ticked), « ouvrir un projet » after the main button',
-      (await page.locator('text=Instruments à séparer').count()) === 1 &&
-        (await page.locator('.stems-choix .stem[aria-pressed="true"]').count()) === 0 &&
+      '« Séparer les instruments » (unticked, no instrument listed), « ouvrir un projet » after the main button',
+      (await page.locator('[data-testid="separer-case"]').count()) === 1 &&
+        !(await page.locator('[data-testid="separer-case"]').isChecked()) &&
+        (await page.locator('.stems-choix .stem').count()) === 0 &&
         (await page.locator('[data-testid="ouvrir-projet"]').count()) === 1 &&
         (await page.locator('.accueil input[type="file"]').count()) === 1,
     );
