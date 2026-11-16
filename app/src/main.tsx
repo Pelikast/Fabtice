@@ -16,7 +16,7 @@ import { startStorage } from './storage';
 import { appStore } from './store/store';
 import { registerServiceWorker } from './pwa/register';
 import { persistPreferences } from './store/preferences';
-import { startHistory } from './store/history';
+import * as historyModule from './store/history';
 import './styles/index.css';
 
 setLanguage('fr');
@@ -24,7 +24,7 @@ persistPreferences(appStore);
 connectEngine(appStore, getEngine());
 // « Annuler » / « Rétablir » and the « modified » state follow the store; a loop put back while playing is heard
 // at once, like any new loop.
-startHistory(appStore, { afterRestore: (s, before) => s.loop !== before.loop && actions.enterLoop() });
+historyModule.startHistory(appStore, { afterRestore: (s, before) => s.loop !== before.loop && actions.enterLoop() });
 // The audio output goes back to the system on sleep, wake, a device change, a hidden or closed page
 // (the engine also lets it go by itself after a while without playback): see audio/deviceLifecycle.ts.
 {
@@ -60,7 +60,7 @@ if (params.has('demo')) {
 } else {
   // `?debug`: the same handle as `?demo` (store, engine, actions) for the browser checks, without the demo piece.
   if (params.has('debug')) {
-    window.__fabtice = { store: appStore, engine: getEngine(), actions, standards: standardsLibrary, audioJournal, ready: Promise.resolve() };
+    window.__fabtice = { store: appStore, engine: getEngine(), actions, standards: standardsLibrary, audioJournal, history: historyModule, ready: Promise.resolve() };
     void import('./demo/start').then((m) => {
       if (window.__fabtice) {
         window.__fabtice.lot3 = m.lot3Handle;

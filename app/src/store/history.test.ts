@@ -11,7 +11,7 @@ import { replaceEngine } from '../audio';
 import { ENGINE_SAMPLE_RATE } from '../audio/AudioEngine';
 import { connectEngine } from '../audio/connect';
 import { MockEngine } from '../audio/MockEngine';
-import { clearAudio } from '../audio/registry';
+import { clearAudio, getAudio } from '../audio/registry';
 import { constantTempoMap } from '../grid/tempoMap';
 import { MockSeparator } from '../separation/mock';
 import { replaceSeparator } from '../separation';
@@ -20,6 +20,7 @@ import { startSeparation } from '../separation/runner';
 import { fakeClock } from '../test/fakeClock';
 import * as actions from './actions';
 import { applyAnalysis } from './analysisActions';
+import { toProjectDocument } from './document';
 import { setExportPrefs } from './exportActions';
 import { doubleTheTempo, halveTheTempo, moveDownbeat, placeDownbeatAtPlayhead, resetGridToAnalysis, setBeatsPerBar } from './gridActions';
 import { removeChord, setBarChords, setKey, setSection, setTuningCorrection } from './harmonyActions';
@@ -292,6 +293,20 @@ describe('the history', () => {
     actions.stepSemitones(1);
     actions.closeProject();
     expect(history.historyStatus()).toEqual({ canUndo: false, canRedo: false, undoLabel: null, redoLabel: null, modified: false });
+  });
+
+  it('is cleared when a kept or saved project is opened again, even the same one', async () => {
+    const doc = toProjectDocument(get())!;
+    const audio = new Map(get().tracks.map((tr) => [tr.audio.id, getAudio(tr.audio.id)!]));
+    history.markSaved();
+    actions.stepSemitones(1);
+    await actions.restoreProject(doc, audio);
+    expect(get().project!.id).toBe(doc.project.id);
+    expect(history.canUndo()).toBe(false);
+    // Reopened: modified until the opener says it matches its file (`markSaved`).
+    expect(history.isModified()).toBe(true);
+    history.markSaved();
+    expect(history.isModified()).toBe(false);
   });
 
   it('never records the view, the settings, the export choices, the interface, the transport', () => {
