@@ -47,6 +47,8 @@ async function open(viewport, { touch = false, dpr = 1, query = '?demo&analyse=a
   await page.goto(`${url}/${query}`);
   await page.waitForFunction(() => window.__fabtice && window.__fabtice.store.getState().transport.engine === 'ready', null, { timeout: 15000 });
   await page.evaluate(() => document.fonts.ready);
+  // These checks were written for a sub-grid in eighths; the default is now « Noires » (C3).
+  await page.evaluate(() => window.__fabtice.actions.setSubdivision(2));
   if (waitPeaks) await page.waitForFunction(() => document.querySelector('.frise')?.dataset.peaks === 'ready', null, { timeout: 15000 });
   await sleep(150);
   return { page, context, errors };

@@ -76,10 +76,11 @@ test('the fine chord model runs in the app, from the settings, and says what it 
     const first = await page.evaluate(() => window.__fabtice.store.getState().analysis);
     assert.ok(first && first.analyser.models.includes('crema-chords'), 'first analysed with the default model');
 
+    // Réglages → Détection des accords (the tabbed window of C7; the Mac menu will replace the button).
     await page.click('button.menu:has-text("Réglages")');
-    await page.click('[data-testid="reglages-avances"]');
+    await page.click('[role="tab"][data-tab="chords"]');
     await page.selectOption('[data-testid="modele-accords"]', 'fine');
-    const text = await page.locator('.reglages-app').innerText();
+    const text = await page.locator('[data-testid="reglages-panneau"]').innerText();
     assert.match(text, /plusieurs minutes/);
     assert.match(text, /2,5 Go/);
     assert.match(text, /CC BY-NC 4\.0/);
