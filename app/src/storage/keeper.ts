@@ -9,6 +9,9 @@
 //     gesture (dragging a zoom slider) still gets saved, one write at a time,
 //     never awaited by the interface. `flush()` saves at once (page hidden).
 //   - The demo piece is never kept.
+//   - Beside the document, the « saved or modified » state of what the device
+//     holds (`savedState.ts`): taken with each write, and followed when only
+//     that state changes (`noteModified`).
 //   - When the device refuses (private window, storage blocked or full), the
 //     app carries on; `onNotice` tells the interface, which shows one calm
 //     sentence, once.
@@ -17,6 +20,7 @@ import type { ProjectDocument } from '../model/document';
 import { documentChanged, toProjectDocument } from '../store/document';
 import type { AppState, AppStore, StorageNotice } from '../store/store';
 import { StorageError, type ProjectStorage, type StoredAudio } from './ProjectStorage';
+import type { SavedStateStore } from './savedState';
 import { withTimeout } from './timeout';
 
 export interface KeeperOptions {
@@ -28,6 +32,10 @@ export interface KeeperOptions {
   onNotice?: (notice: StorageNotice | null) => void;
   /** A write that has not finished after this long is given up on, so that later saves are not stuck behind it. */
   writeTimeoutMs?: number;
+  /** Whether the open project has changes not saved to its `.fab` file (`store/history.ts#isModified`). */
+  modified?: () => boolean;
+  /** Where that state is kept beside the document (`savedState.ts`). */
+  savedState?: SavedStateStore;
 }
 
 export const AUTOSAVE_DELAY_MS = 700;
@@ -102,8 +110,10 @@ export class ProjectKeeper {
     this.attached = null;
     let state: AppState;
     let doc: ProjectDocument | null;
+    let modified: boolean;
     try {
       state = this.store.getState();
+      modified = this.isModified();
       doc = toProjectDocument(state);
     } catch {
       return;
@@ -119,6 +129,7 @@ export class ProjectKeeper {
         await withTimeout(this.storage.replaceCurrent(written, originals), this.writeTimeoutMs, 'write');
         this.attached = written.project.id;
         this.saved = state;
+        this.recordWritten(modified);
         this.notify(null);
       } catch (e) {
         this.notify(noticeFor(e));
@@ -145,6 +156,34 @@ export class ProjectKeeper {
   detach(): void {
     this.cancelTimer();
     this.attached = null;
+  }
+
+  /**
+   * The « modified » state of the open project changed (`subscribeHistory`): the record beside the document
+   * follows when the device holds the document as it is now; « modified » is written at once in any case.
+   */
+  noteModified(): void {
+    const record = this.options.savedState;
+    if (!record) return;
+    const state = this.store.getState();
+    const id = state.project?.id;
+    if (!id || id !== this.attached) return;
+    const modified = this.isModified();
+    if (modified || (this.saved && !documentChanged(state, this.saved))) record.write({ projectId: id, modified });
+  }
+
+  private isModified(): boolean {
+    return this.options.modified ? this.options.modified() : true;
+  }
+
+  /** A write just ended: the record describes what the device now holds (`modified`: the state of what was written). */
+  private recordWritten(modified: boolean): void {
+    const record = this.options.savedState;
+    if (!record || !this.attached) return;
+    const state = this.store.getState();
+    // Nothing changed since that state was read: what it is now describes the stored document too.
+    const now = state.project?.id === this.attached && this.saved && !documentChanged(state, this.saved) ? this.isModified() : modified;
+    record.write({ projectId: this.attached, modified: now });
   }
 
   /** Saves a pending change now. Resolves when the write has finished (or failed). */
@@ -183,11 +222,13 @@ export class ProjectKeeper {
     return this.enqueue(async () => {
       try {
         const state = this.store.getState();
+        const modified = this.isModified();
         const doc: ProjectDocument | null = toProjectDocument(state);
         if (!doc || doc.project.id !== this.attached) return;
         if (this.saved && !documentChanged(state, this.saved)) return;
         await withTimeout(this.storage.saveCurrent(doc), this.writeTimeoutMs, 'write');
         this.saved = state;
+        this.recordWritten(modified);
         this.notify(null);
       } catch (e) {
         this.notify(noticeFor(e));
