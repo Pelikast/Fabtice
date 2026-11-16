@@ -1,23 +1,372 @@
-/* « Imprimer la grille » (chart/print.ts): on paper only the chart remains, ink
-   on white — title line, section letters, bars, chords in the same typography,
-   four bars per line, a page break only between lines. No veil, no ember
-   hairline, nothing that says « doubtful » or « being edited », no app.
+/* « Imprimer la grille »: the window with its preview, and the sheets (components/PrintDialog.tsx,
+   chart/PrintSheets.tsx, chart/printLayout.ts).
 
-   The chart is drawn as the desktop's: a bar is 206 units wide, a chord 30
-   units high, and the unit is a 206th of the width of a bar on the page. So the
-   same drawing fits every paper, in both orientations, and the one size step the
-   chart's chords need (`data-taille-p`, chart/fit.ts) is the same for every bar.
+   The sheets are drawn ONCE, at the size of the paper in mm. On screen the preview only shrinks them
+   (--ech, set by the dialog); when printing, this style sheet keeps nothing on the page but the sheets,
+   puts --ech back to 1 and breaks the page after each sheet. The browser never paginates: a sheet is a
+   page (the `@page` rule, written by the dialog, has the sheet's size and no margin).
 
-   What the dialog chooses (chart/print.ts) is on the root element:
-     data-impression="portrait" | "paysage"     (@page is written by print.ts)
-     data-page-impression="libre" | "une"       as it is | fitted to one page
-     --lignes-impression                         lines of four bars, for « une »    */
+   The chart is drawn as the desktop's: a bar is 206 units wide (--u is a 206th of a bar, in mm), a chord
+   30 units high; the same drawing fits every paper, in both orientations. */
 
-.papier-seul { display: none; }
+/* ---------------------------------------------------------------- the window */
+
+.voile-impression { padding: 16px; }
+.fenetre-impression {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-areas: "entete entete" "apercu options" "apercu pied";
+  width: min(1120px, 100%);
+  height: min(620px, 100%);
+  overflow: hidden;
+  background: var(--papier-clair);
+  border: 1px solid var(--trait);
+  border-radius: var(--rayon-fenetre);
+  box-shadow: var(--ombre-accueil);
+  transform: translateY(10px);
+  transition: transform var(--pose) var(--courbe);
+}
+.voile.ouverte .fenetre-impression { transform: none; }
+.fenetre-impression[data-vide] {
+  grid-template-columns: 1fr;
+  grid-template-rows: auto auto;
+  grid-template-areas: "entete" "vide";
+  width: min(460px, 100%);
+  height: auto;
+}
+
+.imp-entete {
+  grid-area: entete;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 20px 24px 14px;
+  border-bottom: 1px solid var(--trait-fin);
+}
+.imp-entete h2 {
+  margin: 0;
+  font-family: var(--titre);
+  font-size: 26px;
+  font-weight: 500;
+  font-variation-settings: "opsz" 72, "SOFT" 60;
+  letter-spacing: -0.01em;
+}
+.imp-vide { grid-area: vide; padding: 22px 24px 28px; }
+.imp-vide p { margin: 0 0 8px; color: var(--encre-douce); }
+.imp-vide strong { color: var(--encre); font-weight: 600; }
+
+/* The preview: the sheets on a hollow, one under the other. */
+.imp-apercu {
+  grid-area: apercu;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: var(--papier-fonce);
+}
+.imp-apercu-tete {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 12px 24px 0;
+  font-size: 13px;
+  color: var(--encre-douce);
+}
+.imp-apercu-tete .etiquette { font-size: 11px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; }
+.imp-apercu-defile {
+  --ech: 0.5;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px 24px 18px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--trait) transparent;
+}
+.pp-pages {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  min-width: min-content;
+}
+.pp-cadre { flex: none; margin: 0; }
+.pp-legende { margin: 6px 0 0; font-size: 12.5px; text-align: center; color: var(--encre-douce); font-variant-numeric: tabular-nums; }
+
+/* The options. */
+.imp-options {
+  grid-area: options;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px 22px 12px;
+  border-left: 1px solid var(--trait-fin);
+  scrollbar-width: thin;
+  scrollbar-color: var(--trait) transparent;
+}
+.imp-groupe h3 {
+  margin: 0 0 7px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--encre-douce);
+}
+.imp-rangee { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.imp-duo { width: 100%; }
+.imp-duo button {
+  flex: 1;
+  min-width: 0;
+  min-height: 38px;
+  padding: 4px 8px;
+  font-family: var(--texte);
+  font-size: 14px;
+  font-weight: 560;
+}
+.imp-duo button[aria-checked="true"] { background: var(--encre); color: var(--papier-clair); }
+.imp-echelle { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.imp-liste {
+  height: 38px;
+  min-width: 96px;
+  padding: 0 8px;
+  border: 1px solid var(--trait);
+  border-radius: var(--rayon);
+  background: #fff;
+  color: var(--encre);
+  font: inherit;
+  font-size: 14px;
+}
+.imp-liste:disabled { color: var(--encre-douce); background: var(--papier); }
+.imp-liste-large { width: 100%; min-width: 0; text-overflow: ellipsis; }
+.imp-cases { display: flex; flex-wrap: wrap; gap: 4px 16px; }
+.imp-case { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; font-size: 14px; cursor: pointer; }
+.imp-case input { width: 16px; height: 16px; margin: 0; accent-color: var(--encre); }
+.imp-case input:disabled + span { color: var(--encre-douce); }
+.imp-note { min-height: 0; margin: 6px 0 0; font-size: 12.5px; line-height: 1.4; color: var(--encre-douce); }
+.imp-note:empty { display: none; }
+.imp-erreur { padding: 2px 0 2px 12px; border-left: 3px solid var(--laiton); color: var(--encre); }
+.imp-imprimante { display: grid; grid-template-columns: minmax(0, 1fr) 76px; gap: 10px; align-items: end; }
+.imp-copies { display: flex; flex-direction: column; gap: 3px; font-size: 12.5px; color: var(--encre-douce); }
+.imp-copies input {
+  width: 100%;
+  height: 38px;
+  padding: 0 8px;
+  border: 1px solid var(--trait);
+  border-radius: var(--rayon);
+  background: #fff;
+  color: var(--encre);
+  font: inherit;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.imp-pied {
+  grid-area: pied;
+  padding: 12px 22px 16px;
+  border-left: 1px solid var(--trait-fin);
+  border-top: 1px solid var(--trait-fin);
+}
+.imp-pied .imp-note { margin: 0 0 10px; }
+.imp-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.imp-actions .bouton-cadre { width: auto; min-height: 44px; padding: 0 16px; }
+/* The main action is in ink, not in ember: the ember is for playing. */
+.imp-principal {
+  min-height: 44px;
+  padding: 0 22px;
+  border-radius: var(--rayon);
+  background: var(--encre);
+  color: var(--papier-clair);
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background var(--vite) var(--courbe);
+}
+.imp-principal:hover:not(:disabled) { background: var(--encre-douce); }
+.imp-principal:disabled, .imp-actions .bouton-cadre:disabled { opacity: 0.55; cursor: default; }
+
+/* A phone: the window fills the screen. The preview on top (the pages side by side), the options under it,
+   the two buttons stuck at the bottom. */
+@media (max-width: 760px) {
+  .voile-impression { padding: 0; }
+  .fenetre-impression {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(150px, 38%) minmax(0, 1fr) auto;
+    grid-template-areas: "entete" "apercu" "options" "pied";
+    width: 100%;
+    height: 100%;
+    border: 0;
+    border-radius: 0;
+  }
+  .fenetre-impression[data-vide] { grid-template-rows: auto auto; height: auto; max-height: 100%; align-self: end; border-radius: var(--rayon-fenetre) var(--rayon-fenetre) 0 0; }
+  .imp-entete { padding: 14px 16px 10px; }
+  .imp-entete h2 { font-size: 22px; }
+  .imp-apercu-tete { padding: 8px 16px 0; }
+  .imp-apercu-defile { padding: 8px 16px 10px; scroll-snap-type: x proximity; }
+  .pp-pages { flex-direction: row; align-items: flex-start; gap: 12px; }
+  .pp-cadre { scroll-snap-align: center; }
+  .imp-options { padding: 14px 16px 10px; border-left: 0; border-top: 1px solid var(--trait-fin); gap: 14px; }
+  .imp-pied { padding: 10px 16px calc(12px + env(safe-area-inset-bottom, 0px)); border-left: 0; }
+  .imp-actions .bouton-cadre, .imp-principal { flex: 1; min-height: 46px; }
+  .imp-duo button, .imp-liste, .imp-copies input { min-height: 40px; }
+  .imp-case { min-height: 40px; }
+  .imp-case input { width: 20px; height: 20px; }
+}
+
+/* ---------------------------------------------------------------- the sheets (preview and paper alike) */
+
+.pp-papier {
+  position: relative;
+  width: var(--pl);
+  height: var(--ph);
+  /* The preview's reduction (--ech): the box shrinks with the drawing. */
+  margin: 0 calc(var(--pl) * (var(--ech, 1) - 1)) calc(var(--ph) * (var(--ech, 1) - 1)) 0;
+  transform: scale(var(--ech, 1));
+  transform-origin: 0 0;
+  overflow: hidden;
+  background: #fffdf8;
+  color: var(--encre);
+  font-family: var(--texte);
+  box-shadow: 0 0 0 calc(1px / var(--ech, 1)) var(--trait);
+  pointer-events: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+/* The content is laid out at its natural size and scaled as a whole around the middle of the sheet. */
+.pp-contenu {
+  position: absolute;
+  top: var(--marge);
+  left: var(--marge);
+  width: var(--larg);
+  transform: scale(var(--echelle, 1));
+  transform-origin: 50% 0;
+}
+.pp-tete { padding-bottom: 5mm; }
+.pp-titre {
+  height: 11mm;
+  margin: 0;
+  overflow: hidden;
+  font-family: var(--titre);
+  font-size: 26pt;
+  font-weight: 500;
+  font-variation-settings: "opsz" 72, "SOFT" 60;
+  letter-spacing: -0.01em;
+  line-height: 11mm;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pp-infos {
+  height: 6mm;
+  margin: 0;
+  overflow: hidden;
+  font-size: 11pt;
+  line-height: 6mm;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.pp-numero-page {
+  position: absolute;
+  right: 0;
+  bottom: calc(var(--marge) / 2 - 1.6mm);
+  left: 0;
+  font-size: 8pt;
+  line-height: 1;
+  text-align: center;
+  color: var(--encre-douce);
+  font-variant-numeric: tabular-nums;
+}
+
+.pp-ligne { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); height: var(--ligne); }
+.pp-ligne > .pp-case:last-child { border-right: 0.4mm solid var(--encre); }
+.pp-case {
+  /* --pg: from the bar line to beat 1; --pd: kept at the other end; --haut: taken by the number and the section
+     letter; --corps: the size of the chords (the whole chart goes down the steps of --r together). */
+  --pg: calc(16 * var(--u));
+  --pd: calc(8 * var(--u));
+  --haut: calc(14 * var(--u));
+  --corps: min(calc(30 * var(--u)), 8.5mm);
+  --r: 1;
+  --rangs: 1;
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+  border-left: 0.4mm solid var(--encre);
+  border-bottom: 0.25mm solid #bdb2a3;
+  color: var(--encre);
+  font-family: var(--titre);
+  font-size: calc(var(--corps) * var(--r));
+  font-weight: 520;
+  font-variation-settings: "opsz" 48, "SOFT" 50;
+  white-space: nowrap;
+}
+/* The steps of the size (chart/fit.ts, FIT_RATIOS), the same for every bar. */
+.pp-case[data-taille="1"] { --r: 0.73; }
+.pp-case[data-taille="2"] { --r: 0.57; }
+.pp-case[data-taille="3"] { --r: 0.47; }
+.pp-case[data-taille="4"] { --r: 0.38; }
+/* Crowded bars: two rows, one up and one down by turns. */
+.pp-case[data-rangs="2"] { --rangs: 2; }
+.pp-case.pp-double { border-left: 1.6mm double var(--encre); }
+.pp-case.pp-signee { --pg: calc(30 * var(--u)); }
+.pp-numero {
+  position: absolute;
+  top: 1.4mm;
+  right: 1.8mm;
+  font-family: var(--texte);
+  font-size: 8pt;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--encre-douce);
+}
+.pp-section {
+  position: absolute;
+  top: 1.4mm;
+  left: 1.8mm;
+  min-width: 5mm;
+  padding: 0 1.2mm;
+  border: 0.35mm solid var(--encre);
+  font-size: 10pt;
+  font-weight: 620;
+  line-height: 13pt;
+  text-align: center;
+}
+.pp-signature {
+  position: absolute;
+  top: calc(var(--haut) + (100% - var(--haut)) / 2);
+  left: calc(8 * var(--u));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transform: translateY(-50%);
+  font-size: 9pt;
+  font-weight: 640;
+  line-height: 0.95;
+}
+/* A chord sits where its beat is: --debut is the beat over the beats of the bar (beat 3 of 4: 0.5, the middle). */
+.pp-accord {
+  --decal: calc(var(--rang, 0) * (var(--rangs) - 1));
+  position: absolute;
+  top: calc(var(--haut) + (100% - var(--haut)) / var(--rangs) * (var(--decal) + 0.5));
+  left: calc(var(--debut) * (100% - var(--pg) - var(--pd)) + var(--pg) + var(--pousse, 0) * var(--u));
+  transform: translateY(-50%);
+  line-height: 1.2;
+}
+.pp-accord[data-rang="1"] { --rang: 1; }
+.pp-repete {
+  position: absolute;
+  top: calc(var(--haut) + (100% - var(--haut)) / 2);
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: var(--musique);
+  font-size: 0.9em;
+  line-height: 1;
+  color: var(--encre-douce);
+}
+
+/* ---------------------------------------------------------------- on paper */
 
 @media print {
-  @page { margin: 15mm 13mm 17mm; }
-
   html, body, #root {
     height: auto;
     overflow: visible;
@@ -27,78 +376,47 @@
   /* No paper grain. */
   body::before { display: none; }
 
-  /* The app's chrome, the dialogs and the notices. */
-  #root > :not(.app),
-  .app > :not(.milieu),
-  .instrument, .aide-doigt, .editeur, .cle-editeur, .cle-bouton .chevron, .imprimer-bouton, .fenetre { display: none !important; }
-  .app { display: block; height: auto; }
-
-  .milieu, .vue, .vue-grille {
+  /* Everything but the sheets: the app, its notices, the other windows, the window's own chrome
+     (only while the dialog is open: `data-imprime` on the root element). */
+  html[data-imprime] #root > :not(.voile-impression), html[data-imprime] body > :not(#root) { display: none !important; }
+  .pas-imprime, .imp-options, .imp-pied, .imp-vide { display: none !important; }
+  .voile-impression {
     position: static;
-    overflow: visible;
-    height: auto;
-    inset: auto;
-  }
-  .feuille { width: 100%; margin: 0; padding: 0; }
-  .feuille-tete { display: flex; flex-direction: row; margin-bottom: 8mm; break-after: avoid; align-items: baseline; flex-wrap: wrap; gap: 4px 16px; }
-  .feuille-tete h1 { font-size: 26pt; }
-  .feuille-infos { width: auto; }
-  .feuille-infos p { color: var(--encre); font-size: 11pt; white-space: normal; }
-  .papier-seul { display: inline; }
-  .cle-bouton { margin: 0 0.2em 0 0; padding: 0; color: inherit; background: none; }
-
-  .grille { padding: 0; }
-  /* A line of bars never splits between two pages; its width is the unit of everything in it. */
-  .ligne { container-type: inline-size; break-inside: avoid; }
-  .feuille .case {
-    --u: calc(25cqw / 206);
-    --corps: min(calc(30 * var(--u)), 8.5mm);
-    --pg: calc(16 * var(--u));
-    --pd: calc(8 * var(--u));
-    --haut: calc(14 * var(--u));
-    --r: 1;
-    --rangs: 1;
-    --ligne-nat: 24mm;
-    gap: 0;
-    height: var(--ligne-nat);
-    background: none !important;
-    cursor: auto;
-    border-bottom-color: #bdb2a3;
+    display: block;
+    padding: 0;
+    background: none;
+    opacity: 1;
+    visibility: visible;
     transition: none;
   }
-  /* The step is the one for paper, not the one for the screen. */
-  .feuille .case[data-taille-p="1"] { --r: 0.73; }
-  .feuille .case[data-taille-p="2"] { --r: 0.57; }
-  .feuille .case[data-taille-p="3"] { --r: 0.47; }
-  .feuille .case[data-taille-p="4"] { --r: 0.38; }
-  .feuille .case[data-taille]:not([data-taille-p]) { --r: 1; }
-  /* The rows too (cramped bars): the paper's, not the screen's. */
-  .feuille .case[data-rangs-p="2"] { --rangs: 2; }
-  .feuille .case[data-rangs]:not([data-rangs-p]) { --rangs: 1; }
-  .case[data-rangs-p="2"] .accord-case { min-height: 0; }
-  /* The push back from the end bar line is the paper's too (units of 1/206 of a bar, as --pg and --pd). */
-  .feuille .case .accord-case[data-debut] { left: calc(var(--debut) * (100% - var(--pg) - var(--pd)) + var(--pg) - 5px + var(--pousse-p, 0) * var(--u)); }
-  .feuille .case .numero { font-size: 8pt; }
-  .feuille .case .section { font-size: 10pt; line-height: 13pt; }
-  .case .numero { color: var(--encre-douce); }
-  .case.dans-boucle { background: none !important; }
-  .case.jouee::after { display: none; }
-  .accord-case, .accord-case:hover, .accord-case.edite {
-    min-height: 0;
+  .fenetre-impression, .imp-apercu, .imp-apercu-defile {
+    display: block;
+    position: static;
+    width: auto;
+    height: auto;
+    min-width: 0;
+    max-height: none;
+    margin: 0;
+    padding: 0;
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
     background: none;
     box-shadow: none;
-    cursor: auto;
+    transform: none;
+    transition: none;
   }
-  /* Doubtful chords are written like any other on paper. */
-  .ch.douteux { color: inherit; padding-bottom: 0; border-bottom: 0; }
-  .section { cursor: auto; }
-  .section::after { display: none; }
-
-  /* On its side the page is 32 mm lower and 74 mm wider: lines of 21 mm let 25 bars fit one page, as in portrait. */
-  html[data-impression="paysage"] .feuille .case { --ligne-nat: 21mm; }
-
-  /* Fitted to one page: the lines share the height of the page (100vh is the page area when printing). */
-  html[data-page-impression="une"] .feuille .case {
-    height: min(var(--ligne-nat), calc((100vh - 24mm) / var(--lignes-impression, 1) - 0.4mm));
+  /* The preview's reduction is put back: a sheet is as large as its page. */
+  .imp-apercu-defile { --ech: 1 !important; }
+  .pp-pages { display: block; min-width: 0; }
+  .pp-cadre { display: block; break-after: page; break-inside: avoid; }
+  .pp-cadre:last-child { break-after: auto; }
+  .pp-papier {
+    /* A hair under the page, so that rounding never makes a page of its own. */
+    height: calc(var(--ph) - 0.5mm);
+    margin: 0;
+    transform: none;
+    background: #fff;
+    box-shadow: none;
   }
 }

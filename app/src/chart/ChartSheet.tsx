@@ -72,8 +72,6 @@ function ChartHeader({ canPrint }: { canPrint: boolean }) {
                 {t('chart.keyOf')} {withAccidentals(keyLabel(ctx.key, minor))}
               </KeyEditor>
               {instrument !== 'ut' && ` ${t('chart.forInstrument', { instrument: t(`chart.instrument.${instrument}`) })}`}
-              {/* Paper says for which instrument the chart is written, in C too. */}
-              {instrument === 'ut' && <span className="papier-seul"> {t('chart.forInstrument', { instrument: t('chart.instrument.ut') })}</span>}
               {' · '}
             </>
           ) : (

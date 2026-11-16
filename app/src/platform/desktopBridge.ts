@@ -181,6 +181,16 @@ export type PagePrintOrientation = 'portrait' | 'landscape';
 /** What a printing of the chart answers: done, or why not (the user closed the panel; the system refused). */
 export type ChartPrintResult = { ok: true } | { ok: false; reason: 'cancelled' | 'failed' };
 
+/** Paper of the printed sheets, as the Mac app's printing names it. */
+export type PagePrintPaper = 'A4' | 'Letter';
+
+/** A printer the system lists: its system name (what printing is addressed to), the name shown, and whether it is the default. */
+export interface PrinterInfo {
+  name: string;
+  displayName: string;
+  isDefault: boolean;
+}
+
 // ---------------------------------------------------------------- chart collections
 
 /** Why the Mac app could not give a page's text (`desktop/src/standards-fetch.js`). */
@@ -212,17 +222,23 @@ export interface DesktopBridge {
    */
   openInIRealPro?(link: string): Promise<{ ok: true } | { ok: false; reason: 'invalid' | 'failed' }>;
   /**
-   * Prints the page as it is now (the interface has put it in its printed form: the chart alone) through the
-   * system's print dialog, in the orientation asked. `window.print()` does not work in the Mac app, this does.
-   * A Mac app that predates it lacks this method (the page then falls back on `window.print()`).
+   * Prints the page as it is now (the interface keeps only the sheets of the print dialog on it): to the printer
+   * named (silently, `copies` times) when it is one the system lists, otherwise through the system's print dialog,
+   * which also opens when the silent printing fails. The sheets are the size of `paper` in `orientation`.
+   * `window.print()` does not work in the Mac app, this does. A Mac app that predates it lacks this method.
    */
-  printChart?(options: { orientation: PagePrintOrientation }): Promise<ChartPrintResult>;
+  printChart?(options: { orientation: PagePrintOrientation; paper?: PagePrintPaper; printer?: string | null; copies?: number }): Promise<ChartPrintResult>;
   /**
-   * Writes the page as it is now (the chart alone) to a PDF file: the system's save panel (French, in the
-   * Downloads folder, named after `title`), then the file. `cancelled` when the user closes the panel.
-   * A Mac app that predates it lacks this method.
+   * Writes the page as it is now (the sheets alone) to a PDF file: the system's save panel (French, in the
+   * Downloads folder, named after `title`), then the file, one PDF page per sheet. `cancelled` when the user
+   * closes the panel. A Mac app that predates it lacks this method.
    */
-  saveChartPdf?(options: { orientation: PagePrintOrientation; title: string }): Promise<ChartPrintResult>;
+  saveChartPdf?(options: { orientation: PagePrintOrientation; paper?: PagePrintPaper; title: string }): Promise<ChartPrintResult>;
+  /**
+   * The printers the system lists (`webContents.getPrintersAsync`); `ok: false` when it cannot say, in which case the
+   * dialog offers no choice of printer and « Imprimer » opens the system's own dialog. A Mac app that predates it lacks this method.
+   */
+  listPrinters?(): Promise<{ ok: true; printers: PrinterInfo[] } | { ok: false }>;
   /**
    * Fetches the text of a page of a chart collection (`app/src/standards/`): HTTPS GET only, the host must
    * be one of a fixed list (iReal Pro's sites and GitHub's raw files), redirects only to such hosts, at most
