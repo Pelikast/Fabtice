@@ -33,7 +33,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { launchInterface, pieceReady, assertClean, makeWavFile } = require('./helpers');
+const { launchInterface, pieceReady, assertClean, makeWavFile, menuCommand } = require('./helpers');
 
 // This machine has no graphics chip: the separation's device check says so in a warning, which is not a fault.
 const NO_ADAPTER = /No available adapters|WebGPU.*(unavailable|not supported)|Failed to create WebGPU/i;
@@ -127,8 +127,7 @@ test('a project saved in the app opens in a fresh app from the Finder, everythin
           return { canceled: false, filePath: `${dir}/${options.defaultPath.split('/').pop()}` };
         };
       }, saveDir);
-      await page.click('button:has-text("Exporter")');
-      await page.click('.menu-export [data-export="project"]');
+      await menuCommand(page, 'Enregistrer sous…');
       await page.waitForSelector('[data-testid="enregistrer-projet"]');
       await page.click('[data-testid="preparer-projet"]');
       await page.waitForFunction(() => !document.querySelector('[data-testid="enregistrer-projet"]'), null, { timeout: 120000 });
@@ -196,9 +195,11 @@ test('a project saved in the app opens in a fresh app from the Finder, everythin
       await page.screenshot({ path: path.join(base, 'recents.png') });
       if (process.env.FABTICE_E2E_SHOTS) fs.copyFileSync(path.join(base, 'recents.png'), path.join(process.env.FABTICE_E2E_SHOTS, 'projets-recents.png'));
       await page.click('[data-testid="projets-recents"] .lien');
-      // The piece restored from the device's copy reads « modified »: the alert about changes not saved comes first.
-      await page.waitForSelector('[data-testid="alerte-projet"]', { timeout: 10000 });
-      await page.click('[data-testid="alerte-abandonner"]');
+      // The piece restored from the device's copy is the one in its file (opened from it, nothing changed since): it
+      // reads « not modified », so no alert about changes not saved.
+      assert.equal(await page.evaluate(() => window.__fabtice.history.isModified()), false, 'restored, identical to its file');
+      await page.waitForTimeout(1000);
+      assert.equal(await page.locator('[data-testid="alerte-projet"]').count(), 0, 'no alert');
       await page.waitForFunction(() => window.__fabtice.store.getState().ui.import.kind === 'busy', null, { timeout: 10000 }).catch(() => {});
       await pieceReady(page);
       assert.deepEqual(await snapshot(page), before, 'opened again from the recent projects');
@@ -454,12 +455,13 @@ test('« Enregistrer » and « Enregistrer sous… » in the app: the project\'s
       await pieceReady(page);
       await spyWindow(app);
       await stubPanel(app);
-      // Restored from the device's copy: modified (the last work is not in a file), and the file is found again.
-      assert.equal(await page.evaluate(() => window.__fabtice.history.isModified()), true);
+      // Restored from the device's copy, and the file is found again. (Whether it reads « modified » depends on
+      // whether the autosave had written the last change before the quit: menu-bar.test.js checks that state.)
       await page.waitForFunction(() => window.__fabtice.project.getCurrentFile()?.name === 'Copie.fab', null, { timeout: 15000 });
       for (let i = 0; i < 50 && fs.existsSync(stale); i++) await wait(100);
       assert.equal(fs.existsSync(stale), false, 'the temporary file a dead save left is removed');
       // « Enregistrer » overwrites it with no question.
+      await changeSomething(page, 37);
       const before = sha(second);
       await page.keyboard.press('ControlOrMeta+s');
       await saved(page);

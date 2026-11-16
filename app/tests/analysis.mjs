@@ -35,6 +35,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { startServer } from './serve.mjs';
 import { openSettingsTab } from './lib/settings.mjs';
+import { menuCommand } from './lib/menu.mjs';
 import { playlistFile } from './standards-fixtures.mjs';
 
 const require = createRequire(process.env.PLAYWRIGHT_MODULE_DIR || '/opt/node-tools/');
@@ -133,7 +134,7 @@ const state = (page) => page.evaluate(() => {
 const result = (page) => page.evaluate(() => window.__fabtice.store.getState().analysis);
 
 async function openDialog(page) {
-  await page.click('button:has-text("Nouveau projet")');
+  await menuCommand(page, 'Nouveau projet', 'À partir d’un fichier audio');
   // A piece imported earlier reads « modified »: the alert about changes not saved comes first (C5).
   await page.locator('[data-testid="alerte-abandonner"]').click({ timeout: 1500 }).catch(() => {});
   await page.waitForFunction(() => document.querySelector('.voile')?.classList.contains('ouverte'));

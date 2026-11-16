@@ -121,7 +121,7 @@ test('the Mac app downloads the chart collections itself: bridge rules, then the
     const result = (await page.locator('[data-testid="standards-resultat"]').innerText()).replace(/\s+/g, ' ');
     // Jazz 21 + Latin 20 + Blues 20 (official page) + Brazilian 20 (attached file) = 81; Dixieland: a login page.
     assert.ok(result.includes('81 grilles gardées sur cet appareil.'), result);
-    assert.ok(result.includes('Réglages avancés → Grilles des standards'), result);
+    assert.ok(result.includes('Réglages → Avancé → Grilles des standards'), result);
     assert.ok(!result.includes('Dixieland'), 'one short line, the detail is in the settings');
     assert.ok(!result.includes('Brésil 220 :'), 'Brazilian was found through its forum attachment');
 

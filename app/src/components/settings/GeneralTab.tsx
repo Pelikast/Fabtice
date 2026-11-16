@@ -6,26 +6,26 @@ import { t } from '../../i18n';
 import type { LaunchBehaviour } from '../../model/project';
 import { setAtLaunch } from '../../store/settingsActions';
 import { useApp } from '../../store/store';
+import { COMMAND_IDS, COMMANDS, commandContext, shortcutText, type CommandContext } from '../../ui/commands';
 import { isMacPlatform } from '../../ui/historyKeys';
 import { usePhoneLayout } from '../../util/media';
 import { Section } from './parts';
 
 const LAUNCH: LaunchBehaviour[] = ['lastProject', 'newProject'];
 
-/** The shortcuts the app answers to, in the order of the list: `keys` are written for a Mac, `mac` false gives Ctrl. */
+/**
+ * The shortcuts the app answers to, read from the table of commands (`ui/commands.ts`: what the menu, the keyboard
+ * and the Mac menu bar share), after « Espace » (lecture), which is not a command.
+ */
 export function shortcutList(mac: boolean): { id: string; label: string; keys: string }[] {
-  const mod = mac ? 'cmd' : 'Ctrl';
-  const shift = t('settingsWin.key.shift');
-  return [
-    { id: 'play', label: t('settingsWin.shortcuts.play'), keys: t('settingsWin.key.space') },
-    { id: 'undo', label: t('settingsWin.shortcuts.undo'), keys: `${mod} + Z` },
-    { id: 'redo', label: t('settingsWin.shortcuts.redo'), keys: `${shift} + ${mod} + Z` },
-    { id: 'open', label: t('settingsWin.shortcuts.open'), keys: `${mod} + O` },
-    { id: 'save', label: t('settingsWin.shortcuts.save'), keys: `${mod} + S` },
-    { id: 'saveAs', label: t('settingsWin.shortcuts.saveAs'), keys: `${shift} + ${mod} + S` },
-    { id: 'print', label: t('settingsWin.shortcuts.print'), keys: `${mod} + P` },
-    { id: 'settings', label: t('settingsWin.shortcuts.settings'), keys: `${mod} + ${t('settingsWin.key.comma')}` },
-  ];
+  // `textField`: the plain label of « Annuler » and « Rétablir », not the one that names the last change.
+  const ctx: CommandContext = { ...commandContext(), textField: true };
+  const rows = COMMAND_IDS.filter((id) => COMMANDS[id].shortcut && (COMMANDS[id].offered?.(ctx) ?? true)).map((id) => ({
+    id,
+    label: COMMANDS[id].label(ctx),
+    keys: shortcutText(COMMANDS[id].shortcut!, mac),
+  }));
+  return [{ id: 'play', label: t('settingsWin.shortcuts.play'), keys: t('settingsWin.key.space') }, ...rows];
 }
 
 export function GeneralTab() {

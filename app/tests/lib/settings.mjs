@@ -1,8 +1,10 @@
 // How the browser checks open « Réglages » (C7), in the form the page is in (computer or phone).
 // Everything that needs the window goes through here, so that the way in is written once.
 //
-// Today the way in is the « Réglages » button of the top bar (« ⋯ » on a phone). When the menu under the
-// Fabtice logo takes over, only `openSettings` below has to change.
+// The way in is the menu under the Fabtice logo, « Réglages… » (a drop-down on a computer, the sheet on a
+// phone; see lib/menu.mjs). On a phone the window opens on the list of the seven tabs.
+
+import { menuCommand } from './menu.mjs';
 
 export const SETTINGS_TABS = ['general', 'instruments', 'tempo', 'chords', 'metronome', 'display', 'advanced'];
 export const SETTINGS_LABELS = {
@@ -30,7 +32,7 @@ export async function press(page, selector) {
 /** Opens the window (on the tab last seen, or on the list of the tabs on a phone), without choosing a tab. */
 export async function openSettings(page) {
   if (await page.locator('[data-testid="reglages"]').count()) return;
-  await press(page, (await isPhone(page)) ? '.menu-plus' : 'button.menu:has-text("Réglages")');
+  await menuCommand(page, 'Réglages…');
   await page.waitForSelector('[data-testid="reglages"]');
 }
 

@@ -14,6 +14,7 @@ import { createRequire } from 'node:module';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { closeMenu, menuCommand, menuEntry } from './lib/menu.mjs';
 import { closeSettings, openSettings, openSettingsTab, press, SETTINGS_LABELS, SETTINGS_TABS } from './lib/settings.mjs';
 import { startServer } from './serve.mjs';
 
@@ -160,7 +161,7 @@ try {
     }
     check('computer: Maj + Tab too', stray === 0);
     await page.keyboard.press('Escape');
-    check('computer: the focus goes back to the button « Réglages » when the window closes', await page.evaluate(() => document.activeElement?.textContent?.trim() === 'Réglages'));
+    check('computer: the focus goes back to the logo (the menu) when the window closes', await page.evaluate(() => document.activeElement?.classList.contains('marque')), await page.evaluate(() => document.activeElement?.outerHTML.slice(0, 80)));
 
     // A click on the veil (outside the window) closes it; the cross too.
     await openSettings(page);
@@ -170,6 +171,21 @@ try {
     await closeSettings(page);
     check('computer: the cross closes it', (await page.locator('[data-testid="reglages"]').count()) === 0);
 
+    // The ways in: the menu (above), the shortcut, and the menu still working once the window is closed.
+    await openSettings(page);
+    await page.keyboard.press('Escape');
+    await page.focus('body');
+    await page.keyboard.press('ControlOrMeta+,');
+    await page.waitForSelector('[data-testid="reglages"]', { timeout: 3000 }).catch(() => {});
+    check('computer: Ctrl + , opens the window', (await page.locator('[data-testid="reglages"]').count()) === 1);
+    await page.keyboard.press('ControlOrMeta+,');
+    check('computer: Ctrl + , again does not stack a second window', (await page.locator('[data-testid="reglages"]').count()) === 1);
+    await page.keyboard.press('Escape');
+    check('computer: and Escape closes it', (await page.locator('[data-testid="reglages"]').count()) === 0);
+    const entry = await menuEntry(page, 'Réglages…');
+    check('computer: the menu is still usable after Réglages is closed (« Réglages… » is offered again)', entry.enabled && (await page.locator('.app').evaluate((el) => !el.hasAttribute('inert'))), JSON.stringify(entry));
+    await closeMenu(page);
+
     // ---------------------------------------------------- Général
     await openSettingsTab(page, 'general');
     const general = await page.locator('[data-testid="reglages-panneau"]').innerText();
@@ -177,7 +193,7 @@ try {
     await page.click('[data-testid="ouverture-newProject"]');
     check('general: choosing the « Nouveau projet » window is stored and kept on the device', (await state(page)).settings.atLaunch === 'newProject' && (await saved(page)).atLaunch === 'newProject');
     const shortcuts = await page.locator('[data-testid="raccourcis"] li').evaluateAll((els) => els.map((el) => `${el.querySelector('span').textContent}=${el.querySelector('kbd').textContent}`));
-    check('general: the list of shortcuts (Ctrl here, not a Mac)', shortcuts.join(' | ') === 'Lecture, pause=Espace | Annuler=Ctrl + Z | Rétablir=Maj + Ctrl + Z | Ouvrir un projet=Ctrl + O | Enregistrer=Ctrl + S | Enregistrer sous…=Maj + Ctrl + S | Imprimer=Ctrl + P | Réglages=Ctrl + ,', shortcuts.join(' | '));
+    check('general: the list of shortcuts, read from the table of commands (Ctrl here, not a Mac)', shortcuts.join(' | ') === 'Lecture, pause=Espace | Annuler=Ctrl + Z | Rétablir=Maj + Ctrl + Z | Ouvrir…=Ctrl + O | Enregistrer=Ctrl + S | Enregistrer sous…=Maj + Ctrl + S | Imprimer…=Ctrl + P | Réglages…=Ctrl + ,', shortcuts.join(' | '));
     check('general: the section of the app only (no piece is needed)', (await page.locator('[data-testid="reglages-panneau"] [data-scope="piece"]').count()) === 0);
 
     // ---------------------------------------------------- Affichage
@@ -414,7 +430,7 @@ try {
   // ============================================================ phone: 390 × 844, by touch
   {
     const { context, page, errors } = await open(DEMO, PHONE);
-    await press(page, '.menu-plus');
+    await menuCommand(page, 'Réglages…');
     await page.waitForSelector('[data-testid="reglages"]');
     await sleep(350);
     check('phone: a full-screen sheet, the list of the seven first', (await page.locator('[data-testid="reglages"]').getAttribute('data-vue')) === 'liste' && (await page.locator('[data-testid="reglages"]').getAttribute('data-forme')) === 'mobile');
@@ -475,6 +491,11 @@ try {
     await page.tap('[data-testid="reinitialiser-oui"]');
     st = await state(page);
     check('phone: « Rétablir les réglages d\'origine » by touch', st.view.subdivision === 1 && st.view.snap && st.view.follow && st.settings.minorNotation === 'm' && st.settings.atLaunch === 'lastProject');
+    await closeSettings(page);
+    const phoneEntry = await menuEntry(page, 'Réglages…');
+    check('phone: the menu is still usable after Réglages is closed', phoneEntry.enabled, JSON.stringify(phoneEntry));
+    await menuCommand(page, 'Réglages…');
+    check('phone: the menu opens Réglages on the list of the tabs', (await page.locator('[data-testid="reglages"]').getAttribute('data-vue')) === 'liste');
     await closeSettings(page);
     // A « Tous les réglages… » link goes straight to the tab.
     await page.tap('[data-testid="clic-reglages"]');

@@ -172,7 +172,7 @@ try {
     const result = (await page.locator('[data-testid="standards-resultat"]').innerText()).replace(/\s+/g, ' ');
     note(`result: ${result}`);
     check('one result line: tunes kept (jazz 21 + blues 20)', result.includes('41 grilles gardées sur cet appareil.'), result.slice(0, 80));
-    check('some collections need a file: one short line points to the settings', result.includes('Réglages avancés → Grilles des standards') && !result.includes('Latin 50') && !result.includes('Importer un fichier'), result);
+    check('some collections need a file: one short line points to the settings', result.includes('Réglages → Avancé → Grilles des standards') && !result.includes('Latin 50') && !result.includes('Importer un fichier'), result);
     check('no page of an irealpro.com site was requested from the web app', !seen.some((s) => /irealpro|irealb/.test(s)), seen.join(', '));
     check('only the ticked collections were requested', seen.filter((s) => s.startsWith('raw.githubusercontent.com') && !/collections\.json|models\.json/.test(s)).length === 3, seen.join(', '));
     const kept = await records(page);

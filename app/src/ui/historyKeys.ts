@@ -2,14 +2,15 @@
 // that make one undo step each.
 //
 //   - Mac: cmd + Z, Maj + cmd + Z. Elsewhere: Ctrl + Z, Ctrl + Maj + Z, Ctrl + Y.
+//     The keys are read here (`historyCommandFor`) and followed with the other
+//     shortcuts of the commands (`ui/commandKeys.ts`).
 //   - In a text field (input, textarea, contenteditable) the shortcut is left
 //     alone: the browser undoes the typing, as everywhere.
 //   - While a pointer is held down (a slider dragged, a loop edge pulled, a
 //     selection of bars), every change is one step: the gesture ends once the
 //     pointer is released (after the release's own handlers and click).
 
-import { appStore } from '../store/store';
-import { beginGesture, endGesture, redo, undo } from '../store/history';
+import { beginGesture, endGesture } from '../store/history';
 
 export type HistoryCommand = 'undo' | 'redo';
 
@@ -45,19 +46,8 @@ export function isTextField(target: EventTarget | null): boolean {
   return false;
 }
 
-/** Follows the keyboard and the pointer on `win`. Returns the stop function. */
-export function installHistoryKeys(win: Window = window, mac = isMacPlatform()): () => void {
-  const onKeyDown = (e: KeyboardEvent) => {
-    const command = historyCommandFor(e, mac);
-    if (!command || isTextField(e.target)) return;
-    const s = appStore.getState();
-    if (!s.project || s.ui.newPieceOpen) return;
-    // Taken here, so that nothing else (the Mac app's Edit menu) acts on it too.
-    e.preventDefault();
-    if (command === 'undo') undo();
-    else redo();
-  };
-
+/** Follows the pointer on `win`: a gesture held down is one undo step. Returns the stop function. */
+export function installHistoryGestures(win: Window = window): () => void {
   let pressed = false;
   let ending: ReturnType<typeof setTimeout> | null = null;
   const finish = () => {
@@ -81,14 +71,12 @@ export function installHistoryKeys(win: Window = window, mac = isMacPlatform()):
     if (pressed && ending === null) ending = setTimeout(finish, 0);
   };
 
-  win.addEventListener('keydown', onKeyDown);
   win.addEventListener('pointerdown', onDown, true);
   win.addEventListener('pointerup', onUp, true);
   win.addEventListener('pointercancel', onUp, true);
   win.addEventListener('blur', finish);
   return () => {
     finish();
-    win.removeEventListener('keydown', onKeyDown);
     win.removeEventListener('pointerdown', onDown, true);
     win.removeEventListener('pointerup', onUp, true);
     win.removeEventListener('pointercancel', onUp, true);

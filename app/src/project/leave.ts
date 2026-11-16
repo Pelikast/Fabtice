@@ -21,7 +21,7 @@
 import { createStore } from 'zustand/vanilla';
 import { isModified } from '../store/history';
 import { closePanel, openNewPiece } from '../store/actions';
-import { appStore } from '../store/store';
+import { appStore, type NewPieceFrom } from '../store/store';
 import { saveProject } from './saveFlow';
 
 export interface LeaveDialogState {
@@ -83,15 +83,16 @@ export async function answerLeave(choice: 'save' | 'discard' | 'cancel'): Promis
 
 /**
  * « Nouveau projet »: asks about the changes first, then opens the window that makes one (a link, an audio file,
- * or an existing project). Nothing happens when the user stays.
+ * or an existing project). Nothing happens when the user stays. `from`: the entry of « Nouveau projet ▸ » chosen
+ * (`ui.newPieceFrom`).
  */
-export async function requestNewProject(): Promise<void> {
+export async function requestNewProject(from: NewPieceFrom = null): Promise<void> {
   const s = appStore.getState();
   if (s.ui.import.kind === 'busy') return;
-  // The menu it was chosen from (the phone's « … ») makes way for the alert.
+  // A panel left open makes way for the alert.
   closePanel();
   if (!(await confirmLeaveProject())) return;
   // What the user just agreed to stands for the window that opens: « Ouvrir » in it does not ask again.
   agreedFor = appStore.getState().project?.id ?? null;
-  openNewPiece();
+  openNewPiece(from);
 }

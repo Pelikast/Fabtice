@@ -37,7 +37,8 @@
     "test:offline": "node tests/offline.mjs",
     "test:undo": "node tests/undo.mjs",
     "test:alert": "node tests/alert.mjs",
-    "test:settings": "node tests/settings.mjs"
+    "test:settings": "node tests/settings.mjs",
+    "test:menu": "node tests/menu.mjs"
   },
   "dependencies": {
     "@audio/encode-flac": "1.4.3",

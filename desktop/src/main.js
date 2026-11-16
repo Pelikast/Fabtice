@@ -38,6 +38,8 @@ let manager = null;
 let systemInfo = null;
 let updateCheck = null;
 let extraction = null;
+/** The menu bar (menu.js), kept in step with the page's commands. */
+let menuBar = null;
 // Project files: macOS hands them over (double-click, « Ouvrir avec », recent documents), the recent list (projects.js).
 const projects = createProjects({
   userData: () => app.getPath('userData'),
@@ -179,6 +181,7 @@ function createWindow() {
   });
   win.on('closed', () => {
     win = null;
+    if (menuBar) menuBar.reset();
     if (diagnosticWin && !diagnosticWin.isDestroyed()) diagnosticWin.close();
   });
   win.loadURL(fabticeProtocol.APP_URL + testQuery());
@@ -361,6 +364,19 @@ function registerIpc() {
     w.setRepresentedFilename((typeof s.projectId === 'string' && projects.pathFor(s.projectId)) || '');
     return true;
   });
+  // C6: the page reports its commands (labels, greyed out or not); the menu bar follows (menu.js).
+  handle('fabtice:menu-state', async (event, state) => {
+    const w = BrowserWindow.fromWebContents(event.sender);
+    if (!w || w !== win || !menuBar) return false;
+    return menuBar.update(state);
+  });
+  // « Quitter » in the page's menu Fabtice: as cmd + Q (the page is asked first, `before-quit`).
+  handle('fabtice:quit', async (event) => {
+    const w = BrowserWindow.fromWebContents(event.sender);
+    if (!w || w !== win) return false;
+    setImmediate(() => app.quit());
+    return true;
+  });
   // The page answers the question « may this window go? » (close-guard.js).
   handle('fabtice:close-ack', async (_e, id) => closeGuard.ack(String(id)));
   handle('fabtice:close-answer', async (_e, id, ok) => closeGuard.answer(String(id), ok === true));
@@ -434,7 +450,7 @@ if (!app.requestSingleInstanceLock()) {
       [fabticeProtocol.HOST_APP]: UI_DIR,
       [fabticeProtocol.HOST_DIAGNOSTIC]: DIAGNOSTIC_DIR,
     });
-    buildMenu({ openDiagnostic });
+    menuBar = buildMenu({ openDiagnostic, window: () => win });
     session.defaultSession.setPermissionRequestHandler((_wc, _perm, cb) => cb(false));
     session.defaultSession.setPermissionCheckHandler(() => false);
     // Files the interface exports (audio, iReal Pro chart): a clean name and a French save panel.

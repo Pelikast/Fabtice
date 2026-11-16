@@ -315,6 +315,28 @@ export interface DesktopBridge {
    * `suspend` and `resume` (see `audio/deviceLifecycle.ts`).
    */
   onPower?(callback: (event: PowerEvent) => void): Unsubscribe;
+  /**
+   * C6, the Mac menu bar (`desktop/src/menu.js`): the page reports the state of its commands (`ui/commands.ts`)
+   * at each change; the main process greys the bar's entries and shows Annuler / Rétablir with their labels.
+   * A click on an entry comes back to the page as a DOM event (`MENU_COMMAND_EVENT`, `ui/menuBar.ts`), sent with
+   * a user gesture (a file picker may open). A Mac app that predates it lacks these methods.
+   */
+  reportMenuState?(state: MenuBarState): Promise<boolean>;
+  /** « Quitter » in the menu Fabtice: the same as cmd + Q (the alert about changes not saved first). */
+  quitApp?(): Promise<boolean>;
+}
+
+/** What the page tells the Mac menu bar: each command, its label and whether it can run now. */
+export interface MenuBarState {
+  commands: Record<string, { label: string; enabled: boolean }>;
+}
+
+/** The DOM event the Mac app sends to the page for a click (or an accelerator) in its menu bar. */
+export const MENU_COMMAND_EVENT = 'fabtice-menu-command';
+export interface MenuCommandDetail {
+  id: string;
+  /** The entry was reached by its keyboard shortcut, not by a click. */
+  accelerator: boolean;
 }
 
 export type ProjectSaveBegun = { ok: true; session: string; name: string } | { ok: false; reason: 'no-file' | 'cancelled' | 'invalid' | 'failed' };

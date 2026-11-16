@@ -17,6 +17,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { openSettingsTab } from './lib/settings.mjs';
 import { startServer } from './serve.mjs';
+import { menuCommand } from './lib/menu.mjs';
 
 const require = createRequire(process.env.PLAYWRIGHT_MODULE_DIR || '/opt/node-tools/');
 const { chromium } = require('playwright');
@@ -63,13 +64,10 @@ async function open(query, viewport = { width: 1280, height: 800 }, context = nu
 const state = (page) => page.evaluate(() => window.__fabtice.store.getState());
 const phone = (page) => page.viewportSize().width < 760;
 
-/** Opens the separation panel from where it is on this size (the track column, or the phone menu). */
+/** Opens the separation panel from under the track column (« Séparer » on a phone). */
 async function openSeparationPanel(page) {
   if ((await page.locator('[data-testid="panneau-separation"]').count()) > 0) return;
-  if (phone(page)) {
-    await openSettingsTab(page, 'instruments');
-    await page.click('[data-separation-entry]');
-  } else await page.click('[data-testid="separer"]');
+  await page.click('[data-testid="separer"]');
   await page.waitForSelector('[data-testid="panneau-separation"]');
 }
 
@@ -340,8 +338,7 @@ try {
   if (part('export')) {
     const { page, errors } = await open('?demo&moteur=factice&separation=faite');
     await page.waitForFunction(() => window.__fabtice.store.getState().separation.result);
-    await page.click('button:has-text("Exporter")');
-    await page.click('[data-export="audio"]');
+    await menuCommand(page, 'Exporter', 'Audio…');
     await page.waitForSelector('[data-testid="export-son"]');
     await page.click('[data-testid="exporter-son"]');
     await page.waitForSelector('[data-testid="fichier-son"]', { timeout: 30000 });

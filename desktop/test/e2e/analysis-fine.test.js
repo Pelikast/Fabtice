@@ -2,7 +2,7 @@
 
 // The optional fine chord model (Tsumugi-Chords) inside the app, under the shipped policy:
 // the demo piece is analysed with the default model, then the fine model is chosen in
-// Réglages → Réglages avancés → Modèle d'accords and the piece analysed again with it: its
+// Réglages → Détection des accords → Modèle d'accords and the piece analysed again with it: its
 // weights (68 MB) come from Hugging Face, the graph shipped with the app reads them, the
 // result records the model. Prints the time and the peak memory of the app's processes.
 //
@@ -15,7 +15,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { ROOT, launchInterface: launch, pieceReady, assertClean } = require('./helpers');
+const { ROOT, launchInterface: launch, pieceReady, assertClean, menuCommand } = require('./helpers');
 
 const STUB = path.join(ROOT, 'test', 'fixtures', 'stub-yt-dlp.js');
 const SWING = path.join(ROOT, '..', 'web', 'spikes', 'analyse', 'demo', 'demo-swing.mp3');
@@ -76,8 +76,8 @@ test('the fine chord model runs in the app, from the settings, and says what it 
     const first = await page.evaluate(() => window.__fabtice.store.getState().analysis);
     assert.ok(first && first.analyser.models.includes('crema-chords'), 'first analysed with the default model');
 
-    // Réglages → Détection des accords (the tabbed window of C7; the Mac menu will replace the button).
-    await page.click('button.menu:has-text("Réglages")');
+    // Réglages… (menu Fabtice) → Détection des accords (the tabbed window of C7).
+    await menuCommand(page, 'Réglages…');
     await page.click('[role="tab"][data-tab="chords"]');
     await page.selectOption('[data-testid="modele-accords"]', 'fine');
     const text = await page.locator('[data-testid="reglages-panneau"]').innerText();

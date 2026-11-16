@@ -70,16 +70,20 @@ export function displayName(fileName: string): string {
 
 /**
  * Mac app: the piece was restored from the page's autosave; its file of a former launch is found again if the
- * main process remembers one that is still on the disk. Never throws.
+ * main process remembers one that is still on the disk. Resolves true when the project has a file (found now, or
+ * given meanwhile by an opening or a save). Never throws.
  */
-export async function recallDesktopFile(projectId: string): Promise<void> {
+export async function recallDesktopFile(projectId: string): Promise<boolean> {
   const bridge = getDesktopBridge();
-  if (!bridge?.recallProjectFile) return;
+  if (!bridge?.recallProjectFile) return false;
   try {
     const found = await bridge.recallProjectFile(projectId);
+    if (appStore.getState().project?.id !== projectId) return false;
     // Only if nothing else (an opening, a save) gave the project a file meanwhile.
-    if (found && !getCurrentFile() && appStore.getState().project?.id === projectId) setCurrentFile({ projectId, name: found.name, ref: { kind: 'desktop' } });
+    if (found && !getCurrentFile()) setCurrentFile({ projectId, name: found.name, ref: { kind: 'desktop' } });
+    return getCurrentFile() !== null;
   } catch {
     // no file remembered: « Enregistrer » asks where
+    return false;
   }
 }

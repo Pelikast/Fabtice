@@ -31,7 +31,6 @@ import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { openSettingsTab } from './lib/settings.mjs';
 import { startServer } from './serve.mjs';
 
 const require = createRequire(process.env.PLAYWRIGHT_MODULE_DIR || '/opt/node-tools/');
@@ -294,10 +293,7 @@ try {
       await page.setViewportSize({ width: w, height: h });
       await sleep(400);
       if ((await page.locator('[data-testid="panneau-separation"]').count()) === 0) {
-        if (w < 760) {
-          await openSettingsTab(page, 'instruments');
-          await page.click('[data-separation-entry]');
-        } else await page.click('[data-testid="separer"]');
+        await page.click('[data-testid="separer"]');
         await page.waitForSelector('[data-testid="panneau-separation"]');
       }
       await sleep(350);

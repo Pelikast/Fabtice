@@ -12,6 +12,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { openSettingsTab } from './lib/settings.mjs';
 import { startServer } from './serve.mjs';
+import { menuCommand, menuEntry, openMenu } from './lib/menu.mjs';
 
 const require = createRequire(process.env.PLAYWRIGHT_MODULE_DIR || '/opt/node-tools/');
 const { chromium } = require('playwright');
@@ -55,19 +56,12 @@ try {
 
     // Shell
     check('top bar: brand and title', (await text(page, '.marque')) === 'Fabtice' && (await text(page, '.projet-titre')) === 'Blues du dimanche');
-    // « Exporter » is a small menu: iReal Pro is a link, printing the chart is available, the sound opens its dialog (lot 3).
-    await page.click('button:has-text("Exporter")');
-    const exportItems = await page.locator('.menu-export [role="menuitem"]').evaluateAll((els) => els.map((el) => ({ key: el.dataset.export, disabled: el.disabled, text: el.innerText })));
-    // Lot 4: « Enregistrer le projet… » first (off for the demo piece, which is never kept nor saved);
-    // « Grille pour iReal Pro » is a link to the page it writes; printing and the sound are available.
-    const [projectItem, ...others] = exportItems;
-    check(
-      'top bar: Exporter opens a menu (save the project, iReal Pro link, print and sound available)',
-      exportItems.length === 4 && exportItems.map((x) => x.key).join(',') === 'project,ireal,print,audio' && projectItem.disabled && others.every((x) => !x.disabled) && !others[0].text.includes('bientôt'),
-      JSON.stringify(exportItems),
-    );
-    await page.keyboard.press('Escape');
-    check('Escape closes the export menu', (await page.locator('.menu-export').count()) === 0);
+    // C6: the logo opens the menu Fabtice; « Exporter » is one of its submenus (the sound, iReal Pro, PDF), all
+    // available on the demo piece; « Enregistrer » is greyed out (the demo is never saved). Details: tests/menu.mjs.
+    const exportStates = [];
+    for (const path of [['Exporter', 'Audio…'], ['Exporter', 'iReal Pro', 'Fichier iReal Pro…'], ['Exporter', 'PDF…'], ['Imprimer…'], ['Enregistrer']]) exportStates.push((await menuEntry(page, ...path)).enabled);
+    check('top bar: the menu Fabtice exports the sound, iReal Pro and PDF, prints; « Enregistrer » off for the demo', exportStates.join(',') === 'true,true,true,true,false', exportStates.join(','));
+    check('Escape closes the menu', (await page.locator('#menu-fabtice').count()) === 0);
     check('four track headers', (await page.locator('.piste-tete').count()) === 4);
     check('four timeline lanes', (await page.locator('.frise-voie').count()) === 4);
     // The demo is analysed: variable tempo (≈) and a chords row between tempo and bars; its sections A, B, A add the « Repères » row (lot 4).
@@ -197,7 +191,7 @@ try {
     check('Escape closes the settings', (await page.locator('[data-testid="reglages"]').count()) === 0);
 
     // New-piece dialog over a project
-    await page.click('button:has-text("Nouveau projet")');
+    await menuCommand(page, 'Nouveau projet', 'À partir d’un fichier audio');
     // The demo piece was changed above: the alert about changes not saved comes first (C5).
     await page.locator('[data-testid="alerte-abandonner"]').click({ timeout: 1500 }).catch(() => {});
     await sleep(300);
@@ -216,7 +210,7 @@ try {
     check('Escape closes the dialog', !(await page.locator('.voile').evaluate((el) => el.classList.contains('ouverte'))));
 
     // Import: unsupported file, then an undecodable one, then progress
-    await page.click('button:has-text("Nouveau projet")');
+    await menuCommand(page, 'Nouveau projet', 'À partir d’un fichier audio');
     // The demo piece was changed above: the alert about changes not saved comes first (C5).
     await page.locator('[data-testid="alerte-abandonner"]').click({ timeout: 1500 }).catch(() => {});
     await page.locator('.accueil input[type="file"]').setInputFiles({ name: 'partition.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF') });
@@ -293,15 +287,15 @@ try {
     const scrollW = await page.evaluate(() => document.documentElement.scrollWidth);
     check('phone: no horizontal page scroll', scrollW <= 390, `${scrollW}px`);
     check('phone: header column 92 px', (await page.locator('.tetes').evaluate((el) => el.getBoundingClientRect().width)) === 92);
-    check('phone: views as a row of tabs, menus folded', await page.locator('.menu-plus').isVisible() && !(await page.locator('button:has-text("Exporter")').isVisible()));
+    check('phone: views as a row of tabs, the commands behind the logo', (await page.locator('button.marque[aria-haspopup="menu"]').isVisible()) && !(await page.locator('button:has-text("Exporter")').isVisible()));
     check('phone: zoom sliders hidden, magnet and Auto kept', !(await page.locator('.zoom').first().isVisible()) && await page.locator('.outil-texte').isVisible());
     check('phone: Auto off by default (bars scroll at 86 px)', (await state(page)).view.auto === false);
     await page.screenshot({ path: path.join(out, 'app-390.png') });
-    await page.click('.menu-plus');
+    await openMenu(page);
     await sleep(300);
-    check('phone: menu holds « Nouveau projet… »', await page.locator('.lien-option').isVisible());
+    check('phone: the menu holds « Nouveau projet »', await page.locator('.feuille-menu [data-sous-menu="new"]').isVisible());
     await page.screenshot({ path: path.join(out, 'app-390-menu.png') });
-    await page.click('.lien-option');
+    await menuCommand(page, 'Nouveau projet', 'À partir d’un fichier audio');
     // The demo piece was changed above: the alert about changes not saved comes first (C5).
     await page.locator('[data-testid="alerte-abandonner"]').click({ timeout: 1500 }).catch(() => {});
     await sleep(300);

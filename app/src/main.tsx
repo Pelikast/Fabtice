@@ -18,6 +18,7 @@ import { registerServiceWorker } from './pwa/register';
 import { persistPreferences } from './store/preferences';
 import * as historyModule from './store/history';
 import { installProjectWindow } from './project/windowState';
+import { installMenuBar } from './ui/menuBar';
 import * as projectModules from './project/debug';
 import './styles/index.css';
 
@@ -29,6 +30,8 @@ connectEngine(appStore, getEngine());
 historyModule.startHistory(appStore, { afterRestore: (s, before) => s.loop !== before.loop && actions.enterLoop() });
 // The window's title and the Mac app's « modified » dot, the file of the project, closing with changes not saved.
 installProjectWindow();
+// Mac app: the menu bar shows the page's commands, greyed out as in the menu Fabtice, and sends its clicks back.
+installMenuBar();
 // The audio output goes back to the system on sleep, wake, a device change, a hidden or closed page
 // (the engine also lets it go by itself after a while without playback): see audio/deviceLifecycle.ts.
 {
