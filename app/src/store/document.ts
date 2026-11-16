@@ -5,6 +5,7 @@ import { emptyCorrections } from '../model/corrections';
 import { emptyMarkers } from '../model/markers';
 import { defaultMetronome } from '../model/metronome';
 import { emptySeparation } from '../model/separation';
+import { emptyStructureCorrections } from '../model/structure';
 import { PROJECT_DOCUMENT_VERSION, type ProjectDocument } from '../model/document';
 import type { AppState } from './store';
 
@@ -46,8 +47,8 @@ export function fromProjectDocument(doc: ProjectDocument, current: AppState): Pa
     playback: doc.playback,
     // Fields a stored document lacks (added since it was written) keep their current value.
     view: { ...current.view, ...doc.view, mode: current.view.mode },
-    analysis: doc.analysis ?? null,
-    corrections: { ...emptyCorrections(), ...doc.corrections },
+    analysis: doc.analysis ? { ...doc.analysis, keyChanges: doc.analysis.keyChanges ?? [], structure: doc.analysis.structure ?? null } : null,
+    corrections: { ...emptyCorrections(), ...doc.corrections, structure: { ...emptyStructureCorrections(), ...doc.corrections?.structure } },
     analysisRun: { status: 'idle' },
     separation: { ...emptySeparation(), ...doc.separation },
     keptRender: doc.keptRender ?? null,
@@ -64,7 +65,9 @@ export function fromProjectDocument(doc: ProjectDocument, current: AppState): Pa
  * autosave (`storage/keeper.ts`) must use this list: `analysis` and
  * `corrections` are part of the document since version 2, `separation` and
  * `exportPrefs` since version 3, `metronome` and `markers` since version 4,
- * `keptRender` since version 5 (`separation.others` is part of `separation`).
+ * `keptRender` since version 5 (`separation.others` is part of `separation`);
+ * version 6 adds nothing at the top (modulations and structure are inside
+ * `analysis` and `corrections`).
  * `view.mode` is not, nor the run states
  * (`analysisRun`, `separationRun`, `render`), which are never saved.
  */

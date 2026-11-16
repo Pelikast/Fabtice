@@ -1,0 +1,112 @@
+{
+ "version": 5,
+ "project": {
+  "id": "98ea924d-ba22-4fde-936b-3abf21f55d8d",
+  "title": "Blues du dimanche",
+  "source": {
+   "kind": "file",
+   "fileName": "Blues du dimanche.mp3"
+  },
+  "duration": 12,
+  "sampleRate": 48000,
+  "createdAt": "2026-11-16T16:40:16.284Z"
+ },
+ "tracks": [
+  {
+   "id": "720ec834-1ec8-49a7-8b0a-1dd47a0904c5",
+   "name": "Morceau",
+   "role": "morceau",
+   "mute": false,
+   "solo": false,
+   "volume": 1,
+   "audio": {
+    "id": "740ab699-5b1e-4b8f-a33d-6d1911bfdeb4",
+    "origin": "original",
+    "channels": 1,
+    "sampleRate": 48000,
+    "frames": 576000
+   }
+  }
+ ],
+ "tempoMap": {
+  "origin": "default",
+  "segments": [
+   {
+    "time": 0,
+    "beat": 0,
+    "bpm": 120
+   }
+  ],
+  "meters": [
+   {
+    "bar": 0,
+    "beat": 0,
+    "meter": {
+     "numerator": 4,
+     "denominator": 4
+    }
+   }
+  ]
+ },
+ "loop": {
+  "region": {
+   "start": 2,
+   "end": 6
+  },
+  "enabled": true
+ },
+ "playback": {
+  "semitones": 0,
+  "cents": 0,
+  "tempoRatio": 1,
+  "metronome": false
+ },
+ "view": {
+  "pxPerSecond": 40,
+  "trackHeight": 74,
+  "auto": true,
+  "subdivision": 2,
+  "triplets": false,
+  "snap": true,
+  "follow": true,
+  "instrument": "ut"
+ },
+ "analysis": null,
+ "corrections": {
+  "key": null,
+  "tuningCents": null,
+  "tuningOfferDismissed": false,
+  "chords": [],
+  "handSpans": [],
+  "sections": [],
+  "tempoFixes": []
+ },
+ "separation": {
+  "result": null,
+  "showing": "whole",
+  "aside": [],
+  "others": []
+ },
+ "exportPrefs": {
+  "what": "mix",
+  "range": "whole",
+  "format": "wav"
+ },
+ "metronome": {
+  "volume": 0.5,
+  "countInBars": 0,
+  "patterns": {},
+  "acceleration": {
+   "enabled": false,
+   "startPercent": 70,
+   "stepPercent": 5,
+   "everyRepeats": 2,
+   "targetPercent": 100
+  }
+ },
+ "markers": {
+  "loops": []
+ },
+ "keptRender": null,
+ "savedAt": "2026-11-15T09:00:00.000Z"
+}

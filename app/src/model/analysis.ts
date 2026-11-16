@@ -8,10 +8,17 @@
 
 import type { ChordSymbol, Key } from './harmony';
 import type { Seconds } from './project';
+import type { DetectedStructure } from './structure';
 import type { Meter } from './tempoMap';
 
-/** Bump when the shape below changes; older results are dropped by the document migration. */
-export const ANALYSIS_RESULT_VERSION = 1;
+/**
+ * Bump when the shape below changes. The reader (`storage/documentFormat.ts#readAnalysis`)
+ * brings older results up to date when it can, and drops those it cannot (they are analysed again).
+ *   1  lots 2 to 5.
+ *   2  document version 6: + `keyChanges` (modulations) and `structure`. A version-1 result reads
+ *      as « no modulation found, structure not looked for » (`[]`, null); everything else is kept.
+ */
+export const ANALYSIS_RESULT_VERSION = 2;
 
 /** A number in 0…1: how sure the analysis is (1 = sure). Not a calibrated probability unless said so. */
 export type Confidence = number;
@@ -41,6 +48,12 @@ export interface AnalysedTuning {
   cents: number;
   /** Agreement of the spectral peaks, 0…1 (the prototype's resultant length). */
   confidence: Confidence;
+}
+
+/** A modulation found by the analysis (version 2): from `time` (after 0) on, the music is in `key`. */
+export interface AnalysedKeyChange {
+  time: Seconds;
+  key: AnalysedKey;
 }
 
 /** One chord of the analysis: it starts at `time` and lasts until the next one. */
@@ -75,8 +88,16 @@ export interface AnalysisResult {
   /** Length of the audio that was analysed. */
   duration: Seconds;
   beats: AnalysedBeats;
+  /** The main key: the key of the first passage, from 0 (and of the whole piece when there is no modulation). */
   key: AnalysedKey | null;
+  /**
+   * Version 2: the later passages (modulations), ascending, each strictly after 0 and after the one
+   * before. Empty when none was found (or not looked for yet).
+   */
+  keyChanges: AnalysedKeyChange[];
   tuning: AnalysedTuning | null;
   /** Ascending by time. Empty when no harmony was found. */
   chords: AnalysedChord[];
+  /** Version 2: the structure found (mode, letters, parts); null until it is looked for. */
+  structure: DetectedStructure | null;
 }

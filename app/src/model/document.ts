@@ -19,6 +19,14 @@
 //   5  + `separation.others` (every separation kept, one per tool, each with
 //      its tracks and mix; their samples on the device, not in memory) and
 //      `keptRender` (the last « Appliquer » render, kept with the piece).
+//   6  1.0.0: + key per passage (`analysis.keyChanges`, detected;
+//      `corrections.keyChanges`, by hand; the main key stays `analysis.key` /
+//      `corrections.key`), structure (`analysis.structure`, detected;
+//      `corrections.structure`, by hand: `model/structure.ts`), meters 1 to 64
+//      over 4, 8, 16 or 32 (`model/tempoMap.ts#isValidMeter`), tempo fixes of
+//      kind `tapped`. Analysis results go to their version 2 (kept, not
+//      dropped). No new top-level field: everything new is inside `analysis`
+//      and `corrections`.
 
 import type { AnalysisResult } from './analysis';
 import type { ExportPreferences } from './audioExport';
@@ -30,7 +38,7 @@ import type { SeparationState } from './separation';
 import type { KeptRender } from './render';
 import type { TempoMap } from './tempoMap';
 
-export const PROJECT_DOCUMENT_VERSION = 5;
+export const PROJECT_DOCUMENT_VERSION = 6;
 
 export interface ProjectDocument {
   /** Format version, bumped on incompatible changes. */
@@ -46,7 +54,7 @@ export interface ProjectDocument {
   view: Omit<ViewSettings, 'mode'>;
   /** The last analysis, as it came out; null until one has finished. */
   analysis: AnalysisResult | null;
-  /** What the user changed or added by hand (key, tuning, chords, sections). */
+  /** What the user changed or added by hand (key and modulations, tuning, chords, sections, structure, tempo fixes). */
   corrections: Corrections;
   /** Separation of the instruments: last result, what is shown, the other set aside. */
   separation: SeparationState;

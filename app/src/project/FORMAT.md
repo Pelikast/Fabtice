@@ -21,9 +21,12 @@ Code : `zip.ts` (le conteneur), `fileFormat.ts` (le format),
    signature, comme pour les fichiers EPUB et OpenDocument).
 3. `fabtice.json` : le manifeste, avec **`formatVersion`** (version de la
    disposition du fichier, **2** aujourd'hui) et la liste des sons.
-4. `projet.json` : le document du projet (`ProjectDocument`, version 5
+4. `projet.json` : le document du projet (`ProjectDocument`, version 6
    aujourd'hui), exactement celui que l'app garde sur l'appareil, relu par le
-   même lecteur (`storage/documentFormat.ts`) avec les mêmes migrations.
+   même lecteur (`storage/documentFormat.ts`) avec les mêmes migrations. Un
+   fichier de la version publiée avant la 1.0.0 (document version 5) s'ouvre
+   par la migration 5 → 6, sans rien perdre ; un fichier écrit aujourd'hui
+   porte la version 6.
 5. `audio/` : le fichier importé, **octet pour octet** (mp3, m4a, wav…) ;
    `separations/<outil>/<instrument>.flac` : **toutes** les séparations, une par
    outil ; `rendu/<piste>.flac` : le dernier rendu « meilleure qualité ». Ces
@@ -56,7 +59,7 @@ pourrait passer en FLAC, mais il ne se décode pas toujours à l'identique en
 {
  "format": "fabtice",
  "formatVersion": 2,
- "documentVersion": 5,
+ "documentVersion": 6,
  "title": "Blues du dimanche",
  "savedAt": "2026-11-15T08:00:00.000Z",
  "audio": [
@@ -109,6 +112,26 @@ pourrait passer en FLAC, mais il ne se décode pas toujours à l'identique en
 
 Tout est vérifié **avant** de toucher au morceau ouvert : en cas d'échec, le
 morceau ouvert et celui gardé sur l'appareil restent tels quels.
+
+## Le document, version 6 (Fabtice 1.0.0)
+
+Ce que la version 6 ajoute au document, tout à l'intérieur de `analysis` et de
+`corrections` (aucun nouveau champ au premier niveau) :
+
+| Champ | Contenu | Valeur d'un document plus ancien |
+|---|---|---|
+| `analysis.keyChanges` | les modulations trouvées par l'analyse (position en secondes de l'enregistrement, tonalité) ; la tonalité avant la première reste `analysis.key` | `[]` |
+| `analysis.structure` | la structure trouvée : mode (`jazz`, `pop`), forme globale (« AABC »), lettres de section, parties (`model/structure.ts`) | `null` |
+| `analysis.version` | le résultat d'analyse passe à sa version 2 ; un résultat de version 1 est **gardé** (accords compris) et reçoit les deux champs ci-dessus | `1` → `2` |
+| `corrections.keyChanges` | les modulations voulues par l'utilisateur, ou `null` pour suivre l'analyse ; la tonalité principale reste `corrections.key` | `null` |
+| `corrections.structure` | la structure corrigée à la main : mode (`auto`, `jazz`, `pop`), parties, passages réécrits, lettres éditées à la main | mode `auto`, rien d'autre |
+| `corrections.tempoFixes[].kind` | une troisième sorte, `tapped` (« Correction de la courbe en tapant le tempo »), avec les tapes (`taps`, en secondes) et la fin du passage tapé (`end`) | — |
+| `tempoMap.meters[].meter` | signature de 1 à 64 temps, sur 4, 8, 16 ou 32 (`model/tempoMap.ts#isValidMeter`) | ce qu'une version plus ancienne pouvait porter y est déjà |
+
+Les lettres de section restent `corrections.sections`, comme avant. Ce qui est
+fait à la main est relu exactement, ou le fichier est déclaré abîmé ; ce que
+l'analyse a produit et qui serait abîmé est simplement oublié (l'analyse se
+refait).
 
 ## Faire évoluer le format
 

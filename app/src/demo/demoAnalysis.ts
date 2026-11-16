@@ -35,8 +35,10 @@ export function demoAnalysis(map: TempoMap, duration: number): AnalysisResult {
     duration,
     beats: { times: grid.times, downbeat: grid.downbeat, meter: grid.meter, meterConfidence: 0.86 },
     key: { tonic: 8, mode: 'major', confidence: 0.78, alternatives: [{ tonic: 5, mode: 'minor', confidence: 0.12 }, { tonic: 3, mode: 'major', confidence: 0.05 }] },
+    keyChanges: [],
     tuning: { cents: DEMO_TUNING_CENTS, confidence: 0.84 },
     chords,
+    structure: null,
   };
 }
 

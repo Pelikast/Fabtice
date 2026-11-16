@@ -6,6 +6,8 @@
 // Transposition (the transport's semitones) and the instrument (Ut, Si♭, Mi♭)
 // are applied only when displaying or exporting.
 
+import type { Seconds } from './project';
+
 /** 0 = C, 1 = C♯/D♭, … 11 = B. Always an integer in 0…11. */
 export type PitchClass = number;
 
@@ -53,6 +55,17 @@ export type KeyMode = 'major' | 'minor';
 export interface Key {
   tonic: PitchClass;
   mode: KeyMode;
+}
+
+/**
+ * A modulation (document version 6): from `time` (source seconds, after 0)
+ * on, the music is in `key`, until the next change. The key before the first
+ * change, from 0, is the piece's main key (`AnalysisResult.key`,
+ * `Corrections.key`).
+ */
+export interface KeyChange {
+  time: Seconds;
+  key: Key;
 }
 
 /**

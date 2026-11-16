@@ -12,14 +12,22 @@ import { isChordExtension, isChordQuality } from '../harmony/chord';
 import { isPitchClass } from '../harmony/pitch';
 import { ANALYSIS_RESULT_VERSION } from '../model/analysis';
 import { AUDIO_FORMATS, defaultExportPreferences, EXPORT_RANGES, EXPORT_WHATS } from '../model/audioExport';
-import { emptyCorrections } from '../model/corrections';
+import { emptyCorrections, TEMPO_FIX_KINDS } from '../model/corrections';
 import { PROJECT_DOCUMENT_VERSION, type ProjectDocument } from '../model/document';
 import { INSTRUMENTS } from '../model/harmony';
 import { isValidPattern, parseMeterKey } from '../grid/metronome';
 import { MARKER_NAME_MAX, emptyMarkers } from '../model/markers';
 import { COUNT_IN_BARS, defaultMetronome, METRONOME_VOLUME } from '../model/metronome';
 import { emptySeparation, isStemId } from '../model/separation';
-import { TEMPO_ORIGINS } from '../model/tempoMap';
+import {
+  emptyStructureCorrections,
+  FORM_PATTERN,
+  PART_INSTRUMENT_PATTERN,
+  PART_TYPES,
+  STRUCTURE_MODE_CHOICES,
+  STRUCTURE_MODES,
+} from '../model/structure';
+import { isValidMeter, TEMPO_ORIGINS } from '../model/tempoMap';
 import { StorageError } from './ProjectStorage';
 
 /** Layout of the stored record; bump with a reader for the old one. */
@@ -54,6 +62,14 @@ export const MIGRATIONS: Migrations = {
     ...doc,
     separation: isRec(doc.separation) ? { ...doc.separation, others: [] } : doc.separation,
     keptRender: null,
+  }),
+  // Version 5 -> 6: one key for the whole piece (no modulation by hand: the analysed ones, none yet), the structure
+  // not corrected (mode « auto »). The section letters stay the user's, as they were: being there, they are the
+  // letters in force (`model/structure.ts`). The analysis result is brought up to date by `readAnalysis` (its
+  // version 1 -> 2), not dropped. Meters and tempo fixes need nothing: what version 5 could hold is legal in 6.
+  5: (doc) => ({
+    ...doc,
+    corrections: isRec(doc.corrections) ? { ...doc.corrections, keyChanges: null, structure: emptyStructureCorrections() } : doc.corrections,
   }),
 };
 
@@ -100,10 +116,9 @@ function checkTempoMap(map: unknown): void {
   for (const s of segments as unknown[]) {
     if (!isRec(s) || !isNum(s.time) || !isNum(s.beat) || !isNum(s.bpm) || s.bpm <= 0) corrupt('tempo segment');
   }
+  // Version 6: any numerator 1…64 over 4, 8, 16 or 32 (what versions 1 to 5 held is inside).
   for (const m of meters as unknown[]) {
-    if (!isRec(m) || !isNum(m.bar) || !isNum(m.beat) || !isRec(m.meter) || !isNum(m.meter.numerator) || !isNum(m.meter.denominator)) {
-      corrupt('meter');
-    }
+    if (!isRec(m) || !isNum(m.bar) || !isNum(m.beat) || !isValidMeter(m.meter)) corrupt('meter');
   }
 }
 
@@ -129,17 +144,70 @@ function isChordSymbol(c: unknown): boolean {
 
 const isChordOrNone = (c: unknown): boolean => c === null || isChordSymbol(c);
 
+/** Ascending by `time`, each strictly after 0 and after the one before (a list of key changes). */
+const isAscendingAfterZero = (list: unknown[]): boolean => list.every((x, i) => isRec(x) && isNum(x.time) && x.time > (i === 0 ? 0 : ((list[i - 1] as Rec).time as number)));
+
+const isAnalysedKey = (k: unknown): boolean => isKey(k) && isNum((k as Rec).confidence) && Array.isArray((k as Rec).alternatives) && ((k as Rec).alternatives as unknown[]).every(isKey);
+
+// ---------------------------------------------------------------- version 6: structure
+
+const isSectionMark = (x: unknown): boolean => isRec(x) && isNum(x.time) && isStr(x.label);
+
+function isPart(p: unknown): boolean {
+  if (!isRec(p) || !isStr(p.id) || p.id.length === 0 || !PART_TYPES.includes(p.type as never)) return false;
+  if (p.number !== null && !(Number.isInteger(p.number) && (p.number as number) >= 1)) return false;
+  if (p.instrument !== null && !(isStr(p.instrument) && PART_INSTRUMENT_PATTERN.test(p.instrument))) return false;
+  return isNum(p.start) && isNum(p.end) && p.end > p.start;
+}
+
+/** Valid parts, ascending by start, never overlapping, ids unique. */
+function arePartsValid(parts: unknown): boolean {
+  if (!Array.isArray(parts) || !parts.every(isPart)) return false;
+  const list = parts as Rec[];
+  if (new Set(list.map((p) => p.id)).size !== list.length) return false;
+  return list.every((p, i) => i === 0 || (p.start as number) >= (list[i - 1]!.end as number));
+}
+
+/** Valid ranges, ascending, never overlapping. */
+const areSpansValid = (spans: unknown): boolean =>
+  Array.isArray(spans) &&
+  spans.every((x: unknown, i: number) => isRec(x) && isNum(x.start) && isNum(x.end) && x.end > x.start && (i === 0 || x.start >= ((spans[i - 1] as Rec).end as number)));
+
+function isDetectedStructure(st: unknown): boolean {
+  if (!isRec(st) || !STRUCTURE_MODES.includes(st.mode as never) || !isStr(st.form) || !FORM_PATTERN.test(st.form)) return false;
+  return Array.isArray(st.sections) && st.sections.every(isSectionMark) && arePartsValid(st.parts);
+}
+
+/** The structure corrected by hand: read exactly, or the document is `corrupt`. */
+function checkStructureCorrections(st: unknown): void {
+  if (!isRec(st) || !STRUCTURE_MODE_CHOICES.includes(st.mode as never) || typeof st.lettersByHand !== 'boolean') corrupt('structure');
+  if (!arePartsValid((st as Rec).parts)) corrupt('structure parts');
+  if (!areSpansValid((st as Rec).spans)) corrupt('structure spans');
+}
+
+/** Version 1 results (lots 2 to 5) gain the version-2 fields, as « no modulation found, structure not looked for ». */
+function upgradeAnalysis(a: Rec): Rec {
+  if (a.version === 1) return { ...a, version: 2, keyChanges: [], structure: null };
+  return a;
+}
+
 /**
- * An analysis result can always be computed again: a damaged or outdated one
- * is dropped (the piece is analysed again when opened), never a reason to
- * lose the piece.
+ * An analysis result can always be computed again: a damaged one, or one of a
+ * version this app cannot bring up to date, is dropped (the piece is analysed
+ * again when opened), never a reason to lose the piece. A version-1 result
+ * (documents up to version 5) is brought up to date, never dropped for its age.
  */
-function readAnalysis(a: unknown): unknown {
-  if (a === null || !isRec(a) || a.version !== ANALYSIS_RESULT_VERSION) return null;
+function readAnalysis(raw: unknown): unknown {
+  if (raw === null || !isRec(raw)) return null;
+  const a = upgradeAnalysis(raw);
+  if (a.version !== ANALYSIS_RESULT_VERSION) return null;
   const beats = a.beats;
   if (!isRec(beats) || !Array.isArray(beats.times) || beats.times.length < 2 || !beats.times.every(isNum)) return null;
-  if (!isNum(beats.downbeat) || !isRec(beats.meter) || !isNum(beats.meter.numerator) || !isNum(beats.meter.denominator)) return null;
+  if (!isNum(beats.downbeat) || !isValidMeter(beats.meter)) return null;
   if (a.key !== null && !isKey(a.key)) return null;
+  // Version 2: modulations and structure, as the analysis found them.
+  if (!Array.isArray(a.keyChanges) || !isAscendingAfterZero(a.keyChanges) || !a.keyChanges.every((x: unknown) => isAnalysedKey((x as Rec).key))) return null;
+  if (a.structure !== null && !isDetectedStructure(a.structure)) return null;
   if (a.tuning !== null && !(isRec(a.tuning) && isNum(a.tuning.cents))) return null;
   if (!Array.isArray(a.chords)) return null;
   for (const c of a.chords as unknown[]) {
@@ -158,15 +226,26 @@ function checkCorrections(c: unknown): void {
   if (typeof k.tuningOfferDismissed !== 'boolean') corrupt('tuning offer');
   if (!Array.isArray(k.chords) || !k.chords.every((x: unknown) => isRec(x) && isNum(x.time) && isChordOrNone(x.chord))) corrupt('hand chords');
   if (!Array.isArray(k.handSpans) || !k.handSpans.every((x: unknown) => isRec(x) && isNum(x.start) && isNum(x.end) && x.end > x.start)) corrupt('hand spans');
-  if (!Array.isArray(k.sections) || !k.sections.every((x: unknown) => isRec(x) && isNum(x.time) && isStr(x.label))) corrupt('sections');
+  if (!Array.isArray(k.sections) || !k.sections.every(isSectionMark)) corrupt('sections');
   // Version 5, added before it was published: absent means none.
   if (k.tempoFixes !== undefined) {
     if (!Array.isArray(k.tempoFixes)) corrupt('tempo fixes');
     for (const f of k.tempoFixes as unknown[]) {
-      if (!isRec(f) || !isNum(f.time) || (f.kind !== 'continuity' && f.kind !== 'fresh')) corrupt('tempo fix');
+      if (!isRec(f) || !isNum(f.time) || !TEMPO_FIX_KINDS.includes(f.kind as never)) corrupt('tempo fix');
+      // Version 6: a tapped passage keeps its taps (ascending) and where it ends.
+      if (f.kind === 'tapped') {
+        const taps = f.taps;
+        if (!Array.isArray(taps) || taps.length === 0 || !taps.every((t: unknown, i: number) => isNum(t) && (i === 0 || t >= (taps[i - 1] as number)))) corrupt('tapped tempo fix');
+        if (!isNum(f.end) || !(f.end > (f.time as number))) corrupt('tapped tempo fix end');
+      }
       checkTempoMap((f as Rec).previous);
     }
   }
+  // Version 6: modulations by hand (null = the analysed ones) and the structure corrected by hand.
+  if (k.keyChanges !== null && !(Array.isArray(k.keyChanges) && isAscendingAfterZero(k.keyChanges) && k.keyChanges.every((x: unknown) => isKey((x as Rec).key)))) {
+    corrupt('key changes');
+  }
+  checkStructureCorrections(k.structure);
 }
 
 // ---------------------------------------------------------------- version 3: separation, export
