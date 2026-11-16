@@ -32,7 +32,7 @@ import { newId } from '../util/id';
 import { clampScale, clampTrackHeight } from '../view/zoom';
 import { clampCents, clampSemitones, originalBpm, steppedTempoRatio, TEMPO_RATIO } from './derived';
 import { fromProjectDocument } from './document';
-import { appStore, DEFAULT_PLAYBACK, type AppState, type ImportStatus, type PanelId, type ReopenOffer, type StorageNotice } from './store';
+import { appStore, DEFAULT_PLAYBACK, type AppState, type ImportStatus, type PanelId, type ReopenOffer, type SettingsTab, type StorageNotice } from './store';
 
 const get = () => appStore.getState();
 const set = (patch: Partial<AppState> | ((s: AppState) => Partial<AppState>)) => appStore.setState(patch);
@@ -400,6 +400,19 @@ export function closePanel(): void {
   if (get().ui.panel !== 'none') set((s) => ({ ui: { ...s.ui, panel: 'none' } }));
 }
 
+/** « Réglages… » (C7): opens the window, on `tab` when given, else on the tab last seen. */
+export function openSettings(tab?: SettingsTab): void {
+  set((s) => ({ ui: { ...s.ui, panel: 'none', settings: { open: true, tab: tab ?? s.ui.settings.tab } } }));
+}
+
+export function setSettingsTab(tab: SettingsTab): void {
+  set((s) => ({ ui: { ...s.ui, settings: { ...s.ui.settings, tab } } }));
+}
+
+export function closeSettings(): void {
+  if (get().ui.settings.open) set((s) => ({ ui: { ...s.ui, settings: { ...s.ui.settings, open: false } } }));
+}
+
 export function openNewPiece(): void {
   set((s) => ({ ui: { ...s.ui, newPieceOpen: true, panel: 'none' } }));
 }
@@ -436,7 +449,8 @@ export function setStorageNotice(storageNotice: StorageNotice | null): void {
 /** Escape: closes the open panel first, then the dialog. */
 export function escape(): void {
   const s = get();
-  if (s.ui.printOpen) set({ ui: { ...s.ui, printOpen: false } });
+  if (s.ui.settings.open) closeSettings();
+  else if (s.ui.printOpen) set({ ui: { ...s.ui, printOpen: false } });
   else if (s.ui.saveProjectOpen) set({ ui: { ...s.ui, saveProjectOpen: false } });
   else if (s.ui.exportAudioOpen) set({ ui: { ...s.ui, exportAudioOpen: false } });
   else if (s.ui.panel !== 'none') closePanel();

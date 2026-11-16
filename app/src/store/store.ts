@@ -94,7 +94,13 @@ export type SeparationRun =
 /** `renderFull` (retours du 15 novembre): the piece is kept, but the render just applied could not be (no room left). */
 export type StorageNotice = 'unavailable' | 'full' | 'renderFull';
 
+/** The tabs of « Réglages » (C7), in their order. */
+export const SETTINGS_TABS = ['general', 'instruments', 'tempo', 'chords', 'metronome', 'display', 'advanced'] as const;
+export type SettingsTab = (typeof SETTINGS_TABS)[number];
+
 export interface UiState {
+  /** « Réglages » (C7): a wide window with tabs; `tab` is kept while the app stays open. */
+  settings: { open: boolean; tab: SettingsTab };
   /** The new-piece dialog. Opened at launch when no project is loaded. */
   newPieceOpen: boolean;
   panel: PanelId;
@@ -204,6 +210,7 @@ export function initialState(): AppState {
     settings: { minorNotation: 'm', advanced: { ...DEFAULT_ADVANCED } },
     transport: { engine: 'empty', error: null },
     ui: {
+      settings: { open: false, tab: 'general' },
       newPieceOpen: true,
       panel: 'none',
       import: { kind: 'idle' },
