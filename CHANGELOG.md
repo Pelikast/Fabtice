@@ -8,6 +8,31 @@ récente en haut. La première section est recopiée sur la page de la version.
 En préparation. Chaque étape du plan (`v1/PLAN.md`) ajoute ici ses nouveautés,
 en français simple.
 
+### Annuler, enregistrer
+- **Annuler et Rétablir** : cmd + Z défait la dernière modification du morceau
+  (un accord, une section, la boucle, un repère, un volume, le tempo, la
+  tonalité, le métronome, une correction de la grille…), Maj + cmd + Z la
+  refait. Jusqu'à cent étapes. Dans un champ de texte, le raccourci défait la
+  saisie, comme partout.
+- **Enregistrer** : cmd + S enregistre le projet par-dessus son fichier
+  `.fab`, sans rien demander, et c'est rapide. Maj + cmd + S (« Enregistrer
+  sous… ») en fait un nouveau fichier.
+- **Alerte avant de perdre son travail** : si le projet a des modifications
+  non enregistrées, l'app le demande avant de créer un nouveau projet, d'en
+  ouvrir un autre, de fermer la fenêtre ou de quitter : « Enregistrer », « Ne
+  pas enregistrer » ou « Annuler ».
+- **Titre de la fenêtre** : il montre le nom du fichier du projet, et un point
+  quand il y a des modifications non enregistrées.
+- Les projets enregistrés avec les versions précédentes s'ouvrent comme avant.
+
+### Grille et export
+- La grille d'accords écrit la signature rythmique à la mesure où elle
+  change, et l'app sait maintenant suivre des signatures différentes d'une
+  mesure à l'autre (la fenêtre pour les changer arrive plus bas dans cette
+  version).
+- Export iReal Pro : un morceau en 6/8 ou en 12/8 sort avec la bonne
+  signature.
+
 ## Version du 16 novembre 2026
 
 Depuis la version du 15 novembre (8 h 54).
