@@ -3,6 +3,11 @@
 Chaque version publiée sur GitHub (page « Releases ») a sa section ici, la plus
 récente en haut. La première section est recopiée sur la page de la version.
 
+## Version 1.0.0
+
+En préparation. Chaque étape du plan (`v1/PLAN.md`) ajoute ici ses nouveautés,
+en français simple.
+
 ## Version du 16 novembre 2026
 
 Depuis la version du 15 novembre (8 h 54).

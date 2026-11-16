@@ -157,6 +157,61 @@ Il n'apparaît pas dans l'interface de la v1. Son dessin est validé et
 conservé : voir `DESIGN.md` et https://fabtice.netlify.app/maquette/#vue=partition.
 Pas prévu pour l'instant : apps Windows, Android, iOS.
 
+## Version 1.0.0 (demande et décisions du propriétaire, 16 novembre 2026)
+
+La prochaine version publiée est la **1.0.0**, en une seule fois : pas de
+version d'essai intermédiaire. Son contenu complet, avec les textes exacts de
+l'interface, est dans `v1/CAHIER.md` ; le plan en sept étapes et les bilans
+d'étape sont dans `v1/`. Tout le travail s'accumule sur la branche `v1` ;
+`main` ne bouge pas avant la publication. Ce que la 1.0.0 ajoute ou change par
+rapport au périmètre ci-dessus :
+
+- **Deux formes d'interface**, mêmes fonctions : ordinateur (menus à
+  sous-menus, fenêtres à onglets, raccourcis) et mobile (tactile). Seules
+  différences de fond : outils plus légers sur mobile, lien YouTube réservé à
+  l'app Mac.
+- **Menu sous le logo Fabtice** : Annuler, Rétablir, Nouveau projet (à partir
+  d'un lien YouTube ou d'un fichier audio ; **pas de projet vide**), Ouvrir,
+  Enregistrer, Enregistrer sous…, Exporter, Imprimer, Réglages, Quitter.
+- **Projet enregistré ou non** : « Enregistrer » écrase le `.fab` en cours ;
+  alerte à la création d'un projet ou à la fermeture si des modifications ne
+  sont pas enregistrées. La sauvegarde automatique locale reste le filet.
+- **Annuler / Rétablir** pour les modifications du morceau (pas pour un
+  import, une séparation ou une suppression de fichiers).
+- **Réglages** en une fenêtre large à sept onglets : Général, Instruments,
+  Tempo et analyse, Détection des accords, Métronome, Affichage, Avancé.
+- **Fenêtre « Nouveau projet »** : case « Séparer les instruments » décochée
+  par défaut (cochée : tous les instruments sélectionnés) ; plus de ligne
+  « Aller plus loin » tant qu'aucun outil ne le fait ; les grilles des
+  standards passent dans Réglages → Avancé, avec un message au démarrage qui
+  propose de tout télécharger.
+- **« Alléger le travail pour l'appareil »** : 75 % des capacités en moyenne
+  pour les calculs lourds, réglable de 20 à 99 %.
+- **Sous-grille** : « Noires » par défaut, « Blanches » ajoutées.
+- **Tempo** : les règles de l'analyse automatique sont **figées** (jugées
+  suffisantes). S'ajoutent, au clic droit sur une mesure, la correction de la
+  courbe en tapant le tempo et le changement de signature rythmique (1 à 64
+  sur 4, 8, 16 ou 32 ; à partir de la mesure ou pour elle seule).
+- **Modulations** détectées et montrées dans l'app et sur la grille.
+- **Structure du morceau** : forme (AABA…), parties (Intro, Thème, Solo,
+  Pont, Spécial, Outro ; Couplet, Refrain en mode Pop), colonne de sections à
+  gauche de la grille, « Grille complète simplifiée » avec reprises. **Pas de
+  gros modèle d'IA généraliste** : reprises de la grille, grille connue du
+  standard, pistes séparées, et un petit modèle de reconnaissance
+  d'instruments ; « Solo (Vents) » quand l'instrument n'est pas sûr.
+- **Exports** : audio (Wave réglable, Flac, MP3 de 96 à 320 kbit/s, pistes au
+  choix), iReal Pro, PDF, **« Dossier pour Logic Pro »** (pistes audio et
+  fichier MIDI avec tempo, signatures et accords en marqueurs : le format des
+  projets Logic est fermé ; doit marcher de Logic Pro 10 à 13), **« Projet
+  Ableton Live »** (que personne ne peut essayer : annoncé « à l'essai »).
+- **Impression** : cmd + P, fenêtre avec aperçu et options.
+- **Mise à jour automatique** de l'app Mac par un système maison, sans
+  signature Apple (le propriétaire a un compte développeur mais ne veut pas
+  des démarches de vérification pour l'instant).
+- **Séparation** : comportement inchangé ; pas d'option « rapide », pas de
+  calcul natif pour l'instant. **Version future** : séparation à distance par
+  une clé secrète saisie par l'utilisateur, qui paie lui-même le service.
+
 ## Exigences de qualité
 
 - Le cas de test principal est le jazz ancien (mono, instruments mélangés,
@@ -228,6 +283,11 @@ jour-là :
   faire, la lecture ne partait plus, et le lecteur du Finder non plus ; il a
   fallu redémarrer le Mac. Jamais arrivé avant l'installation de Fabtice.
 
+- **BS-RoFormer SW sur le Mac Intel** (rapport du 15 novembre, carte graphique
+  intégrée) : 10 357 s pour un morceau de 745 s, soit 13,9 fois sa durée
+  (27,6 s par tranche de 2 s, 375 tranches). Résultat jugé très bon ;
+  l'attente est acceptée quand on la connaît d'avance.
+
 ## Conventions
 
 - Code et commentaires en anglais ; textes d'interface et documents en français.
@@ -240,6 +300,9 @@ jour-là :
   tête de `CHANGELOG.md` (section « ## Version du … ») dans le même envoi sur
   `main` que le changement ; la fabrication recopie cette première section
   sur la page de la version.
+- **Numéros de version** : à partir de la 1.0.0, chaque version publiée porte
+  un numéro (1.0.0, 1.0.1…), visible dans l'app, et l'app Mac se met à jour
+  d'elle-même vers la dernière.
 - **Netlify ne déploie plus automatiquement** : le propriétaire a arrêté les
   builds et déclenche lui-même un déploiement à chaque étape réellement
   terminée, car le quota est limité. Pousser sur `main` ne publie donc rien.

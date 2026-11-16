@@ -1,5 +1,13 @@
 # Passation — état du projet au 15 novembre 2026 : lots 1 à 3 publiés, retours du lot 3 et programme « accords » en cours
 
+> **Depuis le 16 novembre 2026, le travail en cours est la version 1.0.0.**
+> Son cahier des charges, son plan en sept étapes et les bilans d'étape sont
+> dans le dossier `v1/` (`v1/PLAN.md` d'abord). Tout se fait sur la branche
+> `v1` ; rien ne va sur `main` avant la publication de la 1.0.0. Le présent
+> document reste la référence pour ce qui existait à la version du 16 novembre
+> (lots 1 à 4) et pour les pièges de l'environnement de travail.
+
+
 Ce document sert à reprendre le projet dans une nouvelle session sans relire
 l'historique. `CLAUDE.md` (cahier des charges, décisions, mesures) et
 `DESIGN.md` (design validé) font référence ; `app/README.md` décrit le code de
