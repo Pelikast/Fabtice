@@ -19,6 +19,7 @@
 import { tempoMapFromBeats } from '../grid/beats';
 import type { AnalysisResult } from '../model/analysis';
 import type { TempoFix } from '../model/corrections';
+import { transact } from './history';
 import { appStore } from './store';
 
 const EPS = 1e-6;
@@ -50,7 +51,8 @@ export function applyTempoFix(result: AnalysisResult, fix: TempoFix): void {
   const before = s.corrections.tempoFixes;
   const same = before.findIndex((f) => Math.abs(f.time - fix.time) < 1e-3);
   const tempoFixes = same >= 0 ? [...before.slice(0, same), { ...fix, previous: before[same]!.previous }, ...before.slice(same + 1)] : [...before, fix];
-  appStore.setState({ tempoMap, analysis, corrections: { ...s.corrections, tempoFixes }, analysisRun: { status: 'idle' } });
+  // One undo step for the three together (`store/history.ts`): the grid, the analysed chords, the fixes.
+  transact('history.what.tempoFix', () => appStore.setState({ tempoMap, analysis, corrections: { ...s.corrections, tempoFixes }, analysisRun: { status: 'idle' } }));
 }
 
 /** The manual tempo action that starts at this bar start (source time), if any. */
