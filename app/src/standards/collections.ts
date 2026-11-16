@@ -80,6 +80,12 @@ export interface CollectionSpec {
   genres: string[];
   /** Offered by default at the first launch. */
   recommended: boolean;
+  /**
+   * A collection found by a web search whose address has not been confirmed yet. The online address
+   * test (`collectionAddresses.real.test.ts`) reports a candidate that fails instead of failing the
+   * build; remove the whole entry if its address proves wrong.
+   */
+  candidate?: boolean;
   /** Public page where a person can look at the collection. */
   sourcePage: string;
   licence: string;
@@ -159,6 +165,7 @@ function checkCollection(c: unknown, i: number): CollectionSpec {
   if (!(c.playlistName === null || isStr(c.playlistName, 80))) bad(`${id}: playlistName`);
   if (!Array.isArray(c.genres) || c.genres.length > 10 || !c.genres.every((g) => isStr(g, 40))) bad(`${id}: genres`);
   if (typeof c.recommended !== 'boolean' || typeof c.licenceUnclear !== 'boolean') bad(`${id}: flags`);
+  if (c.candidate !== undefined && typeof c.candidate !== 'boolean') bad(`${id}: candidate`);
   const sourcePage = checkCollectionUrl(c.sourcePage, `${id}: sourcePage`);
   if (!isStr(c.licence, 400)) bad(`${id}: licence`);
   if (!Array.isArray(c.pages) || c.pages.length === 0 || c.pages.length > 8) bad(`${id}: pages`);
@@ -173,6 +180,7 @@ function checkCollection(c: unknown, i: number): CollectionSpec {
     playlistName: c.playlistName as string | null,
     genres: [...(c.genres as string[])],
     recommended: c.recommended,
+    ...(c.candidate === true ? { candidate: true } : {}),
     sourcePage,
     licence: c.licence,
     licenceUnclear: c.licenceUnclear,
