@@ -14,7 +14,7 @@ lisent que par parties, quand on en a besoin.
 
 | Étape | Contenu | État | Commit de fin sur `v1` |
 |---|---|---|---|
-| 1. Socle | C5, C11, C13 (données), C10 et C14 (données) | fait (`v1/bilan-etape-1.md`) | voir le bilan |
+| 1. Socle | C5, C11, C13 (données), C10 et C14 (données) | fait (`v1/bilan-etape-1.md`) | `2a52351` (code), puis le commit du bilan |
 | 2. Interface | C1, C3, C4, C6, C7, C8, C9 | à faire | |
 | 3. Exports | C15 | à faire | |
 | 4. Tempo à la main | C12, C13 (fenêtre) | à faire | |

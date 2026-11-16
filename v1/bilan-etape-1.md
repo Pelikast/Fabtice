@@ -196,12 +196,41 @@ tête). Aucun champ nouveau au premier niveau : tout est dans `analysis` et
 - `grid/metronome.ts` exportait ses propres bornes de métrique (2 à 12 sur 4
   ou 8) sous les mêmes noms que les nouvelles de `model/tempoMap.ts` : bien
   regarder d'où vient l'import.
+- Trois choses ne se voient que sur un Mac, et ont coûté trois fabrications :
+  un test qui lit le `navigator` de la machine (Node en a un sur Mac) ; le
+  dossier temporaire atteint par un lien (`/var` vers `/private/var`) : y
+  comparer des chemins réels (`fs.realpathSync`) — cela a aussi montré un vrai
+  défaut, corrigé (le nettoyage des fichiers temporaires pouvait effacer
+  l'enregistrement en cours dans un dossier atteint par un lien) ; les
+  raccourcis des tests e2e : écrire `ControlOrMeta+s`, pas `Control+s`.
+- Les tests e2e de l'app Mac demandent `npm run build:desktop` dans `app/`
+  (pas `npm run build`) : sans cela la suite reste bloquée sans message.
 - Les vérifications Chromium qui ouvrent un second morceau doivent maintenant
   répondre à l'alerte (`smoke`, `import`, `analysis` l'ont appris).
 
 ## Vérifications
 
-Vérifications de fin d'étape en cours : cette section est complétée par le commit de fin.
+- Commit vérifié : `2a52351` sur `v1` (le commit de fin n'ajoute que ce bilan
+  et la table du plan).
+- `app/` : `npm run typecheck` sans erreur ; `npm test` : 1 349 tests réussis,
+  22 sautés.
+- Vérifications Chromium après `npm run build`, toutes vertes, lancées l'une
+  après l'autre au calme : `smoke`, `undo`, `alert`, `project-file`, `chart`,
+  `timeline`, `import`, `export`, `export-audio`, `export-memory`, `analysis`,
+  `separation`, `standards`, `render`, `memory`, `metronome`, `markers`,
+  `tempo-fix`, `offline`, `engine`.
+- `desktop/` : `npm test` : 108 réussis ; après `npm run build:desktop` dans
+  `app/`, `FABTICE_NO_POPPLER=1 xvfb-run -a npm run test:e2e` : 31 tests, 28
+  réussis, 3 sautés (ceux qui téléchargent), aucun échec.
+- Fabrication sur les Mac de GitHub, lancée à la main sur `v1` : verte au
+  quatrième lancement (run 43950201624, commit `2a52351`) : tests unitaires,
+  construction pour puce Apple et Intel, e2e sur les deux (31 tests, 28
+  réussis, 3 sautés), analyse, séparation, yt-dlp. Rien n'a été publié. Les
+  trois premiers lancements ont échoué sur des défauts propres au Mac, tous
+  corrigés (voir « Pièges rencontrés »).
+- Captures regardées : alerte (1280 × 800 et 390 × 844), grille avec
+  signatures 4/4, 7/8, 6/8 (les deux formes).
+- Aucun fichier de brouillon dans le dépôt (commande du plan).
 
 ## Pour l'étape suivante
 
