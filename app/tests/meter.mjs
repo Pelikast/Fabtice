@@ -12,6 +12,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { startServer } from './serve.mjs';
+import { openBarMenu as openBarMenuAt } from './lib/bar-menu.mjs';
 import { menuEntry } from './lib/menu.mjs';
 
 const require = createRequire(process.env.PLAYWRIGHT_MODULE_DIR || '/opt/node-tools/');
@@ -66,32 +67,8 @@ async function press(h, locator) {
   else await locator.click();
 }
 
-/** Where, in the page, the « Mesures » row of the ruler shows bar `bar` (index): inside the bar, a little after its line. */
-async function barPoint(page, bar) {
-  await sleep(250); // the ruler follows the store a frame later
-  return page.evaluate((b) => {
-    const f = document.querySelector('.frise');
-    const r = document.querySelector('.frise-regle').getBoundingClientRect();
-    const fr = f.getBoundingClientRect();
-    const s = window.__fabtice.store.getState();
-    const t = window.__fabtice.lot4.tempoMap.barStartTime(s.tempoMap, b) + 0.5 * (window.__fabtice.lot4.tempoMap.barStartTime(s.tempoMap, b + 1) - window.__fabtice.lot4.tempoMap.barStartTime(s.tempoMap, b));
-    return { x: fr.left + (t - Number(f.dataset.t0)) * Number(f.dataset.pps), y: r.bottom - 13, left: fr.left, right: fr.right };
-  }, bar);
-}
-
 /** The bar menu at `bar`: a right click (computer) or a long press (phone) on the ruler. */
-async function openBarMenu(h, bar) {
-  const p = await barPoint(h.page, bar);
-  if (p.x < p.left + 2 || p.x > p.right - 2) throw new Error(`bar ${bar} is not in view (x = ${p.x}, view ${JSON.stringify(await h.page.evaluate(() => ({ ...document.querySelector('.frise').dataset, map: window.__fabtice.store.getState().tempoMap, b2: window.__fabtice.lot4.tempoMap.barStartTime(window.__fabtice.store.getState().tempoMap, 2), b3: window.__fabtice.lot4.tempoMap.barStartTime(window.__fabtice.store.getState().tempoMap, 3), w: document.querySelector('.frise').getBoundingClientRect().width })))})`);
-  if (h.phone) {
-    await h.cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: p.x, y: p.y, id: 1 }] });
-    await sleep(900);
-    await h.cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-  } else {
-    await h.page.mouse.click(p.x, p.y, { button: 'right' });
-  }
-  await h.page.waitForSelector('[data-testid="menu-tempo"]', { timeout: 5000 });
-}
+const openBarMenu = (h, bar) => openBarMenuAt(h.page, bar, h.cdp);
 
 /** The bar menu, then « Changer la signature rythmique »: the window is open. */
 async function openWindow(h, bar) {

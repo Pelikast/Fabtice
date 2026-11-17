@@ -13,11 +13,11 @@ import type { TempoMap } from '../model/tempoMap';
 import type { MeterChangeView } from '../store/meterActions';
 
 /** The figures' font: the chart's (`--titre`), bolder than the bar numbers so that they read as a signature. */
-export const SIGNATURE_FONT = '600 11px "Fraunces", "Iowan Old Style", Georgia, serif';
+export const SIGNATURE_FONT = '600 12px "Fraunces", "Iowan Old Style", Georgia, serif';
 /** Space between the bar line and the figures (the bar numbers use the same). */
 export const SIGNATURE_PAD_PX = 9;
 /** Space kept between the figures and what follows (the bar number, the next bar line). */
-export const SIGNATURE_GAP_PX = 6;
+export const SIGNATURE_GAP_PX = 8;
 /** Where a signature sticks to when its bar started off to the left of the view. */
 const STICK_PX = 4;
 

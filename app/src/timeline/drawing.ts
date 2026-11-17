@@ -422,8 +422,8 @@ function drawBarsRow(ctx: CanvasRenderingContext2D, p: RulerParams): void {
     for (let i = 0; i < marks.count; i++) {
       const m = marks.items[i]!;
       const cx = m.x + m.width / 2;
-      ctx.fillText(String(m.numerator), cx, top + 7.5);
-      ctx.fillText(String(m.denominator), cx, top + h - 6.5);
+      ctx.fillText(String(m.numerator), cx, top + 7);
+      ctx.fillText(String(m.denominator), cx, top + h - 7);
     }
     ctx.textAlign = 'left';
   }

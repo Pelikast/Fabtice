@@ -22,7 +22,7 @@ describe('signatures on the ruler', () => {
     const set = marks(map);
     expect(describeMeterMarks(set)).toBe('1:4/4 5:7/8');
     expect(set.items[1]!.x).toBeCloseTo(4 * 2 * 50 + 9, 6);
-    expect(numberLeftAfter(set.items[1]!)).toBeCloseTo(4 * 2 * 50 + 9 + 7 + 6, 6);
+    expect(numberLeftAfter(set.items[1]!)).toBeCloseTo(4 * 2 * 50 + 9 + 7 + 8, 6);
   });
 
   it('writes the change and the return for « only this bar »', () => {
