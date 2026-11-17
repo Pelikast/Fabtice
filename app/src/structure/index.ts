@@ -9,13 +9,14 @@ import type { AnalysedKeyChange } from '../model/analysis';
 import type { Key } from '../model/harmony';
 import type { Seconds } from '../model/project';
 import type { DetectedStructure } from '../model/structure';
+import { detectKeyChanges as detectKeyChangesImpl } from './keys';
 import type { HarmonyInput, SimplifiedChart, SimplifyInput } from './types';
 
 export type * from './types';
 
-/** The modulations of the piece: lasting changes of key signature, never a passing II-V nor the relative key. */
-export function detectKeyChanges(_input: HarmonyInput): AnalysedKeyChange[] {
-  return [];
+/** The modulations of the piece: lasting changes of key signature, never a passing II-V nor the relative key (`keys.ts`). */
+export function detectKeyChanges(input: HarmonyInput): AnalysedKeyChange[] {
+  return detectKeyChangesImpl(input);
 }
 
 /** The structure of the piece (mode, form, letters, parts); null when nothing can be said. */
