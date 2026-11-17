@@ -6,7 +6,7 @@
 // storage may be missing or blocked, and the app works the same without it.
 
 import { setChordModelChoice } from '../analysis/chordModel';
-import { DEFAULT_SUBDIVISION, defaultAppSettings, type LaunchBehaviour } from '../model/project';
+import { DEFAULT_SUBDIVISION, EASE_LOAD_MAX, EASE_LOAD_MIN, defaultAppSettings, type LaunchBehaviour } from '../model/project';
 import type { AppStore, AppState } from './store';
 
 const KEY = 'fabtice.preferences.v1';
@@ -34,6 +34,9 @@ interface Preferences {
   useKnownCharts?: boolean;
   detectModulations?: boolean;
   autoStructure?: boolean;
+  easeLoad?: boolean;
+  easeLoadPercent?: number;
+  checkUpdatesAtLaunch?: boolean;
 }
 
 function read(): Preferences {
@@ -68,6 +71,9 @@ const pick = (s: AppState): Preferences => ({
   useKnownCharts: s.settings.useKnownCharts,
   detectModulations: s.settings.detectModulations,
   autoStructure: s.settings.autoStructure,
+  easeLoad: s.settings.easeLoad,
+  easeLoadPercent: s.settings.easeLoadPercent,
+  checkUpdatesAtLaunch: s.settings.checkUpdatesAtLaunch,
 });
 
 /** Restores the saved preferences into the store, then saves them on every change. */
@@ -84,6 +90,11 @@ export function persistPreferences(store: AppStore): () => void {
       ...(typeof p.useKnownCharts === 'boolean' ? { useKnownCharts: p.useKnownCharts } : {}),
       ...(typeof p.detectModulations === 'boolean' ? { detectModulations: p.detectModulations } : {}),
       ...(typeof p.autoStructure === 'boolean' ? { autoStructure: p.autoStructure } : {}),
+      ...(typeof p.easeLoad === 'boolean' ? { easeLoad: p.easeLoad } : {}),
+      ...(typeof p.easeLoadPercent === 'number' && Number.isInteger(p.easeLoadPercent) && p.easeLoadPercent >= EASE_LOAD_MIN && p.easeLoadPercent <= EASE_LOAD_MAX
+        ? { easeLoadPercent: p.easeLoadPercent }
+        : {}),
+      ...(typeof p.checkUpdatesAtLaunch === 'boolean' ? { checkUpdatesAtLaunch: p.checkUpdatesAtLaunch } : {}),
       advanced: {
         ...s.settings.advanced,
         // A tool id that is no longer listed falls back to the automatic choice when used (`separation/device.ts#resolveModel`).

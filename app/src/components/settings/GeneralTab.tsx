@@ -1,6 +1,6 @@
-// « Général »: what happens when the app opens, and the keyboard shortcuts (read only). The version of the
-// app, « Rechercher une mise à jour » and « Alléger le travail pour l'appareil » come with the stages that
-// build them (see v1/CAHIER.md).
+// « Général »: what happens when the app opens, « Alléger le travail pour l'appareil » (`EaseLoad.tsx`), the
+// version of the app with « Rechercher une mise à jour… » (`UpdateSection.tsx`), and the keyboard shortcuts
+// (read only).
 
 import { t } from '../../i18n';
 import type { LaunchBehaviour } from '../../model/project';
@@ -9,7 +9,9 @@ import { useApp } from '../../store/store';
 import { COMMAND_IDS, COMMANDS, commandContext, shortcutText, type CommandContext } from '../../ui/commands';
 import { isMacPlatform } from '../../ui/historyKeys';
 import { usePhoneLayout } from '../../util/media';
+import { EaseLoadCheck } from './EaseLoad';
 import { Section } from './parts';
+import { UpdateSection } from './UpdateSection';
 
 const LAUNCH: LaunchBehaviour[] = ['lastProject', 'newProject'];
 
@@ -45,7 +47,9 @@ export function GeneralTab() {
           </div>
           <small>{t('settingsWin.launch.note')}</small>
         </div>
+        <EaseLoadCheck testId="alleger-reglages" />
       </Section>
+      <UpdateSection />
       {/* A phone has no keyboard to speak of. */}
       {!phone && (
         <Section scope={null} title={t('settingsWin.shortcuts.title')}>

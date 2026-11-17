@@ -1,6 +1,6 @@
 {
   "name": "fabtice-app",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Fabtice : interface de l'app (web et Mac)",
   "license": "GPL-3.0-or-later",
   "private": true,
@@ -48,6 +48,8 @@
     "test:harmony": "node tests/harmony.mjs",
     "test:simplified": "node tests/simplified.mjs",
     "test:new-project": "node tests/new-project.mjs",
+    "test:ease": "node tests/ease.mjs",
+    "test:update": "node tests/update.mjs",
     "captures": "vite build && node tests/captures.mjs",
     "essais": "vite build && node tests/essais.mjs"
   },

@@ -148,6 +148,8 @@ function fabticeOutput(mode: string): Plugin {
 
 export default defineConfig(({ mode }) => ({
   base: './',
+  // The version number shown in the app (`src/version.ts`): the one of app/package.json.
+  define: { __FABTICE_VERSION__: JSON.stringify(JSON.parse(readFileSync(path.resolve(here, 'package.json'), 'utf8')).version) },
   // No public dir: everything generated must land in assets/.
   publicDir: false,
   plugins: [react(), fabticeOutput(mode)],

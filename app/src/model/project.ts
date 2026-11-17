@@ -161,7 +161,17 @@ export interface AppSettings {
   detectModulations: boolean;
   /** Per device (stage 5). « Structure automatique du morceau »: off, no detected structure (the hand parts and letters stay). */
   autoStructure: boolean;
+  /** Per device (stage 6, C2). « Alléger le travail pour l'appareil »: the heavy computations pause and use fewer threads (`settings/easeLoad.ts`). */
+  easeLoad: boolean;
+  /** Per device (stage 6, C2). The share of the device's capacity used, on average, when `easeLoad` is on: 20 to 99 (percent). */
+  easeLoadPercent: number;
+  /** Per device (stage 6, C16). « Vérifier à chaque ouverture »: the app looks for a newer version when it opens. */
+  checkUpdatesAtLaunch: boolean;
 }
+
+export const EASE_LOAD_MIN = 20;
+export const EASE_LOAD_MAX = 99;
+export const EASE_LOAD_DEFAULT = 75;
 
 export const DEFAULT_ADVANCED: AdvancedSettings = { separationModel: 'auto', formants: false };
 
@@ -174,6 +184,9 @@ export function defaultAppSettings(): AppSettings {
     useKnownCharts: true,
     detectModulations: true,
     autoStructure: true,
+    easeLoad: false,
+    easeLoadPercent: EASE_LOAD_DEFAULT,
+    checkUpdatesAtLaunch: true,
   };
 }
 

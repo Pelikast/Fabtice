@@ -1,7 +1,7 @@
 // « Avancé »: keeping the timbre, the chord charts of standards kept on the device (in place: the list,
 // « Vérifier les mises à jour de grilles », the import of a file), the room Fabtice takes on this device (with
 // « Libérer »), the audio journal of the web app, and « Rétablir les réglages d'origine ».
-// The slider of « Alléger le travail pour l'appareil » comes with the stage that builds it.
+// The slider of « Alléger le travail pour l'appareil » is `EaseLoadSlider` (`EaseLoad.tsx`).
 
 import { useState } from 'react';
 import { t } from '../../i18n';
@@ -12,6 +12,7 @@ import { resetDeviceSettings } from '../../store/settingsActions';
 import { useApp } from '../../store/store';
 import { AudioJournalCopy } from '../AudioJournalCopy';
 import { DeviceStorage } from '../DeviceStorage';
+import { EaseLoadSlider } from './EaseLoad';
 import { CheckRow, Section } from './parts';
 import { StandardsSection } from './StandardsSection';
 
@@ -20,6 +21,7 @@ export function AdvancedTab() {
   return (
     <Section scope="app">
       {getRenderer().supportsFormants && <CheckRow checked={formants} onChange={setFormants} label={t('settings.formants')} note={t('settings.formantsNote')} testId="formants" />}
+      <EaseLoadSlider />
       <StandardsSection />
       <DeviceStorage />
       {/* The Mac app has it in Aide → Diagnostic… */}
