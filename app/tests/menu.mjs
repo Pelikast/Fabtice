@@ -250,6 +250,7 @@ try {
     check('phone: « Exporter » shows its list, titled, with « Retour »', (await page.locator('.feuille-menu-titre').innerText()) === 'Exporter' && (await labels(page, '.feuille-menu-liste')).join('|') === 'Audio…|iReal Pro|PDF…' && (await page.locator('.feuille-menu-retour').isVisible()));
     await page.tap('.feuille-menu-retour');
     check('phone: « Retour » goes back to the whole menu', (await labels(page, '.feuille-menu-liste'))[0] === 'Annuler');
+    check('phone: the close button of the sheet is wholly inside the screen', (await page.locator('.feuille-menu .fermer').boundingBox()).x + 44 <= 390);
     await page.tap('.feuille-menu .fermer');
     check('phone: the close button closes the sheet', !(await menuOpen(page)) && (await page.locator('.feuille-menu').count()) === 0);
     const [download] = await Promise.all([page.waitForEvent('download', { timeout: 10000 }), menuCommand(page, 'Exporter', 'iReal Pro', 'Fichier iReal Pro…')]);
@@ -284,6 +285,19 @@ try {
     check('phone: a greyed entry does nothing', await menuOpen(page));
     await closeMenu(page);
     check('no page errors (phone)', errors.length === 0, errors.join(' | '));
+    await context.close();
+  }
+
+  // ------------------------------------------------------------ a phone on its side: too short for the drop-down
+  {
+    const { context, page, errors } = await open('?demo&moteur=factice', { viewport: { width: 844, height: 390 }, hasTouch: true, isMobile: true });
+    await openMenu(page);
+    await sleep(400);
+    check('landscape phone (844 × 390): the menu is the scrolling sheet, not the drop-down that would be cut off', (await page.locator('.feuille-menu').count()) === 1 && (await page.locator('.menu-fabtice').count()) === 0);
+    await closeMenu(page);
+    await menuCommand(page, 'Réglages…');
+    check('landscape phone: the last entry, « Réglages… », can be reached and chosen', (await ui(page)).settings.open);
+    check('no page errors (landscape phone)', errors.length === 0, errors.join(' | '));
     await context.close();
   }
 } catch (e) {

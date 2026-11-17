@@ -109,6 +109,7 @@ export const fr = {
   'grid.origin.corrected': 'Grille de l’analyse, corrigée à la main.',
   'grid.analysing': 'Analyse en cours…',
   'grid.backToAnalysis': 'Revenir à l’analyse',
+  'grid.tempoMenuHintTouch': 'Tempo faux à partir d’une mesure ? Appui long sur cette mesure, dans la règle ou dans la grille.',
   'grid.tempoMenuHint': 'Tempo faux à partir d’une mesure ? Clic droit (ou appui long) sur cette mesure, dans la règle ou dans la grille.',
 
   // The bar menu: the two manual tempo actions

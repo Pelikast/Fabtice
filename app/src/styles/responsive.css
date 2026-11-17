@@ -81,6 +81,9 @@
   .case .numero { top: 4px; right: 5px; }
   .analyse-bouton { padding: 4px 6px; font-size: 12px; }
   .analyse-bouton.en-cours { font-size: 13.5px; }
+  /* A target of 40 px (DESIGN.md) without making the text any taller: the hit area reaches past the button. */
+  .analyse-bouton { position: relative; }
+  .analyse-bouton::after { content: ""; position: absolute; inset: -7px -3px; }
   .panneau-analyse { position: fixed; top: 50px; left: 10px; right: 10px; width: auto; }
 
   .bas {
