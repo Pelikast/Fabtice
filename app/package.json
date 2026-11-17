@@ -42,7 +42,8 @@
     "test:settings": "node tests/settings.mjs",
     "test:menu": "node tests/menu.mjs",
     "test:new-project": "node tests/new-project.mjs",
-    "captures": "vite build && node tests/captures.mjs"
+    "captures": "vite build && node tests/captures.mjs",
+    "essais": "vite build && node tests/essais.mjs"
   },
   "dependencies": {
     "@audio/encode-flac": "1.4.3",
