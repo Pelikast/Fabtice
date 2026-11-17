@@ -63,7 +63,8 @@ const TEXT = {
 
 const BOX = '[data-testid="tapes"]';
 /** The cross of the window on screen (the closed opening window keeps its own, hidden). */
-const FERMER = '[role="dialog"][aria-modal="true"]:not([aria-hidden="true"]) .fermer';
+const MODAL = '[role="dialog"][aria-modal="true"]:not([aria-hidden="true"])';
+const FERMER = `${MODAL} .fermer`;
 const state = (page) => page.evaluate(() => window.__fabtice.store.getState());
 const snapshot = (page) => page.evaluate(() => window.__fabtice.engine.snapshot());
 const step = (page) => page.locator(BOX).getAttribute('data-etape');
@@ -453,8 +454,14 @@ async function suite(form) {
   {
     const tag = `${tag0} refusal`;
     await page.locator('[data-testid="tapes-decompte"]').fill('2');
-    await press(page, form, page.locator('[data-testid="tapes-depart"]'));
+    if (form.phone) await press(page, form, page.locator('[data-testid="tapes-depart"]'));
+    else {
+      // Space presses the focused button of the window (it does not start the playback by itself)
+      await page.locator('[data-testid="tapes-depart"]').focus();
+      await page.keyboard.press('Space');
+    }
     await waitStep(page, 'tapping');
+    check(`${tag}: ${form.phone ? 'the touch' : 'Space'} that pressed « C’est parti » is not a tap`, (await tapCount(page)) === 0);
     check(`${tag}: two bars of count-in start two bars before`, Math.abs((await snapshot(page)).position - (barTime - 2 * barLength)) < 0.4);
     await tapAt(page, form, barTime + 0.02);
     await sleep(80);
@@ -645,7 +652,7 @@ async function spaceRule() {
     { name: 'Avis de stockage', open: () => page.evaluate(() => window.__fabtice.actions.setStorageNotice('unavailable')), focus: '.avis-stockage button', closesBySpace: true },
     { name: 'Panneau du métronome', open: () => page.evaluate(() => window.__fabtice.actions.openPanel('metronome')), focus: '[data-testid="panneau-metronome"] button' },
     { name: 'Panneau des repères', open: () => page.evaluate(() => window.__fabtice.actions.openPanel('markers')), focus: '[data-testid="panneau-reperes"] button' },
-    { name: 'Panneau de séparation', open: () => page.evaluate(() => window.__fabtice.actions.openPanel('separation')), focus: '[data-testid="panneau-separation"] input[type="checkbox"], [data-testid="panneau-separation"] [role="checkbox"], [data-testid="panneau-separation"] [data-testid="bascule-morceau"]' },
+    { name: 'Panneau de séparation', open: () => page.evaluate(() => window.__fabtice.actions.openPanel('separation')), focus: '[data-testid="panneau-separation"] button.stem' },
     { name: 'Panneau de la grille', open: () => page.evaluate(() => window.__fabtice.actions.openPanel('grid')), focus: '[data-testid="tous-reglages-tempo"]' },
     { name: 'Panneau d’accordage', open: () => page.evaluate(() => window.__fabtice.actions.openPanel('tuning')), focus: '[data-testid="tous-reglages-accordage"]' },
     {
@@ -689,13 +696,25 @@ async function spaceRule() {
   // With the focus nowhere in a window that is modal: still nothing.
   await reset();
   await command('exportAudio');
-  await page.waitForSelector('[role="dialog"][aria-modal="true"]');
+  await page.waitForSelector(MODAL);
   await page.evaluate(() => document.activeElement?.blur());
   await page.keyboard.press('Space');
   check('space bar, Export audio, nothing focused: Space does not start the playback', !(await playing()));
 
-  // The window of the taps: Space on « C'est parti » presses it, and no playback starts by itself
-  await reset();
+  // The message of the chord charts: it shows over the opening screen only (no piece is open then, so no playback could
+  // start anyway); what is checked is that Space still does what the box does there.
+  {
+    const second = await context.newPage();
+    await second.goto(`${url}/?debug&moteur=factice&grilles=message`);
+    await second.waitForSelector('[data-testid="grilles-message"]', { timeout: 20000 });
+    const box = second.locator('[data-testid="grilles-ne-plus"]');
+    await box.focus();
+    const was = await box.isChecked();
+    await second.keyboard.press('Space');
+    await sleep(250);
+    check('space bar, the message of the chord charts: Space ticks the box', (await box.isChecked()) === !was);
+    await second.close();
+  }
 
   // With no window open: Space plays, also with a toolbar button focused, and does not press it.
   await reset();
@@ -711,9 +730,9 @@ async function spaceRule() {
   check('… and stops it again', !(await playing()));
   // A window closed by Escape gives Space back.
   await command('exportAudio');
-  await page.waitForSelector('[role="dialog"][aria-modal="true"]');
+  await page.waitForSelector(MODAL);
   await page.keyboard.press('Escape');
-  await page.waitForFunction(() => !document.querySelector('[role="dialog"][aria-modal="true"]'), null, { timeout: 3000 });
+  await page.waitForFunction(() => !document.querySelector('[role="dialog"][aria-modal="true"]:not([aria-hidden="true"])'), null, { timeout: 3000 });
   await page.evaluate(() => document.activeElement?.blur());
   await page.keyboard.press('Space');
   check('a window closed: Space starts the playback again', await playing());
