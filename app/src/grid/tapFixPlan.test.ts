@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { TAP_COUNT_IN, clampTapCountIn, recordTap, tapFixClicks, tapFixStart, tapFixVerify } from './tapFixPlan';
+import { TAP_COUNT_IN, clampTapCountIn, recordTap, tapFixClicks, tapFixStart, tapFixVerify, tapsFromBar, tapsWindowStart } from './tapFixPlan';
 import { barStartTime, constantTempoMap, variableTempoMap } from './tempoMap';
 
 // 120 BPM in 4/4: a beat every half second, a bar every two seconds; the first downbeat at 0.
@@ -102,8 +102,21 @@ describe('« Vérifier en écoutant »', () => {
   });
 });
 
+describe('the taps along the count-in', () => {
+  it('the window of taps starts two bars before the chosen bar, not before the piece', () => {
+    expect(tapsWindowStart(map, 5)).toBeCloseTo(6, 9);
+    expect(tapsWindowStart(map, 1)).toBe(0);
+  });
+
+  it('the counter counts the taps from the chosen bar on only', () => {
+    expect(tapsFromBar([8.02, 8.5, 10, 10.52, 11.03], 10)).toBe(3);
+    expect(tapsFromBar([], 10)).toBe(0);
+    expect(tapsFromBar([9.99], 10)).toBe(0);
+  });
+});
+
 describe('the taps', () => {
-  it('a tap before the chosen bar is ignored, from the bar it counts (the bar line itself too)', () => {
+  it('a tap earlier than the window is ignored, from it on it is kept (the line itself too)', () => {
     let taps: readonly number[] = [];
     taps = recordTap(taps, 8.5, 10);
     expect(taps).toEqual([]);

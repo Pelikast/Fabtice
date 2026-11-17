@@ -83,6 +83,9 @@
   .case .numero { top: 4px; right: 5px; }
   .analyse-bouton { padding: 4px 6px; font-size: 12px; }
   .analyse-bouton.en-cours { font-size: 13.5px; }
+  /* A long status (« Tempo depuis la mesure 7 · 36 % ») gives way and goes to a second line instead of pushing the page wider than the screen. */
+  .analyse-etat { flex: 0 1 auto; min-width: 0; }
+  .analyse-bouton { white-space: normal; text-align: right; line-height: 1.2; }
   /* A target of 40 px (DESIGN.md) without making the text any taller: the hit area reaches past the button. */
   .analyse-bouton { position: relative; }
   .analyse-bouton::after { content: ""; position: absolute; inset: -7px -3px; }
