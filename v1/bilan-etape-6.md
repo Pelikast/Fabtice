@@ -252,7 +252,58 @@ Dans l'ordre :
 
 ## Vérifications
 
-À compléter : les tests de l'app Mac et les captures sont en cours.
+- Commit vérifié : `40e9d06` sur `v1` (fusion des trois branches de l'étape).
+  Les commits suivants n'ajoutent que le changelog, les documents, ce bilan et
+  une espace insécable dans un texte du message de l'app web (`6c85f0c`,
+  après quoi `test:update` a été relancé, vert).
+- `app/` : `npm run typecheck` sans erreur ; `npm test` : 1 992 tests
+  réussis, 43 sautés.
+- Vérifications Chromium après `npm run build`, l'une après l'autre : `smoke`,
+  `menu`, `settings`, `print`, `new-project`, `ease`, `update`, `undo`,
+  `alert`, `project-file`, `chart`, `timeline`, `import`, `export`,
+  `export-audio`, `export-memory`, `export-logic`, `export-ableton`,
+  `analysis`, `separation`, `markers`, `metronome`, `tempo-fix`, `tap-fix`,
+  `meter`, `structure`, `harmony`, `simplified`, `offline`, `engine`,
+  `render`, `memory` : vertes au premier passage. `standards` : un échec au
+  premier passage (« n sur N » sur téléphone), vert deux fois de suite lancé
+  seul.
+- `desktop/` : `npm test` : 176 réussis ; après `npm run build:desktop`,
+  `FABTICE_NO_POPPLER=1 xvfb-run -a npm run test:e2e` : 41 tests, 38 réussis,
+  3 sautés (ceux qui téléchargent), aucun échec, le test de la barre d'espace
+  compris.
+- Fabrication sur les Mac de GitHub, lancée à la main sur `v1` : **verte**
+  (run 44160791714, commit `40e9d06`) : contrôle du numéro, interface, tests
+  unitaires, construction pour puce Apple et Intel, e2e sur les deux (41
+  tests, 38 réussis, 3 sautés), analyse, séparation, yt-dlp, **essai de mise
+  à jour sur les deux puces**, essai à blanc de la publication. Travail
+  `publish` sauté (pas sur `main`) : rien n'a été publié.
+  - Essai de mise à jour (journaux `08e-update-trial-arm64.log` et
+    `13d-update-trial-x64.log`) : app 1.0.0 installée dans un dossier au nom
+    accentué, version factice 1.0.1 (une vraie seconde fabrication) servie
+    localement ; recherche « disponible », mise à jour, relance : l'app
+    relancée annonce 1.0.1 depuis le même emplacement ; une archive altérée
+    d'un octet est refusée, l'app reste en 1.0.0 et démarre ; dossier non
+    inscriptible et emplacement protégé reconnus, rien n'est touché.
+  - Essai à blanc (`15-publish-dry-run.log`) : `v1.0.0` n'existe pas, une
+    seule version sur GitHub (`desktop-dev`, version de test), fichier de
+    version fabriqué (archives de 131,6 Mo et 137,5 Mo avec leurs
+    empreintes), cinq fichiers listés, commandes affichées, « la version
+    v1.0.0 serait publiée ».
+  - Deux fabrications précédentes pendant l'étape : celle lancée par la
+    session de l'étape 5 (run 44148292872 : Mac Intel rouge sur le test de la
+    barre d'espace, corrigé depuis) et celle de la branche de la mise à jour
+    (run 44153120847, verte).
+- Captures (`FABTICE_CAPTURES_ONLY="mise à jour,alléger" npm run captures`),
+  27 images dans les deux formes. Regardées en entier par la session
+  d'étape : les neuf de la mise à jour côté ordinateur et les deux du
+  téléphone, et pour « Alléger » les quatre écrans de l'ordinateur et trois du
+  téléphone avec la case cochée, plus le panneau de la séparation décoché sur
+  téléphone ; les autres variantes « décochée » ont été regardées par l'agent.
+  Défaut vu et corrigé : un deux-points rejeté en début de ligne dans le
+  message de l'app web. À savoir : sur téléphone, dans le panneau de la
+  séparation, le bouton « Séparer » est sous la case, il faut faire défiler.
+- Aucun fichier de brouillon dans le dépôt (commande du plan) ; aucun nom
+  d'assistant ni information personnelle dans ce que l'étape a ajouté.
 
 ## Pour l'étape suivante
 
