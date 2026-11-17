@@ -3005,9 +3005,27 @@ fiabilité qui les réunit. Fonctions **pures**, pas encore branchées dans
 
 ##### Modèle d'accords détaillé, au choix (`engine/tsumugi*.ts`, `chordModel.ts`)
 
-Réglages → Réglages avancés → **Modèle d'accords** : « Rapide : CREMA » (par défaut)
-ou « Détaillé : Tsumugi-Chords ». C'est une préférence de l'**appareil**
-(`localStorage`, clé `fabtice.chordModel.v1`), jamais du projet. Le réglage dit
+Réglages → Détection des accords → **Modèle d'accords** : « Automatique
+(recommandé) » (par défaut), « Rapide : CREMA » ou « Détaillé : Tsumugi-Chords ».
+C'est une préférence de l'**appareil** (`localStorage`, clé
+`fabtice.chordModel.v1`), jamais du projet. Rien d'enregistré = automatique
+(décision du propriétaire, 17 novembre 2026) : le modèle détaillé quand
+l'appareil le permet, sinon CREMA (`chordModel.ts#autoChordModel`). « Le
+permet » : pas un téléphone ni une tablette (la sonde de la séparation,
+`separation/device.ts#knownDevice`), et une mémoire connue d'au moins 8 Go
+(`navigator.deviceMemory`, qui plafonne à 8 ; aussi dans l'app Mac, qui est un
+Chromium) : environ 2,5 Go pour le worker, 3,0 à 3,3 Go au pic pour tous les
+processus du navigateur, mesurés ci-dessous, soit plus du double de marge. Mémoire
+inconnue (Safari, Firefox) : CREMA. `crema` ou `fine` enregistré est un choix
+explicite, toujours respecté (l'ancien code n'écrivait `crema` que si
+l'utilisateur l'avait choisi) ; « Automatique » efface la clé, et « Rétablir les
+réglages d'origine » y revient. La note sous la liste dit ce que donne
+l'automatique sur l'appareil. Sur les adresses d'essai (`?debug`, `?demo`,
+`?moteur=factice`, une page servie par cette machine), l'automatique reste sur
+CREMA (`main.tsx`, `setChordModelAutoAllowed`) pour qu'aucune vérification ne
+télécharge le modèle détaillé d'elle-même ; `?modele-accords=auto` y applique la
+vraie règle. Un morceau déjà analysé n'est pas refait quand l'automatique change
+de modèle. Le réglage dit
 en clair le coût (plusieurs minutes par morceau, environ 2,5 Go de mémoire,
 déconseillé sur téléphone, 68 Mo à télécharger une fois) et la licence des
 poids (CC BY-NC 4.0, usage non commercial ; code MIT). Quand un morceau est
@@ -3019,7 +3037,9 @@ gardés (règle de toujours, testée dans `chordModel.test.ts`).
   (`chord-model.safetensors`, Hugging Face `anime-song/Tsumugi-Chords` à une
   révision figée, 67 647 992 octets, SHA-256 vérifiée), téléchargés par le chemin
   habituel (`models/download.ts` : reprise par morceaux, vérification, gardés sur
-  l'appareil), seulement quand ce modèle est choisi. Le graphe ONNX **sans aucun
+  l'appareil), seulement quand ce modèle sert (choisi, ou donné par
+  l'automatique) ; la source et la licence s'affichent avant, dans la liste des
+  outils de l'analyse en cours. Le graphe ONNX **sans aucun
   poids** (1,36 Mo) est livré avec l'app (`assets/tsumugi-chords.graph.onnx`,
   provenance et empreinte dans `assets/README.md`) et vérifié avant usage ; il lit
   le fichier de l'auteur comme « données externes » d'onnxruntime-web. Il se
@@ -3049,7 +3069,8 @@ gardés (règle de toujours, testée dans `chordModel.test.ts`).
 - **Repli.** Poids introuvables, session impossible à créer, mémoire épuisée :
   les accords de CREMA (déjà calculés) sont gardés pour cette analyse,
   `chordModel: { id: 'crema-chords', fallback }`, et la barre du haut le dit
-  calmement (« Accords lus par le modèle par défaut », le panneau dit pourquoi).
+  calmement (« Accords lus par le modèle rapide », le panneau dit pourquoi), que
+  le modèle détaillé ait été choisi ou donné par l'automatique.
   `?echec-accords=memoire|session` provoque ces pannes pour les essais.
 - **Mesures du banc** (`web/spikes/accords/`, variante `app-fin`, qui passe par les
   mêmes fonctions que le worker), couleur par temps, grille détectée, 22 morceaux

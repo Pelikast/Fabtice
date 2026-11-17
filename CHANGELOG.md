@@ -193,6 +193,15 @@ en français simple.
 - **Réglages → Détection des accords** : « Détecter les modulations » et
   « Structure automatique du morceau » se décochent pour tout garder à la main ;
   « Mode » (Auto, Jazz, Pop) est le même réglage que dans la colonne.
+- **Le modèle d'accords détaillé est maintenant choisi d'office** quand votre
+  appareil le permet (un ordinateur avec assez de mémoire) : il lit bien mieux
+  les accords du jazz et des vieux disques, mais prend plusieurs minutes par
+  morceau. Sinon, c'est le modèle rapide. Dans Réglages → Détection des
+  accords, « Automatique (recommandé) » dit lequel sert sur votre appareil, et
+  vous pouvez toujours choisir l'un ou l'autre. Un morceau déjà analysé n'est
+  pas refait tout seul : « Analyser de nouveau ce morceau avec ce modèle ».
+- **Les tonalités s'écrivent en lettres américaines partout**, y compris dans
+  la note d'une modulation exportée vers iReal Pro (« Ton : Ab »).
 
 ## Version du 16 novembre 2026
 

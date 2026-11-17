@@ -1,8 +1,8 @@
 // Keys: conventional spelling of the tonic, names, transposition.
 
-import type { Key, KeyMode, PitchClass } from '../model/harmony';
+import type { Key, PitchClass } from '../model/harmony';
 import type { MinorNotation } from '../model/project';
-import { noteText, noteTextFr, pc, type NoteName } from './pitch';
+import { noteText, pc, type NoteName } from './pitch';
 
 /**
  * Tonic spelling as players write the key signature: flats for F, B♭, E♭,
@@ -47,12 +47,7 @@ export function keyLabel(key: Key, minor: MinorNotation = 'm'): string {
   return noteText(keyTonicName(key)) + (key.mode === 'minor' ? minor : '');
 }
 
-const MODE_FR: Record<KeyMode, string> = { major: 'majeur', minor: 'mineur' };
-
-/** French name: « La♭ majeur », « Fa♯ mineur ». */
-export function keyNameFr(key: Key): string {
-  return `${noteTextFr(keyTonicName(key))} ${MODE_FR[key.mode]}`;
-}
+// No French key names (« La♭ majeur »): keys are written in American letters everywhere (owner's decision, 17 November 2026).
 
 /** The 24 keys in the order of a correction menu: major keys C to B, then minor keys. */
 export function allKeys(): Key[] {

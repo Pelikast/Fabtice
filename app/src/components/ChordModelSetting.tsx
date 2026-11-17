@@ -1,11 +1,12 @@
-// « Modèle d'accords » in « Réglages » → « Détection des accords »: CREMA (the default, fast) or the fine
-// Tsumugi-Chords (much better on jazz and old records, but minutes per piece, 2.5 GB of memory
-// and weights under a non-commercial licence). Stated plainly before it is chosen, as for the
-// separation tools. A device preference (`analysis/chordModel.ts`). For the open piece, « Analyser de
+// « Modèle d'accords » in « Réglages » → « Détection des accords »: « Automatique (recommandé) », the
+// default (the detailed model when this device allows it, else the standard one: `analysis/chordModel.ts`),
+// CREMA (fast) or the fine Tsumugi-Chords (much better on jazz and old records, but minutes per piece,
+// 2.5 GB of memory and weights under a non-commercial licence). Stated plainly before it is used, as
+// for the separation tools. A device preference (`analysis/chordModel.ts`). For the open piece, « Analyser de
 // nouveau ce morceau avec ce modèle » runs the detection again; the user's corrections are kept (`runAnalysis`).
 
-import { setChordModelChoice, useChordModelChoice } from '../analysis/chordModel';
-import { MODEL_REGISTRY, type ChordModelChoice } from '../analysis/models';
+import { setChordModelSetting, useChordModelChoice, useChordModelSetting, type ChordModelSetting } from '../analysis/chordModel';
+import { MODEL_REGISTRY } from '../analysis/models';
 import { runAnalysis } from '../analysis/runner';
 import { t } from '../i18n';
 import { formatSize } from '../separation/useChoice';
@@ -15,6 +16,8 @@ import { useApp } from '../store/store';
 const FINE_MINUTES_PER_4MIN = 6;
 
 export function ChordModelSetting() {
+  const setting = useChordModelSetting();
+  // The model in use: the one chosen, or the one « Automatique » gives here.
   const choice = useChordModelChoice();
   const crema = MODEL_REGISTRY['crema-chords'];
   const fine = MODEL_REGISTRY['tsumugi-chords'];
@@ -23,13 +26,17 @@ export function ChordModelSetting() {
       <label htmlFor="modele-accords">{t('settings.chordModel')}</label>
       <select
         id="modele-accords"
-        value={choice}
+        value={setting}
         data-testid="modele-accords"
-        onChange={(e) => setChordModelChoice(e.target.value as ChordModelChoice)}
+        onChange={(e) => setChordModelSetting(e.target.value as ChordModelSetting)}
       >
+        <option value="auto">{t('settings.chordModel.auto')}</option>
         <option value="crema">{t('settings.chordModel.crema')}</option>
         <option value="fine">{t('settings.chordModel.fine')}</option>
       </select>
+      {setting === 'auto' && (
+        <small data-testid="modele-accords-auto">{t(choice === 'fine' ? 'settings.chordModel.autoFine' : 'settings.chordModel.autoCrema')}</small>
+      )}
       {choice === 'crema' ? (
         <small>{t('settings.chordModel.cremaNote', { size: formatSize(crema.bytes), licence: crema.licence, host: crema.host })}</small>
       ) : (
