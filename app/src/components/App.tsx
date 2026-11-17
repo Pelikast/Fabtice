@@ -14,6 +14,8 @@ import { ChartView } from './ChartView';
 import { ExportAudioDialog } from './ExportAudioDialog';
 import { ExportLogicDialog } from './ExportLogicDialog';
 import { logicDialog } from '../export/logic/dialog';
+import { abletonDialog } from '../export/ableton/dialog';
+import { ExportAbletonDialog } from './ExportAbletonDialog';
 import { LeaveProjectDialog } from './LeaveProjectDialog';
 import { SaveActivity } from './SaveActivity';
 import { NewPieceDialog } from './NewPieceDialog';
@@ -37,7 +39,8 @@ export function App() {
   const leaving = useStore(leaveDialog, (s) => s.open);
   const saving = useStore(saveActivity, (s) => (s.phase === 'working' && s.visible) || s.phase === 'error');
   const exportingLogic = useStore(logicDialog, (s) => s.open);
-  const inert = dialogOpen || messageOpen || leaving || saving || exportingLogic;
+  const exportingAbleton = useStore(abletonDialog, (s) => s.open);
+  const inert = dialogOpen || messageOpen || leaving || saving || exportingLogic || exportingAbleton;
   const dragging = useFileDrop();
   useGlobalKeys();
   // Each newly opened piece is analysed in the background once it can play (analysis/runner.ts).
@@ -60,6 +63,7 @@ export function App() {
       <StandardsMessage />
       <ExportAudioDialog />
       <ExportLogicDialog />
+      <ExportAbletonDialog />
       <PrintDialog />
       <SaveProjectDialog />
       <SettingsDialog />

@@ -1,9 +1,9 @@
-/* « Dossier pour Logic Pro » (C15.4): a window of the family (DESIGN.md, « Nouveau projet »): paper, Fraunces
+/* The sequencer folders, « Dossier pour Logic Pro » (C15.4) and « Projet Ableton Live » (C15.5): a window of the family (DESIGN.md, « Nouveau projet »): paper, Fraunces
    title, the main button in ink on the right, the secondary one framed. What the folder holds as a short list
    with hairlines, the three gestures numbered. On a phone: a sheet at the bottom, buttons stacked full width,
    the main one first, targets of at least 44 px. */
-.export-logic { width: min(580px, 100%); }
-.export-logic h3 {
+.export-sequenceur { width: min(580px, 100%); }
+.export-sequenceur h3 {
   margin: 20px 0 8px;
   font-size: 12px;
   font-weight: 600;
@@ -11,13 +11,13 @@
   text-transform: uppercase;
   color: var(--encre-douce);
 }
-.contenu-logic {
+.contenu-sequenceur {
   margin: 0 0 18px;
   padding: 0;
   list-style: none;
   border-top: 1px solid var(--trait-fin);
 }
-.contenu-logic li {
+.contenu-sequenceur li {
   display: grid;
   grid-template-columns: minmax(150px, 34%) 1fr;
   gap: 12px;
@@ -26,15 +26,15 @@
   font-size: 14px;
   line-height: 1.4;
 }
-.contenu-logic strong { font-weight: 600; color: var(--encre); }
-.contenu-logic span { color: var(--encre-douce); }
-.gestes-logic {
+.contenu-sequenceur strong { font-weight: 600; color: var(--encre); }
+.contenu-sequenceur span { color: var(--encre-douce); }
+.gestes-sequenceur {
   margin: 0;
   padding: 0;
   list-style: none;
   counter-reset: geste;
 }
-.gestes-logic li {
+.gestes-sequenceur li {
   position: relative;
   padding: 6px 0 8px 36px;
   font-size: 14px;
@@ -42,7 +42,7 @@
   color: var(--encre);
   counter-increment: geste;
 }
-.gestes-logic li::before {
+.gestes-sequenceur li::before {
   content: counter(geste);
   position: absolute;
   left: 0;
@@ -58,20 +58,54 @@
   font-weight: 600;
   line-height: 1;
 }
-.export-logic .fichier-pret { margin-bottom: 4px; }
-.export-logic .import-etat .export-resume { margin-top: 10px; }
+.export-sequenceur .fichier-pret { margin-bottom: 4px; }
+.export-sequenceur .import-etat .export-resume { margin-top: 10px; }
+
+/* « Projet Ableton Live » is « à l'essai »: said first, with a small ember label, then plainly in ink. */
+.avis-essai {
+  margin: 0 0 16px;
+  padding: 10px 12px;
+  border: 1px solid var(--trait);
+  border-left: 3px solid var(--braise);
+  border-radius: var(--rayon);
+  background: var(--papier-clair);
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--encre);
+}
+.pastille-essai {
+  display: inline-block;
+  margin-right: 8px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--braise);
+  color: var(--papier-clair);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  vertical-align: 1px;
+}
+.ouvrir-ableton {
+  margin: 0;
+  padding: 0 0 0 18px;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--encre);
+}
+.ouvrir-ableton li { padding: 2px 0; }
 
 @media (max-width: 760px) {
-  .voile-logic { padding: 0; place-items: end stretch; }
-  .export-logic {
+  .voile-sequenceur { padding: 0; place-items: end stretch; }
+  .export-sequenceur {
     width: 100%;
     max-height: 100dvh;
     padding: 22px 18px calc(18px + env(safe-area-inset-bottom));
     border-width: 1px 0 0;
     border-radius: var(--rayon-fenetre) var(--rayon-fenetre) 0 0;
   }
-  .contenu-logic li { grid-template-columns: 1fr; gap: 2px; }
-  .export-logic .import-actions { flex-direction: column-reverse; align-items: stretch; }
-  .export-logic .import-actions > * { width: 100%; min-height: 46px; }
-  .export-logic .fermer { width: 44px; height: 44px; }
+  .contenu-sequenceur li { grid-template-columns: 1fr; gap: 2px; }
+  .export-sequenceur .import-actions { flex-direction: column-reverse; align-items: stretch; }
+  .export-sequenceur .import-actions > * { width: 100%; min-height: 46px; }
+  .export-sequenceur .fermer { width: 44px; height: 44px; }
 }

@@ -24,6 +24,7 @@ import { pcmFromChannels, readPcm } from '../audio/pcm';
 import { audioSeconds, getAudio, registryBytes, type DecodedAudio } from '../audio/registry';
 import { exportWithApp, getEncoder, planAudioExport } from '../export/audio';
 import { planLogicFolder } from '../export/logic';
+import { planAbletonFolder, quartersMap, sessionToAbleton } from '../export/ableton';
 import { sessionToMidi } from '../export/midi';
 import { buildSession } from '../export/session';
 import * as renderController from '../render/controller';
@@ -98,8 +99,11 @@ export const lot3Handle = {
   render: renderController,
   renderer: { ...renderModule, ...renderBudget },
   exportAudio: { ...exportActions, planAudioExport, exportWithApp, getEncoder },
-  /** C15.4: the session model, its MIDI file and the plan of the folder for Logic Pro (`test:export-logic`). */
-  sequencer: { buildSession, sessionToMidi, planLogicFolder },
+  /**
+   * C15.4, C15.5: the session model, its MIDI file, the plans of the folders for Logic Pro (`test:export-logic`)
+   * and Ableton Live (`test:export-ableton`), the session as an Ableton set's input and its quarters on Live's timeline.
+   */
+  sequencer: { buildSession, sessionToMidi, planLogicFolder, planAbletonFolder, sessionToAbleton, quartersMap },
   registry: { getAudio, registryBytes },
   pcm: { pcmFromChannels, readPcm },
   storage: getProjectStorage,

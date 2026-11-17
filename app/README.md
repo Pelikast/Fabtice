@@ -35,6 +35,7 @@ le stockage.
 | `npm run test:render` | après `build`, au premier plan : le vrai rendu (Rubber Band R3 dans un worker) dans Chromium : alignement d'un train de clics à plusieurs tempos et hauteurs, cinq minutes sans dérive, vitesse (secondes de calcul par minute stéréo, gain de plusieurs workers), annulation, binaire chargé au premier rendu seulement et licence servie ; puis « Appliquer » dans l'app avec le vrai moteur (progression réelle, rendu joué tel quel, retour à la préécoute, refus calme d'un appareil trop petit) à 1280 × 800 et 390 × 844. `FABTICE_RENDER_OUT` pour les captures, `FABTICE_RENDER_ONLY=renderer\|app`, `FABTICE_RENDER_QUICK=1` saute les cinq minutes |
 | `npm run test:export-audio` | après `build` : « Exporter » ▸ « Audio… » avec les vrais encodeurs MP3 et FLAC (WAV, MP3, FLAC relus et comparés ; Wave à chaque fréquence et quantification relu par un lecteur écrit dans le test et par ffprobe ; chaque débit MP3 de 96 à 320 ; pistes en un fichier ou en archive ; boucle, annulation, encodeur qui ne se charge pas, export à une autre tonalité et un autre tempo par le rendu), vitesses, la fenêtre dans les deux formes (réglages, case « Un fichier par piste », téléchargements relus) et ses captures (`FABTICE_EXPORT_OUT`) |
 | `npm run test:export-audio` | après `build` : « Exporter le son » avec les vrais encodeurs MP3 et FLAC (WAV, MP3, FLAC relus et comparés, archive, boucle, annulation, encodeur qui ne se charge pas, export à une autre tonalité et un autre tempo par le rendu), vitesses, captures du dialogue |
+| `npm run test:export-ableton` | après `build` : « Projet Ableton Live… » (C15.5) dans les deux formes sur le morceau de démonstration à +2 demi-tons et 90 % : l'entrée après « Dossier pour Logic Pro… », la fenêtre « à l'essai » (aucun texte coupé), le pourcentage, « Annuler », l'archive relue (dossier « … Project », pistes dans `Samples/Imported`, les deux `.als` décompressés et lus par l'analyseur XML de Python, leurs clips nommant des fichiers présents, chaque temps à moins d'une milliseconde sur la courbe de tempo de Live, le MIDI relu par `midi-file`, `Lisez-moi.txt`). Captures dans `FABTICE_CAPTURES` (par défaut `/tmp/fabtice-captures-D`), le dossier décompressé dans `FABTICE_ESSAIS` (par défaut `/tmp/fabtice-essais-D`) |
 | `npm run test:export-logic` | après `build` : « Dossier pour Logic Pro… » (C15.4) dans les deux formes (1280 × 800 à la souris, 390 × 844 au toucher) sur le morceau de démonstration à +2 demi-tons et 90 % : l'entrée du menu après « PDF… », la fenêtre, le pourcentage qui monte, « Annuler », l'archive .zip relue (un dossier, les Wave 48 kHz 16 bits de même longueur, le fichier MIDI relu par `midi-file` : chaque temps à moins d'une milliseconde, signatures, armure, marqueurs ; `Lisez-moi.txt`). Captures et archives dans `FABTICE_CAPTURES` (par défaut `/tmp/fabtice-captures-C`) |
 | `npm run essais -- <dossier>` | construit puis fabrique les **fichiers d'essai** des exports pour le propriétaire (vrai rendu) : dossier pour Logic Pro, chaque format audio, projet Ableton s'il existe, et un `LISEZ-MOI.txt` ; voir « Étape 3 de la 1.0.0 : exports » |
 | `npm run test:export-memory` | après `build`, au premier plan : la mémoire de l'export de sept pistes de cinq minutes (archive de WAV, de MP3, mélange en WAV, FLAC et MP3), chiffres affichés |
@@ -1483,6 +1484,68 @@ la même longueur), `logicTextFiles`, `logicReadme`, `logicGestures`,
 `export/logic/dialog.ts` (`logicDialog`, `openExportLogic`), compté dans
 `ui/windows.ts`. Commande `exportLogic` (`ui/commands.ts`, `desktop/src/menu.js`).
 Poignée de test : `window.__fabtice.lot3.sequencer`.
+
+### Étape 3 de la 1.0.0 : « Projet Ableton Live… » (C15.5, à l'essai)
+
+La recherche sur le format `.als`, les sources, ce qui est établi ou non et le
+degré de confiance sont dans `src/export/ableton/ALS-FORMAT.md`. Personne n'a
+pu ouvrir ces projets dans Live : l'export est annoncé « à l'essai » dans la
+fenêtre, le mode d'emploi et le changelog.
+
+**Le dossier** « Titre (changements) Project » (la forme que Live donne au
+dossier d'un projet) : `Titre.als` (schéma de Live 11.0, pour Live 11 et 12),
+`Titre (Live 10).als` (schéma de Live 10.1 : Live 10 y annonce des fichiers
+manquants, que son gestionnaire de fichiers retrouve), `Samples/Imported/01
+Morceau.wav`… (les mêmes pistes que pour Logic : gain 1, tonalité et tempo
+choisis, Wave 48 kHz 16 bits, toutes de la même longueur), `Titre.mid` (le
+fichier MIDI de `export/midi/`, le repli sûr), `Lisez-moi.txt`. Pas de dossier
+`Ableton Project Info` : son fichier est un format binaire de Live, non écrit.
+
+**Écrivain (`export/ableton/`).** Pur, sans DOM : `buildLiveSet(input) → { xml,
+target, tempo, clipEnds, warnings }`, `writeAbletonSet(input)` (les octets du
+`.als`, gzip à l'en-tête de Live). Entrée neutre en noires (`types.ts`,
+`AbletonSetInput` : `target` `live11` | `live10`, `title`, `sampleRate`,
+`tracks` [`name`, `file` relatif, `frames`, `startQuarters?`, `absolutePath?`,
+`fileSize?`, `crc?`, `lastModified?`, `color?`], `tempo` en paliers, `meters`,
+`locators`). Courbe de tempo en marches sur les doubles-croches (`tempo.ts`),
+somme de contrôle de Live (`crc.ts`, `liveFileCrc`).
+
+**Depuis la session.** `sessionToAbleton(session, { target?, files? }) → {
+input, notes }` : le tempo de chaque temps (la mesure d'attente d'abord), les
+signatures (une signature sur 32, que Live n'a pas, est écrite sur 16 : n pair
+→ (n/2)/16 ; n impair → n/16 au tempo doublé, ou, au-delà de 999, k/16 avec k =
+n/2 arrondi en dessous ; `notes` le dit, le mode d'emploi aussi), les marqueurs
+du fichier MIDI (même texte ASCII) et les tonalités (« Tonalité Bb ») en
+repères ; `quartersMap(session)` donne la place de chaque noire sur la ligne de
+temps de Live. `planAbletonFolder(state)` (pur ; session avec
+`LIVE_TEMPO_RANGE` 20 à 999), `runAbletonExport(plan, target, deps)` (les
+pistes d'abord, puis les deux projets avec la taille, la somme de contrôle et,
+dans l'app Mac, le chemin complet de chaque fichier ; puis le MIDI et le mode
+d'emploi), `abletonSetFiles`, `abletonTextFiles`, `abletonReadme`,
+`abletonMissingSteps`, `abletonFallbackSteps`.
+
+**Ce qui est partagé avec Logic.** Les pistes : `export/sequencer/`
+(`planSequencerTracks(state, session, sousDossier?)`,
+`renderSequencerTracks(...)`). La fenêtre : `components/SequencerExportDialog.tsx`
+(`SequencerExportBox` et sa configuration `SequencerExport` : identifiant des
+tests, préfixe des textes, plan, rendu, ce qui est dit avant et à la fin) ;
+`ExportLogicDialog.tsx` et `ExportAbletonDialog.tsx` n'en sont que la
+configuration ; styles `styles/exportLogic.css` (`.export-sequenceur`). La
+remise : `export/folder/` accepte des sous-dossiers (`folderEntryName`,
+`MAX_FOLDER_DEPTH`) et donne `FolderTarget.fullPath` (app Mac ; null sur le
+web).
+
+**Commande** `exportAbleton` (« Projet Ableton Live… », juste après
+`exportLogic`), état `export/ableton/dialog.ts` (`abletonDialog`,
+`openExportAbleton`), compté dans `ui/windows.ts`. **Poignée de test** :
+`window.__fabtice.lot3.sequencer` (`planAbletonFolder`, `sessionToAbleton`,
+`quartersMap`, à côté de `buildSession`, `sessionToMidi`, `planLogicFolder`).
+
+**Vérifications.** Vitest : `export/ableton/*.test.ts` (écrivain relu par
+l'analyseur XML de Python quand `python3` est là, conversion, dossier) ;
+`ableton.reference.test.ts` relit avec trois lecteurs indépendants
+(abletoolz, dawtool, ableton-als ; voir son en-tête). Chromium :
+`npm run test:export-ableton`. App Mac : `desktop/test/e2e/export-ableton.test.js`.
 
 ### Étape 2 de la 1.0.0 : interface
 

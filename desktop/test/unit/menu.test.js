@@ -40,7 +40,7 @@ test('macOS: the commands of the page at the usual places, greyed out until the 
     'Imprimer… (off)',
   ]);
   assert.deepEqual(summary(find(t, 'newProject').submenu), ['À partir d’un lien YouTube (off)', 'À partir d’un fichier audio (off)']);
-  assert.deepEqual(summary(find(t, 'export').submenu), ['Audio… (off)', 'iReal Pro (off)', 'PDF… (off)', 'Dossier pour Logic Pro… (off)']);
+  assert.deepEqual(summary(find(t, 'export').submenu), ['Audio… (off)', 'iReal Pro (off)', 'PDF… (off)', 'Dossier pour Logic Pro… (off)', 'Projet Ableton Live… (off)']);
   assert.deepEqual(summary(find(t, 'ireal').submenu), ['Fichier iReal Pro… (off)', 'Ouvrir dans iReal Pro (off)']);
   assert.deepEqual(summary(menu(t, 'Édition')), ['Annuler (off)', 'Rétablir (off)', '-', 'Couper', 'Copier', 'Coller', 'Tout sélectionner']);
   assert.deepEqual(summary(menu(t, 'Aide')), ['Diagnostic…']);

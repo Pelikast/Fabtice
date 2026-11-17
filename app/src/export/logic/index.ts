@@ -10,31 +10,24 @@
 //
 // `planLogicFolder()` is pure (tested in Node); `runLogicExport()` renders the
 // tracks one at a time and hands each file to the folder target as soon as it
-// is made (`export/folder/`).
+// is made (`export/folder/`). The tracks are those of every sequencer folder
+// (`export/sequencer/`, shared with « Projet Ableton Live… »).
 
 import { t } from '../../i18n';
-import { defaultExportPreferences } from '../../model/audioExport';
-import type { PcmAudio } from '../../audio/pcm';
-import type { OfflineRenderer } from '../../render/types';
 import type { AppState } from '../../store/store';
-import { changesSuffix, ExportError, planAudioExport, runAudioExport, safeFileName, type ExportPlan } from '../audio';
+import { changesSuffix, ExportError, safeFileName } from '../audio';
 import type { FolderTarget } from '../folder';
 import { sessionToMidi } from '../midi';
+import { planSequencerTracks, renderSequencerTracks, type SequencerRenderDeps, type SequencerTrackFile } from '../sequencer';
 import { buildSession, type Session } from '../session';
 import { logicReadme } from './readme';
-import { fixedLengthWav } from './wavFixed';
 
 export { logicGestures, logicReadme, logicBarOfFirstBar } from './readme';
 export { fixedLengthWav } from './wavFixed';
 
 export const README_NAME = 'Lisez-moi.txt';
 
-export interface LogicTrackFile {
-  trackId: string;
-  name: string;
-  /** The audio export plan of this one file (unity gain, whole piece, wav). */
-  plan: ExportPlan;
-}
+export type LogicTrackFile = SequencerTrackFile;
 
 export interface LogicFolderPlan {
   session: Session;
@@ -54,24 +47,10 @@ export function planLogicFolder(s: AppState): LogicFolderPlan {
   const title = safeFileName(s.project.title);
   const folderName = safeFileName(`${title} – ${t('exportLogic.folderSuffix')}${changes}`);
   const midiName = `${safeFileName(title)}.mid`;
-  // The whole piece, one track a file, wav at the app's own rate and depth (48 kHz, 16 bits) whatever the
-  // « Audio… » window was left on: the audio export's own plan, then its file named as the session says.
-  const prefs = { ...defaultExportPreferences(), format: 'wav' as const, what: 'tracks' as const, range: 'whole' as const };
-  const tracks = session.tracks.map((tr) => {
-    const plan = planAudioExport(s, prefs, [tr.id]);
-    const name = `${tr.fileStem}.wav`;
-    return { trackId: tr.id, name, plan: { ...plan, archiveName: null, files: [{ name, title: tr.fileStem, sources: [{ trackId: tr.id, audioId: tr.audioId, gain: 1 }] }] } };
-  });
-  return { session, folderName, midiName, tracks, changes };
+  return { session, folderName, midiName, tracks: planSequencerTracks(s, session), changes };
 }
 
-export interface LogicExportDeps {
-  renderer: OfflineRenderer;
-  audioOf: (audioId: string) => PcmAudio | undefined;
-  appliedOf?: (trackId: string) => PcmAudio | null;
-  onProgress?: (fraction: number) => void;
-  signal?: AbortSignal;
-}
+export type LogicExportDeps = SequencerRenderDeps;
 
 /** The small files of the folder: the MIDI file and the read-me. */
 export function logicTextFiles(plan: LogicFolderPlan): { name: string; data: Blob }[] {
@@ -90,23 +69,7 @@ export function logicTextFiles(plan: LogicFolderPlan): { name: string; data: Blo
  * the target then.
  */
 export async function runLogicExport(plan: LogicFolderPlan, target: FolderTarget, deps: LogicExportDeps): Promise<void> {
-  const n = plan.tracks.length;
-  const report = (f: number) => deps.onProgress?.(Math.min(1, Math.max(0, f)));
-  const encoder = fixedLengthWav(plan.session.frames);
-  for (let i = 0; i < n; i++) {
-    if (deps.signal?.aborted) throw new ExportError('cancelled');
-    const tr = plan.tracks[i]!;
-    const file = await runAudioExport(tr.plan, {
-      renderer: deps.renderer,
-      audioOf: deps.audioOf,
-      appliedOf: deps.appliedOf,
-      encoderFor: () => encoder,
-      signal: deps.signal,
-      onProgress: (f) => report(((i + 0.95 * f) / n) * 0.99),
-    });
-    if (deps.signal?.aborted) throw new ExportError('cancelled');
-    await target.add({ name: tr.name, data: file.blob }, { signal: deps.signal, onProgress: (f) => report(((i + 0.95 + 0.05 * f) / n) * 0.99) });
-  }
+  await renderSequencerTracks(plan.tracks, plan.session.frames, target, deps, { share: 0.99 });
   for (const f of logicTextFiles(plan)) await target.add(f, { signal: deps.signal });
-  report(1);
+  deps.onProgress?.(1);
 }

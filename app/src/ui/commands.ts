@@ -27,6 +27,7 @@ import { openSettings } from '../store/actions';
 import { selectHasChords } from '../store/chartSelectors';
 import { openExportAudio, openPrint } from '../store/exportActions';
 import { openExportLogic } from '../export/logic/dialog';
+import { openExportAbleton } from '../export/ableton/dialog';
 import { historyStatus, redo, subscribeHistory, undo, type HistoryStatus } from '../store/history';
 import { appStore, type AppState } from '../store/store';
 import { isMacPlatform, isTextField } from './historyKeys';
@@ -45,6 +46,7 @@ export const COMMAND_IDS = [
   'irealOpen',
   'pdf',
   'exportLogic',
+  'exportAbleton',
   'print',
   'settings',
   'quit',
@@ -235,6 +237,13 @@ export const COMMANDS: Record<CommandId, Command> = {
     enabled: (c) => onPiece(c) && c.hasTracks,
     run: () => openExportLogic(),
   },
+  exportAbleton: {
+    id: 'exportAbleton',
+    label: () => t('menu.exportAbleton'),
+    // The tracks in audio, the two Live sets, the MIDI file: it needs tracks, not chords (C15.5, « à l'essai »).
+    enabled: (c) => onPiece(c) && c.hasTracks,
+    run: () => openExportAbleton(),
+  },
   print: {
     id: 'print',
     label: () => t('menu.print'),
@@ -288,7 +297,7 @@ export const FABTICE_MENU: MenuNode[] = [
     kind: 'submenu',
     id: 'export',
     label: 'menu.export',
-    children: [cmd('exportAudio'), { kind: 'submenu', id: 'ireal', label: 'menu.ireal', children: [cmd('irealFile'), cmd('irealOpen')] }, cmd('pdf'), cmd('exportLogic')],
+    children: [cmd('exportAudio'), { kind: 'submenu', id: 'ireal', label: 'menu.ireal', children: [cmd('irealFile'), cmd('irealOpen')] }, cmd('pdf'), cmd('exportLogic'), cmd('exportAbleton')],
   },
   cmd('print'),
   line,

@@ -73,6 +73,17 @@ en français simple.
 - Export iReal Pro : un morceau en 6/8 ou en 12/8 sort avec la bonne
   signature.
 
+### Projet Ableton Live (à l'essai)
+- **Exporter → Projet Ableton Live…** crée un dossier à ouvrir dans Ableton
+  Live : les pistes en audio, posées au début et jouées telles quelles, la
+  courbe de tempo du morceau, ses signatures, ses accords, ses sections et ses
+  changements de tonalité en repères. Un projet pour Live 11 et 12, un autre
+  pour Live 10 (qui demandera une fois où sont les pistes).
+- **À l'essai** : personne n'a encore pu ouvrir ces projets dans un vrai
+  Ableton Live ; ils ont été vérifiés avec des outils qui lisent le format de
+  Live. Le dossier contient aussi un fichier MIDI et les pistes, qui marchent
+  dans tous les cas, et un mode d'emploi.
+
 ## Version du 16 novembre 2026
 
 Depuis la version du 15 novembre (8 h 54).
