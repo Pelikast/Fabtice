@@ -87,8 +87,8 @@ test('the sound exported in the app lands on disk: a WAV mix, a ZIP of tracks, a
       const before = (await app.evaluate(() => globalThis.__downloads.length));
       await menuCommand(page, 'Exporter', 'Audio…');
       await page.waitForSelector('[data-testid="export-son"]');
-      await page.click(`.choix-export .choix:has-text("${what === 'mix' ? 'Le mélange' : 'Les pistes'}")`);
-      await page.click(`.formats-export button[data-format="${format}"]`);
+      await page.click(`[data-testid="export-son"] [data-choix="${what}"]`);
+      await page.click(`.exp-formats button[data-format="${format}"]`);
       await page.click('[data-testid="exporter-son"]');
       await page.waitForSelector('[data-testid="fichier-son"]', { timeout: 120000 });
       const url0 = page.url();

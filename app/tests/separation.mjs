@@ -223,8 +223,8 @@ try {
       {
         const { page } = await open('?demo&moteur=factice&separation=faite&export=ouvert', vp);
         await page.waitForSelector('[data-testid="export-son"]');
-        await page.click('.choix-export .choix:has-text("Les pistes")');
-        const fit = await fitsAboveTransport(page, '.export-son');
+        await page.click('[data-testid="export-son"] [data-choix="tracks"]');
+        const fit = await fitsAboveTransport(page, '.fenetre-export');
         check(`${tag}: export dialog fits the window`, fit.ok, fit.why);
         await page.screenshot({ path: path.join(out, `exporter-son-${tag}.png`) });
         await page.close();
@@ -357,8 +357,8 @@ try {
     check('mix: a WAV named after the piece, 48 kHz, the whole length', download.suggestedFilename() === 'Blues du dimanche – mélange.wav' && bytes.toString('ascii', 0, 4) === 'RIFF' && bytes.readUInt32LE(24) === 48000 && Math.abs(dataBytes / (ch * 2) - frames) <= 1, `${download.suggestedFilename()} ${dataBytes / (ch * 2)} frames vs ${frames}`);
     // The tracks, the loop only, at another tempo: one archive.
     await page.click('button:has-text("Exporter autre chose")');
-    await page.click('.choix-export .choix:has-text("Les pistes")');
-    await page.click('.choix-export .choix:has-text("La boucle")');
+    await page.click('[data-testid="export-son"] [data-choix="tracks"]');
+    await page.click('[data-testid="export-son"] [data-choix="loop"]');
     await page.evaluate(() => window.__fabtice.actions.setTempoRatio(0.5));
     await page.click('[data-testid="exporter-son"]');
     await page.waitForSelector('[data-testid="fichier-son"]', { timeout: 60000 });

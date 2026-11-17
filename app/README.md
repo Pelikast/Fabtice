@@ -33,7 +33,7 @@ le stockage.
 | `npm run test:separation-prototype` | après `build` : le port contre le prototype, dans Chromium sur le processeur : pour chaque outil, le code du prototype et celui de l'app sur la même entrée à 44,1 kHz avec la même session ; chaque partie doit coïncider à moins de −80 dB. Télécharge les trois outils (422 Mo) ; quelques minutes. `FABTICE_PROTO_TOOLS` pour en choisir, `FABTICE_PROTO_FP32=1` pour comparer aussi HTDemucs en poids 32 bits |
 | `npm run test:memory` | après `build`, au premier plan : la mémoire d'un morceau de cinq minutes stéréo en une piste puis en sept, avec le vrai moteur ; puis le jeu « Appliquer » de ces sept pistes à 0,7 (taille, budget de l'appareil, libération) (chiffres affichés) |
 | `npm run test:render` | après `build`, au premier plan : le vrai rendu (Rubber Band R3 dans un worker) dans Chromium : alignement d'un train de clics à plusieurs tempos et hauteurs, cinq minutes sans dérive, vitesse (secondes de calcul par minute stéréo, gain de plusieurs workers), annulation, binaire chargé au premier rendu seulement et licence servie ; puis « Appliquer » dans l'app avec le vrai moteur (progression réelle, rendu joué tel quel, retour à la préécoute, refus calme d'un appareil trop petit) à 1280 × 800 et 390 × 844. `FABTICE_RENDER_OUT` pour les captures, `FABTICE_RENDER_ONLY=renderer\|app`, `FABTICE_RENDER_QUICK=1` saute les cinq minutes |
-| `npm run test:export-audio` | après `build` : « Exporter le son » avec les vrais encodeurs MP3 et FLAC (WAV, MP3, FLAC relus et comparés, archive, boucle, annulation, encodeur qui ne se charge pas, export à une autre tonalité et un autre tempo par le rendu), vitesses, captures du dialogue |
+| `npm run test:export-audio` | après `build` : « Exporter » ▸ « Audio… » avec les vrais encodeurs MP3 et FLAC (WAV, MP3, FLAC relus et comparés ; Wave à chaque fréquence et quantification relu par un lecteur écrit dans le test et par ffprobe ; chaque débit MP3 de 96 à 320 ; pistes en un fichier ou en archive ; boucle, annulation, encodeur qui ne se charge pas, export à une autre tonalité et un autre tempo par le rendu), vitesses, la fenêtre dans les deux formes (réglages, case « Un fichier par piste », téléchargements relus) et ses captures (`FABTICE_EXPORT_OUT`) |
 | `npm run test:export-memory` | après `build`, au premier plan : la mémoire de l'export de sept pistes de cinq minutes (archive de WAV, de MP3, mélange en WAV, FLAC et MP3), chiffres affichés |
 | `npm run test:metronome` | après `build` (lot 4) : le panneau du métronome (volume, décompte, mesure et regroupement, temps forts et faibles, accélération), ce qui arrive au moteur factice (piste de clics, volume, plan, décompte au moment de Lecture), le palier et le décompte affichés, le panneau dans la fenêtre à 1280 × 800, 960 × 640 et 390 × 844, puis les réglages retrouvés après rechargement (profil persistant). `FABTICE_METRONOME_OUT` pour les captures |
 | `npm run test:markers` | après `build` (lot 4) : boucles gardées (garder, rappeler, renommer, ordonner, supprimer), sections (les lettres de la grille : listées, bouclées, ajoutées, renommées, supprimées, les mêmes dans la grille d'accords), la rangée « Repères » de la règle (clic), le clavier, le téléphone, puis tout retrouvé après rechargement (profil persistant). `FABTICE_MARKERS_OUT` pour les captures |
@@ -866,10 +866,10 @@ jamais la braise. Vérifié à 1280 × 800 et 390 × 844 (captures de `test:rend
 | Fichier | Rôle |
 |---|---|
 | `types.ts` | le contrat : `AudioEncoder.encode(PcmAudio, { onProgress, signal })` → `Blob` (lecture par blocs, jamais une copie Float32 entière), `ExportPlan` (format, plage, tonalité, tempo, formants, fichiers et leurs pistes avec leur gain, archive), `ExportError` (`cancelled`, `nothing`, `encoder-missing`, `memory`, `failed`) |
-| `plan.ts` | ce qu'on fabrique, pur et testé : **le mélange tel qu'on l'entend** (muet, solo et volumes compris) en un fichier, ou **les pistes séparément, chacune à son plein niveau** (muet, solo et volume ignorés : une piste séparée est une matière première ; on coche celles qu'on veut) en une archive ; le morceau entier ou la boucle ; noms de fichiers lisibles (« Blues du dimanche – Basse – boucle 2.2 à 4.3 (4e double) (+2 demi-tons, tempo 80 %).wav » ; pour une boucle de mesures entières « boucle 5–8 ») |
+| `plan.ts` | ce qu'on fabrique, pur et testé (`plan.test.ts`) : **le mélange tel qu'on l'entend** (muet, solo et volumes compris) en un fichier, ou **les pistes cochées** (muet et solo ignorés : une piste séparée est une matière première) : **un fichier par piste à son plein niveau, en une archive** (`separate` vrai, par défaut), ou **un seul fichier qui les mélange à leurs volumes** (`separate` faux ; une seule piste cochée = toujours un fichier) ; `ExportRequest` : les choix de la 1.0.0 (`waveRate`, `waveBits`, `mp3Kbps`, `separate`) peuvent manquer, leurs défauts s'appliquent ; le morceau entier ou la boucle ; noms de fichiers lisibles (« Blues du dimanche – Basse – boucle 2.2 à 4.3 (4e double) (+2 demi-tons, tempo 80 %).wav » ; pour une boucle de mesures entières « boucle 5–8 ») |
 | `run.ts` | rend chaque piste par le rendu hors ligne (ou reprend le rendu appliqué s'il correspond, ou copie la plage telle quelle à la tonalité et au tempo d'origine), mélange dans un seul accumulateur (une piste rendue à la fois en mémoire), baisse le tout uniformément si le mélange dépasse la pleine échelle (jamais d'écrêtage), encode, met en archive |
-| `encoders.ts`, `wav.ts` | le registre des encodeurs (`registerEncoder` ; WAV, MP3 et FLAC y sont inscrits) ; WAV 16 bits, écrit directement depuis les blocs 16 bits, le `Blob` construit par groupes de 4 Mo |
-| `encoders/` | MP3 et FLAC : `workerEncoder.ts` (côté page : un worker par fichier, les blocs 16 bits partent un à un, au plus trois en vol, annulation = `terminate()`), `encode.worker.ts` (côté worker : charge l'encodeur au premier fichier de son format, convertit un bloc en Float32, encode, renvoie les morceaux), `protocol.ts`, `settings.ts` (la qualité, une seule), `id3.ts` (titre), `mp3Info.ts` (trame « Info »), `assets.ts` (adresse du `.wasm` du MP3), `LICENSE-*.txt` |
+| `encoders.ts`, `wav.ts`, `resample.ts` | le registre des encodeurs (`registerEncoder` ; WAV, MP3 et FLAC y sont inscrits) ; WAV 16, 24 bits ou 32 bits flottant, à 44,1, 48, 88,2 ou 96 kHz, écrit par blocs (le `Blob` construit par groupes de 4 Mo) : au rythme de l'audio, les blocs 16 bits sont élargis tels quels (exact) ; à un autre rythme, `SincResampler` (sinus cardinal fenêtré de Kaiser, polyphasé, 128 points en descendant et 64 en montant, sans état d'un bloc à l'autre) convertit un bloc à la fois, jamais une copie Float32 du morceau |
+| `encoders/` | MP3 et FLAC : `workerEncoder.ts` (côté page : un worker par fichier, les blocs 16 bits partent un à un, au plus trois en vol, annulation = `terminate()`), `encode.worker.ts` (côté worker : charge l'encodeur au premier fichier de son format, convertit un bloc en Float32, encode, renvoie les morceaux), `protocol.ts`, `settings.ts` (débit MP3 par défaut 320, niveau FLAC), `id3.ts` (titre), `mp3Info.ts` (trame « Info »), `assets.ts` (adresse du `.wasm` du MP3), `LICENSE-*.txt` |
 | `zip.ts` | archive ZIP sans compression (l'audio ne se compresse guère), noms UTF-8, CRC lu par tranches (le fichier reste un `Blob`) |
 | `deliver.ts` | remise : un lien normal vers le fichier (`download`), comme pour iReal Pro ; le navigateur l'enregistre, l'app Mac en fait un vrai téléchargement (`desktop/src/downloads.js`) |
 
@@ -893,14 +893,14 @@ faute dans sa table d'exports (`./wasm/mp3.wasm` pointe vers un chemin qui
 n'existe pas) : on importe `wasm-media-encoders/wasm/mp3?url`, qui marche, et
 `assets.ts` le dit.
 
-*Qualité, une seule par format* (`encoders/settings.ts`) :
+*Qualité* (`encoders/settings.ts`, `model/audioExport.ts`) :
 
-- **MP3 : 256 kbit/s constant, stéréo conjointe (réglage par défaut de LAME pour
-  deux canaux), 48 kHz.** À ce débit le MP3 est transparent sur de la musique pour
-  presque tout le monde ; le débit **constant** parce qu'un MP3 à débit variable
+- **MP3 : débit constant au choix, 96, 128, 160, 192, 256 ou 320 kbit/s, 320 par
+  défaut (1.0.0 ; c'était 256 fixe), stéréo conjointe (réglage par défaut de LAME
+  pour deux canaux), 48 kHz.** Le débit **constant** parce qu'un MP3 à débit variable
   sans en-tête Xing affiche une durée fausse et se déplace mal dans beaucoup de
-  lecteurs (et cet encodeur n'en écrit aucun). 1,9 Mo par minute. Titre dans
-  l'étiquette ID3v2.3 (UTF-16, accents conservés).
+  lecteurs (et cet encodeur n'en écrit aucun). 2,4 Mo par minute à 320, 0,7 à 96.
+  Titre dans l'étiquette ID3v2.3 (UTF-16, accents conservés).
 - **Trame « Info » (`mp3Info.ts`)** : l'encodeur n'écrit pas l'en-tête de LAME ; sans
   lui un lecteur ne peut pas savoir qu'il y a 576 échantillons de silence devant
   (+ 529 de retard du décodeur) ni combien de remplissage à la fin : le fichier
@@ -911,6 +911,7 @@ n'existe pas) : on importe `wasm-media-encoders/wasm/mp3?url`, qui marche, et
   Chromium (`decodeAudioData`) et ffmpeg décodent **exactement** le nombre d'images
   du morceau, sans retard. Un lecteur qui ignore cette trame (rare) la prend pour une
   trame de silence et ajoute 23 ms.
+- **Wave (1.0.0) : 44,1, 48 (défaut), 88,2 ou 96 kHz ; 16 bits (défaut), 24 bits ou 32 bits flottant.** Les pistes de Fabtice sont en 16 bits à 48 kHz : 24 bits et 32 bits flottant à 48 kHz sont les mêmes codes élargis (exact, mesuré), un autre rythme est converti par `resample.ts` (mesuré : une sinusoïde reste à sa fréquence, erreur sous -90 dB ; plate à 0,05 dB près jusqu'à 20 kHz en descendant à 44,1 ; ce qui dépasse la nouvelle fréquence de Nyquist ne se replie pas : 23 kHz, 22,5 kHz et 23,9 kHz reviennent à -92 dB ou moins ; en montant, l'image à 28 kHz d'un 20 kHz est sous -80 dB ; 0,7 s de calcul par minute de son mono à 44,1). Le quantificateur arrondit au code le plus proche et plafonne à la pleine échelle, sans bruit ajouté. En-tête de 44 octets (16 et 24 bits, format 1) ou de 58 (32 bits flottant : format 3, bloc `fact`). Au-delà de 4 Go : refus calme (`memory`). La fenêtre dit « Fabtice travaille en 48 kHz : une fréquence plus haute n'ajoute pas de qualité. » au-dessus de 48 kHz.
 - **FLAC : 16 bits, 48 kHz, niveau de compression 5** (celui de libFLAC par défaut ;
   l'audio est le même à tous les niveaux, seule la taille change). L'en-tête
   STREAMINFO porte la longueur exacte dès le début, puis ses totaux et le MD5 des
@@ -938,6 +939,33 @@ tonalité et un autre tempo (+3 demi-tons, tempo 75 %) passe par le rendu hors l
 demande par piste écoutée, avec la plage de la boucle s'il y en a une) et dure exactement
 `round(images / tempo)`. Captures du dialogue à 1280 × 800 et 390 × 844 (choix des
 formats, erreur d'encodeur, fichier prêt, en cours).
+
+*La fenêtre « Audio… » (étape 3 de la 1.0.0, C15.1)* —
+`components/ExportAudioDialog.tsx`, styles `styles/export.css`, ouverte par la
+commande `exportAudio` (inchangée). Deux colonnes sur ordinateur : à gauche le
+format (Wave, Flac, MP3, dans cet ordre) et ses réglages (Wave : fréquence dans
+une liste, quantification en trois boutons ; MP3 : débit constant dans une liste,
+320 « meilleure qualité » ; Flac : une ligne « sans perte »), puis la durée (le
+morceau entier, ou la boucle s'il y en a une, avec son texte « mesures 5–8 ») ;
+à droite quoi exporter (« Le mix complet » ou « Des pistes »), la liste des
+pistes à cocher (grisée tant que le mix est choisi ; « Tout cocher / Tout
+décocher »), la case « Un fichier par piste » (grisée pour le mix et pour une
+seule piste, avec sa phrase). Au pied, deux lignes : ce qui sera fabriqué (« Un
+fichier : … », « 6 fichiers réunis dans … .zip » ou « Rien à exporter… », lues
+dans `planAudioExport` à chaque changement) et la tonalité et le tempo choisis ;
+le bouton « Exporter » (à l'encre) est grisé quand il n'y a rien à exporter. Sur
+téléphone, une feuille posée en bas (94 % de la hauteur au plus), une colonne,
+cibles de 44 px et plus, le bouton collé au pied. Choix retenus avec le morceau
+(`ExportPreferences` : `what`, `range`, `format` comme avant, et `waveRate`,
+`waveBits`, `mp3Kbps`, `separate` ajoutés **sans changer le numéro de version du
+document (6)** : `storage/documentFormat.ts#readExportPrefs` lit chaque champ à
+part, un document plus ancien prend les défauts, un choix illisible se remet
+seul ; testé sur les trois documents réels de la version publiée,
+`storage/documentVersion6.test.ts`). Les pistes cochées ne sont **pas** retenues
+(toutes cochées à chaque ouverture). Tests : `plan.test.ts`, `wav.test.ts`,
+`resample.test.ts`, `run.test.ts`, `encoders/encoders.test.ts`,
+`store/lot3.test.ts`, et `test:export-audio`. Captures : `npm run captures`
+(`export-audio-*`).
 
 *Vitesse* (`test:export-audio`, Chromium sans carte graphique, **cette machine de
 développement, pas le Mac du propriétaire**, par minute d'audio stéréo) : WAV

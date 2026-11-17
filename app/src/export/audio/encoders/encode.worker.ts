@@ -7,7 +7,7 @@
 
 import { id3Title } from './id3';
 import { frameBytes, mp3InfoFrame } from './mp3Info';
-import { FLAC_LEVEL, MP3_BITRATE } from './settings';
+import { FLAC_LEVEL } from './settings';
 import type { FromWorker, StartMessage, ToWorker } from './protocol';
 
 const post = (m: FromWorker, transfer?: Transferable[]) => (self as unknown as Worker).postMessage(m, transfer ?? []);
@@ -35,10 +35,10 @@ async function openMp3(msg: StartMessage): Promise<Sink> {
   // The wasm file is the app's own: fetched from where the app is served, compiled here.
   const wasm = await WebAssembly.compileStreaming(fetch(msg.mp3WasmUrl));
   const encoder = await createEncoder('audio/mpeg', wasm);
-  encoder.configure({ channels: msg.channels, sampleRate: msg.sampleRate, bitrate: MP3_BITRATE, outputSampleRate: msg.sampleRate as 48000 });
+  encoder.configure({ channels: msg.channels, sampleRate: msg.sampleRate, bitrate: msg.kbps as Parameters<typeof encoder.configure>[0]['bitrate'], outputSampleRate: msg.sampleRate as 48000 });
   send(id3Title(msg.title));
   // The Info frame comes before the audio and says how many frames there are: a blank frame goes first, filled in at the end.
-  const size = frameBytes(MP3_BITRATE, msg.sampleRate);
+  const size = frameBytes(msg.kbps, msg.sampleRate);
   const infoPart = piecesSent;
   send(new Uint8Array(size));
   let audioBytes = 0;
@@ -50,7 +50,7 @@ async function openMp3(msg: StartMessage): Promise<Sink> {
     block: (channels) => audio(encoder.encode(channels)),
     finish: () => {
       audio(encoder.finalize());
-      const info = mp3InfoFrame({ kbps: MP3_BITRATE, sampleRate: msg.sampleRate, channels: msg.channels, audioFrames: audioBytes / size, samples: msg.frames });
+      const info = mp3InfoFrame({ kbps: msg.kbps, sampleRate: msg.sampleRate, channels: msg.channels, audioFrames: audioBytes / size, samples: msg.frames });
       return { part: infoPart, bytes: info };
     },
     free: () => undefined,

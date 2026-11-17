@@ -12,6 +12,7 @@ import { MockEngine } from '../audio/MockEngine';
 import { pcmFromChannels, readPcm } from '../audio/pcm';
 import { clearAudio, getAudio, registryBytes } from '../audio/registry';
 import { crc32, planAudioExport, runAudioExport, ExportError, zipStore } from '../export/audio';
+import { defaultExportPreferences } from '../model/audioExport';
 import { PROJECT_DOCUMENT_VERSION } from '../model/document';
 import { emptySeparation } from '../model/separation';
 import { applyRender, cancelRender, selectApplyState, startRenderWatch } from '../render/controller';
@@ -77,7 +78,7 @@ describe('document version 3', () => {
     const doc = readDocument(JSON.parse(JSON.stringify({ ...v2, version: 2 })))!;
     expect(doc.version).toBe(PROJECT_DOCUMENT_VERSION);
     expect(doc.separation).toEqual(emptySeparation());
-    expect(doc.exportPrefs).toEqual({ what: 'mix', range: 'whole', format: 'wav' });
+    expect(doc.exportPrefs).toEqual(defaultExportPreferences());
   });
 
   it('reads a separated piece exactly, and refuses one whose sets are mixed up', async () => {
@@ -92,7 +93,19 @@ describe('document version 3', () => {
     const lostStem = { ...doc, tracks: doc.tracks.map((tr) => ({ ...tr, stem: undefined })) };
     expect(() => readDocument(JSON.parse(JSON.stringify(lostStem)))).toThrow();
     // Unreadable export choices only reset the dialog.
-    expect(readDocument(JSON.parse(JSON.stringify({ ...doc, exportPrefs: { what: 'all', format: 'ogg' } })))!.exportPrefs).toEqual({ what: 'mix', range: 'whole', format: 'wav' });
+    expect(readDocument(JSON.parse(JSON.stringify({ ...doc, exportPrefs: { what: 'all', format: 'ogg' } })))!.exportPrefs).toEqual(defaultExportPreferences());
+  });
+
+  it('reads the choices of « Audio… » field by field: an older document has none (their defaults), an odd value falls back alone', () => {
+    const doc = toProjectDocument(appStore.getState()) ?? sampleDocument();
+    const read = (prefs: unknown) => readDocument(JSON.parse(JSON.stringify({ ...doc, exportPrefs: prefs })))!.exportPrefs;
+    // The three fields of the lot 3 document, nothing else: it opens with the Wave, MP3 and file choices at their defaults.
+    expect(read({ what: 'tracks', range: 'loop', format: 'flac' })).toEqual({ ...defaultExportPreferences(), what: 'tracks', range: 'loop', format: 'flac' });
+    // The new choices are kept as written...
+    const mine = { what: 'tracks', range: 'whole', format: 'mp3', waveRate: 96000, waveBits: 32, mp3Kbps: 128, separate: false };
+    expect(read(mine)).toEqual(mine);
+    // ...and an unreadable one only resets itself.
+    expect(read({ ...mine, waveRate: 12345, waveBits: 20, mp3Kbps: 999, separate: 'oui' })).toEqual({ ...mine, waveRate: 48000, waveBits: 16, mp3Kbps: 320, separate: true });
   });
 
   it('the autosave hears the separation and the export choices, not the run states', () => {

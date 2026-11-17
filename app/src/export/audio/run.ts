@@ -1,15 +1,18 @@
 // Makes the files of an export plan: render each track with the offline
 // renderer (or reuse the applied render when it matches), mix, encode, pack.
 //
-// Memory: a mix is summed track by track into one Float32 accumulator of the
-// output's length, each rendered track let go once added; a peak above full
-// scale lowers the whole file evenly (never a clipped sample). A track
-// exported on its own is encoded straight from its rendered 16-bit samples.
+// Memory: a mix (the mix as heard, or the ticked tracks in one file) is summed
+// track by track into one Float32 accumulator of the output's length, each
+// rendered track let go once added; a peak above full scale lowers the whole
+// file evenly (never a clipped sample). A track exported on its own is encoded
+// straight from its rendered 16-bit samples. The sampling rate and the
+// quantization of a Wave file are the encoder's (`wav.ts`, `resample.ts`): it
+// converts a block at a time.
 
 import { CHUNK, PcmWriter, readPcm, type PcmAudio } from '../../audio/pcm';
 import type { OfflineRenderer } from '../../render/types';
 import { getEncoder } from './encoders';
-import { ExportError, type AudioEncoder, type ExportedFile, type ExportFileSpec, type ExportPlan } from './types';
+import { DEFAULT_OUTPUT, ExportError, type AudioEncoder, type ExportedFile, type ExportFileSpec, type ExportPlan } from './types';
 import { zipStore } from './zip';
 
 export interface ExportDeps {
@@ -128,13 +131,21 @@ export async function runAudioExport(plan: ExportPlan, deps: ExportDeps): Promis
   const encoder = (deps.encoderFor ?? getEncoder)(plan.format);
   if (!encoder) throw new ExportError('encoder-missing', plan.format);
   const total = plan.files.length;
+  const output = plan.output ?? DEFAULT_OUTPUT;
   const report = (f: number) => deps.onProgress?.(Math.min(1, Math.max(0, f)));
   const out: { name: string; blob: Blob }[] = [];
   for (let i = 0; i < total; i++) {
     if (deps.signal?.aborted) throw new ExportError('cancelled');
     const file = plan.files[i]!;
     const audio = await fileAudio(plan, file, deps, (f) => report((i + 0.85 * f) / total));
-    const blob = await encoder.encode(audio, { signal: deps.signal, title: file.title, onProgress: (f) => report((i + 0.85 + 0.15 * f) / total) });
+    const blob = await encoder.encode(audio, {
+      signal: deps.signal,
+      title: file.title,
+      sampleRate: output.sampleRate ?? undefined,
+      bits: output.bits,
+      kbps: output.kbps,
+      onProgress: (f) => report((i + 0.85 + 0.15 * f) / total),
+    });
     out.push({ name: file.name, blob });
   }
   if (plan.archiveName) {

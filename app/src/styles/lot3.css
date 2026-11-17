@@ -162,58 +162,6 @@
 .attente { width: min(440px, 100%); }
 .attente h2 { font-size: 26px; }
 
-/* « Exporter le son ». */
-.export-son { width: min(560px, 100%); }
-.export-son h3 { margin-top: 18px; }
-.choix-export { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.choix-export .choix {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 3px;
-  min-height: 44px;
-  padding: 9px 12px;
-  border: 1px solid var(--trait);
-  border-radius: var(--rayon);
-  background: var(--papier);
-  text-align: left;
-  font-weight: 600;
-  transition: background var(--vite) var(--courbe), border-color var(--vite) var(--courbe);
-}
-.choix-export .choix small { font-size: 12.5px; font-weight: 400; color: var(--encre-douce); line-height: 1.35; }
-.choix-export .choix:hover:not(:disabled) { border-color: var(--encre-pale); }
-.choix-export .choix[aria-checked="true"] { background: #fff; border-color: var(--encre); box-shadow: inset 0 0 0 1px var(--encre); }
-.choix-export .choix:disabled { color: var(--encre-douce); cursor: default; }
-.pistes-export { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-.formats-export { display: flex; gap: 8px; }
-.formats-export button {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-width: 72px;
-  min-height: 44px;
-  padding: 4px 12px;
-  border: 1px solid var(--trait);
-  border-radius: var(--rayon);
-  background: var(--papier);
-  font-weight: 600;
-  letter-spacing: 0.04em;
-}
-.formats-export button small { font-size: 11px; font-weight: 400; font-style: italic; letter-spacing: 0; color: var(--encre-douce); }
-.formats-export button[aria-checked="true"] { background: var(--encre); border-color: var(--encre); color: var(--papier-clair); }
-.formats-export button:disabled { color: var(--encre-douce); cursor: default; }
-.accueil .export-resume { margin: 16px 0 0; font-size: 13.5px; color: var(--encre-douce); }
-.fichier-pret {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  text-decoration: none;
-}
-
 @media (max-width: 760px) {
   .pistes-pied { padding: 0 2px; }
   .separer { padding: 0 6px; font-size: 12.5px; }
@@ -222,7 +170,6 @@
   .panneau-separation { position: fixed; top: 50px; left: 10px; right: 10px; width: auto; max-width: none; }
   .appliquer, .applique { min-width: 0; max-width: 92px; flex: 0 1 auto; padding: 0 4px; font-size: 11px; }
   .applique { font-size: 11px; }
-  .choix-export { grid-template-columns: 1fr; }
   .stems-choix { margin-top: 18px; }
 }
 

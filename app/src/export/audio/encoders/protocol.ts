@@ -19,6 +19,8 @@ export interface StartMessage {
   channels: 1 | 2;
   /** Frames to encode (FLAC writes the length in its header from the start). */
   frames: number;
+  /** mp3 only: the constant bit rate, in kbit/s. */
+  kbps: number;
   /** Title of the piece for the file's tag, when there is one. */
   title: string;
   /** Where the wasm file of the mp3 encoder is served (the app's own, never the network). */
