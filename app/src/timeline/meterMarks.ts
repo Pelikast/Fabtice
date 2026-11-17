@@ -83,3 +83,11 @@ export function describeMeterMarks(set: MeterMarkSet): string {
 export function numberLeftAfter(mark: MeterMark): number {
   return mark.x + mark.width + SIGNATURE_GAP_PX;
 }
+
+/** Space kept after a bar number that follows a signature, before the next label or bar line. */
+const NUMBER_AFTER_PX = 4;
+
+/** Whether the bar's number fits after its signature: it ends `NUMBER_AFTER_PX` before `room` (the next label's start). */
+export function numberFitsAfter(mark: MeterMark, numberWidth: number, room: number): boolean {
+  return room - numberLeftAfter(mark) >= numberWidth + NUMBER_AFTER_PX;
+}

@@ -73,6 +73,8 @@
   /* Touch targets of 40 px (DESIGN.md). */
   .editeur .puce, .editeur-actions .bouton-cadre, .editeur-accords button, .editeur-plus, .editeur-basse select { min-height: 40px; }
   .editeur-section-champs .lien-encre { min-height: 40px; }
+  .editeur-temps .duo button { min-height: 40px; }
+  .editeur-temps.longue .duo { grid-template-columns: repeat(auto-fill, minmax(40px, 1fr)); }
   .cle-editeur { left: 0; width: min(320px, calc(100vw - 24px)); }
   .accord-case { min-height: 40px; margin: 0 -3px; padding: 0 3px; }
   .case[data-rangs="2"] .accord-case { min-height: 0; }

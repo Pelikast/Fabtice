@@ -1144,6 +1144,10 @@ export const fr = {
   'meterDialog.remove': 'Retirer ce changement de signature',
   'meterDialog.cancel': 'Annuler',
   'meterDialog.confirm': 'Changer la signature',
+
+  // Métronome : les accents de chaque signature du morceau (stage 4)
+  'metronome.edited': 'Réglage des temps pour la signature',
+  'metronome.editedHint': 'Ce morceau change de signature : choisissez celle dont vous réglez le groupement et les temps forts. Le clic suit le choix de chacune.',
 } as const;
 
 export type Messages = { readonly [K in keyof typeof fr]: string };

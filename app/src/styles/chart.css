@@ -264,6 +264,12 @@
 .editeur-temps { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 10px; }
 .editeur-temps .duo button { min-width: 34px; min-height: 30px; padding: 2px 8px; font-size: 14px; }
 .editeur-temps .duo button:disabled { color: var(--encre-pale); cursor: default; }
+/* A long bar (13/8, 32/16, 64/32…): the beats wrap in rows under their label, each its own small button. */
+.editeur-temps.longue { flex-direction: column; align-items: stretch; gap: 6px; }
+.editeur-temps.longue .duo { display: grid; grid-template-columns: repeat(auto-fill, minmax(34px, 1fr)); gap: 3px; border: 0; border-radius: 0; overflow: visible; }
+.editeur-temps.longue .duo button { min-width: 0; border: 1px solid var(--trait-fin); border-radius: var(--rayon); }
+.editeur-temps.longue .duo button + button { border-left: 1px solid var(--trait-fin); }
+.editeur-temps.longue .duo button[aria-pressed="true"] { border-color: var(--encre); }
 .editeur-accords button { min-width: 34px; min-height: 30px; padding: 2px 8px; font-size: 14px; }
 .editeur-apercu {
   margin-left: auto;

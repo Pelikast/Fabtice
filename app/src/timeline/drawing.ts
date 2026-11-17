@@ -18,7 +18,7 @@ import {
 } from './geometry';
 import { columnPeaks, type PeakPyramid } from './peaks';
 import { RULER_ROW_HEIGHT } from './layout';
-import { layoutMeterMarks, numberLeftAfter, SIGNATURE_FONT, type MeterMarkSet } from './meterMarks';
+import { layoutMeterMarks, numberFitsAfter, numberLeftAfter, SIGNATURE_FONT, type MeterMarkSet } from './meterMarks';
 import type { MeterChangeView } from '../store/meterActions';
 
 export interface Colors {
@@ -449,7 +449,7 @@ function drawBarsRow(ctx: CanvasRenderingContext2D, p: RulerParams): void {
       const m = marks.items[mark]!;
       tx = numberLeftAfter(m);
       const room = (barStartTime(map, bar + labelStride) - t0) * pps;
-      if (room - tx < width + 8) continue;
+      if (!numberFitsAfter(m, width, room)) continue;
     } else if (tx < 4) {
       // The bar started off to the left: its number stays in view while the bar does.
       const end = (barStartTime(map, bar + labelStride) - t0) * pps;

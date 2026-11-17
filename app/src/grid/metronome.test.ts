@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { defaultAcceleration } from '../model/metronome';
 import { withMeter } from './corrections';
+import { withMeterFrom } from './meters';
 import {
   accelerationFactor,
   accelerationStatus,
@@ -184,5 +185,18 @@ describe('meter correction (withMeter)', () => {
     expect(beatToTime(back, 4)).toBeCloseTo(beatToTime(map, 4), 9);
     expect(withMeter(map, m(4, 4))).toBe(map);
     expect(() => withMeter(map, m(4, 3))).toThrow();
+  });
+});
+
+describe('a piece with several signatures (C13)', () => {
+  // 4/4 for two bars (8 beats), then 7/8 from bar 3 (3.5 quarters each): the click follows each bar's own pattern.
+  it('clicks the accents of the signature of each bar', () => {
+    const map = withMeterFrom(constantTempoMap({ bpm: 120, firstDownbeat: 0, meter: m(4, 4), origin: 'manual' }), 2, m(7, 8));
+    const levels = ['accent', 'silent', 'soft', 'accent', 'normal', 'normal', 'soft'] as const;
+    const track = metronomeClickTrack(map, 0, 8 * 0.5 + 7 * 0.25 - 0.01, { '7/8': { grouping: [3, 4], levels: [...levels] } });
+    expect([...track.accents.slice(0, 8)]).toEqual([CLICK_ACCENT, CLICK_NORMAL, CLICK_NORMAL, CLICK_NORMAL, CLICK_ACCENT, CLICK_NORMAL, CLICK_NORMAL, CLICK_NORMAL]);
+    // the 7/8 bar: its second beat is silent (no click), the others follow the user's levels
+    expect([...track.accents.slice(8)]).toEqual([CLICK_ACCENT, CLICK_SOFT, CLICK_ACCENT, CLICK_NORMAL, CLICK_NORMAL, CLICK_SOFT]);
+    expect(track.times.length).toBe(14); // 8 + 7 beats minus the silent one
   });
 });
