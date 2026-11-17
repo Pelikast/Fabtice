@@ -6,8 +6,9 @@
 // « Ce qu'on imprime » (C14) is chosen in the dialog and read here: the full
 // chart is the lines of the bars as they are; one part of the structure is the
 // lines of ITS bars (bar numbers kept), named under the title; the simplified
-// chart will be its own lines handed to the same sheets (`PrintChart.simplified`
-// carries it; until its renderer exists it prints the full chart).
+// chart is its own rows handed to the same sheets (`PrintChart.rows`: a heading
+// over the first line of each block, repeat signs, « ×2 », « % », the final double
+// bar), with « Forme : Intro, Thème 1 (AABC)… » written in full under the title.
 
 import { useMemo } from 'react';
 import { nominalBpm } from '../grid/tempoMap';
@@ -25,6 +26,7 @@ import { useApp, type ChartDisplay } from '../store/store';
 import { structureInForce } from '../store/structureSelectors';
 import type { SimplifiedChart } from '../structure';
 import { chartLines, type ChartBar, type ChartLine } from './layout';
+import { formItems, formLineText, printRows, type PrintRow } from './simplifiedLayout';
 import type { PrintHeader } from './printLayout';
 import { barsOfRange, partBars, type PartBars } from './structureDisplay';
 
@@ -39,12 +41,11 @@ export interface PrintChart {
   form: string | null;
   /** « Thème 1 · mesures 3–10 » when one part is printed, else null. */
   partLabel: string | null;
-  /**
-   * The simplified chart, when « Grille complète simplifiée » is what is printed and there is one. Its renderer
-   * comes later: until then `lines` stay the full chart's and this is only carried along.
-   */
+  /** The simplified chart, when « Grille complète simplifiée » is what is printed and there is one. */
   simplified: SimplifiedChart | null;
-  /** The lines of bars to print. */
+  /** The rows of the simplified chart (headings, written bars): set exactly when `simplified` is, then `lines` is empty. */
+  rows: PrintRow[] | null;
+  /** The lines of bars to print (the full chart, or one part). */
   lines: ChartLine[];
   /** The main key's context (the title row). */
   ctx: DisplayContext;
@@ -93,16 +94,19 @@ export function usePrintChart(instrument: Instrument, what: ChartDisplay = { kin
     const part = partId === null ? null : (structure.parts.find((p) => p.id === partId) ?? null);
     const last = bars[bars.length - 1];
     const range = part ? partBars(map, part, duration, last ? last.bar : 0) : null;
-    const lines = printLines(bars, range);
+    const rows = wantSimplified && simplified ? printRows(simplified) : null;
+    const lines = rows ? [] : printLines(bars, range);
     const caption = part && range ? partCaption(partName(part, t), barsOfRange(bars, range)) : null;
     return {
       title,
       key: ctx.key ? keyLabel(ctx.key, minor) : null,
       meter,
       bpm,
-      form: structure.form || null,
+      // « Forme : AABC », or, for the simplified chart, the form in full: « Intro, Thème 1 (AABC), Solo (Piano) (AABC) ».
+      form: rows && simplified ? formLineText(formItems(simplified.form, structure.parts, (p) => partName(p, t))) || null : structure.form || null,
       partLabel: caption,
-      simplified: wantSimplified ? simplified : null,
+      simplified: rows ? simplified : null,
+      rows,
       lines,
       ctx,
       contexts,
@@ -145,3 +149,6 @@ export function headerForm(chart: Pick<PrintChart, 'form'>, header: PrintHeader)
 export function headerPart(chart: Pick<PrintChart, 'partLabel'>): string | null {
   return chart.partLabel;
 }
+
+/** How many rows the sheets are made of: the lines of the chart, or the rows of the simplified chart. */
+export const printRowCount = (chart: Pick<PrintChart, 'lines' | 'rows'>): number => (chart.rows ? chart.rows.length : chart.lines.length);

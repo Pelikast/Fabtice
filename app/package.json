@@ -46,6 +46,7 @@
     "test:meter": "node tests/meter.mjs",
     "test:structure": "node tests/structure.mjs",
     "test:harmony": "node tests/harmony.mjs",
+    "test:simplified": "node tests/simplified.mjs",
     "test:new-project": "node tests/new-project.mjs",
     "captures": "vite build && node tests/captures.mjs",
     "essais": "vite build && node tests/essais.mjs"

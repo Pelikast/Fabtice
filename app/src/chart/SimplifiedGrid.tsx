@@ -175,7 +175,7 @@ function WrittenCell({ bar, ctx, loop, opens, closes, times, final, passes }: { 
   // The loop veil: the bar is veiled when one of the played bars it stands for is inside the loop.
   const inside = loop ? playedInside(bar.played, loop.first, loop.last) : null;
   const looped = loop && inside !== null ? loopedPart(loop, inside) : null;
-  const cls = ['case', 'ecrite-case', bar.signature ? 'signee' : '', bar.keyChange ? 'modulee' : '', opens ? 'rep-ouvre' : '', closes ? 'rep-ferme' : '', final && !closes ? 'finale-ecrite' : '', looped ? (looped.from === 0 && looped.to === 1 ? 'dans-boucle' : 'dans-boucle partielle') : '']
+  const cls = ['case', 'ecrite-case', bar.signature ? 'signee' : '', bar.keyChange ? 'modulee' : '', opens ? 'rep-ouvre' : '', closes ? 'rep-clot' : '', final && !closes ? 'finale-ecrite' : '', looped ? (looped.from === 0 && looped.to === 1 ? 'dans-boucle' : 'dans-boucle partielle') : '']
     .filter(Boolean)
     .join(' ');
   const key = bar.keyChange ? keyLabel(ctx.key ?? bar.keyChange, ctx.minor) : '';

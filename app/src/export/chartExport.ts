@@ -17,6 +17,9 @@ import { isTempoKnown } from '../store/derived';
 import type { AppState } from '../store/store';
 import { keyChangesInForce } from '../store/keySelectors';
 import { sectionsInForce } from '../store/structureSelectors';
+import { selectChartDisplay } from '../store/chartDisplay';
+import { selectSimplifiedChart } from '../store/simplifiedSelectors';
+import { buildSimplifiedExportChart } from './simplifiedExport';
 
 export interface ExportChord {
   /** 0-based beat in the bar where the chord starts. */
@@ -52,6 +55,12 @@ export interface ExportBar {
   key?: Key | null;
   /** C10: a later key passage starts at this bar: its key (transposed), written as a comment « Ton : La♭ »; null or absent elsewhere. */
   keyChange?: Key | null;
+  /** C14, the simplified chart: a repeat sign opens before this bar (`{`). */
+  repeatStart?: boolean;
+  /** C14: a repeat sign closes after this bar (`}`). */
+  repeatEnd?: boolean;
+  /** C14: a short text written as a comment on the bar (« A2 », « 3x »). */
+  note?: string;
 }
 
 export interface ExportChart {
@@ -66,8 +75,8 @@ export interface ExportChart {
   timeSignature: Meter;
   /** Tempo of the recording, rounded (null while unknown); the transport's tempo change is not applied. */
   tempo: number | null;
-  /** No repeat signs are detected or entered in lot 2: the chart is written out bar by bar. */
-  repeats: 'none';
+  /** `none`: the chart is written out bar by bar (the full chart); `written`: the bars carry repeat signs (the simplified chart, C14). */
+  repeats: 'none' | 'written';
   bars: ExportBar[];
 }
 
@@ -129,6 +138,23 @@ export function chartForExport(s: AppState): ExportChart | null {
   return buildExportChart({
     title: s.project.title,
     bars,
+    key: keyInForce(s).key,
+    semitones: s.playback.semitones,
+    tempo: isTempoKnown(s.tempoMap) ? nominalBpm(s.tempoMap, s.project.duration) : null,
+  });
+}
+
+/**
+ * The chart the user is looking at, ready for export (C14): the simplified chart with its repeats when the display is
+ * « Grille complète simplifiée » (and there is one to show), else the full chart.
+ */
+export function chartForExportShown(s: AppState): ExportChart | null {
+  if (!s.project) return null;
+  const simplified = selectChartDisplay(s).kind === 'simplified' ? selectSimplifiedChart(s) : null;
+  if (!simplified) return chartForExport(s);
+  return buildSimplifiedExportChart({
+    title: s.project.title,
+    chart: simplified,
     key: keyInForce(s).key,
     semitones: s.playback.semitones,
     tempo: isTempoKnown(s.tempoMap) ? nominalBpm(s.tempoMap, s.project.duration) : null,

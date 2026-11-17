@@ -97,7 +97,7 @@
     linear-gradient(var(--encre), var(--encre)) right 7px top 0 / 1.5px 100% no-repeat;
 }
 .ecrite-case.rep-ouvre { --pg: 30px; }
-.ecrite-case.rep-ferme { --pd: 22px; }
+.ecrite-case.rep-clot { --pd: 22px; }
 .ecrite-case.finale-ecrite { --pd: 16px; }
 .ecrite-case.rep-ouvre.signee { --pg: 44px; }
 /* « ×2 », written after the closing repeat sign, at the top of the last bar of the passage. */
@@ -117,7 +117,7 @@
   .bloc { margin-top: 16px; }
   .bloc-lettre { font-size: 13px; line-height: 17px; }
   .ecrite-case.rep-ouvre { --pg: 20px; }
-  .ecrite-case.rep-ferme { --pd: 16px; }
+  .ecrite-case.rep-clot { --pd: 16px; }
   .ecrite-case.finale-ecrite { --pd: 12px; }
   .ecrite-case.rep-ouvre.signee { --pg: 34px; }
   .ecrite-case .rep { width: 15px; }

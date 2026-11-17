@@ -15,7 +15,7 @@
 // `MENU_COMMANDS` there).
 
 import { useSyncExternalStore } from 'react';
-import { chartForExport, exportToIRealPro } from '../export';
+import { chartForExportShown, exportToIRealPro } from '../export';
 import { browserHost, openIRealLink } from '../export/irealOpen';
 import { closeIRealNotice, showIRealNotice } from './irealNotice';
 import { t, type MessageKey } from '../i18n';
@@ -111,7 +111,8 @@ const withChords = (c: CommandContext) => onPiece(c) && c.hasChords;
 
 /** The page of the chart for iReal Pro, as a file (`export/ireal.ts`), or null without chords. */
 function irealFile(): { blob: Blob; name: string; url: string } | null {
-  const chart = chartForExport(appStore.getState());
+  // The chart on screen: the simplified chart with its repeats when that is what is shown.
+  const chart = chartForExportShown(appStore.getState());
   if (!chart) return null;
   const out = exportToIRealPro(chart);
   return { blob: new Blob([out.html], { type: 'text/html;charset=utf-8' }), name: out.fileName, url: out.url };

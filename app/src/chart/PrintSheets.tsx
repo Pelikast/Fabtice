@@ -20,7 +20,10 @@ import type { Instrument } from '../model/harmony';
 import { fitChart, type BarFit, type ChartBar as FitBar, type FitChord } from './fit';
 import type { ChartBar, ChartLine } from './layout';
 import { headerForm, headerInfo, headerPart, headerTitle, type PrintChart } from './printChart';
-import { printBarGeometry, sheetNumberShown, type PrintHeader, type PrintLayout } from './printLayout';
+import { headingLetterText, lastWrittenIndex, type PrintRow } from './simplifiedLayout';
+import { PART_TYPE_KEYS } from '../model/structureLabels';
+import type { WrittenBar } from '../structure';
+import { formRowsFor, printBarGeometry, sheetNumberShown, type PrintHeader, type PrintLayout } from './printLayout';
 
 /**
  * What the style sheet draws from, as CSS variables: the sheet and its margins in mm, and everything that depends on
@@ -68,6 +71,7 @@ export const PrintSheets = memo(function PrintSheets({ chart, layout, header, in
   }, [layout]);
   const total = layout.sheets.length;
   const last = chart.lines[chart.lines.length - 1]?.bars.at(-1)?.bar;
+  const lastWritten = chart.simplified ? lastWrittenIndex(chart.simplified) : -1;
   const title = headerTitle(chart, header);
   const info = headerInfo(chart, header, instrument);
   const part = headerPart(chart);
@@ -83,12 +87,16 @@ export const PrintSheets = memo(function PrintSheets({ chart, layout, header, in
                   {title !== null && <h1 className="pp-titre">{title}</h1>}
                   {part !== null && <p className="pp-partie">{part}</p>}
                   {info.length > 0 && <p className="pp-infos">{withAccidentals(info.join(' · '))}</p>}
-                  {form !== null && <p className="pp-forme">{form}</p>}
+                  {form !== null && (
+                    <p className="pp-forme" {...(chart.rows ? { 'data-lignes': '', style: { '--lignes': formRowsFor(form) } as CSSProperties } : {})}>
+                      {form}
+                    </p>
+                  )}
                 </div>
               )}
-              {chart.lines.slice(sheet.first, sheet.first + sheet.count).map((line) => (
-                <PrintLine key={line.bars[0]!.bar} line={line} chart={chart} last={last} />
-              ))}
+              {chart.rows
+                ? chart.rows.slice(sheet.first, sheet.first + sheet.count).map((row, k) => <PrintWrittenRow key={sheet.first + k} row={row} chart={chart} last={lastWritten} />)
+                : chart.lines.slice(sheet.first, sheet.first + sheet.count).map((line) => <PrintLine key={line.bars[0]!.bar} line={line} chart={chart} last={last} />)}
             </div>
             {sheetNumberShown(total) && (
               <span className="pp-numero-page" data-testid="apercu-numero">
@@ -151,6 +159,95 @@ function PrintBar({ bar, chart, final }: { bar: ChartBar; chart: PrintChart; fin
   );
 }
 
+// ---------------------------------------------------------------- the simplified chart (C14)
+
+/** One row of the simplified chart: its block's heading when it is the block's first, then up to four written bars. */
+function PrintWrittenRow({ row, chart, last }: { row: PrintRow; chart: PrintChart; last: number }) {
+  const { heading, times, line } = row;
+  const name = heading ? (heading.kind === 'letter' ? headingLetterText(heading) : t(PART_TYPE_KEYS[heading.part])) : '';
+  return (
+    <div className="pp-rang">
+      {heading && (
+        <div className="pp-bloc-tete" data-testid="apercu-bloc">
+          <span className={heading.kind === 'letter' ? 'pp-bloc-lettre' : 'pp-bloc-nom'}>{name}</span>
+        </div>
+      )}
+      <div className="pp-ligne pp-ligne-ecrite">
+        {line.bars.map((bar, k) => (
+          <PrintWrittenBar
+            key={bar.index}
+            bar={bar}
+            chart={chart}
+            opens={times > 1 && line.first && k === 0}
+            closes={times > 1 && line.last && k === line.bars.length - 1}
+            times={times}
+            final={bar.index === last}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** A repeat sign (`debut`, `fin`) or the final double bar (`final`), drawn with borders (see print.css). */
+function RepeatSign({ kind }: { kind: 'debut' | 'fin' | 'final' }) {
+  return (
+    <i className={`pp-rep pp-rep-${kind}`} aria-hidden="true">
+      <b className="gros" />
+      <b className="fin" />
+      {kind !== 'final' && (
+        <>
+          <b className="pt pt-a" />
+          <b className="pt pt-b" />
+        </>
+      )}
+    </i>
+  );
+}
+
+/** A written bar on paper: the chart's bar with no number; « % », repeat signs, « ×2 » and the final double bar drawn. */
+function PrintWrittenBar({ bar, chart, opens, closes, times, final }: { bar: WrittenBar; chart: PrintChart; opens: boolean; closes: boolean; times: number; final: boolean }) {
+  const n = bar.chords.length;
+  const ctx = chart.contexts.get(bar.played[0] ?? -1) ?? chart.ctx;
+  const modulationText = bar.keyChange ? keyLabel(ctx.key ?? bar.keyChange, ctx.minor) : '';
+  const cls = ['pp-case', 'pp-ecrite', bar.signature ? 'pp-signee' : '', bar.keyChange ? 'pp-modulee' : '', opens ? 'pp-rep-ouvre' : '', closes ? 'pp-rep-ferme' : '', final && !closes ? 'pp-finale-ecrite' : ''].filter(Boolean).join(' ');
+  return (
+    <div className={cls} data-ecrite={bar.index} data-temps={n > 0 ? bar.beats : undefined} data-accords={n}>
+      {opens && <RepeatSign kind="debut" />}
+      {bar.keyChange && (
+        <div className="pp-entete-case">
+          <span className="pp-modulation" data-cle={modulationText}>
+            <span className="pp-modulation-mot">{t('modulation.label')}</span> {withAccidentals(modulationText)}
+          </span>
+        </div>
+      )}
+      {bar.signature && (
+        <span className="pp-signature" data-signature={`${bar.signature.numerator}/${bar.signature.denominator}`}>
+          <span>{bar.signature.numerator}</span>
+          <span>{bar.signature.denominator}</span>
+        </span>
+      )}
+      {bar.chords.map((c, i) => (
+        <span key={i} className="pp-accord" data-debut={c.beat} data-rang={i % 2} style={{ '--debut': c.beat / bar.beats } as CSSProperties}>
+          <ChordSymbol chord={c.chord} ctx={ctx} />
+        </span>
+      ))}
+      {n === 0 && bar.simile && (
+        <span className="pp-repete" aria-hidden="true">
+          𝄎
+        </span>
+      )}
+      {closes && (
+        <>
+          <RepeatSign kind="fin" />
+          <span className="pp-rep-fois">{t('simplified.times', { n: times })}</span>
+        </>
+      )}
+      {final && !closes && <RepeatSign kind="final" />}
+    </div>
+  );
+}
+
 /** The key written above a bar where a modulation starts, as displayed (the bar's own context). */
 function modulationKey(bar: ChartBar, chart: PrintChart) {
   const ctx = chart.contexts.get(bar.bar) ?? chart.ctx;
@@ -193,7 +290,10 @@ export function fitPrintSheets(root: HTMLElement, layout: Pick<PrintLayout, 'lin
       mine.push(chord);
     }
     buttons.push(mine);
-    bars.push({ chords, geometry: printBarGeometry(layout, cell.classList.contains('pp-signee')) });
+    bars.push({
+      chords,
+      geometry: printBarGeometry(layout, cell.classList.contains('pp-signee'), { opens: cell.classList.contains('pp-rep-ouvre'), closes: cell.classList.contains('pp-rep-ferme'), final: cell.classList.contains('pp-finale-ecrite') }),
+    });
   }
   const fit = fitChart(bars);
   cells.forEach((cell, i) => {

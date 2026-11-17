@@ -67,6 +67,9 @@ export const LINE_MM: Record<PrintOrientation, number> = { portrait: 24, paysage
  */
 export const HEADER_ROWS_MM = { title: 11, info: 6, part: 5, form: 5, gap: 5 } as const;
 
+/** Height of the heading band over the first line of a block of the simplified chart (« A », « Intro »), in mm. */
+export const HEADING_MM = 7;
+
 /** The smallest scale « Tenir sur une page » will use: below it the chords are too small to read. */
 export const MIN_FIT_SCALE = 0.4;
 
@@ -108,11 +111,18 @@ export function normalizePrintOptions(raw: unknown, locale?: string): PrintOptio
 }
 
 /** Height of the title block (rows that are shown plus the gap before the lines), in mm; 0 when nothing is shown. */
-export function headerHeightMm(shown: { title: boolean; info: boolean; part?: boolean; form?: boolean }): number {
-  const { title, info, part = false, form = false } = shown;
+export function headerHeightMm(shown: { title: boolean; info: boolean; part?: boolean; form?: boolean; formRows?: number }): number {
+  const { title, info, part = false, form = false, formRows = 1 } = shown;
   if (!title && !info && !part && !form) return 0;
-  return (title ? HEADER_ROWS_MM.title : 0) + (part ? HEADER_ROWS_MM.part : 0) + (info ? HEADER_ROWS_MM.info : 0) + (form ? HEADER_ROWS_MM.form : 0) + HEADER_ROWS_MM.gap;
+  // The form line of the simplified chart can be long: it is written on as many rows as it needs.
+  return (title ? HEADER_ROWS_MM.title : 0) + (part ? HEADER_ROWS_MM.part : 0) + (info ? HEADER_ROWS_MM.info : 0) + (form ? HEADER_ROWS_MM.form * Math.max(1, formRows) : 0) + HEADER_ROWS_MM.gap;
 }
+
+/** Characters of the form line that fit on one row of the title block (10 pt on the width of a page; deliberately on the short side). */
+export const FORM_ROW_CHARS = 88;
+
+/** How many rows the form line takes. */
+export const formRowsFor = (text: string): number => Math.max(1, Math.ceil(text.length / FORM_ROW_CHARS));
 
 /** A range of the chart's lines: the lines `first` to `first + count - 1` are on this sheet. */
 export interface SheetLines {
@@ -146,9 +156,9 @@ export interface PrintLayout {
 const EPS = 1e-6;
 
 /** The scale at which `lines` lines (and the title block) exactly fill the first sheet's content area, or null if it is below `MIN_FIT_SCALE`. */
-export function fitScale(lines: number, contentH: number, lineMm: number, headerMm: number): number | null {
+export function fitScale(lines: number, contentH: number, lineMm: number, headerMm: number, extraMm = 0): number | null {
   if (lines <= 0) return 1;
-  const need = lines * lineMm + headerMm;
+  const need = lines * lineMm + extraMm + headerMm;
   const s = Math.min(1, Math.floor((contentH / need) * 1000 - EPS) / 1000);
   return s >= MIN_FIT_SCALE ? s : null;
 }
@@ -160,22 +170,55 @@ export function linesPerSheet(contentH: number, lineMm: number, headerMm: number
 }
 
 /**
- * The sheets for `lines` lines of the chart under `options`. `headerMm` is the height of the title block
- * (`headerHeightMm`), which is on the first sheet only.
+ * Rows of different heights on sheets: `extras[i]` is what row `i` has over a line (the heading band of the simplified
+ * chart). A row is never split from its heading, a sheet never stays empty. Returns how many rows go on each sheet.
  */
-export function paginate(lines: number, options: PrintOptions, headerMm: number): PrintLayout {
+export function breakRows(extras: readonly number[], lineMm: number, roomFirst: number, roomNext: number): number[] {
+  const counts: number[] = [];
+  let used = 0;
+  let count = 0;
+  let room = roomFirst;
+  for (const extra of extras) {
+    const h = lineMm + extra;
+    if (count > 0 && used + h > room + EPS) {
+      counts.push(count);
+      used = 0;
+      count = 0;
+      room = roomNext;
+    }
+    used += h;
+    count++;
+  }
+  if (count > 0) counts.push(count);
+  return counts;
+}
+
+/**
+ * The sheets for `lines` lines of the chart under `options`. `headerMm` is the height of the title block
+ * (`headerHeightMm`), which is on the first sheet only. `extras` (the simplified chart): per row, the height it has
+ * over a line of bars, in mm (its heading band); without it every row is a line.
+ */
+export function paginate(lines: number, options: PrintOptions, headerMm: number, extras?: readonly number[]): PrintLayout {
   const paper = PAPER_MM[options.paper];
   const sheet = options.orientation === 'paysage' ? { w: paper.h, h: paper.w } : { w: paper.w, h: paper.h };
   const margin = MARGIN_MM[options.margins];
   const content = { w: sheet.w - 2 * margin, h: sheet.h - 2 * margin };
   const lineMm = LINE_MM[options.orientation];
-  const best = fitScale(lines, content.h, lineMm, headerMm);
+  const extraSum = extras ? extras.reduce((a, b) => a + b, 0) : 0;
+  const best = fitScale(lines, content.h, lineMm, headerMm, extraSum);
   const fitted = options.fitOne && best !== null;
   const scale = fitted ? best! : options.scale / 100;
   const per = linesPerSheet(content.h, lineMm, headerMm, scale);
   const sheets: SheetLines[] = [];
   if (lines <= 0) sheets.push({ first: 0, count: 0 });
-  else {
+  else if (extras && extras.length === lines) {
+    const roomNext = content.h / scale + EPS;
+    let at = 0;
+    for (const count of breakRows(extras, lineMm, roomNext - headerMm, roomNext)) {
+      sheets.push({ first: at, count });
+      at += count;
+    }
+  } else {
     let at = 0;
     let room = per.first;
     while (at < lines) {
@@ -190,9 +233,12 @@ export function paginate(lines: number, options: PrintOptions, headerMm: number)
 }
 
 /** Geometry of one printed bar for `fitChart` (chart/fit.ts): the drawing is 206 units wide whatever the paper, `signed` bars keep room for the signature. */
-export function printBarGeometry(layout: Pick<PrintLayout, 'lineMm' | 'unitMm'>, signed: boolean) {
+export function printBarGeometry(layout: Pick<PrintLayout, 'lineMm' | 'unitMm'>, signed: boolean, signs: { opens?: boolean; closes?: boolean; final?: boolean } = {}) {
   const haut = 14;
-  return { width: BAR_UNITS, padLeft: signed ? 30 : 16, padRight: 8, base: 30, room: layout.lineMm / layout.unitMm - haut };
+  // The simplified chart's repeat signs (and its final double bar) take room at the ends of a bar (as `.pp-rep-*` in print.css).
+  const padLeft = (signed ? 30 : 16) + (signs.opens ? 24 : 0);
+  const padRight = 8 + (signs.closes ? 22 : signs.final ? 10 : 0);
+  return { width: BAR_UNITS, padLeft, padRight, base: 30, room: layout.lineMm / layout.unitMm - haut };
 }
 
 /** Millimetres to CSS pixels. */

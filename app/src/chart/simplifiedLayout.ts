@@ -53,6 +53,19 @@ export function writtenBlocks(chart: SimplifiedChart): WrittenBlock[] {
   });
 }
 
+/** One row of the printed simplified chart: a line of bars, with its block's heading when it is the block's first. */
+export interface PrintRow {
+  heading: WrittenHeading | null;
+  /** How many times the block is played in a row (the repeat bracket spans its rows when above 1). */
+  times: number;
+  line: WrittenLine;
+}
+
+/** The rows of the printed simplified chart, in order. */
+export function printRows(chart: SimplifiedChart): PrintRow[] {
+  return writtenBlocks(chart).flatMap((block) => block.lines.map((line) => ({ heading: line.first ? block.heading : null, times: block.times, line })));
+}
+
 /** Index of the very last written bar (the final double bar goes after it); -1 for an empty chart. */
 export function lastWrittenIndex(chart: SimplifiedChart): number {
   const last = chart.sections[chart.sections.length - 1];
