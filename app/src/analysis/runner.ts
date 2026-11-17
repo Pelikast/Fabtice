@@ -74,7 +74,9 @@ export function runTempoFix(kind: TempoFixKind, bar: number): Promise<void> {
   const map = gridInForce(s);
   const from = barStartTime(map, bar);
   if (!(from >= 0 && from < s.project.duration)) return Promise.resolve();
-  return launch({ kind, from, grid: gridForFix(map, s.project.duration, from), bar, previous: map }).then(() => undefined);
+  const grid = gridForFix(map, s.project.duration, from);
+  const anchored = grid.times.length > beatGridOf(map, s.project.duration).times.length;
+  return launch({ kind, from, grid, bar, previous: map, ...(anchored ? { anchored } : {}) }).then(() => undefined);
 }
 
 /**
@@ -175,7 +177,7 @@ async function launch(fix: TempoFixRun | null): Promise<AnalysisResult | null> {
     knownCharts,
     onProgress,
     signal: abort.signal,
-    tempoFix: fix ? (fix.kind === 'tapped' ? { kind: 'tapped', from: fix.from, grid: fix.grid, taps: fix.taps } : { kind: fix.kind, from: fix.from, grid: fix.grid }) : null,
+    tempoFix: fix ? (fix.kind === 'tapped' ? { kind: 'tapped', from: fix.from, grid: fix.grid, taps: fix.taps } : { kind: fix.kind, from: fix.from, grid: fix.grid, ...(fix.anchored ? { anchored: true } : {}) }) : null,
   };
   try {
     const result = await getAnalyzer().analyse(request);

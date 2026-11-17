@@ -50,12 +50,9 @@ export function tempoMapForFix(s: Pick<AppState, 'tempoMap' | 'tempoPreview'>, b
     return withMetersOf(tempoMapFromBeats(beats.times, beats.downbeat, meter, 'corrected'), map);
   }
   // The bar starts between two beats of the grid: the map is spliced at it.
-  const after: number[] = [];
-  for (const t of beats.times) {
-    if (t < time - 1e-3) continue;
-    if (!after.length) after.push(time);
-    else if (t - after[after.length - 1]! >= MIN_BEAT_GAP) after.push(t);
-  }
+  // The bar's start stays where it is (the analysis keeps it: `anchored`), the new beats after it.
+  const after: number[] = [time];
+  for (const t of beats.times) if (t > time + 1e-3 && t - after[after.length - 1]! >= MIN_BEAT_GAP) after.push(t);
   if (after.length < 2) throw new RangeError('a beat grid needs at least two beats');
   const segments: TempoSegment[] = map.segments.filter((sg) => sg.time < time - 1e-9).map((sg) => ({ ...sg }));
   // The first segment extends backwards: one in force before the bar keeps the beats there.

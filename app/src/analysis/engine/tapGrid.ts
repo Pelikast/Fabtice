@@ -129,8 +129,12 @@ export interface TapOptions {
   /** Largest offset compensated (s), and as a share of a beat. */
   offsetMax: number;
   offsetBeat: number;
-  /** Smoothness of the beat lengths: a second difference of this share of a beat counts as one spread. */
-  smooth: number;
+  /**
+   * Smoothness of the beat lengths: a second difference of this share of a beat counts as one
+   * spread. Several: the one that predicts best the taps left out is taken (a steady tapper is
+   * smoothed more, a rubato followed closer).
+   */
+  smooth: readonly number[];
   /** Spread of a beat put on a strong (logit ≥ 2) or a weaker network peak (s). */
   peakSharp: number;
   peakSoft: number;
@@ -169,9 +173,9 @@ export const TAP: TapOptions = {
   offsetSpread: 0.12,
   offsetMax: 0.25,
   offsetBeat: 0.3,
-  smooth: 0.04,
-  peakSharp: 0.012,
-  peakSoft: 0.025,
+  smooth: [0.006, 0.012, 0.025, 0.05, 0.1],
+  peakSharp: 0.006,
+  peakSoft: 0.015,
   window: 1.5,
   windowMin: 0.04,
   windowBeat: 0.2,
@@ -657,12 +661,16 @@ export interface PlacedBeats {
   jitter: number;
   /** Per beat: put on a network peak in the last round. */
   snapped: boolean[];
+  /** The smoothness chosen (`TapOptions.smooth`). */
+  smooth: number;
 }
 
 /**
  * The fit of the header (3). `prefix` holds the beats of the grid in force
  * right before the chosen bar (the last two, fixed); `countIn` taps made on
- * them observe the offset.
+ * them observe the offset. How smooth the beat lengths are is chosen from
+ * the taps themselves (`smoothness`): a steady tapper's wobble is smoothed
+ * away, a real rubato is followed.
  */
 export function placeBeats(
   x: readonly number[],
@@ -672,44 +680,31 @@ export function placeBeats(
   delta0: number,
   ev: Evidence,
   o: TapOptions = TAP,
+  /**
+   * The tapper's spread, measured on the taps before the fit (`tapSpread`): the fit's own residuals
+   * would underestimate it (a fit that follows the taps leaves small residuals) and the beats would
+   * then follow every tap.
+   */
+  sigma = 0.04,
 ): PlacedBeats {
   const K = beats.length - 1; // unknowns: beats 1…K and the offset
   const from = beats[0]!.t;
-  let t = beats.map((b) => b.t);
-  let delta = delta0;
-  if (K < 1) return { times: t, offset: delta, jitter: 0.05, snapped: [false] };
-  const q = (k: number) => {
+  const jitter = clip(sigma, 0.01, 0.25);
+  if (K < 1) return { times: beats.map((b) => b.t), offset: delta0, jitter, snapped: [false], smooth: o.smooth[0]! };
+  const before = prefix.length ? prefix[prefix.length - 1]! : null;
+  const held = (k: number) => (k >= 1 && beats[k]!.heldBefore) || (k + 1 <= K && beats[k + 1]!.heldBefore);
+  const lengthAt = (t: readonly number[], k: number) => {
     const a = Math.max(0, k - 1);
     const b = Math.min(K, Math.max(a + 1, k + 1));
     return (t[b]! - t[a]!) / (b - a);
   };
-  let jitter = 0.05;
-  const tapW = new Float64Array(K + 1).fill(1);
-  const smoothW = new Float64Array(K + 2).fill(1);
-  let snapped: boolean[] = beats.map(() => false);
-  // Second difference k: t[k+1] − 2 t[k] + t[k−1], k = 0…K−1 (t[−1] the last beat before the bar).
-  const before = prefix.length ? prefix[prefix.length - 1]! : null;
-  const held = (k: number) => (k >= 1 && beats[k]!.heldBefore) || (k + 1 <= K && beats[k + 1]!.heldBefore);
-  for (let round = 0; round < o.rounds; round++) {
-    // The peaks near each beat.
-    const peakAt: (Peak | null)[] = beats.map(() => null);
-    // The first round places the beats from the taps alone: the offset and the tapper's spread come
-    // from them, so that a passage where the network hears the off-beats cannot draw the offset there.
-    for (let k = 1; k <= K && round > 0; k++) {
-      const spread = beats[k]!.tap !== null ? jitter : 1.5 * jitter;
-      const win = Math.min(o.windowBeat * q(k), Math.max(o.windowMin, o.window * spread));
-      let best: Peak | null = null;
-      let bs = -Infinity;
-      for (let i = firstPeak(ev.peaks, t[k]! - win); i < ev.peaks.length && ev.peaks[i]!.t <= t[k]! + win; i++) {
-        const p = ev.peaks[i]!;
-        const s = Math.min(p.v, 6) - 2 * ((p.t - t[k]!) / win) ** 2;
-        if (s > bs) {
-          bs = s;
-          best = p;
-        }
-      }
-      peakAt[k] = best;
-    }
+  interface Weights {
+    tap: Float64Array;
+    smooth: Float64Array;
+  }
+  const ones = (): Weights => ({ tap: new Float64Array(K + 1).fill(1), smooth: new Float64Array(K + 2).fill(1) });
+  /** One weighted least-squares solve: beats 1…K and the offset. */
+  const solve = (t: readonly number[], useTap: (k: number) => boolean, smooth: number, peakAt: readonly (Peak | null)[], w: Weights): { t: number[]; delta: number } => {
     const b0 = new Float64Array(K);
     const b1 = new Float64Array(K);
     const b2 = new Float64Array(K);
@@ -717,28 +712,26 @@ export function placeBeats(
     const rhs = new Float64Array(K);
     let d = 1 / o.offsetSpread ** 2;
     let rd = o.offsetPrior / o.offsetSpread ** 2;
-    // Unknown index of beat k is k − 1.
     const wt = 1 / jitter ** 2;
+    // Taps: beat k + δ = its tap. Unknown index of beat k is k − 1.
     for (let k = 0; k <= K; k++) {
       const tap = beats[k]!.tap;
-      if (tap === null) continue;
-      const w = wt * tapW[k]!;
-      // t[k] + δ = x[tap]
+      if (tap === null || !useTap(k)) continue;
+      const v = wt * w.tap[k]!;
       if (k === 0) {
-        d += w;
-        rd += w * (x[tap]! - from);
+        d += v;
+        rd += v * (x[tap]! - from);
         continue;
       }
-      b0[k - 1]! += w;
-      c[k - 1]! += w;
-      d += w;
-      rhs[k - 1]! += w * x[tap]!;
-      rd += w * x[tap]!;
+      b0[k - 1]! += v;
+      c[k - 1]! += v;
+      d += v;
+      rhs[k - 1]! += v * x[tap]!;
+      rd += v * x[tap]!;
     }
     for (const ci of countIn) {
-      const w = wt;
-      d += w;
-      rd += w * (ci.tap - ci.beat);
+      d += wt;
+      rd += wt * (ci.tap - ci.beat);
     }
     for (let k = 1; k <= K; k++) {
       const p = peakAt[k];
@@ -749,10 +742,9 @@ export function placeBeats(
     }
     // Smoothness: coefficients (1, −2, 1) on beats k − 1, k, k + 1; beat 0 and the beat before are fixed.
     for (let k = 0; k <= K - 1; k++) {
-      if (held(k)) continue;
-      if (k === 0 && before === null) continue;
-      const s = o.smooth * q(k);
-      const w = smoothW[k]! / s ** 2;
+      if (held(k) || (k === 0 && before === null)) continue;
+      const s = smooth * lengthAt(t, k);
+      const v = w.smooth[k]! / s ** 2;
       const idx = [k - 1, k, k + 1];
       const coef = [1, -2, 1];
       // The fixed beats (index 0: the bar's start, −1: the beat before it) go to the right-hand side.
@@ -764,47 +756,95 @@ export function placeBeats(
         else vars.push([bi - 1, coef[e]!]);
       }
       for (const [u, cu] of vars) {
-        rhs[u]! -= w * cu * constant;
-        for (const [v, cv] of vars) {
-          if (v < u) continue;
-          const val = w * cu * cv;
-          if (v === u) b0[u]! += val;
-          else if (v === u + 1) b1[u]! += val;
-          else if (v === u + 2) b2[u]! += val;
+        rhs[u]! -= v * cu * constant;
+        for (const [z, cz] of vars) {
+          if (z < u) continue;
+          const val = v * cu * cz;
+          if (z === u) b0[u]! += val;
+          else if (z === u + 1) b1[u]! += val;
+          else if (z === u + 2) b2[u]! += val;
         }
       }
     }
     for (let i = 0; i < K; i++) b0[i]! += 1e-9;
     const [y, dl] = solveBordered(b0, b1, b2, c, d, rhs, rd);
     const bound = Math.min(o.offsetMax, o.offsetBeat * median(t.slice(1).map((v, i) => v - t[i]!)));
-    delta = clip(dl, -bound, bound);
-    const next = [from, ...Array.from(y)];
-    // Robust weights for the next round, and the tapper's spread.
-    const res: number[] = [];
-    for (let k = 0; k <= K; k++) {
-      const tap = beats[k]!.tap;
-      if (tap !== null) res.push(x[tap]! - next[k]! - delta);
-    }
-    const mad = 1.4826 * median(res.map((v) => Math.abs(v - median(res))));
-    jitter = clip(Number.isFinite(mad) ? mad : 0.05, 0.01, 0.25);
+    return { t: [from, ...Array.from(y)], delta: clip(dl, -bound, bound) };
+  };
+  /** Robust weights from a fit: taps far from it, and sudden changes of the beat length, count less. */
+  const reweigh = (fit: { t: number[]; delta: number }, smooth: number, w: Weights) => {
     for (let k = 0; k <= K; k++) {
       const tap = beats[k]!.tap;
       if (tap === null) continue;
-      const e = (x[tap]! - next[k]! - delta) / (2.5 * jitter);
-      tapW[k] = 1 / (1 + e * e);
+      const e = (x[tap]! - fit.t[k]! - fit.delta) / (2.5 * jitter);
+      w.tap[k] = 1 / (1 + e * e);
     }
-    t = next;
-    for (let k = 0; k <= K - 1; k++) {
-      const prev = k === 0 ? before : t[k - 1]!;
+    // Not at the bar itself (k = 0, 1): there the tempo before goes on, which is what places the taps when the network hears nothing.
+    for (let k = 2; k <= K - 1; k++) {
+      const prev = k === 0 ? before : fit.t[k - 1]!;
       if (prev === null) continue;
-      const e = (t[k + 1]! - 2 * t[k]! + prev) / (2.5 * o.smooth * q(k));
-      smoothW[k] = 1 / (1 + e * e);
+      const e = (fit.t[k + 1]! - 2 * fit.t[k]! + prev) / (2.5 * smooth * lengthAt(fit.t, k));
+      w.smooth[k] = 1 / (1 + e * e);
     }
-    snapped = peakAt.map((p, k) => k > 0 && p !== null && Math.abs(p.t - t[k]!) < 0.02);
+  };
+  const none: (Peak | null)[] = beats.map(() => null);
+  const start = beats.map((b) => b.t);
+  // The smoothness: the candidate that predicts best the taps left out (every other tap, both ways), from the taps alone.
+  let smooth = o.smooth[0]!;
+  if (o.smooth.length > 1) {
+    let best = Infinity;
+    const tapped = beats.map((b, k) => (b.tap !== null && k > 0 ? k : -1)).filter((k) => k > 0);
+    for (const s of o.smooth) {
+      const errs: number[] = [];
+      for (const fold of [0, 1]) {
+        const out = (k: number) => tapped.indexOf(k) % 2 === fold;
+        const w = ones();
+        let fit = solve(start, (k) => !out(k), s, none, w);
+        reweigh(fit, s, w);
+        fit = solve(fit.t, (k) => !out(k), s, none, w);
+        for (const k of tapped) if (out(k)) errs.push(Math.abs(x[beats[k]!.tap!]! - fit.t[k]! - fit.delta));
+      }
+      const e = median(errs);
+      if (e < best - 1e-6) {
+        best = e;
+        smooth = s;
+      }
+    }
   }
+  // Then rounds: the first from the taps alone (the offset and the beats where the taps put them, so that a
+  // passage where the network hears the off-beats cannot draw the offset there), the next ones with the peaks
+  // near each beat.
+  const w = ones();
+  let fit = { t: start, delta: delta0 };
+  let peakAt = none;
+  for (let round = 0; round < o.rounds; round++) {
+    if (round > 0) {
+      const t = fit.t;
+      peakAt = beats.map((b, k) => {
+        if (k === 0) return null;
+        const spread = b.tap !== null ? jitter : 1.5 * jitter;
+        const win = Math.min(o.windowBeat * lengthAt(t, k), Math.max(o.windowMin, o.window * spread));
+        let best: Peak | null = null;
+        let bs = -Infinity;
+        for (let i = firstPeak(ev.peaks, t[k]! - win); i < ev.peaks.length && ev.peaks[i]!.t <= t[k]! + win; i++) {
+          const p = ev.peaks[i]!;
+          const s = Math.min(p.v, 6) - 2 * ((p.t - t[k]!) / win) ** 2;
+          if (s > bs) {
+            bs = s;
+            best = p;
+          }
+        }
+        return best;
+      });
+    }
+    fit = solve(fit.t, () => true, smooth, peakAt, w);
+    reweigh(fit, smooth, w);
+  }
+  const t = fit.t;
   // Ascending, at least the shortest beat apart.
   for (let k = 1; k <= K; k++) if (t[k]! < t[k - 1]! + MIN_GAP) t[k] = t[k - 1]! + MIN_GAP;
-  return { times: t, offset: delta, jitter, snapped };
+  const snapped = peakAt.map((p, k) => k > 0 && p !== null && Math.abs(p.t - t[k]!) < 0.02);
+  return { times: t, offset: fit.delta, jitter, snapped, smooth };
 }
 
 // ---------------------------------------------------------------- 4. after the passage
@@ -921,7 +961,7 @@ export function applyTappedFix(act: BeatActivations | null, req: TappedFixReques
   const steps = tapPath(x, t0, P, delta0, level, m, trust, ev, sigma, o, after);
   if (!steps.length) return none(true);
   const first = pathBeats(x, t0, delta0, steps);
-  const placed = placeBeats(x, first, grid.times.slice(Math.max(0, fromIdx - 2), fromIdx), countIn, delta0, ev, o);
+  const placed = placeBeats(x, first, grid.times.slice(Math.max(0, fromIdx - 2), fromIdx), countIn, delta0, ev, o, sigma);
   const beats = placed.times;
   const used = new Set(steps.map((s) => s.tap)).size;
   const dropped = x.length - used;
