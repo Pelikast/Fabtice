@@ -231,6 +231,21 @@ describe('the harmony pass runner: triggers', () => {
     expect(evidenceCalls).toBe(n + 1);
   });
 
+  it('the evidence builder plugged in later: the pass runs again with it, its result reaches the detectors', async () => {
+    applyAnalysis(demoSwingResult(DURATION));
+    await settle();
+    expect(fake.calls[fake.calls.length - 1]!.input.evidence).toBeNull();
+    const evidence: StructureEvidence = { stems: null, timbre: { bands: 1, data: new Float32Array(1) }, winds: null };
+    let got: { bars: number; aborted: boolean } | null = null;
+    runner.setEvidenceGatherer(async (_s, bars, signal) => {
+      got = { bars: bars.length, aborted: signal.aborted };
+      return evidence;
+    });
+    await settle();
+    expect(got).toEqual({ bars: runner.lastInput()!.bars.length, aborted: false });
+    expect(fake.calls[fake.calls.length - 1]!.input.evidence).toBe(evidence);
+  });
+
   it('an older document (structure never looked for) gets one when it is opened', async () => {
     await openPiece({ ...demoSwingResult(DURATION), structure: null });
     await settle();
@@ -413,6 +428,17 @@ describe('the harmony pass runner: cancellation and re-entrance', () => {
     runner.resume();
     await settle();
     expect(fake.detectStructure).toHaveBeenCalledTimes(2);
+  });
+
+  it('an answer the document reader would drop is not stored (modulations out of order, parts overlapping)', async () => {
+    applyAnalysis(demoSwingResult(DURATION));
+    await settle();
+    fake.detectKeyChanges.mockImplementation(() => [analysedChange(20, 2), analysedChange(10, 4)]);
+    fake.detectStructure.mockImplementation(() => ({ mode: 'jazz', form: 'A', sections: [], parts: [part('a', 'theme', 0, 20), part('b', 'solo', 10, 30)] }));
+    replaceChord(2, 0, chord(2, 'min7'));
+    await settle();
+    expect(get().analysis!.keyChanges).toEqual([]);
+    expect(get().analysis!.structure).toBeNull();
   });
 
   it('a detector that throws leaves what is stored', async () => {

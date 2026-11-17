@@ -830,7 +830,10 @@ export function detectKeyChanges(input: HarmonyInput, options: Partial<KeyDetect
     if (!key) continue;
     const before = out[out.length - 1];
     if (before && same(before.key, key)) continue;
-    out.push({ time: bars[p.from]!.start, key });
+    // Strictly after 0 and after the change before (a pick-up bar may start before the audio).
+    const time = bars[p.from]!.start;
+    if (!(time > 0) || (before && time <= before.time)) continue;
+    out.push({ time, key });
     prevSig = signatureOf(key);
   }
   return out;

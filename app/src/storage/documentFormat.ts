@@ -147,6 +147,10 @@ const isChordOrNone = (c: unknown): boolean => c === null || isChordSymbol(c);
 /** Ascending by `time`, each strictly after 0 and after the one before (a list of key changes). */
 const isAscendingAfterZero = (list: unknown[]): boolean => list.every((x, i) => isRec(x) && isNum(x.time) && x.time > (i === 0 ? 0 : ((list[i - 1] as Rec).time as number)));
 
+/** Detected modulations the reader keeps (exported for the harmony pass, see `isDetectedStructure`). */
+export const areAnalysedKeyChanges = (list: unknown): boolean =>
+  Array.isArray(list) && isAscendingAfterZero(list) && list.every((x: unknown) => isAnalysedKey((x as Rec).key));
+
 const isAnalysedKey = (k: unknown): boolean => isKey(k) && isNum((k as Rec).confidence) && Array.isArray((k as Rec).alternatives) && ((k as Rec).alternatives as unknown[]).every(isKey);
 
 // ---------------------------------------------------------------- version 6: structure
@@ -173,7 +177,8 @@ const areSpansValid = (spans: unknown): boolean =>
   Array.isArray(spans) &&
   spans.every((x: unknown, i: number) => isRec(x) && isNum(x.start) && isNum(x.end) && x.end > x.start && (i === 0 || x.start >= ((spans[i - 1] as Rec).end as number)));
 
-function isDetectedStructure(st: unknown): boolean {
+/** A detected structure the reader keeps (exported for the harmony pass: it never stores one the reader would drop). */
+export function isDetectedStructure(st: unknown): boolean {
   if (!isRec(st) || !STRUCTURE_MODES.includes(st.mode as never) || !isStr(st.form) || !FORM_PATTERN.test(st.form)) return false;
   return Array.isArray(st.sections) && st.sections.every(isSectionMark) && arePartsValid(st.parts);
 }

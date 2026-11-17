@@ -35,6 +35,7 @@ import { chartBars, resolveChords } from '../chart/layout';
 import type { AnalysedKeyChange } from '../model/analysis';
 import type { Key } from '../model/harmony';
 import type { DetectedStructure, StructurePart } from '../model/structure';
+import { areAnalysedKeyChanges, isDetectedStructure } from '../storage/documentFormat';
 import { keyInForce } from '../store/chartSelectors';
 import { harmonyBars } from '../store/simplifiedSelectors';
 import { appStore, gridInForce, type AppState, type AppStore } from '../store/store';
@@ -163,7 +164,7 @@ const plainKey = (k: Key): Key => ({ tonic: k.tonic, mode: k.mode });
 export class HarmonyRefresh {
   private readonly store: AppStore;
   private readonly debounceMs: number;
-  private readonly gatherEvidence: EvidenceGatherer;
+  private gatherEvidence: EvidenceGatherer;
   private readonly knownFor: KnownProvider;
   private readonly onLibraryChange: ((listener: () => void) => () => void) | null;
   private readonly detectKeyChanges: KeyChangeDetector;
@@ -205,6 +206,13 @@ export class HarmonyRefresh {
   stop(): void {
     for (const off of this.offs.splice(0)) off();
     this.cancel();
+  }
+
+  /** Plugs in (or, with null, removes) the builder of the audio evidence; the pass runs again with it. */
+  setEvidenceGatherer(gather: EvidenceGatherer | null): void {
+    this.gatherEvidence = gather ?? noEvidence;
+    this.evidenceCache = null;
+    if (!this.suspended && this.store.getState().project) this.schedule();
   }
 
   /** The automatic runs stop (a test standing in for the detection); `refreshNow` still runs. */
@@ -370,6 +378,9 @@ export class HarmonyRefresh {
       // A detector that throws leaves what is stored as it is.
       return;
     }
+    // Never store what the document reader would drop (with the whole analysis): an invalid answer is no answer.
+    if (!areAnalysedKeyChanges(keyChanges)) keyChanges = [];
+    if (structure !== null && !isDetectedStructure(structure)) structure = null;
     const a = s.analysis;
     const sameKeys = sameJson(a.keyChanges, keyChanges);
     const sameStructure = sameJson(a.structure, structure);
@@ -397,6 +408,14 @@ export function startHarmonyRefresh(options: HarmonyRefreshOptions = {}): () => 
 
 export function harmonyRefresh(): HarmonyRefresh | null {
   return app;
+}
+
+/**
+ * Plugs the builder of the audio evidence into the app's runner (`structure/evidence.ts` at merge
+ * time: `setHarmonyEvidenceGatherer((state, bars, signal) => …)`); null removes it.
+ */
+export function setHarmonyEvidenceGatherer(gather: EvidenceGatherer | null): void {
+  app?.setEvidenceGatherer(gather);
 }
 
 /** Runs the pass now; resolves at once without a runner. */
