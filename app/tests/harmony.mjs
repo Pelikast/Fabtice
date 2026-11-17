@@ -16,6 +16,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { startServer } from './serve.mjs';
+import { closeSettings, openSettingsTab } from './lib/settings.mjs';
 
 const require = createRequire(process.env.PLAYWRIGHT_MODULE_DIR || '/opt/node-tools/');
 const { chromium } = require('playwright');
@@ -533,6 +534,16 @@ async function modulationScreens(form) {
   check(`${tag}: the display of a part that holds bar 9 keeps its mark`, shownPart && (await marks(page)).join(' ') === '8:E:analysis', `${shownPart} ${(await marks(page)).join(' ')}`);
   await page.evaluate(() => window.__fabtice.structure.display.showFullChart());
 
+  // « Réglages » → « Détection des accords » → « Mode » and the column's selector are one setting.
+  await page.evaluate(() => window.__fabtice.structure.actions.setStructureMode('pop'));
+  await openSettingsTab(page, 'chords');
+  await sleep(300);
+  check(`${tag}: « Mode » in the settings follows the column (Pop chosen there)`, (await page.locator('[data-testid="mode-structure-pop"]').getAttribute('aria-checked')) === 'true');
+  check(`${tag}: the three rows are there: « Détecter les modulations », « Structure automatique du morceau », « Mode »`, (await page.locator('[data-testid="reglages"]').innerText()).includes('Détecter les modulations') && (await page.locator('[data-testid="reglages"]').innerText()).includes('Structure automatique du morceau') && (await page.locator('[data-testid="reglages"]').innerText()).includes('Mode'));
+  await press(h, page.locator('[data-testid="mode-structure-jazz"]'));
+  await closeSettings(page);
+  await sleep(300);
+  if (!h.phone) check(`${tag}: and the column follows the settings (Jazz chosen there)`, (await page.locator('[data-testid="structure-mode-jazz"]').getAttribute('aria-pressed')) === 'true');
   check(`${tag}: no console error (the marks)`, h.errors.length === 0, h.errors.join(' | '));
   await h.context.close();
 }

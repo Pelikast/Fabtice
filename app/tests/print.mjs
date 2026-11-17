@@ -504,6 +504,56 @@ try {
     await page.close();
   }
 
+  // ============================================================ the mark of a modulation on the paper (C10)
+  for (const form of FORMS) {
+    const tag = `${form.name} (modulations)`;
+    const { page, errors } = await open(form, '?demo&moteur=factice&vue=grille&harmonie=non');
+    await page.setViewportSize(form.viewport);
+    // The analysis said to have found E major at bar 9 and A♭ (the main key) at bar 17.
+    await page.evaluate(() => {
+      const f = window.__fabtice;
+      const s = f.store.getState();
+      const at = (bar, tonic) => ({ time: f.lot4.tempoMap.barStartTime(s.tempoMap, bar), key: { tonic, mode: 'major', confidence: 0.7, alternatives: [] } });
+      f.store.setState({ analysis: { ...s.analysis, keyChanges: [at(8, 4), at(16, 8)] } });
+    });
+    await sleep(300);
+    await openDialog(page);
+    await page.waitForSelector(DIALOG);
+    await sleep(400);
+    await choose(page, form, RESET);
+    const marks = await page.$$eval('.pp-case .pp-modulation', (els) => els.map((e) => `${e.closest('.pp-case').dataset.mesure}:${e.dataset.cle}:${e.textContent.replace(/\s+/g, ' ').trim()}`));
+    check(`${tag}: the sheet writes « Ton : E » above bar 9 and « Ton : A♭ » above bar 17`, marks.join(' | ') === '8:E:Ton : E | 16:A♭:Ton : A♭', marks.join(' | '));
+    check(`${tag}: the letter and the mark are side by side in the bar's top row`, await page.$$eval('.pp-case', (cells) => cells.every((c) => {
+      const box = [...c.querySelectorAll('.pp-section, .pp-modulation, .pp-numero')].map((e) => e.getBoundingClientRect()).filter((r) => r.width > 0);
+      return box.every((a, i) => box.every((b, j) => j <= i || !(a.left < b.right - 0.3 && b.left < a.right - 0.3 && a.top < b.bottom - 0.3 && b.top < a.bottom - 0.3)));
+    })));
+    check(`${tag}: nothing leaves its place on the sheet; one size for every chord`, (await layoutProblems(page)).length === 0, (await layoutProblems(page)).join(' ; '));
+    // Crowded chords (two rows) under a letter and a mark: they stay in their bar and below the top row.
+    await page.evaluate(() => {
+      const c = (root, quality, extensions = []) => ({ root, quality, extensions, bass: null });
+      window.__fabtice.lot2.harmony.setBarChords(8, [{ beatInBar: 0, chord: c(4, 'min7', ['b5', '9']) }, { beatInBar: 1, chord: c(9, '7', ['#9', 'b13']) }, { beatInBar: 2, chord: c(2, 'min7', ['9', '11']) }, { beatInBar: 3, chord: c(7, '7', ['b9', 'b13']) }]);
+    });
+    await sleep(400);
+    check(`${tag}: crowded chords under a letter and a mark leave their bar nowhere`, (await layoutProblems(page)).length === 0, (await layoutProblems(page)).join(' ; '));
+    const gap = await page.evaluate(() => {
+      const cell = document.querySelector('.pp-case[data-mesure="8"]');
+      const head = cell.querySelector('.pp-entete-case').getBoundingClientRect();
+      const first = [...cell.querySelectorAll('.pp-accord .ch')].map((e) => e.getBoundingClientRect().top);
+      return { head: head.bottom, chord: Math.min(...first), rows: cell.dataset.rangs };
+    });
+    check(`${tag}: the first row of chords starts below the top row of the bar`, gap.chord >= gap.head - 1.5, JSON.stringify(gap));
+    // The PDF is the preview, mark included.
+    const { pdf } = await comparePdf(page, tag, { pages: 1, paper: 'a4', orientation: 'portrait' }, path.join(out, `modulations-${form.name}.pdf`));
+    check(`${tag}: the PDF text carries « Ton : E » and « Ton : A♭ »`, pdf.length === 1 && /Ton\s*:\s*E/.test(pdf[0].text) && /Ton\s*:\s*A/.test(pdf[0].text), pdf[0]?.text.slice(0, 120));
+    // The key is written for the instrument: a B♭ instrument sees F♯ or G♭ and B♭.
+    await choose(page, form, { ...RESET, instrument: 'sib' });
+    const sib = await page.$$eval('.pp-case .pp-modulation', (els) => els.map((e) => e.dataset.cle).join(' '));
+    check(`${tag}: written for a B♭ instrument the marks follow (G♭ and B♭)`, sib === 'G♭ B♭', sib);
+    await page.screenshot({ path: path.join(out, `modulations-${form.name}.png`) });
+    check(`no page errors (${tag})`, errors.length === 0, errors.join(' | '));
+    await page.close();
+  }
+
   // ============================================================ the keyboard, on a computer
   {
     const form = FORMS[0];

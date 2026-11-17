@@ -28,7 +28,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { closeMenu, menuCommand, menuOpenTo, openMenu } from './lib/menu.mjs';
 import { SETTINGS_TABS, openSettings, openSettingsTab } from './lib/settings.mjs';
-import { harmonyCaptures } from './captures-harmonie.mjs';
+import { harmonyCaptures, modulationCaptures } from './captures-harmonie.mjs';
 import { meterCaptures } from './captures-meter.mjs';
 import { tapFixCaptures } from './captures-tap.mjs';
 import { startServer } from './serve.mjs';
@@ -427,6 +427,7 @@ try {
       ['correction en tapant', (form) => tapFixCaptures(form, { browser, contextOptions, openPage, snap, press, sleep })],
       ['signature rythmique', (form) => meterCaptures(form, { browser, openPage, snap, contextOptions, press })],
       ['structure du morceau', (form) => harmonyCaptures(form, { browser, openPage, snap, contextOptions, press })],
+      ['modulations de la grille', (form) => modulationCaptures(form, { browser, openPage, snap, contextOptions, press })],
     ]) {
       // FABTICE_CAPTURES_ONLY=structure: only the sections whose name contains that text.
       if (process.env.FABTICE_CAPTURES_ONLY && !label.includes(process.env.FABTICE_CAPTURES_ONLY)) continue;
