@@ -343,6 +343,11 @@ Modèle d'instruments
   accord (téléphone), « Corrigée à la main » mal coupée, accords du papier
   touchant la marque de modulation, barres de reprise absentes du PDF,
   « A♯7 » au lieu de « B♭7 », titre du menu de la mesure.
+- Fabrication sur les Mac de GitHub, lancée à la main sur `v1` : **verte au
+  premier lancement** (run 44132804411, commit `cc0f673`, qui ne diffère de
+  `4b8d2db` que par ce bilan) : vérification de l'interface, adresses des
+  recueils, tests unitaires, construction pour puce Apple et Intel, e2e sur
+  les deux, analyse, séparation, yt-dlp. Rien n'a été publié.
 - Aucun fichier de brouillon dans le dépôt (commande du plan) ; aucun nom
   d'assistant ni information personnelle dans ce que l'étape a ajouté.
 
