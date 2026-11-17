@@ -200,7 +200,17 @@ Aspect
 
 ## Vérifications
 
-À compléter : commit de fin et fabrication sur les Mac de GitHub.
+- Commit vérifié : `02eec3d` sur `v1` (les commits suivants n'ajoutent que ce
+  bilan et la table du plan).
+- Fabrication sur les Mac de GitHub, lancée à la main sur `v1` : **verte au
+  premier lancement** (run 44014868530, commit `02eec3d`) : tests unitaires,
+  adresses des recueils, construction pour puce Apple et Intel, e2e sur les
+  deux (36 tests, 33 réussis, 3 sautés), analyse, séparation, yt-dlp. Rien
+  n'a été publié. `audio-device.test.js` est passé sur le Mac Intel, sans
+  « Target crashed » cette fois.
+- `npm run essais` relancé à la fin, projet Ableton compris : tout fabriqué ;
+  les deux `.als` rouverts à la main (4 pistes, 4 clips non étirés, 27
+  repères, chemins relatifs vers les pistes présentes).
 
 - `app/` : `npm run typecheck` sans erreur ; `npm test` : 1 577 tests réussis,
   42 sautés.
