@@ -1146,7 +1146,7 @@ try {
     await page.tap('.feuille-menu [data-sous-menu="export"]');
     await sleep(300);
     const items = await page.$$eval('.feuille-menu-liste [role="menuitem"]', (els) => els.map((e) => `${e.querySelector('.menu-texte').textContent}:${e.getAttribute('aria-disabled') === 'true'}`));
-    check('phone: the menu Fabtice lists the export entries (Audio…, iReal Pro, PDF…)', items.map((i) => i.split(':')[0]).join() === 'Audio…,iReal Pro,PDF…', items.join());
+    check('phone: the menu Fabtice lists the export entries (Audio…, iReal Pro, PDF…, Logic Pro, Ableton Live)', items.map((i) => i.split(':')[0]).join() === 'Audio…,iReal Pro,PDF…,Dossier pour Logic Pro…,Projet Ableton Live…', items.join());
     check('phone: « PDF… » is available there', items.includes('PDF…:false'));
     await page.screenshot({ path: path.join(out, 'app-390-menu-export.png') });
     await closeMenu(page);
