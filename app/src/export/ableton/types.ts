@@ -57,7 +57,16 @@ export interface LocatorInput {
   name: string;
 }
 
+/**
+ * The schema written: « live11 » (Live 11.0, opened by Live 11 and 12, the
+ * default) or « live10 » (Live 10.1, for Live 10: the clips open « missing »
+ * there, see ALS-FORMAT.md).
+ */
+export type AbletonTarget = 'live11' | 'live10';
+
 export interface AbletonSetInput {
+  /** Default « live11 ». */
+  target?: AbletonTarget;
   /** The piece's title, written in the set's info text (`Annotation`). */
   title: string;
   /** Sample rate of every track's file (the app works at 48 000). */
@@ -98,6 +107,7 @@ export interface LiveTempoPoint {
 }
 
 export interface AbletonSetResult {
+  target: AbletonTarget;
   /** The document, uncompressed (what is inside the `.als`). */
   xml: string;
   /** The tempo envelope as written: steps, the first point at quarter 0. */

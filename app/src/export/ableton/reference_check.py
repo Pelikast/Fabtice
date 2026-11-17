@@ -10,9 +10,10 @@ when ALS_REFERENCE_PYTHON points at a Python that has them (see that file).
   the project folder); checks Live's loader rule on warp markers; and carries
   Live's own schemas (the class members of every MinorVersion, extracted from
   Live 12.4.7) and a census of 1 389 sets saved by Live 9.0.1 to 12.4.15: every
-  element of the file is walked against the schema of 11.0_433 and against the
-  release where the census first saw it (nothing newer than 11.0.0 may appear:
-  Live refuses a set over one unknown element or attribute).
+  element of the file is walked against the schema of its MinorVersion
+  (11.0_433, or 10.0_377) and against the release where the census first saw
+  it (nothing newer than 11.0.0, or 10.1.0, may appear: Live refuses a set over
+  one unknown element or attribute).
 - dawtool (BSD-3-Clause, GitHub): computes the time in seconds of every locator
   from the tempo automation, with its reimplementation of Live's timeline
   (tempo read sixteenth by sixteenth).
@@ -27,14 +28,14 @@ import sys
 import xml.etree.ElementTree as ET
 from collections import Counter
 
-TARGET_MINOR = "11.0_433"
-TARGET_RELEASE = (11, 0, 0)
+# The schema each target declares, and the oldest release it is meant for.
+TARGETS = {"11.0_433": (11, 0, 0), "10.0_377": (10, 1, 0)}
 GENERIC = re.compile(r"^\w+<(\w+)>$")
 NUMBERED = re.compile(r"^(.*)\.(\d+)$")
 
 
-def schema_walk(root):
-    """Elements the schema of 11.0_433 does not declare, or the census first saw after 11.0.0."""
+def schema_walk(root, target_minor, target_release):
+    """Elements the schema of the set's MinorVersion does not declare, or the census first saw after its release."""
     from abletoolz.schema import structure
     from abletoolz.schema.live_schemas import live_schemas
 
@@ -45,11 +46,11 @@ def schema_walk(root):
     def newer(parent, child):
         folded = NUMBERED.sub(r"\1.{n}", child.tag)
         first = structure.NEWER_CHILDREN.get(parent.tag, {}).get(folded)
-        if first is not None and first > TARGET_RELEASE:
+        if first is not None and first > target_release:
             problems[f"child {parent.tag}/{child.tag} first written by Live {first}"] += 1
         for a in child.attrib:
             fa = structure.NEWER_ATTRIBUTES.get(child.tag, {}).get(a)
-            if fa is not None and fa > TARGET_RELEASE:
+            if fa is not None and fa > target_release:
                 problems[f"attribute {child.tag}@{a} first written by Live {fa}"] += 1
 
     def visit(el, cls):
@@ -58,15 +59,15 @@ def schema_walk(root):
             if cls is None:
                 visit_list_item(child)
                 continue
-            kind = schemas.member_type(TARGET_MINOR, cls, child.tag)
+            kind = schemas.member_type(target_minor, cls, child.tag)
             if kind is None and NUMBERED.match(child.tag):
-                kind = schemas.member_type(TARGET_MINOR, cls, NUMBERED.match(child.tag).group(1) + ".0")
+                kind = schemas.member_type(target_minor, cls, NUMBERED.match(child.tag).group(1) + ".0")
             if kind is None:
-                problems[f"member {cls}/{child.tag} not declared by {TARGET_MINOR}"] += 1
+                problems[f"member {cls}/{child.tag} not declared by {target_minor}"] += 1
                 continue
             checked[cls] += 1
             generic = GENERIC.match(kind)
-            if generic or not schemas.declares_class(TARGET_MINOR, kind):
+            if generic or not schemas.declares_class(target_minor, kind):
                 for item in child:
                     newer(child, item)
                     visit_list_item(item)
@@ -74,7 +75,7 @@ def schema_walk(root):
                 visit(child, kind)
 
     def visit_list_item(item):
-        if schemas.declares_class(TARGET_MINOR, item.tag):
+        if schemas.declares_class(target_minor, item.tag):
             visit(item, item.tag)
         elif len(item):
             # An untyped holder (a value slot): its children name their own class.
@@ -86,14 +87,14 @@ def schema_walk(root):
     return dict(problems), sum(checked.values())
 
 
-def missing_members(root):
+def missing_members(root, target_minor):
     """Members the schema declares that the file leaves out, per class (Live fills its defaults: reported, not refused)."""
     from abletoolz.schema.live_schemas import live_schemas
 
     schemas = live_schemas()
     out = {}
     for tag in ("LiveSet", "AudioTrack", "MasterTrack", "PreHearTrack", "AudioClip", "SampleRef", "FileRef", "Locator", "Scene", "Transport", "Mixer"):
-        declared = schemas.members_of(TARGET_MINOR, tag) or frozenset()
+        declared = schemas.members_of(target_minor, tag) or frozenset()
         for el in root.iter(tag):
             present = {c.tag for c in el}
             gone = sorted(m for m in declared if m not in present)
@@ -138,7 +139,8 @@ def main(als, project, expected_path):
     project = pathlib.Path(project)
     expected = json.load(open(expected_path))
     root, toolz = abletoolz_read(path, project)
-    problems, walked = schema_walk(root)
+    minor = root.get("MinorVersion")
+    problems, walked = schema_walk(root, minor, TARGETS[minor])
     from fastcrc.crc16 import umts
 
     # Live checksums the first 16 384 bytes of a file (abletoolz.samples.crc.MAX_CRC_SIZE).
@@ -147,7 +149,8 @@ def main(als, project, expected_path):
         "abletoolz": toolz,
         "schemaProblems": problems,
         "walked": walked,
-        "missingMembers": missing_members(root),
+        "minorVersion": minor,
+        "missingMembers": missing_members(root, minor),
         "dawtool": dawtool_read(path),
         "fastcrc": crcs,
     }))

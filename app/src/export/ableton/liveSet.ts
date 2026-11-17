@@ -1,47 +1,81 @@
-// The Live Set document, in the schema of Live 11.0 (`MinorVersion`
-// « 11.0_433 »): Live 11 and Live 12 open it (a Live release opens the sets
-// of every older schema, back to Live 8); Live 10 does not (see ALS-FORMAT.md
-// for why Live 10 is not targeted, and for the source of every element).
+// The Live Set document, in one of two schemas (ALS-FORMAT.md):
 //
-// Shape of the document: what Live 11 writes for a new set with audio tracks
-// and no return track, element by element in Live's order, with:
+//   - « live11 » (default), `MinorVersion` 11.0_433, as Live 11.0 writes it:
+//     Live 11 and Live 12 open it (a Live release reads the sets of every
+//     older schema, back to Live 8) and find its audio files by their path
+//     relative to the set;
+//   - « live10 », `MinorVersion` 10.0_377, as Live 10.1 writes it: for Live
+//     10. Live 10 finds an audio file through a macOS alias record that only
+//     the Mac where the file lies can produce, so the clips of this set open
+//     « missing » and the user points Live to the folder once (File Manager).
+//
+// Shape of the document: what Live writes for a new set with audio tracks and
+// no return track, element by element in Live's order (sets saved by Live
+// 10.1.7, 11.1.5 and 12.0 compared, ALS-FORMAT.md), with:
 //   - one audio track per input track, one unwarped arrangement clip on each;
 //   - the main track's Tempo and TimeSignature automated (steps on sixteenths,
 //     `tempo.ts`), the tempo lane's view range fitted to the curve;
 //   - the locators;
 //   - eight empty scenes, as in Live's default set (every clip slot list has
 //     one slot per scene: Live crashes on a mismatch).
-// Nothing newer than Live 11.0.0 is written: Live refuses a whole set over one
-// element or attribute it does not know. `reference_check.py` walks the
-// result against Live's own schema of 11.0_433.
+// Nothing newer than the target release is written (11.0.0, or 10.1.0): Live
+// refuses a whole set over one element or attribute it does not know.
+// `reference_check.py` walks the result against Live's own schemas.
 
-import { liveFileCrc } from './crc';
 import { ENVELOPE_START, liveTempoSteps, quartersToSeconds, secondsToQuarters, tempoEvents, timeSignatureCode } from './tempo';
-import type { AbletonSetInput, AbletonSetResult, AbletonWarning, LiveTempoPoint } from './types';
+import type { AbletonSetInput, AbletonSetResult, AbletonTarget, AbletonTrackInput, AbletonWarning, LiveTempoPoint } from './types';
 import { el, float32, serialize, v, type XmlElement } from './xml';
 
-/** Root attributes, as Live 11.0 writes them (no `SchemaChangeCount` in 11.0.0 to 11.0.2). */
-export const LIVE_SCHEMA = {
-  MajorVersion: '5',
-  MinorVersion: '11.0_433',
-  Creator: 'Ableton Live 11.0',
-  Revision: '9dc150af94686f816d2cf27815fcf2907d4b86f8',
-} as const;
+interface Dialect {
+  target: AbletonTarget;
+  /** Root attributes, as the release writes them, in its order. */
+  root: Record<string, string>;
+  /** `OverwriteProtectionNumber`: Live writes its own major and minor version there. */
+  overwriteProtection: number;
+  live11: boolean;
+}
 
-/** `OverwriteProtectionNumber`: Live writes its own major and minor version there (0x0B00 for 11.0). */
-const OVERWRITE_PROTECTION = 0x0b00;
+export const DIALECTS: Record<AbletonTarget, Dialect> = {
+  // Live 11.0.0 to 11.0.2 wrote no SchemaChangeCount.
+  live11: {
+    target: 'live11',
+    root: { MajorVersion: '5', MinorVersion: '11.0_433', Creator: 'Ableton Live 11.0', Revision: '9dc150af94686f816d2cf27815fcf2907d4b86f8' },
+    overwriteProtection: 0x0b00,
+    live11: true,
+  },
+  live10: {
+    target: 'live10',
+    root: { MajorVersion: '5', MinorVersion: '10.0_377', SchemaChangeCount: '2', Creator: 'Ableton Live 10.1', Revision: '820f098a4a1eff42a9be3d90e07536cb8104c459' },
+    overwriteProtection: 0x0a01,
+    live11: false,
+  },
+};
+
+/** Root attributes of the default target. */
+export const LIVE_SCHEMA = DIALECTS.live11.root;
+
 /** Scenes of Live's default set. */
 const SCENES = 8;
-/** Warm colours of Live's palette (indices 0..69), one per track in turn. */
-const TRACK_COLORS = [2, 3, 4, 1, 15, 16, 17, 14, 28, 29];
+/** Warm colours of Live's palette (indices 0..59): ochre, rust, brown, tan, sand… one per track in turn. */
+const TRACK_COLORS = [2, 57, 16, 43, 30, 42, 58, 44, 29, 15];
 const MASTER_COLOR = 21;
-const NUM_ID_FLOOR = 1;
+
+/**
+ * A track's colour as the schema stores it. Live 11 writes the palette index;
+ * Live 10 writes a clip's palette index as it is and shifts a track's or a
+ * scene's (0..59 → 140..199, 60..69 → 278..287: ableton-als, measured).
+ */
+function trackColor(d: Dialect, index: number): number {
+  if (d.live11) return index;
+  if (index < 0) return 0; // no colour: -1 in Live 11, 0 in Live 10
+  return index < 60 ? index + 140 : index + 218;
+}
 
 // Automation targets and pointees share one id space, counted by `NextPointeeId`. Automation events have ids of
 // their own, but in the sets Live saves they stay below `NextPointeeId` too (and a validator of generated sets,
 // ableton-als, requires every Id of the file to): one counter for both keeps every Id unique and below it.
 class Ids {
-  private pointee = NUM_ID_FLOOR;
+  private pointee = 1;
   /** A new id in the set-global space counted by `NextPointeeId` (targets, pointees). */
   next(): number {
     return this.pointee++;
@@ -53,6 +87,12 @@ class Ids {
   get nextPointeeId(): number {
     return this.pointee;
   }
+}
+
+interface Ctx {
+  d: Dialect;
+  ids: Ids;
+  sampleRate: number;
 }
 
 const lockEnvelope = () => v('LockEnvelope', 0);
@@ -83,10 +123,15 @@ function routing(tag: string, targetName: string, upper: string, lower: string):
   return el(tag, null, [v('Target', targetName), v('UpperDisplayString', upper), v('LowerDisplayString', lower)]);
 }
 
-function automationLanes(): XmlElement {
+function automationLanes(d: Dialect): XmlElement {
   return el('AutomationLanes', null, [
     el('AutomationLanes', null, [
-      el('AutomationLane', { Id: 0 }, [v('SelectedDevice', 0), v('SelectedEnvelope', 0), v('IsContentSelectedInDocument', false), v('LaneHeight', 68)]),
+      el('AutomationLane', { Id: 0 }, [
+        v('SelectedDevice', 0),
+        v('SelectedEnvelope', 0),
+        v(d.live11 ? 'IsContentSelectedInDocument' : 'IsContentSelected', false),
+        v('LaneHeight', 68),
+      ]),
     ]),
     v('AreAdditionalAutomationLanesFolded', false),
   ]);
@@ -96,38 +141,36 @@ function clipEnvelopeChooser(): XmlElement {
   return el('ClipEnvelopeChooserViewState', null, [v('SelectedDevice', 0), v('SelectedEnvelope', 0), v('PreferModulationVisible', false)]);
 }
 
-/** The members every track starts with, up to `LinkedTrackGroupId`. */
-function trackHead(name: string, color: number, envelopes: XmlElement[]): XmlElement[] {
+/** The members every track starts with, up to `ViewData` (and Live 11's take lanes). */
+function trackHead(d: Dialect, name: string, userName: string, color: number, envelopes: XmlElement[]): XmlElement[] {
   return [
     v('LomId', 0),
     v('LomIdView', 0),
-    v('IsContentSelectedInDocument', false),
-    v('PreferredContentViewMode', 0),
+    ...(d.live11 ? [v('IsContentSelectedInDocument', false), v('PreferredContentViewMode', 0)] : [v('IsContentSelected', false), v('EnvelopeModePreferred', false)]),
     el('TrackDelay', null, [v('Value', 0), v('IsValueSampleBased', false)]),
-    el('Name', null, [v('EffectiveName', name), v('UserName', name), v('Annotation', ''), v('MemorizedFirstClipName', '')]),
-    v('Color', color),
+    el('Name', null, [v('EffectiveName', name), v('UserName', userName), v('Annotation', ''), v('MemorizedFirstClipName', '')]),
+    v(d.live11 ? 'Color' : 'ColorIndex', trackColor(d, color)),
     el('AutomationEnvelopes', null, [el('Envelopes', null, envelopes)]),
     v('TrackGroupId', -1),
     v('TrackUnfolded', true),
     listWrapper('DevicesListWrapper'),
     listWrapper('ClipSlotsListWrapper'),
     v('ViewData', '{}'),
-    el('TakeLanes', null, [el('TakeLanes'), v('AreTakeLanesFolded', true)]),
-    v('LinkedTrackGroupId', -1),
+    ...(d.live11 ? [el('TakeLanes', null, [el('TakeLanes'), v('AreTakeLanesFolded', true)]), v('LinkedTrackGroupId', -1)] : []),
   ];
 }
 
 /** The members of a device (mixer, sequencer) up to its `SourceContext`. */
-function deviceHead(ids: Ids, lastTimeable: number): XmlElement[] {
+function deviceHead(c: Ctx): XmlElement[] {
   return [
     v('LomId', 0),
     v('LomIdView', 0),
     v('IsExpanded', true),
-    boolParam(ids, 'On', true),
-    v('ModulationSourceCount', 0),
+    boolParam(c.ids, 'On', true),
+    ...(c.d.live11 ? [v('ModulationSourceCount', 0)] : []),
     listWrapper('ParametersListWrapper'),
-    el('Pointee', { Id: ids.next() }),
-    v('LastSelectedTimeableIndex', lastTimeable),
+    ...(c.d.live11 ? [el('Pointee', { Id: c.ids.next() })] : []),
+    v('LastSelectedTimeableIndex', 0),
     v('LastSelectedClipEnvelopeIndex', 0),
     el('LastPresetRef', null, [el('Value')]),
     el('LockedScripts'),
@@ -139,19 +182,19 @@ function deviceHead(ids: Ids, lastTimeable: number): XmlElement[] {
   ];
 }
 
-function mixer(ids: Ids, extra: XmlElement[] = []): XmlElement {
+function mixer(c: Ctx, extra: XmlElement[] = []): XmlElement {
   return el('Mixer', null, [
-    ...deviceHead(ids, 0),
+    ...deviceHead(c),
     el('Sends'),
-    boolParam(ids, 'Speaker', true),
+    boolParam(c.ids, 'Speaker', true),
     v('SoloSink', false),
     v('PanMode', 0),
-    floatParam(ids, 'Pan', 0, -1, 1),
-    floatParam(ids, 'SplitStereoPanL', -1, -1, 1),
-    floatParam(ids, 'SplitStereoPanR', 1, -1, 1),
-    floatParam(ids, 'Volume', 1, '0.0003162277571', '1.99526238'),
+    floatParam(c.ids, 'Pan', 0, -1, 1),
+    floatParam(c.ids, 'SplitStereoPanL', -1, -1, 1),
+    floatParam(c.ids, 'SplitStereoPanR', 1, -1, 1),
+    floatParam(c.ids, 'Volume', 1, '0.0003162277571', '1.99526238'),
     v('ViewStateSesstionTrackWidth', 93),
-    el('CrossFadeState', null, [v('LomId', 0), v('Manual', 1), target('AutomationTarget', ids.next())]),
+    el('CrossFadeState', null, [v('LomId', 0), v('Manual', 1), target('AutomationTarget', c.ids.next())]),
     listWrapper('SendsListWrapper'),
     ...extra,
   ]);
@@ -166,9 +209,9 @@ function clipSlots(count: number): XmlElement {
 }
 
 /** A track's audio sequencer (`MainSequencer`, `FreezeSequencer`, the main track's `AudioSequencer`). */
-function sequencer(ids: Ids, tag: string, attrs: Record<string, number> | null, slots: number, monitoring: number, clips: XmlElement[]): XmlElement {
+function sequencer(c: Ctx, tag: string, attrs: Record<string, number> | null, slots: number, monitoring: number, clips: XmlElement[]): XmlElement {
   return el(tag, attrs, [
-    ...deviceHead(ids, 0),
+    ...deviceHead(c),
     slots > 0 ? clipSlots(slots) : el('ClipSlotList'),
     v('MonitoringEnum', monitoring),
     el('Sample', null, [
@@ -177,19 +220,19 @@ function sequencer(ids: Ids, tag: string, attrs: Record<string, number> | null, 
         el('AutomationTransformViewState', null, [v('IsTransformPending', false), el('TimeAndValueTransforms')]),
       ]),
     ]),
-    target('VolumeModulationTarget', ids.next()),
-    target('TranspositionModulationTarget', ids.next()),
-    target('GrainSizeModulationTarget', ids.next()),
-    target('FluxModulationTarget', ids.next()),
-    target('SampleOffsetModulationTarget', ids.next()),
+    target('VolumeModulationTarget', c.ids.next()),
+    target('TranspositionModulationTarget', c.ids.next()),
+    target('GrainSizeModulationTarget', c.ids.next()),
+    target('FluxModulationTarget', c.ids.next()),
+    target('SampleOffsetModulationTarget', c.ids.next()),
     v('PitchViewScrollPosition', -1073741824),
     v('SampleOffsetModulationScrollPosition', -1073741824),
     el('Recorder', null, [v('IsArmed', false), v('TakeCounter', 1)]),
   ]);
 }
 
-function innerDeviceChain(): XmlElement {
-  return el('DeviceChain', null, [el('Devices'), el('SignalModulations')]);
+function innerDeviceChain(d: Dialect): XmlElement {
+  return el('DeviceChain', null, [el('Devices'), d.live11 && el('SignalModulations')]);
 }
 
 interface ClipPlacement {
@@ -198,10 +241,18 @@ interface ClipPlacement {
   seconds: number;
 }
 
-function sampleRef(track: AbletonSetInput['tracks'][number], sampleRate: number): XmlElement {
-  return el('SampleRef', null, [
-    el('FileRef', null, [
-      // 3: a file of the set's project, found by its RelativePath (Path is the fallback).
+function pathElements(tag: string, dirs: string[]): XmlElement {
+  return el(
+    tag,
+    null,
+    dirs.map((dir, i) => el('RelativePathElement', { Id: i, Dir: dir })),
+  );
+}
+
+function fileRef(d: Dialect, track: AbletonTrackInput): XmlElement {
+  if (d.live11) {
+    return el('FileRef', null, [
+      // 3: a file of the set's project, found by its RelativePath first (Path is the fallback).
       v('RelativePathType', 3),
       v('RelativePath', track.file),
       v('Path', track.absolutePath ?? ''),
@@ -210,18 +261,49 @@ function sampleRef(track: AbletonSetInput['tracks'][number], sampleRate: number)
       v('LivePackId', ''),
       v('OriginalFileSize', track.fileSize ?? 0),
       v('OriginalCrc', track.crc ?? 0),
+    ]);
+  }
+  // Live 10's shape for a file of the project (as Live 10.1 writes a recorded sample). `Data` would hold the
+  // macOS alias record Live 10 resolves the file with; without it the clip opens « missing », and the search
+  // hint (folders, size, checksum) is what Live's File Manager matches the file with.
+  const parts = track.file.split('/');
+  const name = parts.pop()!;
+  const known = (track.fileSize ?? 0) > 0;
+  return el('FileRef', null, [
+    v('HasRelativePath', true),
+    v('RelativePathType', 3),
+    pathElements('RelativePath', parts),
+    v('Name', name),
+    v('Type', 2),
+    el('Data'),
+    v('RefersToFolder', false),
+    el('SearchHint', null, [
+      pathElements('PathHint', track.absolutePath ? track.absolutePath.split('/').filter(Boolean).slice(0, -1) : []),
+      v('FileSize', track.fileSize ?? 0),
+      v('Crc', track.crc ?? 0),
+      v('MaxCrcSize', known ? 16384 : 0),
+      v('HasExtendedInfo', known),
     ]),
+    v('LivePackName', ''),
+    v('LivePackId', ''),
+  ]);
+}
+
+function sampleRef(c: Ctx, track: AbletonTrackInput): XmlElement {
+  return el('SampleRef', null, [
+    fileRef(c.d, track),
     v('LastModDate', track.lastModified ?? 0),
     el('SourceContext'),
     v('SampleUsageHint', 0),
     v('DefaultDuration', track.frames),
-    v('DefaultSampleRate', sampleRate),
+    v('DefaultSampleRate', c.sampleRate),
   ]);
 }
 
 /** An arrangement clip that plays its file as it is: warp off, no loop, from its first sample. */
-function audioClip(track: AbletonSetInput['tracks'][number], color: number, place: ClipPlacement, sampleRate: number): XmlElement {
+function audioClip(c: Ctx, track: AbletonTrackInput, color: number, place: ClipPlacement): XmlElement {
   const secs = place.seconds;
+  const d = c.d;
   return el('AudioClip', { Id: 0, Time: place.start }, [
     v('LomId', 0),
     v('LomIdView', 0),
@@ -239,7 +321,7 @@ function audioClip(track: AbletonSetInput['tracks'][number], color: number, plac
     ]),
     v('Name', track.name),
     v('Annotation', ''),
-    v('Color', color),
+    v(d.live11 ? 'Color' : 'ColorIndex', color),
     v('LaunchMode', 0),
     v('LaunchQuantisation', 0),
     el('TimeSignature', null, [
@@ -253,24 +335,28 @@ function audioClip(track: AbletonSetInput['tracks'][number], color: number, plac
     el('GrooveSettings', null, [v('GrooveId', -1)]),
     v('Disabled', false),
     v('VelocityAmount', 0),
-    el('FollowAction', null, [
-      v('FollowTime', 4),
-      v('IsLinked', true),
-      v('LoopIterations', 1),
-      v('FollowActionA', 4),
-      v('FollowActionB', 0),
-      v('FollowChanceA', 100),
-      v('FollowChanceB', 0),
-      v('JumpIndexA', 1),
-      v('JumpIndexB', 1),
-      v('FollowActionEnabled', false),
-    ]),
+    ...(d.live11
+      ? [
+          el('FollowAction', null, [
+            v('FollowTime', 4),
+            v('IsLinked', true),
+            v('LoopIterations', 1),
+            v('FollowActionA', 4),
+            v('FollowActionB', 0),
+            v('FollowChanceA', 100),
+            v('FollowChanceB', 0),
+            v('JumpIndexA', 1),
+            v('JumpIndexB', 1),
+            v('FollowActionEnabled', false),
+          ]),
+        ]
+      : [v('FollowTime', 4), v('FollowActionA', 0), v('FollowActionB', 0), v('FollowChanceA', 1), v('FollowChanceB', 0)]),
     el('Grid', null, [v('FixedNumerator', 1), v('FixedDenominator', 16), v('GridIntervalPixel', 20), v('Ntoles', 2), v('SnapToGrid', true), v('Fixed', false)]),
     v('FreezeStart', 0),
     v('FreezeEnd', 0),
     v('IsWarped', false),
-    v('TakeId', 1),
-    sampleRef(track, sampleRate),
+    d.live11 && v('TakeId', 1),
+    sampleRef(c, track),
     el('Onsets', null, [el('UserOnsets'), v('HasUserOnsets', false)]),
     v('WarpMode', 0),
     v('GranularityTones', 30),
@@ -312,9 +398,9 @@ function audioClip(track: AbletonSetInput['tracks'][number], color: number, plac
   ]);
 }
 
-function audioTrack(ids: Ids, id: number, track: AbletonSetInput['tracks'][number], color: number, place: ClipPlacement, sampleRate: number): XmlElement {
+function audioTrack(c: Ctx, id: number, track: AbletonTrackInput, color: number, place: ClipPlacement): XmlElement {
   return el('AudioTrack', { Id: id }, [
-    ...trackHead(track.name, color, []),
+    ...trackHead(c.d, track.name, track.name, color, []),
     v('SavedPlayingSlot', -1),
     v('SavedPlayingOffset', 0),
     v('Freeze', false),
@@ -322,16 +408,16 @@ function audioTrack(ids: Ids, id: number, track: AbletonSetInput['tracks'][numbe
     v('NeedArrangerRefreeze', true),
     v('PostProcessFreezeClips', 0),
     el('DeviceChain', null, [
-      automationLanes(),
+      automationLanes(c.d),
       clipEnvelopeChooser(),
       routing('AudioInputRouting', 'AudioIn/External/S0', 'Ext. In', '1/2'),
       routing('MidiInputRouting', 'MidiIn/External.All/-1', 'Ext: All Ins', ''),
       routing('AudioOutputRouting', 'AudioOut/Master', 'Master', ''),
       routing('MidiOutputRouting', 'MidiOut/None', 'None', ''),
-      mixer(ids),
-      sequencer(ids, 'MainSequencer', null, SCENES, 2, [audioClip(track, color, place, sampleRate)]),
-      sequencer(ids, 'FreezeSequencer', null, SCENES, 1, []),
-      innerDeviceChain(),
+      mixer(c),
+      sequencer(c, 'MainSequencer', null, SCENES, 2, [audioClip(c, track, color, place)]),
+      sequencer(c, 'FreezeSequencer', null, SCENES, 1, []),
+      innerDeviceChain(c.d),
     ]),
   ]);
 }
@@ -346,38 +432,31 @@ function envelope(id: number, pointee: number, events: XmlElement[]): XmlElement
   ]);
 }
 
-function masterTrack(ids: Ids, steps: LiveTempoPoint[], meters: { quarters: number; code: number }[]): XmlElement {
+function masterTrack(c: Ctx, steps: LiveTempoPoint[], meters: { quarters: number; code: number }[]): XmlElement {
+  const { ids } = c;
   // The mixer first (its parameters' ids), then the envelopes that point at them.
-  const tempoTarget = { id: 0 };
-  const signatureTarget = { id: 0 };
+  const tempoTarget = ids.next();
+  const tempoModulation = ids.next();
+  const signatureTarget = ids.next();
   const bpms = steps.map((s) => s.quarterBpm);
+  // The tempo lane's view range (« Range Minimum / Maximum » in Live), around the curve.
   const viewBottom = Math.max(20, Math.floor(Math.min(...bpms) / 10) * 10 - 10);
   const viewTop = Math.min(999, Math.ceil(Math.max(...bpms) / 10) * 10 + 10);
-  const tempoParam = (): XmlElement => {
-    const at = ids.next();
-    tempoTarget.id = at;
-    return el('Tempo', null, [
+  const m = mixer(c, [
+    el('Tempo', null, [
       v('LomId', 0),
-      el('Manual', { Value: float32(steps[0]!.quarterBpm) }),
+      v('Manual', float32(steps[0]!.quarterBpm)),
       range(60, 200),
-      target('AutomationTarget', at),
-      target('ModulationTarget', ids.next()),
-    ]);
-  };
-  const signatureParam = (): XmlElement => {
-    const at = ids.next();
-    signatureTarget.id = at;
-    return el('TimeSignature', null, [v('LomId', 0), v('Manual', meters[0]!.code), target('AutomationTarget', at)]);
-  };
-  const m = mixer(ids, [
-    tempoParam(),
-    signatureParam(),
+      target('AutomationTarget', tempoTarget),
+      target('ModulationTarget', tempoModulation),
+    ]),
+    el('TimeSignature', null, [v('LomId', 0), v('Manual', meters[0]!.code), target('AutomationTarget', signatureTarget)]),
     floatParam(ids, 'GlobalGrooveAmount', 100, 0, 131.25),
     floatParam(ids, 'CrossFade', 0, -1, 1),
     v('TempoAutomationViewBottom', viewBottom),
     v('TempoAutomationViewTop', viewTop),
   ]);
-  const freeze = el('FreezeSequencer', null, [sequencer(ids, 'AudioSequencer', { Id: 0 }, 0, 1, [])]);
+  const freeze = el('FreezeSequencer', null, [sequencer(c, 'AudioSequencer', { Id: 0 }, 0, 1, [])]);
 
   const tempoEvts = tempoEvents(steps).map((e) => el('FloatEvent', { Id: ids.nextEvent(), Time: e.time, Value: float32(e.value) }));
   const meterEvts = [
@@ -385,12 +464,10 @@ function masterTrack(ids: Ids, steps: LiveTempoPoint[], meters: { quarters: numb
     ...meters.slice(1).map((mt) => el('EnumEvent', { Id: ids.nextEvent(), Time: mt.quarters, Value: mt.code })),
   ];
   return el('MasterTrack', null, [
-    ...trackHead('Master', MASTER_COLOR, [envelope(0, tempoTarget.id, tempoEvts), envelope(1, signatureTarget.id, meterEvts)]).map((e) =>
-      // The main track's name is not the user's: Live leaves UserName empty.
-      e.tag === 'Name' ? el('Name', null, [v('EffectiveName', 'Master'), v('UserName', ''), v('Annotation', ''), v('MemorizedFirstClipName', '')]) : e,
-    ),
+    // The main track's name is not the user's: Live leaves UserName empty.
+    ...trackHead(c.d, 'Master', '', MASTER_COLOR, [envelope(0, tempoTarget, tempoEvts), envelope(1, signatureTarget, meterEvts)]),
     el('DeviceChain', null, [
-      automationLanes(),
+      automationLanes(c.d),
       clipEnvelopeChooser(),
       routing('AudioInputRouting', 'AudioIn/External/S0', 'Ext. In', '1/2'),
       routing('MidiInputRouting', 'MidiIn/External.All/-1', 'Ext: All Ins', ''),
@@ -398,53 +475,60 @@ function masterTrack(ids: Ids, steps: LiveTempoPoint[], meters: { quarters: numb
       routing('MidiOutputRouting', 'MidiOut/None', 'None', ''),
       m,
       freeze,
-      innerDeviceChain(),
+      innerDeviceChain(c.d),
     ]),
   ]);
 }
 
-function preHearTrack(ids: Ids): XmlElement {
+function preHearTrack(c: Ctx): XmlElement {
   return el('PreHearTrack', null, [
-    ...trackHead('Master', -1, []).map((e) =>
-      e.tag === 'Name' ? el('Name', null, [v('EffectiveName', 'Master'), v('UserName', ''), v('Annotation', ''), v('MemorizedFirstClipName', '')]) : e,
-    ),
+    ...trackHead(c.d, 'Master', '', -1, []),
     el('DeviceChain', null, [
-      automationLanes(),
+      automationLanes(c.d),
       clipEnvelopeChooser(),
       routing('AudioInputRouting', 'AudioIn/External/S0', 'Ext. In', '1/2'),
       routing('MidiInputRouting', 'MidiIn/External.All/-1', 'Ext: All Ins', ''),
       routing('AudioOutputRouting', 'AudioOut/External/S0', 'Ext. Out', '1/2'),
       routing('MidiOutputRouting', 'MidiOut/None', 'None', ''),
-      mixer(ids),
-      innerDeviceChain(),
+      mixer(c),
+      innerDeviceChain(c.d),
     ]),
   ]);
 }
 
-function scene(i: number): XmlElement {
-  return el('Scene', { Id: i }, [
-    el('FollowAction', null, [
-      v('FollowTime', 4),
-      v('IsLinked', true),
-      v('LoopIterations', 1),
-      v('FollowActionA', 4),
-      v('FollowActionB', 0),
-      v('FollowChanceA', 100),
-      v('FollowChanceB', 0),
-      v('JumpIndexA', 0),
-      v('JumpIndexB', 0),
-      v('FollowActionEnabled', false),
-    ]),
-    v('Name', ''),
-    v('Annotation', ''),
-    v('Color', -1),
-    v('Tempo', 120),
-    v('IsTempoEnabled', false),
-    v('TimeSignatureId', 201),
-    v('IsTimeSignatureEnabled', false),
-    v('LomId', 0),
-    listWrapper('ClipSlotsListWrapper'),
-  ]);
+function scenes(d: Dialect): XmlElement {
+  const list: XmlElement[] = [];
+  for (let i = 0; i < SCENES; i++) {
+    list.push(
+      d.live11
+        ? el('Scene', { Id: i }, [
+            el('FollowAction', null, [
+              v('FollowTime', 4),
+              v('IsLinked', true),
+              v('LoopIterations', 1),
+              v('FollowActionA', 4),
+              v('FollowActionB', 0),
+              v('FollowChanceA', 100),
+              v('FollowChanceB', 0),
+              v('JumpIndexA', 0),
+              v('JumpIndexB', 0),
+              v('FollowActionEnabled', false),
+            ]),
+            v('Name', ''),
+            v('Annotation', ''),
+            v('Color', -1),
+            v('Tempo', 120),
+            v('IsTempoEnabled', false),
+            v('TimeSignatureId', 201),
+            v('IsTimeSignatureEnabled', false),
+            v('LomId', 0),
+            listWrapper('ClipSlotsListWrapper'),
+          ])
+        : // Live 10: the scene's name is its Value (« 1 », « 2 »… with a leading space, as Live writes them).
+          el('Scene', { Id: i, Value: ` ${i + 1}` }, [v('Annotation', ''), v('ColorIndex', 0), v('LomId', 0), listWrapper('ClipSlotsListWrapper')]),
+    );
+  }
+  return el(d.live11 ? 'Scenes' : 'SceneNames', null, list);
 }
 
 function expressionLane(id: number, type: number, size: number, minimized: boolean): XmlElement {
@@ -456,7 +540,7 @@ function locatorsOf(input: AbletonSetInput, warnings: AbletonWarning[]): { quart
     .filter((l) => Number.isFinite(l.quarters))
     .map((l, i) => ({ ...l, i }))
     .sort((a, b) => a.quarters - b.quarters || a.i - b.i);
-  const out: { quarters: number; name: string; names: string[] }[] = [];
+  const out: { quarters: number; names: string[] }[] = [];
   for (const l of sorted) {
     if (l.quarters < 0) warnings.push({ kind: 'locator-outside', quarters: l.quarters, name: l.name });
     const last = out[out.length - 1];
@@ -464,7 +548,7 @@ function locatorsOf(input: AbletonSetInput, warnings: AbletonWarning[]): { quart
       last.names.push(l.name);
       continue;
     }
-    out.push({ quarters: l.quarters, name: l.name, names: [l.name] });
+    out.push({ quarters: l.quarters, names: [l.name] });
   }
   return out.map((l) => {
     if (l.names.length > 1) warnings.push({ kind: 'locators-merged', quarters: l.quarters, names: l.names });
@@ -477,7 +561,7 @@ function validate(input: AbletonSetInput): void {
   if (input.tracks.length === 0) throw new RangeError('at least one track');
   for (const t of input.tracks) {
     if (!Number.isInteger(t.frames) || t.frames <= 0) throw new RangeError(`track « ${t.name} »: frames must be a positive integer`);
-    if (!t.file || t.file.startsWith('/') || t.file.includes('\\') || t.file.split('/').includes('..')) {
+    if (!t.file || t.file.startsWith('/') || t.file.includes('\\') || t.file.split('/').some((p) => p === '..' || p === '.' || p === '')) {
       throw new RangeError(`track « ${t.name} »: file must be relative to the set's folder, with / separators`);
     }
     if (t.color !== undefined && (!Number.isInteger(t.color) || t.color < 0 || t.color > 69)) throw new RangeError(`track « ${t.name} »: color 0..69`);
@@ -491,12 +575,13 @@ function validate(input: AbletonSetInput): void {
 /** Builds the document (uncompressed) and what was written. */
 export function buildLiveSet(input: AbletonSetInput): AbletonSetResult {
   validate(input);
+  const d = DIALECTS[input.target ?? 'live11'];
   const warnings: AbletonWarning[] = [];
   const steps = liveTempoSteps(input.tempo, warnings);
   const meters = input.meters
     .map((m) => ({ quarters: m.quarters, code: timeSignatureCode(m.numerator, m.denominator) }))
     .filter((m, i, all) => i === 0 || m.code !== all[i - 1]!.code);
-  const ids = new Ids();
+  const c: Ctx = { d, ids: new Ids(), sampleRate: input.sampleRate };
 
   const clipEnds: number[] = [];
   const tracks = input.tracks.map((t, i) => {
@@ -506,23 +591,24 @@ export function buildLiveSet(input: AbletonSetInput): AbletonSetResult {
     const end = secondsToQuarters(steps, quartersToSeconds(steps, start) + seconds);
     clipEnds.push(end);
     const color = t.color ?? TRACK_COLORS[i % TRACK_COLORS.length]!;
-    return audioTrack(ids, 10 + i, t, color, { start, end, seconds }, input.sampleRate);
+    return audioTrack(c, 10 + i, t, color, { start, end, seconds });
   });
-  const master = masterTrack(ids, steps, meters);
-  const preHear = preHearTrack(ids);
+  const master = masterTrack(c, steps, meters);
+  const preHear = preHearTrack(c);
   const locators = locatorsOf(input, warnings);
 
   const annotation = input.annotation ?? `${input.title} — exporté par Fabtice (format à l'essai)`;
+  const L11 = d.live11;
   const liveSet = el('LiveSet', null, [
     v('NextPointeeId', 0), // set below, once every id is taken
-    v('OverwriteProtectionNumber', OVERWRITE_PROTECTION),
+    v('OverwriteProtectionNumber', d.overwriteProtection),
     v('LomId', 0),
     v('LomIdView', 0),
     el('Tracks', null, tracks),
     master,
     preHear,
     el('SendsPre'),
-    el('Scenes', null, Array.from({ length: SCENES }, (_, i) => scene(i))),
+    scenes(d),
     el('Transport', null, [
       v('PhaseNudgeTempo', 10),
       v('LoopOn', false),
@@ -532,28 +618,33 @@ export function buildLiveSet(input: AbletonSetInput): AbletonSetResult {
       v('CurrentTime', 0),
       v('PunchIn', false),
       v('PunchOut', false),
-      v('MetronomeTickDuration', 0),
+      L11 && v('MetronomeTickDuration', 0), // since Live 10.1.6
       v('DrawMode', false),
     ]),
     el('SongMasterValues', null, [el('SessionScrollerPos', { X: 0, Y: 0 })]),
-    el('SignalModulations'),
+    L11 && el('SignalModulations'),
     v('GlobalQuantisation', 4),
     v('AutoQuantisation', 0),
     el('Grid', null, [v('FixedNumerator', 1), v('FixedDenominator', 16), v('GridIntervalPixel', 20), v('Ntoles', 2), v('SnapToGrid', true), v('Fixed', false)]),
     el('ScaleInformation', null, [v('RootNote', 0), v('Name', 'Major')]),
-    v('InKey', false),
+    L11 && v('InKey', false),
     v('SmpteFormat', 0),
     el('TimeSelection', null, [v('AnchorTime', 0), v('OtherTime', 0)]),
-    el('SequencerNavigator', null, [
-      el('BeatTimeHelper', null, [v('CurrentZoom', 0.5)]),
-      el('ScrollerPos', { X: 0, Y: 0 }),
-      el('ClientSize', { X: 548, Y: 396 }),
-    ]),
-    v('ViewStateExtendedClipProperties', false),
-    v('IsContentSplitterOpen', true),
-    v('IsExpressionSplitterOpen', true),
-    el('ExpressionLanes', null, [expressionLane(0, 0, 41, false), expressionLane(1, 1, 41, false), expressionLane(2, 2, 41, true), expressionLane(3, 3, 41, true)]),
-    el('ContentLanes', null, [expressionLane(0, 4, 41, false), expressionLane(1, 5, 25, true)]),
+    el('SequencerNavigator', null, [el('BeatTimeHelper', null, [v('CurrentZoom', 0.5)]), el('ScrollerPos', { X: 0, Y: 0 }), el('ClientSize', { X: 548, Y: 396 })]),
+    ...(L11
+      ? [
+          v('ViewStateExtendedClipProperties', false),
+          v('IsContentSplitterOpen', true),
+          v('IsExpressionSplitterOpen', true),
+          el('ExpressionLanes', null, [expressionLane(0, 0, 41, false), expressionLane(1, 1, 41, false), expressionLane(2, 2, 41, true), expressionLane(3, 3, 41, true)]),
+          el('ContentLanes', null, [expressionLane(0, 4, 41, false), expressionLane(1, 5, 25, true)]),
+        ]
+      : [
+          v('ViewStateLaunchPanel', false),
+          v('ViewStateEnvelopePanel', false),
+          v('ViewStateSamplePanel', true),
+          el('ContentSplitterProperties', null, [v('Open', true), v('Size', 35)]),
+        ]),
     v('ViewStateFxSlotCount', 4),
     v('ViewStateSessionMixerHeight', 120),
     el('Locators', null, [
@@ -576,7 +667,7 @@ export function buildLiveSet(input: AbletonSetInput): AbletonSetResult {
     v('CrossfadeCurve', 2),
     v('LatencyCompensation', 2),
     v('HighlightedTrackIndex', 0),
-    el('GroovePool', null, [v('LomId', 0), el('Grooves')]),
+    el('GroovePool', null, [L11 && v('LomId', 0), el('Grooves')]),
     v('AutomationMode', false),
     v('SnapAutomationToGrid', true),
     v('ArrangementOverdub', false),
@@ -585,13 +676,9 @@ export function buildLiveSet(input: AbletonSetInput): AbletonSetResult {
     el('AutoColorPickerForReturnAndMasterTracks', null, [v('NextColorIndex', 0)]),
     v('ViewData', '{}'),
     v('MidiFoldIn', false),
-    v('MidiFoldMode', 0),
-    v('MultiClipFocusMode', false),
-    v('MultiClipLoopBarHeight', 0),
+    ...(L11 ? [v('MidiFoldMode', 0), v('MultiClipFocusMode', false), v('MultiClipLoopBarHeight', 0)] : []),
     v('MidiPrelisten', false),
-    el('LinkedTrackGroups'),
-    v('AccidentalSpellingPreference', 3),
-    v('PreferFlatRootNote', false),
+    ...(L11 ? [el('LinkedTrackGroups'), v('AccidentalSpellingPreference', 3), v('PreferFlatRootNote', false)] : []),
     v('UseWarperLegacyHiQMode', false),
     el('VideoWindowRect', { Top: -2147483648, Left: -2147483648, Bottom: -2147483648, Right: -2147483648 }),
     v('ShowVideoWindow', true),
@@ -614,11 +701,9 @@ export function buildLiveSet(input: AbletonSetInput): AbletonSetResult {
       v('ArrangerShowOverView', 1),
     ]),
   ]);
-  liveSet.children[0] = v('NextPointeeId', ids.nextPointeeId);
+  liveSet.children[0] = v('NextPointeeId', c.ids.nextPointeeId);
 
-  const root = el('Ableton', { ...LIVE_SCHEMA }, [liveSet]);
+  const root = el('Ableton', { ...d.root }, [liveSet]);
   const xml = `<?xml version="1.0" encoding="UTF-8"?>\n${serialize(root)}\n`;
-  return { xml, tempo: steps, clipEnds, warnings };
+  return { xml, target: d.target, tempo: steps, clipEnds, warnings };
 }
-
-export { liveFileCrc };

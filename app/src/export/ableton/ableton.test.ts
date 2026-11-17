@@ -34,6 +34,7 @@ afterAll(() => rmSync(tmp, { recursive: true, force: true }));
 
 interface Checked {
   errors: string[];
+  minorVersion: string;
   scenes: number;
   nextPointeeId: number;
   tracks: { name: string; start: number; end: number; seconds: number; relativePath: string; relativePathType: number; path: string; size: number; crc: number; frames: number; rate: number }[];
@@ -191,11 +192,15 @@ describe('the set', () => {
     expect(r.warnings).toEqual([{ kind: 'locators-merged', quarters: 5, names: ['B', 'F7'] }]);
   });
 
-  withPython('is read back by an XML parser: structure, ids, pointers, envelopes, clips, locators', async () => {
-    const { input, beats } = sampleSet();
+  const targets = [['live11', '11.0_433'], ['live10', '10.0_377']] as const;
+  (python ? it.each(targets) : it.skip.each(targets))('%s: read back by an XML parser: structure, ids, pointers, envelopes, clips, locators', async (target, minor) => {
+    const { input: base, beats } = sampleSet();
+    const input = { ...base, target };
     const r = buildLiveSet(input);
-    const c = await checked(input, 'sample');
+    expect(r.target).toBe(target);
+    const c = await checked(input, `sample-${target}`);
     expect(c.errors).toEqual([]);
+    expect(c.minorVersion).toBe(minor);
     expect(c.scenes).toBe(8);
     // Tracks and clips.
     expect(c.tracks.map((t) => t.name)).toEqual(['Morceau', 'Contrebasse']);
@@ -252,8 +257,10 @@ describe('the set', () => {
     const dir = process.env.ALS_DUMP;
     if (!dir) return;
     const { input } = sampleSet();
-    const { bytes } = await writeAbletonSet(input);
-    writeFileSync(path.join(dir, 'sample.als'), bytes);
-    expect(readFileSync(path.join(dir, 'sample.als')).length).toBe(bytes.length);
+    for (const target of ['live11', 'live10'] as const) {
+      const { bytes } = await writeAbletonSet({ ...input, target });
+      writeFileSync(path.join(dir, `sample-${target}.als`), bytes);
+      expect(readFileSync(path.join(dir, `sample-${target}.als`)).length).toBe(bytes.length);
+    }
   });
 });

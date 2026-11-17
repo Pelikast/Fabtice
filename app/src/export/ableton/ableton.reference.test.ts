@@ -32,8 +32,6 @@ import { writeAbletonSet } from './index';
 const python = process.env.ALS_REFERENCE_PYTHON;
 const nodeDir = process.env.ALS_REFERENCE_NODE_DIR;
 const suite = python || nodeDir ? describe : describe.skip;
-const pyTest = python ? it : it.skip;
-const nodeTest = nodeDir ? it : it.skip;
 const here = path.dirname(new URL(import.meta.url).pathname);
 const tmp = mkdtempSync(path.join(tmpdir(), 'fabtice-als-ref-'));
 afterAll(() => rmSync(tmp, { recursive: true, force: true }));
@@ -53,17 +51,19 @@ interface Report {
   fastcrc: number[];
 }
 
-// What Live 11 itself leaves out of a set (unmapped key and MIDI assignments), as read in a set saved by
-// Live 11.1.5, plus what appeared after 11.0.0 and the members Live writes as attributes.
+// What Live itself leaves out of a set (unmapped key and MIDI assignments), as read in sets saved by Live 10.1.7
+// and 11.1.5, plus what appeared after the target release and the members Live writes as attributes.
 const KEY_MIDI = /^KeyMidi|KeyMidi$/;
 
 suite('independent readers', () => {
-  pyTest('abletoolz and dawtool read the set as intended; Live 11.0\'s schema declares every element', async () => {
-    const { input, beats } = sampleSet();
+  const targets = [['live11', [11, 0, 0]], ['live10', [10, 1, 0]]] as const;
+  (python ? it.each(targets) : it.skip.each(targets))('%s: abletoolz and dawtool read the set as intended; Live\'s schema declares every element', async (target, version) => {
+    const { input: base, beats } = sampleSet();
+    const input = { ...base, target };
     // One locator per beat: dawtool gives the time of each one through Live's tempo curve.
     const withBeats = { ...input, locators: beats.map((b, i) => ({ quarters: b.quarters, name: `b${i}` })) };
     const { bytes } = await writeAbletonSet(withBeats);
-    const project = path.join(tmp, 'Blues du dimanche Project');
+    const project = path.join(tmp, `${target} Project`);
     mkdirSync(path.join(project, 'Samples', 'Imported'), { recursive: true });
     for (const t of input.tracks) writeFileSync(path.join(project, t.file), new Uint8Array(16));
     const als = path.join(project, 'Blues du dimanche.als');
@@ -77,7 +77,7 @@ suite('independent readers', () => {
     const r = JSON.parse(run.stdout) as Report;
 
     // abletoolz
-    expect(r.abletoolz.version).toEqual([11, 0, 0]);
+    expect(r.abletoolz.version).toEqual(version);
     expect(r.abletoolz.bpm).toBeCloseTo(input.tempo[0]!.quarterBpm, 3);
     expect(r.abletoolz.meters).toEqual(input.meters.map((m) => [m.quarters, m.numerator, m.denominator]));
     expect(r.abletoolz.tracks).toEqual(input.tracks.map((t) => ['AudioTrack', t.name]));
@@ -85,19 +85,20 @@ suite('independent readers', () => {
     expect(r.schemaProblems).toEqual({});
     expect(r.walked).toBeGreaterThan(1000);
     for (const [cls, members] of Object.entries(r.missingMembers)) {
-      for (const m of members) expect(KEY_MIDI.test(m) || ['ResetNonautomatedMidiControllersOnClipStarts', 'Time', 'Mapping'].includes(m), `${cls}/${m}`).toBe(true);
+      for (const m of members) expect(KEY_MIDI.test(m) || ['ResetNonautomatedMidiControllersOnClipStarts', 'MetronomeTickDuration', 'Time', 'Value', 'Mapping'].includes(m), `${cls}/${m}`).toBe(true);
     }
     // dawtool: every beat at its time.
     expect(r.dawtool.markers).toHaveLength(beats.length);
     let worst = 0;
     for (const [time, name] of r.dawtool.markers) worst = Math.max(worst, Math.abs(time - beats[Number(name.slice(1))]!.time));
     expect(worst).toBeLessThan(1e-6);
-    console.log(`dawtool: ${beats.length} beats, worst ${(worst * 1e6).toFixed(3)} µs; abletoolz: ${r.walked} members walked`);
+    console.log(`${target}: dawtool: ${beats.length} beats, worst ${(worst * 1e6).toFixed(3)} µs; abletoolz: ${r.walked} members walked`);
     // fastcrc
     expect(r.fastcrc).toEqual(crcInputs.map((b) => liveFileCrc(new Uint8Array(b))));
   });
 
-  nodeTest('ableton-als validates the set and reads its tracks, scenes and tempo', async () => {
+  const minors = [['live11', '11.0_433'], ['live10', '10.0_377']] as const;
+  (nodeDir ? it.each(minors) : it.skip.each(minors))('%s: ableton-als validates the set and reads its tracks, scenes and tempo', async (target, minor) => {
     const require = createRequire(path.join(nodeDir!, 'package.json'));
     const aa = (await import(require.resolve('ableton-als'))) as {
       validateGeneratedSet(xml: string): readonly { code: string; detail: string }[];
@@ -105,18 +106,18 @@ suite('independent readers', () => {
       parseAlsDocument(xml: string): { header: { minorVersion: string } | null; scenes: unknown[]; tracks: { type: string; name: string; sessionClips: unknown[] }[]; masterTempo: number | null; nextPointeeId: number | null };
       gridIsConsistent(doc: unknown): boolean;
     };
-    const { input } = sampleSet();
+    const input = { ...sampleSet().input, target };
     const { xml } = await writeAbletonSet(input);
     expect(aa.validateGeneratedSet(xml)).toEqual([]);
     const ids = aa.inspectPointeeIds(xml);
     expect(ids.duplicatedIds).toEqual([]);
     expect(ids.collidingReferences).toEqual([]);
     const doc = aa.parseAlsDocument(xml);
-    expect(doc.header?.minorVersion).toBe('11.0_433');
+    expect(doc.header?.minorVersion).toBe(minor);
     expect(doc.tracks.map((t) => [t.type, t.name, t.sessionClips.length])).toEqual(input.tracks.map((t) => ['AudioTrack', t.name, 8]));
     expect(doc.scenes).toHaveLength(8);
     expect(aa.gridIsConsistent(doc)).toBe(true);
     expect(doc.masterTempo).toBeCloseTo(input.tempo[0]!.quarterBpm, 3);
-    console.log(`ableton-als: valid, ${ids.targets} targets, NextPointeeId ${doc.nextPointeeId}`);
+    console.log(`${target}: ableton-als: valid, ${ids.targets} targets, NextPointeeId ${doc.nextPointeeId}`);
   });
 });

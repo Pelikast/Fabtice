@@ -9,7 +9,7 @@ import { buildLiveSet } from './liveSet';
 import type { AbletonSetInput, AbletonSetResult } from './types';
 
 export * from './types';
-export { buildLiveSet, LIVE_SCHEMA } from './liveSet';
+export { buildLiveSet, DIALECTS, LIVE_SCHEMA } from './liveSet';
 export { liveFileCrc, LIVE_CRC_BYTES } from './crc';
 export { LIVE_TEMPO_MAX, LIVE_TEMPO_MIN, liveTempoSteps, quartersToSeconds, secondsToQuarters, timeSignatureCode } from './tempo';
 

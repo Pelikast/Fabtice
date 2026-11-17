@@ -6,10 +6,11 @@ Standard library only: run by `ableton.test.ts` when `python3` is there.
 
 It reads the file as Live would have to (gzip, then XML) and checks the rules
 the sources of ALS-FORMAT.md give: Live's gzip header, the root attributes of
-Live 11.0, unique ids in the NextPointeeId space and below it, every PointeeId
-pointing at one of them, one clip slot per scene in every slot list, unwarped
-clips with warp markers, the tempo and time-signature envelopes, the order of
-the LiveSet's children as Live 11 writes them. The facts it reads back
+the release (Live 11.0, or Live 10.1), unique ids in the NextPointeeId space
+and below it, every PointeeId pointing at one of them, one clip slot per scene
+in every slot list, unwarped clips with warp markers, the tempo and
+time-signature envelopes, the order of the children of the set, the tracks,
+the clips and the file references as that release writes them. The facts it reads back
 (envelopes, clips, locators) go in the JSON, for the test to compare with the
 input.
 """
@@ -20,7 +21,10 @@ import re
 import sys
 import xml.etree.ElementTree as ET
 
-ROOT = {"MajorVersion": "5", "MinorVersion": "11.0_433", "Creator": "Ableton Live 11.0", "Revision": "9dc150af94686f816d2cf27815fcf2907d4b86f8"}
+ROOTS = {
+    "11.0_433": {"MajorVersion": "5", "MinorVersion": "11.0_433", "Creator": "Ableton Live 11.0", "Revision": "9dc150af94686f816d2cf27815fcf2907d4b86f8"},
+    "10.0_377": {"MajorVersion": "5", "MinorVersion": "10.0_377", "SchemaChangeCount": "2", "Creator": "Ableton Live 10.1", "Revision": "820f098a4a1eff42a9be3d90e07536cb8104c459"},
+}
 ENVELOPE_START = -63072000.0
 
 # The LiveSet's children, in the order Live 11 writes them (a set saved by Live 11.1.5,
@@ -59,6 +63,41 @@ AUDIOCLIP_ORDER = [
 ]
 FILEREF_ORDER = ["RelativePathType", "RelativePath", "Path", "Type", "LivePackName", "LivePackId", "OriginalFileSize", "OriginalCrc"]
 
+# The same in Live 10, from a set saved by Live 10.1.7 (MetronomeTickDuration appeared in 10.1.6: left out).
+LIVE10 = {
+    "liveset": [
+        "NextPointeeId", "OverwriteProtectionNumber", "LomId", "LomIdView", "Tracks", "MasterTrack", "PreHearTrack",
+        "SendsPre", "SceneNames", "Transport", "SongMasterValues", "GlobalQuantisation", "AutoQuantisation", "Grid",
+        "ScaleInformation", "SmpteFormat", "TimeSelection", "SequencerNavigator", "ViewStateLaunchPanel",
+        "ViewStateEnvelopePanel", "ViewStateSamplePanel", "ContentSplitterProperties", "ViewStateFxSlotCount",
+        "ViewStateSessionMixerHeight", "Locators", "DetailClipKeyMidis", "TracksListWrapper", "VisibleTracksListWrapper",
+        "ReturnTracksListWrapper", "ScenesListWrapper", "CuePointsListWrapper", "ChooserBar", "Annotation",
+        "SoloOrPflSavedValue", "SoloInPlace", "CrossfadeCurve", "LatencyCompensation", "HighlightedTrackIndex",
+        "GroovePool", "AutomationMode", "SnapAutomationToGrid", "ArrangementOverdub", "ColorSequenceIndex",
+        "AutoColorPickerForPlayerAndGroupTracks", "AutoColorPickerForReturnAndMasterTracks", "ViewData", "MidiFoldIn",
+        "MidiPrelisten", "UseWarperLegacyHiQMode", "VideoWindowRect", "ShowVideoWindow", "TrackHeaderWidth",
+        "ViewStateArrangerHasDetail", "ViewStateSessionHasDetail", "ViewStateDetailIsSample", "ViewStates",
+    ],
+    "audiotrack": [
+        "LomId", "LomIdView", "IsContentSelected", "EnvelopeModePreferred", "TrackDelay", "Name", "ColorIndex",
+        "AutomationEnvelopes", "TrackGroupId", "TrackUnfolded", "DevicesListWrapper", "ClipSlotsListWrapper", "ViewData",
+        "SavedPlayingSlot", "SavedPlayingOffset", "Freeze", "VelocityDetail", "NeedArrangerRefreeze",
+        "PostProcessFreezeClips", "DeviceChain",
+    ],
+    "audioclip": [
+        "LomId", "LomIdView", "CurrentStart", "CurrentEnd", "Loop", "Name", "Annotation", "ColorIndex", "LaunchMode",
+        "LaunchQuantisation", "TimeSignature", "Envelopes", "ScrollerTimePreserver", "TimeSelection", "Legato", "Ram",
+        "GrooveSettings", "Disabled", "VelocityAmount", "FollowTime", "FollowActionA", "FollowActionB", "FollowChanceA",
+        "FollowChanceB", "Grid", "FreezeStart", "FreezeEnd", "IsWarped", "SampleRef", "Onsets", "WarpMode",
+        "GranularityTones", "GranularityTexture", "FluctuationTexture", "TransientResolution", "TransientLoopMode",
+        "TransientEnvelope", "ComplexProFormants", "ComplexProEnvelope", "Sync", "HiQ", "Fade", "Fades", "PitchCoarse",
+        "PitchFine", "SampleVolume", "MarkerDensity", "AutoWarpTolerance", "WarpMarkers", "SavedWarpMarkersForStretched",
+        "MarkersGenerated", "IsSongTempoMaster",
+    ],
+    "fileref": ["HasRelativePath", "RelativePathType", "RelativePath", "Name", "Type", "Data", "RefersToFolder", "SearchHint", "LivePackName", "LivePackId"],
+}
+LIVE11 = {"liveset": LIVESET_ORDER, "audiotrack": AUDIOTRACK_ORDER, "audioclip": AUDIOCLIP_ORDER, "fileref": FILEREF_ORDER}
+
 
 def owns_pointee_id(tag):
     return tag == "Pointee" or tag.endswith("AutomationTarget") or tag.endswith("ModulationTarget") or tag.startswith("ControllerTargets.")
@@ -86,13 +125,18 @@ def main(path):
     check(data.startswith(b'<?xml version="1.0" encoding="UTF-8"?>\n<Ableton '), "prolog")
     root = ET.fromstring(data)
     check(root.tag == "Ableton", "root tag")
-    check(dict(root.attrib) == ROOT, f"root attributes {root.attrib}")
-    check(list(root.attrib) == list(ROOT), "root attribute order")
+    minor = root.get("MinorVersion")
+    check(minor in ROOTS, f"MinorVersion {minor}")
+    expected_root = ROOTS.get(minor, {})
+    check(dict(root.attrib) == expected_root, f"root attributes {root.attrib}")
+    check(list(root.attrib) == list(expected_root), "root attribute order")
+    live10 = minor == "10.0_377"
+    order = LIVE10 if live10 else LIVE11
     check(len(root) == 1 and root[0].tag == "LiveSet", "one LiveSet")
     ls = root[0]
 
-    order = [c.tag for c in ls]
-    check(order == LIVESET_ORDER, f"LiveSet children order: {order}")
+    children = [c.tag for c in ls]
+    check(children == order["liveset"], f"LiveSet children order: {children}")
 
     # Ids of the NextPointeeId space.
     ids = [int(e.get("Id")) for e in root.iter() if owns_pointee_id(e.tag)]
@@ -115,22 +159,32 @@ def main(path):
             if c.get("Id") is not None:
                 check(re.fullmatch(r"-?\d+", c.get("Id")) is not None, f"non-integer Id on {c.tag}")
 
-    scenes = len(ls.find("Scenes"))
+    scenes = len(ls.find("SceneNames" if live10 else "Scenes"))
     check(scenes >= 1, "no scene")
 
     tracks = []
     for t in ls.find("Tracks"):
         check(t.tag == "AudioTrack", f"unexpected track {t.tag}")
-        check([c.tag for c in t] == AUDIOTRACK_ORDER, f"AudioTrack order: {[c.tag for c in t]}")
+        check([c.tag for c in t] == order["audiotrack"], f"AudioTrack order: {[c.tag for c in t]}")
         for seq in ("MainSequencer", "FreezeSequencer"):
             n = len(t.find(f"DeviceChain/{seq}/ClipSlotList"))
             check(n == scenes, f"{seq} has {n} clip slots for {scenes} scenes")
         clips = list(t.find("DeviceChain/MainSequencer/Sample/ArrangerAutomation/Events"))
         check(len(clips) == 1 and clips[0].tag == "AudioClip", "one arrangement audio clip per track")
         c = clips[0]
-        check([x.tag for x in c] == AUDIOCLIP_ORDER, f"AudioClip order: {[x.tag for x in c]}")
+        check([x.tag for x in c] == order["audioclip"], f"AudioClip order: {[x.tag for x in c]}")
         fr = c.find("SampleRef/FileRef")
-        check([x.tag for x in fr] == FILEREF_ORDER, f"FileRef order: {[x.tag for x in fr]}")
+        check([x.tag for x in fr] == order["fileref"], f"FileRef order: {[x.tag for x in fr]}")
+        if live10:
+            dirs = [e.get("Dir") for e in fr.find("RelativePath")]
+            relative = "/".join(dirs + [value(fr, "Name")])
+            hint = [e.get("Dir") for e in fr.find("SearchHint/PathHint")]
+            path = "/" + "/".join(hint + [value(fr, "Name")]) if hint else ""
+            size = int(value(fr, "SearchHint/FileSize"))
+            crc = int(value(fr, "SearchHint/Crc"))
+        else:
+            relative, path = value(fr, "RelativePath"), value(fr, "Path")
+            size, crc = int(value(fr, "OriginalFileSize")), int(value(fr, "OriginalCrc"))
         check(value(c, "IsWarped") == "false", "clip is warped")
         check(len(c.find("WarpMarkers")) >= 1, "empty WarpMarkers (Live refuses it)")
         check(c.get("Time") == value(c, "CurrentStart"), "Time != CurrentStart")
@@ -144,11 +198,11 @@ def main(path):
             "start": float(value(c, "CurrentStart")),
             "end": float(value(c, "CurrentEnd")),
             "seconds": float(value(c, "Loop/LoopEnd")),
-            "relativePath": value(fr, "RelativePath"),
+            "relativePath": relative,
             "relativePathType": int(value(fr, "RelativePathType")),
-            "path": value(fr, "Path"),
-            "size": int(value(fr, "OriginalFileSize")),
-            "crc": int(value(fr, "OriginalCrc")),
+            "path": path,
+            "size": size,
+            "crc": crc,
             "frames": frames,
             "rate": rate,
         })
@@ -188,6 +242,7 @@ def main(path):
 
     print(json.dumps({
         "errors": errors,
+        "minorVersion": minor,
         "scenes": scenes,
         "nextPointeeId": nxt,
         "pointeeIds": len(ids),
