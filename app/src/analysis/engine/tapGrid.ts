@@ -113,6 +113,9 @@ export interface TapOptions {
   held: number;
   heldLong: number;
   heldPerBeat: number;
+  /** A held beat shorter than `heldFull` beats before it costs `heldShort` more per beat short (a late tap and an early one look like it). */
+  heldShort: number;
+  heldFull: number;
   /** A held beat is at least this many times the beat before it. */
   heldRatio: number;
   /** A held beat whose length is within this of a whole number of beats costs `heldWhole` more. */
@@ -173,6 +176,8 @@ export const TAP: TapOptions = {
   heldLong: 2.5,
   heldPerBeat: 2,
   heldRatio: 1.35,
+  heldShort: 8,
+  heldFull: 1.65,
   wholeTol: 0.25,
   heldWhole: 2.5,
   downEvidence: 0.4,
@@ -364,8 +369,17 @@ export interface TapStep {
  * (forgotten taps), so that a run of them does not draw it.
  */
 export function localPeriods(x: readonly number[]): number[] {
+  return localTempo(x).period;
+}
+
+/**
+ * `localPeriods`, and how much the tempo moves around each tap: the robust spread (1.4826 × the
+ * median absolute log deviation) of the folded intervals around it. In a brief accelerando or
+ * ritardando it is large, so a step there is not held to the median, which lags behind.
+ */
+export function localTempo(x: readonly number[]): { period: number[]; spread: number[] } {
   const d = x.slice(1).map((t, i) => t - x[i]!);
-  if (!d.length) return x.map(() => NaN);
+  if (!d.length) return { period: x.map(() => NaN), spread: x.map(() => 0) };
   const all = median(d.filter((v) => v > MIN_GAP));
   const around = (j: number) => {
     const w: number[] = [];
@@ -378,14 +392,19 @@ export function localPeriods(x: readonly number[]): number[] {
     const kept = w.filter((v) => v >= 0.55 * m0 && v >= 0.35 * all);
     return kept.length ? median(kept) : all;
   });
-  return x.map((_, j) => {
+  const period: number[] = [];
+  const spread: number[] = [];
+  x.forEach((_, j) => {
     const q = first[j]!;
     const folded = around(j)
       .map((i) => d[i]!)
       .filter((v) => v >= 0.55 * q)
       .map((v) => v / Math.max(1, Math.round(v / q)));
-    return folded.length ? median(folded) : q;
+    const p = folded.length ? median(folded) : q;
+    period.push(p);
+    spread.push(folded.length >= 3 ? 1.4826 * median(folded.map((v) => Math.abs(Math.log(v / p)))) : 0);
   });
+  return { period, spread };
 }
 
 /**
@@ -440,7 +459,10 @@ export function tapPath(
 ): TapStep[] {
   const N = x.length;
   if (!N) return [];
-  const r = localPeriods(x).map((v) => (Number.isFinite(v) ? v / level : P));
+  const local = localTempo(x);
+  const r = local.period.map((v) => (Number.isFinite(v) ? v / level : P));
+  // The tempo's own movement there, beyond what the tapper's spread explains (a ±σ tap moves an interval by about √2 σ).
+  const moving = local.spread.map((sp, j) => Math.sqrt(Math.max(0, sp ** 2 - (Math.SQRT2 * sigma / (r[j]! * level)) ** 2)));
   const M = trust > 0 ? m : 1;
   const beta = o.downEvidence * trust;
   const nodes: Node[][] = x.map(() => []);
@@ -488,7 +510,7 @@ export function tapPath(
   /** A held beat of length q after beats of length qref, from t0 to t1. */
   const heldCost = (q: number, qref: number, t0: number, t1: number) => {
     const ratio = q / qref;
-    let c = o.held + o.heldPerBeat * Math.max(0, ratio - o.heldLong);
+    let c = o.held + o.heldPerBeat * Math.max(0, ratio - o.heldLong) + o.heldShort * Math.max(0, o.heldFull - ratio);
     if (Math.abs(ratio - Math.round(ratio)) < o.wholeTol) c += o.heldWhole;
     // The network hearing beats where they would fall if the tempo went on argues against holding.
     for (let t = t0 + qref; t < t1 - 0.5 * qref; t += qref) c += o.beatEvidence * Math.max(0, beatEv(t));
@@ -497,7 +519,7 @@ export function tapPath(
   const pair = Math.SQRT2 * sigma;
   /** The step ending at tap j, n beats of length q (its own noise `noise`), against the local tapped tempo there. */
   const attract = (q: number, n: number, noise: number, j: number) => {
-    const v = (noise / (n * q)) ** 2 + o.localSpread ** 2;
+    const v = (noise / (n * q)) ** 2 + Math.max(o.localSpread, moving[j]!) ** 2;
     return loss(Math.abs(Math.log(q / r[j]!)) / Math.sqrt(v));
   };
   // From the chosen bar's start to the first kept tap (its tap stands alone: one tap's spread and the offset's).
