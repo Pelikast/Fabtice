@@ -7,6 +7,8 @@
 //   node dist/run.mjs --analyse                    # run the app's analysis again on the renders (slow)
 //   node dist/run.mjs --measure                    # measure the evidence again on the renders (app's evidence.ts), keep the analysis
 //   node dist/run.mjs --evidence stems,mix,none --known false,true --out resultats
+//   node dist/run.mjs --fin                        # with the fine chord model's analyses (analyses-fin/, see banc/fin.ts)
+//   FABTICE_TSUMUGI_WEIGHTS=… node dist/run.mjs --fin --fin-analyse --only a,b   # compute the missing ones (slow)
 //
 // Writes resultats/rendu.md (and rendu.json: the counts). With no audio in
 // data/, it re-scores from the committed analyses/ (beats, chords and the
@@ -21,6 +23,7 @@ import { markdownReport, runInput, type Row } from '../../../../app/src/structur
 import { oracleDetectors } from '../../../../app/src/structure/bench/oracle';
 import type { EvidenceKind } from '../../../../app/src/structure/bench/simEvidence';
 import { analyse, readAnalysis, remeasure, type DetectedAnalysis } from './analyse';
+import { analyseFine, readFineAnalysis } from './fin';
 import { barsFromAnalysis, harmonyInput } from './adapter';
 import { CORPUS, ROOT, VERITES } from './paths';
 
@@ -78,6 +81,22 @@ async function main(): Promise<void> {
       const dir = join(CORPUS, piece.id);
       const rendered = existsSync(join(dir, condition, 'mix.flac'));
       let a = opt.analyse ? null : readAnalysis(piece.id, condition);
+      if (opt.fin) {
+        // the fine chord model: its own analyses only (from the standard one's beats and key)
+        const base = a;
+        a = readFineAnalysis(piece.id, condition);
+        if (!a && opt['fin-analyse'] && base && rendered) {
+          const info = JSON.parse(readFileSync(join(dir, 'rendu.json'), 'utf8')) as { stems: string[] };
+          const stems: Partial<Record<StemId, string>> = {};
+          for (const st of info.stems) stems[st as StemId] = join(dir, condition, `${st}.flac`);
+          process.stderr.write(`modèle détaillé ${piece.id} ${condition}…\n`);
+          a = await analyseFine(base, piece.title, join(dir, condition, 'mix.flac'), stems);
+        }
+        if (!a) {
+          skipped.push(`${piece.id}.${condition}`);
+          continue;
+        }
+      }
       if (!a) {
         if (!rendered) {
           skipped.push(`${piece.id}.${condition}`);
@@ -126,10 +145,12 @@ async function main(): Promise<void> {
   const list = [...rows.values()];
   const pct = (c: [number, number]) => (c[1] ? `${((100 * c[0]) / c[1]).toFixed(1)} %` : '–');
   const head = [
-    '# Banc de structure — Tier R (rendus, analyse réelle de l’app)',
+    opt.fin ? '# Banc de structure — Tier R, modèle d’accords détaillé' : '# Banc de structure — Tier R (rendus, analyse réelle de l’app)',
     '',
     'Écrit par `node dist/run.mjs` (dans `web/spikes/structure/`), avec les détecteurs de `app/src/structure/index.ts`.',
-    'Grille et accords : l’analyse de l’app sur le mélange rendu. Pistes : les rendus séparés de chaque instrument (séparation PARFAITE, idéalisée) ;',
+    opt.fin
+      ? 'Grille et accords : l’analyse de l’app sur le mélange rendu, avec le **modèle d’accords détaillé** (Tsumugi-Chords, `banc/fin.ts`) ; seulement les morceaux de `analyses-fin/`. Pistes : les rendus séparés de chaque instrument (séparation PARFAITE, idéalisée) ;'
+      : 'Grille et accords : l’analyse de l’app sur le mélange rendu. Pistes : les rendus séparés de chaque instrument (séparation PARFAITE, idéalisée) ;',
     'reconnaissance des vents simulée (taux « realiste » du Tier S).',
     '',
     '| Condition | Morceaux | Accords de l’analyse justes (famille, par temps) | Barres de mesure trouvées (±70 ms) |',
@@ -139,7 +160,7 @@ async function main(): Promise<void> {
     skipped.length ? `Sans analyse ni rendu (ignorés) : ${skipped.join(', ')}.\n` : '',
   ];
   const report = `${head.join('\n')}\n${markdownReport(list, 'Tier R')}\n`;
-  const base = opt.oracle ? 'rendu-oracle' : 'rendu';
+  const base = opt.oracle ? 'rendu-oracle' : opt.fin ? 'rendu-fin' : 'rendu';
   writeFileSync(join(outDir, `${base}.md`), report);
   writeFileSync(join(outDir, `${base}.json`), JSON.stringify(list.map((r) => ({ label: r.label, cases: r.cases, counts: r.counts })), null, 1) + '\n');
   process.stdout.write(report);

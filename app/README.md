@@ -1491,6 +1491,95 @@ d'accords garde le coin de la lettre (`.case.lettree[data-rangs="2"]`,
 feuille du téléphone de « Changer la signature ») ont deux classes pour passer
 devant `.voile` et `.accueil` de `dialog.css`, qui viennent après dans la feuille.
 
+### Étape 5 de la 1.0.0 : la passe d'harmonie (modulations, structure, grille simplifiée)
+
+Ce qui trouve, à partir des accords et de la grille en vigueur, les
+modulations, la structure du morceau (forme, lettres, parties, instrument qui
+mène) et la « Grille complète simplifiée ». Aucun gros modèle d'IA : les
+reprises de la grille, la grille connue du standard, les pistes séparées et un
+petit modèle de reconnaissance des instruments à vent.
+
+**Fichiers** (`src/structure/`) :
+
+| Fichier | Rôle |
+|---|---|
+| `types.ts` | le contrat : `HarmonyInput`, `StructureEvidence`, `SimplifyInput`, `SimplifiedChart` |
+| `index.ts` | les trois points d'entrée : `detectKeyChanges`, `detectStructure`, `simplifyChart` |
+| `keys.ts` | les modulations |
+| `grid.ts` | les accords en jetons (fondamentale × famille), ressemblance de deux mesures |
+| `form.ts` | longueur du chorus, choruses, lettres, intro et outro ; la grille connue quand elle colle |
+| `parts.ts` | qui mène chaque mesure, les parties (Intro, Thème, Solo…, Outro ; Jazz ou Pop), leur instrument |
+| `detect.ts` | `detectStructure` : forme, mode, parties, en secondes |
+| `simplify.ts` | `simplifyChart` : chaque section écrite une fois, accord de consensus, `%`, reprises, modulations, A2 |
+| `evidence.ts` | les indices du son, mesure par mesure (niveau des pistes, timbre, mélodie) ; les extraits pour les vents |
+| `gather.ts` | la jonction avec l'app : quel son on lit, et l'étape des vents |
+| `refresh.ts` | le coureur : quand relancer, ce qu'on enregistre (jamais dans l'historique) |
+| `instruments/` | le petit modèle des vents (CED-Tiny, téléchargé au premier usage) |
+| `knownCache.ts` | les grilles connues du titre, partagées avec les sélecteurs de la grille simplifiée |
+
+**Enchaînement** (`refresh.ts#HarmonyRefresh.run`, 150 ms après le dernier
+changement de ce qu'il lit) :
+
+1. les grilles connues du titre (`knownChartsFor`, gardées par titre) ;
+2. les indices du son (`gather.ts#gatherStructureEvidence`) : le morceau entier
+   et les pistes de la séparation EN COURS qui sont en mémoire (`tracks` et
+   `separation.aside` ; les autres séparations, restées sur l'appareil, ne sont
+   pas lues), mesurés par tranches de 8 ms au plus (`buildStructureEvidence`),
+   gardés par (identifiants du son, grille) ;
+3. `detectKeyChanges`, puis `detectStructure(input, tonalitésEnVigueur)` :
+   résultat enregistré tout de suite dans `analysis.keyChanges` et
+   `analysis.structure` (pas une étape d'« Annuler », ne rend pas le projet
+   « modifié ») ;
+4. seulement avec une séparation en mémoire et « Structure automatique » :
+   l'étape des vents (`gather.ts#createWindsRefiner`, branchée comme
+   `refineEvidence`) : `windsExcerpts` donne un extrait par chorus de chaque
+   passage mené par la piste « Autres », lu à 16 kHz par tranches
+   (`readExcerpt`, jamais toute la piste) et donné au reconnaisseur de la page
+   (créé au premier extrait, modèle de 6,7 Mo téléchargé alors) ;
+   `detectStructure` est relancé avec ces lectures, et le résultat remplace le
+   premier quand il arrive (« Solo (Vents) » peut devenir « Solo
+   (Trompette) » ; les parties gardent leur identifiant). Les lectures sont
+   gardées par (son, extrait) : un accord tapé à la main ne refait pas
+   écouter, et la structure ne repasse jamais par « Vents » ;
+5. `simplifyChart` n'est pas appelé par le coureur : les sélecteurs
+   (`store/simplifiedSelectors.ts`) le calculent à la demande sur la structure
+   EN VIGUEUR (lettres et parties de l'utilisateur comprises), quelques
+   millisecondes.
+
+**Ce qui est recalculé, et quand.** Les indices du son : quand le son en
+mémoire ou la grille en vigueur change (séparation faite, choisie ou
+supprimée ; correction du tempo gardée). Les lectures des vents : quand un
+extrait change (autre découpage des solos) ; une réponse vide est redemandée
+après 10 min. La structure et les modulations : à chaque changement des
+accords, des tonalités, du mode, des réglages, du titre, des pistes ou de la
+bibliothèque des grilles. Un changement de projet annule tout ce qui est en
+cours. Sur un morceau de 10 minutes : indices du son quelques secondes en
+tâche de fond (jamais plus de quelques millisecondes d'affilée), forme et
+parties environ 60 ms, grille simplifiée environ 5 ms ; mémoire : aucune piste
+copiée, un extrait de chorus à 16 kHz (environ 4 Mo par minute).
+
+**Le reconnaisseur à la main** (vérifications dans le navigateur) :
+`window.__fabtice.harmony.setRecognizer({ recognise: async () => … })`, `null`
+pour revenir au vrai. Les pistes séparées d'essai s'enregistrent avec
+`window.__fabtice.lot3.registry.registerAudio(id, pcm)` puis
+`lot3.separation.applySeparation(résumé, pistes)`.
+
+**Le banc** (`src/structure/bench/`, corpus de 35 morceaux écrits pour lui ;
+résultats et explications dans `web/spikes/structure/`) :
+
+```sh
+npx vitest run src/structure/bench.test.ts                           # sous-ensemble (16 morceaux), seuils compris
+FABTICE_STRUCTURE_FULL=1 npx vitest run src/structure/bench.test.ts  # tout le corpus, écrit resultats/symbolique.md
+cd ../web/spikes/structure && node banc/build.mjs && node dist/run.mjs   # Tier R : l'analyse de l'app sur les rendus
+```
+
+Les seuils tenus par `npm test` sont dans `src/structure/bench/thresholds.ts`
+(deux blocs : modulations, mesurées sur le sous-ensemble ; structure et grille
+simplifiée, tenues sur le sous-ensemble et sur tout le corpus).
+Vérifications : `src/structure/*.test.ts`, `gather.test.ts` (la jonction, sur
+un morceau inventé en mémoire), et dans Chromium `tests/harmony.mjs` (les deux
+formes ; `npm run build` d'abord).
+
 ### Étape 4 de la 1.0.0 : tempo à la main
 
 **Menu de la mesure** (`components/TempoFixMenu.tsx`) : quatre entrées. Les
