@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { clearAudio, registerAudio } from '../audio/registry';
 import type { StemId } from '../model/separation';
 import {
-  arraySource, buildStructureEvidence, clearEvidenceCache, evidenceKey, measureEvidence, MELODY_NONE, MELODY_SLOTS, recogniseWinds, TIMBRE_BANDS, windsExcerpts,
+  arraySource, buildStructureEvidence, clearEvidenceCache, evidenceKey, EXCERPT_RATE, measureEvidence, MELODY_NONE, MELODY_SLOTS, readExcerpt, recogniseWinds, TIMBRE_BANDS, windsExcerpts,
 } from './evidence';
 import { AABA, chartBars, inputOf, repeat } from './testCharts';
 import type { InstrumentRecognizer } from './types';
@@ -104,5 +104,30 @@ describe('structure evidence: the app wrapper and the wind step', () => {
     expect(ev.winds![40]).toBeNull();
     expect(ev.winds![80]).toBeNull();
     expect(ev.stems).toBe(input.evidence!.stems);
+  });
+
+  it('reads an excerpt at 16 kHz block by block, as the recogniser would resample it', async () => {
+    const src = arraySource(signal(30, A4), SR);
+    const x = (await readExcerpt(src, 3, 23))!;
+    expect(x.length).toBe(20 * EXCERPT_RATE);
+    // the same sine, at the new rate (away from the edges)
+    let err = 0;
+    for (let i = 1000; i < x.length - 1000; i++) err = Math.max(err, Math.abs(x[i]! - A4(3 + i / EXCERPT_RATE)));
+    expect(err).toBeLessThan(0.01);
+    // nothing outside the excerpt leaks in
+    expect(Math.abs(x[0]!)).toBeLessThan(0.2);
+    expect(await readExcerpt(src, 40, 50)).toBeNull();
+    const abort = new AbortController();
+    abort.abort();
+    await expect(readExcerpt(src, 0, 10, abort.signal)).rejects.toThrow(/abort/i);
+  });
+
+  it('a detailed separation without a drum track: its drum parts make the « drums » level', () => {
+    const kick = signal(4, (t) => 0.3 * Math.sin(2 * Math.PI * 60 * t));
+    const hat = signal(4, (t) => (t < 2 ? 0.4 * Math.sin(2 * Math.PI * 3000 * t) : 0));
+    const ev = measureEvidence({ mix: null, stems: { kick: arraySource(kick, SR), hihat: arraySource(hat, SR) } }, bars(2));
+    const d = ev.stems!.drums!;
+    expect(d[0]).toBeCloseTo(Math.hypot(0.3, 0.4) / Math.SQRT2, 2);
+    expect(d[1]).toBeCloseTo(0.3 / Math.SQRT2, 2);
   });
 });

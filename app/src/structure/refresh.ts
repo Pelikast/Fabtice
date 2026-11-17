@@ -26,9 +26,18 @@
 //
 // Async parts, each cached and cancellable: the known charts of the title
 // (`analysis/knownCharts.ts`, its own timeout), per title; the audio evidence
-// (`EvidenceGatherer`, injected: `structure/evidence.ts` plugs in there), per
+// (`EvidenceGatherer`, injected: `structure/gather.ts` plugs in there), per
 // audio and grid. A run whose inputs changed while it waited gives up: the
 // change has scheduled the next one.
+//
+// A second, optional step (`EvidenceRefiner`, the wind instruments): once the
+// structure is found, the refiner may add to the evidence what only that
+// structure tells where to look (the recogniser on the « Autres » track of each
+// wind solo). When it answers at once (every reading already known), the
+// structure is found again with it before anything is stored; when it must
+// wait, the first result is stored at once and the refined one replaces it
+// when it comes (« Solo (Vents) » may become « Solo (Trompette) »), the parts
+// keeping their ids. The run stays pending until then.
 
 import { knownChartsFor } from '../analysis/knownCharts';
 import { chartBars, resolveChords } from '../chart/layout';
@@ -41,7 +50,8 @@ import { harmonyBars } from '../store/simplifiedSelectors';
 import { appStore, gridInForce, type AppState, type AppStore } from '../store/store';
 import { detectKeyChanges as appDetectKeyChanges, detectStructure as appDetectStructure } from './index';
 import { clearKnownStandards, setKnownStandards } from './knownCache';
-import type { HarmonyBar, HarmonyInput, KeyChangeDetector, KnownStandard, StructureDetector, StructureEvidence } from './types';
+import { setPageRecognizer } from './gather';
+import type { HarmonyBar, HarmonyInput, InstrumentRecognizer, KeyChangeDetector, KnownStandard, StructureDetector, StructureEvidence } from './types';
 
 /** Wait after the last change before the pass runs. */
 export const DEBOUNCE_MS = 150;
@@ -53,6 +63,19 @@ export const DEBOUNCE_MS = 150;
  */
 export type EvidenceGatherer = (state: AppState, bars: readonly HarmonyBar[], signal: AbortSignal) => Promise<StructureEvidence | null>;
 
+/**
+ * The second step of the evidence (see the header): given the input of the run (its `evidence` from the
+ * gatherer) and the keys in force, the evidence completed, or null when there is nothing to add. Answers
+ * synchronously when it can (no wait: the refined structure is stored at once); otherwise a promise, which
+ * must give up quickly when `signal` is aborted.
+ */
+export type EvidenceRefiner = (
+  state: AppState,
+  input: HarmonyInput,
+  keysInForce: readonly { time: number; key: Key }[],
+  signal: AbortSignal,
+) => StructureEvidence | null | Promise<StructureEvidence | null>;
+
 /** The known charts of a title, best first (empty when none). */
 export type KnownProvider = (title: string) => Promise<KnownStandard[]>;
 
@@ -61,6 +84,8 @@ export interface HarmonyRefreshOptions {
   debounceMs?: number;
   /** Default: no evidence (the pass works from the chords alone). */
   gatherEvidence?: EvidenceGatherer;
+  /** Default: none (no second step). */
+  refineEvidence?: EvidenceRefiner | null;
   /** Default: the library of standards on the device (`knownChartsFor`). */
   knownFor?: KnownProvider;
   /** Called with a listener to run when the library of standards changes; returns its unsubscribe. Default: none. */
@@ -165,6 +190,7 @@ export class HarmonyRefresh {
   private readonly store: AppStore;
   private readonly debounceMs: number;
   private gatherEvidence: EvidenceGatherer;
+  private refineEvidence: EvidenceRefiner | null;
   private readonly knownFor: KnownProvider;
   private readonly onLibraryChange: ((listener: () => void) => () => void) | null;
   private readonly detectKeyChanges: KeyChangeDetector;
@@ -187,6 +213,7 @@ export class HarmonyRefresh {
     this.store = options.store ?? appStore;
     this.debounceMs = options.debounceMs ?? DEBOUNCE_MS;
     this.gatherEvidence = options.gatherEvidence ?? noEvidence;
+    this.refineEvidence = options.refineEvidence ?? null;
     this.knownFor = options.knownFor ?? libraryKnownFor;
     this.onLibraryChange = options.onLibraryChange ?? null;
     this.detectKeyChanges = options.detectKeyChanges ?? appDetectKeyChanges;
@@ -212,6 +239,12 @@ export class HarmonyRefresh {
   setEvidenceGatherer(gather: EvidenceGatherer | null): void {
     this.gatherEvidence = gather ?? noEvidence;
     this.evidenceCache = null;
+    if (!this.suspended && this.store.getState().project) this.schedule();
+  }
+
+  /** Plugs in (or, with null, removes) the second step of the evidence; the pass runs again with it. */
+  setEvidenceRefiner(refine: EvidenceRefiner | null): void {
+    this.refineEvidence = refine;
     if (!this.suspended && this.store.getState().project) this.schedule();
   }
 
@@ -369,19 +402,68 @@ export class HarmonyRefresh {
     if (detecting) this.input = input;
     let keyChanges: AnalysedKeyChange[] = [];
     let structure: DetectedStructure | null = null;
+    let keysInForce: { time: number; key: Key }[] = [];
     try {
       if (detectModulations && bars.length) keyChanges = this.detectKeyChanges(input);
       // The structure is found with the keys in force: the user's list wins over what was just detected.
-      const keysInForce = s.corrections.keyChanges ?? keyChanges.map((k) => ({ time: k.time, key: plainKey(k.key) }));
+      keysInForce = s.corrections.keyChanges ?? keyChanges.map((k) => ({ time: k.time, key: plainKey(k.key) }));
       if (autoStructure && bars.length) structure = withStableIds(s.analysis.structure, this.detectStructure(input, keysInForce));
     } catch {
       // A detector that throws leaves what is stored as it is.
       return;
     }
+    // The second step: at once when it can answer at once, else after the first result is stored.
+    let later: Promise<StructureEvidence | null> | null = null;
+    if (structure && evidence && this.refineEvidence) {
+      let refined: StructureEvidence | null | Promise<StructureEvidence | null> = null;
+      try {
+        refined = this.refineEvidence(s, input, keysInForce, signal);
+      } catch {
+        refined = null;
+      }
+      if (refined instanceof Promise) later = refined;
+      else if (refined) structure = this.refined(s.analysis.structure, structure, input, refined, keysInForce);
+    }
     // Never store what the document reader would drop (with the whole analysis): an invalid answer is no answer.
     if (!areAnalysedKeyChanges(keyChanges)) keyChanges = [];
     if (structure !== null && !isDetectedStructure(structure)) structure = null;
+    this.store1(s, keyChanges, structure);
+    if (!later) return;
+    let more: StructureEvidence | null = null;
+    try {
+      more = await later;
+    } catch {
+      more = null;
+    }
+    const now = this.store.getState();
+    if (!more || stale() || !sameDeps(depsOf(now), deps) || !now.analysis) return;
+    const next = this.refined(now.analysis.structure, structure, input, more, keysInForce);
+    if (next !== structure && next !== null && isDetectedStructure(next)) this.store1(now, now.analysis.keyChanges, next);
+  }
+
+  /** The structure found again with the refined evidence (`previous` keeps the ids); `fallback` when it fails. */
+  private refined(
+    previous: DetectedStructure | null,
+    fallback: DetectedStructure | null,
+    input: HarmonyInput,
+    evidence: StructureEvidence,
+    keysInForce: readonly { time: number; key: Key }[],
+  ): DetectedStructure | null {
+    const refinedInput: HarmonyInput = { ...input, evidence };
+    try {
+      const found = this.detectStructure(refinedInput, keysInForce);
+      if (!found) return fallback;
+      this.input = refinedInput;
+      return withStableIds(previous, found);
+    } catch {
+      return fallback;
+    }
+  }
+
+  /** Stores what was found, when it differs from what is stored (the same `analysis` object otherwise). */
+  private store1(s: AppState, keyChanges: AnalysedKeyChange[], structure: DetectedStructure | null): void {
     const a = s.analysis;
+    if (!a) return;
     const sameKeys = sameJson(a.keyChanges, keyChanges);
     const sameStructure = sameJson(a.structure, structure);
     if (sameKeys && sameStructure) return;
@@ -418,6 +500,11 @@ export function setHarmonyEvidenceGatherer(gather: EvidenceGatherer | null): voi
   app?.setEvidenceGatherer(gather);
 }
 
+/** Plugs the second step of the evidence (the wind instruments, `structure/gather.ts`) into the app's runner; null removes it. */
+export function setHarmonyEvidenceRefiner(refine: EvidenceRefiner | null): void {
+  app?.setEvidenceRefiner(refine);
+}
+
 /** Runs the pass now; resolves at once without a runner. */
 export function refreshHarmonyNow(): Promise<void> {
   return app?.refreshNow() ?? Promise.resolve();
@@ -447,4 +534,6 @@ export const harmonyHandle = {
   resume: (): void => resumeHarmonyRefresh(),
   suspended: (): boolean => app?.isSuspended() ?? false,
   writes: (): number => app?.writes ?? 0,
+  /** A stand-in for the page's instrument recogniser (null: the real one again); its readings are forgotten. */
+  setRecognizer: (recognizer: InstrumentRecognizer | null): void => setPageRecognizer(recognizer),
 };

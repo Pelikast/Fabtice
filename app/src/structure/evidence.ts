@@ -18,9 +18,12 @@
 //      `detectStructure` with it: the stretches the « Autres » track leads are
 //      found;
 //   2. `windsExcerpts(input, keyChanges)` lists them (one per chorus of each
-//      such stretch); `recogniseWinds(evidence, bars, excerpts, recogniser,
-//      other)` runs the recogniser once per excerpt and returns the evidence
-//      with `winds` filled; `detectStructure` again names the instruments.
+//      such stretch, with the track that leads it); `recogniseWinds(evidence,
+//      bars, excerpts, recogniser, track)` reads each excerpt at 16 kHz (in
+//      slices, never the whole track), runs the recogniser once per excerpt
+//      and returns the evidence with `winds` filled (`windsFromGuesses`);
+//      `detectStructure` again names the instruments. `gather.ts` plugs both
+//      steps into the runner, with a cache of the readings.
 //
 // The core (`measureEvidence`) is pure and synchronous over mono sources
 // (testable in Node, used by the bench's Tier R on the rendered tracks). The
@@ -28,6 +31,7 @@
 // every few milliseconds; its result is cached per (audio ids, bar grid).
 
 import { fft, hann } from '../analysis/engine/fft';
+import { makeKernel } from '../analysis/engine/resample';
 import { getAudio } from '../audio/registry';
 import { readPcm, yieldToMain, type PcmAudio } from '../audio/pcm';
 import type { Key } from '../model/harmony';
@@ -237,6 +241,9 @@ export interface EvidenceTracks {
   stems: Partial<Record<StemId, MonoSource>>;
 }
 
+/** The detailed drum parts, whose levels make the « drums » level when there is no whole drum track. */
+const DRUM_PARTS: readonly StemId[] = ['kick', 'snare', 'hihat', 'toms', 'cymbals'];
+
 /** Every step of the measure (the sync core runs them all, the async wrapper yields between them). */
 function* evidenceSteps(tracks: EvidenceTracks, bars: readonly { start: Seconds; end: Seconds }[]): Generator<void, StructureEvidence> {
   const n = bars.length;
@@ -254,6 +261,17 @@ function* evidenceSteps(tracks: EvidenceTracks, bars: readonly { start: Seconds;
   if (tracks.mix) {
     const m: TrackMeasure = yield* measureTrack(tracks.mix, bars, { bands: true, melody: false });
     bandSum.set(m.bands!);
+  }
+  // A detailed separation (kick, snare…) without a whole drum track: their levels make one (`parts.ts` reads « drums »).
+  const parts = DRUM_PARTS.filter((s) => levels[s]);
+  if (!levels.drums && parts.length) {
+    const drums = new Float32Array(n);
+    for (let i = 0; i < n; i++) {
+      let e = 0;
+      for (const s of parts) e += levels[s]![i]! * levels[s]![i]!;
+      drums[i] = Math.sqrt(e);
+    }
+    levels.drums = drums;
   }
   const timbre = new Float32Array(n * TIMBRE_BANDS);
   for (let i = 0; i < timbre.length; i++) timbre[i] = Math.log(1e-9 + bandSum[i]!);
@@ -350,17 +368,19 @@ export function clearEvidenceCache(): void {
 
 // ---------------------------------------------------------------- step 2: the wind instruments
 
-/** One excerpt of the « Autres » track to ask the recogniser about. */
+/** One excerpt of a wind track (« Autres », or a wind part of a detailed separation) to ask the recogniser about. */
 export interface WindsExcerpt {
   /** Bar indices into `HarmonyInput.bars`, [firstBar, endBar). */
   firstBar: number;
   endBar: number;
   start: Seconds;
   end: Seconds;
+  /** The separated track that leads there (`other` most of the time). */
+  stem: StemId;
 }
 
 /**
- * Where the « Autres » track leads (after a first `detectStructure` with the
+ * Where a wind track leads (after a first `detectStructure` with the
  * evidence of step 1): one excerpt per chorus of each such stretch, so that
  * two wind soloists in a row are told apart. Empty without separated tracks.
  */
@@ -374,45 +394,123 @@ export function windsExcerpts(input: HarmonyInput, keyChanges: readonly { time: 
     endBar: s.end,
     start: bars[s.first]!.start,
     end: bars[s.end - 1]!.end,
+    stem: s.lead,
   }));
 }
 
+/** The rate excerpts are read at: the recogniser's own (it then resamples nothing). */
+export const EXCERPT_RATE = 16000;
+/** Taps of the resampler: those of the recogniser's own (`instruments/excerpt.ts`). */
+const EXCERPT_TAPS = 16;
+/** Output samples resampled between two yields (about 2 ms of work). */
+const EXCERPT_SLICE = 1 << 14;
+
 /**
- * Runs the recogniser once per excerpt on the « Autres » track and returns
- * the evidence with `winds` filled (each bar of an excerpt gets its reading;
- * other bars null). A recogniser that fails or answers null leaves the bars
- * null (« Solo (Vents) »).
+ * Reads [start, end) of a mono source at `EXCERPT_RATE`, with the windowed-sinc
+ * resampler of the analysis, block by block (the source is never copied whole)
+ * and yielding to the page between blocks. Null when the excerpt is empty.
+ * Rejects with an `AbortError` when `signal` aborts.
+ */
+export async function readExcerpt(src: MonoSource, start: Seconds, end: Seconds, signal?: AbortSignal): Promise<Float32Array | null> {
+  const f0 = Math.max(0, Math.floor(start * src.sampleRate));
+  const f1 = Math.min(src.frames, Math.floor(end * src.sampleRate));
+  if (f1 <= f0) return null;
+  if (src.sampleRate === EXCERPT_RATE) {
+    const out = new Float32Array(f1 - f0);
+    for (let i = 0; i < out.length; i += EXCERPT_SLICE) {
+      if (signal?.aborted) throw new DOMException('aborted', 'AbortError');
+      src.read(f0 + i, out.subarray(i, Math.min(out.length, i + EXCERPT_SLICE)));
+      await yieldToMain();
+    }
+    return out;
+  }
+  const ratio = src.sampleRate / EXCERPT_RATE;
+  const kernel = makeKernel(ratio, EXCERPT_TAPS);
+  const { taps, phases, width, table } = kernel;
+  const length = Math.floor((f1 - f0) / ratio);
+  if (!length) return null;
+  const out = new Float32Array(length);
+  const block = new Float32Array(Math.ceil(EXCERPT_SLICE * ratio) + width + 2);
+  for (let i0 = 0; i0 < length; i0 += EXCERPT_SLICE) {
+    if (signal?.aborted) throw new DOMException('aborted', 'AbortError');
+    const i1 = Math.min(length, i0 + EXCERPT_SLICE);
+    // input frames (relative to f0) the outputs [i0, i1) read: from floor(i0·ratio) − taps + 1
+    const k0 = Math.floor(i0 * ratio) - taps + 1;
+    const span = Math.min(block.length, Math.floor((i1 - 1) * ratio) + taps + 1 - k0);
+    const x = block.subarray(0, span);
+    src.read(f0 + k0, x);
+    // outside the excerpt reads 0, as when the recogniser resamples the excerpt alone
+    for (let j = 0; j < span; j++) if (k0 + j < 0 || f0 + k0 + j >= f1) x[j] = 0;
+    for (let i = i0; i < i1; i++) {
+      const p = i * ratio;
+      const c = Math.floor(p);
+      const row = Math.round((p - c) * phases) * width;
+      const o = c - taps + 1 - k0;
+      let sum = 0;
+      for (let j = 0; j < width; j++) {
+        const k = o + j;
+        if (k >= 0 && k < span) sum += x[k]! * table[row + j]!;
+      }
+      out[i] = sum;
+    }
+    await yieldToMain();
+  }
+  return out;
+}
+
+/** The evidence with `winds` filled: each bar of an excerpt gets that excerpt's reading, the other bars null. */
+export function windsFromGuesses(
+  evidence: StructureEvidence,
+  n: number,
+  excerpts: readonly WindsExcerpt[],
+  guesses: readonly (InstrumentGuess | null)[],
+): StructureEvidence {
+  const winds: (InstrumentGuess | null)[] = new Array<InstrumentGuess | null>(n).fill(null);
+  excerpts.forEach((ex, k) => {
+    for (let i = Math.max(0, ex.firstBar); i < ex.endBar && i < n; i++) winds[i] = guesses[k] ?? null;
+  });
+  return { ...evidence, winds };
+}
+
+/** A source for an audio id of the registry (null when not in memory). */
+function registered(id: string): MonoSource | null {
+  const pcm = getAudio(id);
+  return pcm ? pcmSource(pcm) : null;
+}
+
+/**
+ * Runs the recogniser once per excerpt, on the track that leads it, and
+ * returns the evidence with `winds` filled. `track` is that track: one source
+ * (or registered audio id) for every excerpt, or a function of the stem. A
+ * recogniser that fails or answers null leaves the bars null (« Solo (Vents) »).
  */
 export async function recogniseWinds(
   evidence: StructureEvidence,
   bars: readonly Pick<HarmonyBar, 'start' | 'end'>[],
   excerpts: readonly WindsExcerpt[],
   recognizer: InstrumentRecognizer,
-  other: MonoSource | string,
+  track: MonoSource | string | ((stem: StemId) => MonoSource | string | null),
   signal?: AbortSignal,
 ): Promise<StructureEvidence> {
-  const src = typeof other === 'string' ? (() => {
-    const pcm = getAudio(other);
-    return pcm ? pcmSource(pcm) : null;
-  })() : other;
-  const winds: (InstrumentGuess | null)[] = bars.map(() => null);
-  if (src) {
-    for (const ex of excerpts) {
-      if (signal?.aborted) throw new DOMException('aborted', 'AbortError');
-      const f0 = Math.max(0, Math.floor(ex.start * src.sampleRate));
-      const f1 = Math.min(src.frames, Math.floor(ex.end * src.sampleRate));
-      if (f1 <= f0) continue;
-      const mono = new Float32Array(f1 - f0);
-      src.read(f0, mono);
-      let guess: InstrumentGuess | null = null;
+  const sourceOf = (stem: StemId): MonoSource | null => {
+    const t = typeof track === 'function' ? track(stem) : track;
+    return t === null ? null : typeof t === 'string' ? registered(t) : t;
+  };
+  const guesses: (InstrumentGuess | null)[] = [];
+  for (const ex of excerpts) {
+    if (signal?.aborted) throw new DOMException('aborted', 'AbortError');
+    const src = sourceOf(ex.stem);
+    const mono = src ? await readExcerpt(src, ex.start, ex.end, signal) : null;
+    let guess: InstrumentGuess | null = null;
+    if (mono) {
       try {
-        guess = await recognizer.recognise(mono, src.sampleRate, signal);
+        guess = await recognizer.recognise(mono, EXCERPT_RATE, signal);
       } catch (e) {
         if (signal?.aborted) throw e;
         guess = null;
       }
-      for (let i = ex.firstBar; i < ex.endBar && i < winds.length; i++) winds[i] = guess;
     }
+    guesses.push(guess);
   }
-  return { ...evidence, winds };
+  return windsFromGuesses(evidence, bars.length, excerpts, guesses);
 }

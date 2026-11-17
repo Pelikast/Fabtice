@@ -23,6 +23,7 @@ import * as projectModules from './project/debug';
 import * as tapFixModule from './analysis/tapFix';
 import { standardsStore } from './standards/offer';
 import { harmonyHandle, startHarmonyRefresh, suspendHarmonyRefresh } from './structure/refresh';
+import { installStructureEvidence } from './structure/gather';
 import './styles/index.css';
 
 setLanguage('fr');
@@ -32,8 +33,9 @@ connectEngine(appStore, getEngine());
 // at once, like any new loop.
 historyModule.startHistory(appStore, { afterRestore: (s, before) => s.loop !== before.loop && actions.enterLoop() });
 // Stage 5: the harmony pass (modulations, structure) runs again, a moment after any change of what it reads; a
-// download of the library of standards may bring the known chart of the piece.
-startHarmonyRefresh({ onLibraryChange: (listener) => standardsStore.subscribe((st, prev) => st.status !== prev.status && listener()) });
+// download of the library of standards may bring the known chart of the piece. The audio in memory says who plays
+// (`structure/gather.ts`), and the recogniser of the page names the wind soloists once a separation is there.
+startHarmonyRefresh({ ...installStructureEvidence(), onLibraryChange: (listener) => standardsStore.subscribe((st, prev) => st.status !== prev.status && listener()) });
 // The window's title and the Mac app's « modified » dot, the file of the project, closing with changes not saved.
 installProjectWindow();
 // Mac app: the menu bar shows the page's commands, greyed out as in the menu Fabtice, and sends its clicks back.
