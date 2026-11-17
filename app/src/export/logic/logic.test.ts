@@ -50,6 +50,7 @@ function memoryTarget(): FolderTarget & { files: FolderFile[]; aborted: boolean 
   const t = {
     kind: 'zip' as const,
     folderName: 'test',
+    fullPath: null,
     files: [] as FolderFile[],
     aborted: false,
     async add(f: FolderFile) {

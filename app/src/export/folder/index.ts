@@ -3,6 +3,7 @@
 //
 //   const target = await openFolderTarget('Blues – Logic Pro');   // null: cancelled
 //   await target.add({ name: '01 Morceau.wav', data: blob });       // one by one, as they are made
+//   await target.add({ name: 'Samples/Imported/01 Morceau.wav', data: blob }); // or in sub-folders
 //   const result = await target.finish();                          // or target.abort()
 //
 // Mac app: a REAL folder. `openFolderTarget` shows the system's save panel at
@@ -20,7 +21,10 @@ import { getDesktopBridge, type DesktopBridge } from '../../platform/desktopBrid
 import { deliverable, safeFileName, zipStore, type Delivered } from '../audio';
 
 export interface FolderFile {
-  /** A plain file name, no folder (`safeFileName` applied again on the way). */
+  /**
+   * A plain file name, or a short path in sub-folders of the folder (« Samples/Imported/01 Morceau.wav »: at
+   * most `MAX_FOLDER_DEPTH` folders, `/` between them); every part is cleaned again on the way (`safeFileName`).
+   */
   name: string;
   data: Blob;
 }
@@ -47,6 +51,12 @@ export interface FolderTarget {
   readonly kind: 'zip' | 'folder';
   /** The folder's name (the Mac app may have made it « name 2 »: an existing folder is never replaced). */
   readonly folderName: string;
+  /**
+   * Mac app: the folder's full path, to write INSIDE a file that must name where its neighbours lie (the
+   * Ableton Live set). Null on the web (where the archive will be unpacked is not known) and in a Mac app that
+   * predates it.
+   */
+  readonly fullPath: string | null;
   /** Adds a file; `onProgress` 0…1 while it is written. */
   add(file: FolderFile, options?: { onProgress?: (fraction: number) => void; signal?: AbortSignal }): Promise<void>;
   finish(): Promise<FolderResult>;
@@ -56,6 +66,17 @@ export interface FolderTarget {
 
 /** Bytes handed to the Mac app per call. */
 export const CHUNK_BYTES = 8 * 1024 * 1024;
+
+/** Sub-folders a file name may go through (`desktop/src/folder-writer.js` checks the same). */
+export const MAX_FOLDER_DEPTH = 3;
+
+/** `name` with each part cleaned (`safeFileName`); throws `FolderError('failed')` when deeper than allowed. */
+export function folderEntryName(name: string): string {
+  const parts = name.split('/').filter((p) => p.trim() !== '');
+  if (parts.length === 0) return safeFileName(name);
+  if (parts.length > MAX_FOLDER_DEPTH + 1) throw new FolderError('failed', 'too deep');
+  return parts.map((p) => safeFileName(p)).join('/');
+}
 
 type FolderBridge = Required<Pick<DesktopBridge, 'beginFolderExport' | 'writeFolderFile' | 'finishFolderExport' | 'abortFolderExport' | 'revealFolderExport'>>;
 
@@ -75,10 +96,14 @@ function zipTarget(folderName: string): FolderTarget {
   return {
     kind: 'zip',
     folderName,
+    fullPath: null,
     async add(file, options) {
       if (options?.signal?.aborted) throw new FolderError('cancelled');
-      let name = safeFileName(file.name);
-      for (let k = 2; used.has(name.toLowerCase()); k++) name = safeFileName(`${k} ${file.name}`);
+      let name = folderEntryName(file.name);
+      const slash = name.lastIndexOf('/');
+      const dir = slash >= 0 ? name.slice(0, slash + 1) : '';
+      const base = name.slice(dir.length);
+      for (let k = 2; used.has(name.toLowerCase()); k++) name = `${dir}${safeFileName(`${k} ${base}`)}`;
       used.add(name.toLowerCase());
       files.push({ name: `${folderName}/${name}`, data: file.data });
       options?.onProgress?.(1);
@@ -94,14 +119,15 @@ function zipTarget(folderName: string): FolderTarget {
   };
 }
 
-function realFolderTarget(bridge: FolderBridge, session: string, folderName: string, where: string): FolderTarget {
+function realFolderTarget(bridge: FolderBridge, session: string, folderName: string, where: string, fullPath: string | null): FolderTarget {
   let closed = false;
   return {
     kind: 'folder',
     folderName,
+    fullPath,
     async add(file, options) {
       if (closed) throw new FolderError('failed', 'closed');
-      const name = safeFileName(file.name);
+      const name = folderEntryName(file.name);
       const size = file.data.size;
       // An empty file is created too.
       for (let at = 0; at < size || (at === 0 && size === 0); at += CHUNK_BYTES) {
@@ -140,5 +166,5 @@ export async function openFolderTarget(folderName: string): Promise<FolderTarget
     if (r.reason === 'cancelled') return null;
     throw new FolderError('failed', r.reason);
   }
-  return realFolderTarget(bridge, r.session, r.name, r.where);
+  return realFolderTarget(bridge, r.session, r.name, r.where, typeof r.path === 'string' && r.path.startsWith('/') ? r.path : null);
 }

@@ -10,14 +10,20 @@
 //   - one NEW folder per export, at the path the user chose in the panel. If
 //     something already has that name there, the folder is « name 2 »,
 //     « name 3 »… beside it: nothing existing is ever replaced or entered;
-//   - inside it only, plain files whose names are cleaned (`saveName`: no path,
-//     no control character, no reserved sign) and checked to stay inside it;
-//     a file is created once (`wx`), then only appended to, chunk by chunk, at
-//     the offset the main process knows;
+//   - inside it only, files whose names are cleaned (`saveName`: no control
+//     character, no reserved sign) and checked to stay inside it: a plain name,
+//     or a short path of sub-folders (« Samples/Imported/01 Morceau.wav », at
+//     most `MAX_DEPTH` folders, each part cleaned, no « . » or « .. »), the
+//     sub-folders created by the export; a file is created once (`wx`), then
+//     only appended to, chunk by chunk, at the offset the main process knows;
 //   - on « abort » (the user cancelled, a failure on either side), the files
-//     this export created are removed, then the folder if it is empty.
+//     this export created are removed, then the sub-folders it created and the
+//     folder, each if it is empty.
 // The page learns the folder's name and where it is, with the home folder
-// shown as « ~ » (never the full path).
+// shown as « ~ », to show; and the folder's full path (`path`), only to write
+// it INSIDE a file that must name where its neighbours lie (the Ableton Live
+// set: Live 11 falls back on a sample's absolute path). The page never writes
+// by path: the main process alone resolves every name inside the folder.
 
 const path = require('node:path');
 const os = require('node:os');
@@ -33,6 +39,8 @@ const MAX_FILES = 200;
 const MAX_FILE_BYTES = 8 * 1024 * 1024 * 1024;
 /** « name 2 » … « name 99 », then give up. */
 const MAX_SUFFIX = 99;
+/** Sub-folders a file name may go through (« Samples/Imported/x.wav » is two). */
+const MAX_DEPTH = 3;
 
 class FolderError extends Error {
   /** @param {'cancelled'|'invalid'|'exists'|'failed'|'unknown-session'|'too-large'} code */
@@ -60,7 +68,7 @@ function createFolderWriter(options = {}) {
   const files = options.fsp || fsp;
   const home = options.home === undefined ? os.homedir() : options.home;
   const newId = options.randomHex || (() => crypto.randomBytes(12).toString('hex'));
-  /** @type {Map<string, { dir: string, files: Map<string, number>, done: boolean }>} */
+  /** @type {Map<string, { dir: string, files: Map<string, number>, dirs: string[], done: boolean }>} */
   const sessions = new Map();
   /** The folder of the last export finished (« Afficher dans le Finder »). */
   const finished = new Map();
@@ -93,8 +101,8 @@ function createFolderWriter(options = {}) {
         throw new FolderError('failed', e && e.message);
       }
       const id = newId();
-      sessions.set(id, { dir, files: new Map(), done: false });
-      return { session: id, name: path.basename(dir), where: shownPath(parentReal, home) };
+      sessions.set(id, { dir, files: new Map(), dirs: [], done: false });
+      return { session: id, name: path.basename(dir), where: shownPath(parentReal, home), path: dir };
     }
     throw new FolderError('exists');
   }
@@ -105,14 +113,38 @@ function createFolderWriter(options = {}) {
     return s;
   }
 
-  /** The cleaned name, checked to stay inside the folder (a plain file directly in it). */
+  /**
+   * The cleaned name, checked to stay inside the folder: a plain file directly in it, or under at most
+   * `MAX_DEPTH` sub-folders (« / » between the parts; each part must already be clean).
+   */
   function target(s, name) {
-    if (typeof name !== 'string' || name.length === 0 || name.length > 255) throw new FolderError('invalid');
-    const clean = saveName(name);
-    if (clean !== name.trim() || clean === '.' || clean === '..') throw new FolderError('invalid', 'unsafe name');
-    const full = path.join(s.dir, clean);
-    if (path.dirname(full) !== s.dir) throw new FolderError('invalid', 'outside the folder');
-    return { clean, full };
+    if (typeof name !== 'string' || name.length === 0 || name.length > 1024 || name.includes('\\')) throw new FolderError('invalid');
+    const parts = name.split('/');
+    if (parts.length > MAX_DEPTH + 1) throw new FolderError('invalid', 'too deep');
+    for (const part of parts) {
+      if (part.length === 0 || part.length > 255) throw new FolderError('invalid');
+      const clean = saveName(part);
+      if (clean !== part.trim() || clean !== part || clean === '.' || clean === '..') throw new FolderError('invalid', 'unsafe name');
+    }
+    const clean = parts.join('/');
+    const full = path.join(s.dir, ...parts);
+    if (path.relative(s.dir, full) !== path.join(...parts) || !full.startsWith(s.dir + path.sep)) throw new FolderError('invalid', 'outside the folder');
+    return { clean, full, folders: parts.slice(0, -1) };
+  }
+
+  /** Creates the sub-folders of a file (each one once, never through something that is not a folder of ours). */
+  async function makeFolders(s, folders) {
+    let at = s.dir;
+    for (const part of folders) {
+      at = path.join(at, part);
+      if (s.dirs.includes(at)) continue;
+      try {
+        await files.mkdir(at);
+      } catch (e) {
+        throw new FolderError('failed', e && e.message);
+      }
+      s.dirs.push(at);
+    }
   }
 
   /**
@@ -121,7 +153,7 @@ function createFolderWriter(options = {}) {
    */
   async function write(id, name, offset, bytes) {
     const s = sessionOf(id);
-    const { clean, full } = target(s, name);
+    const { clean, full, folders } = target(s, name);
     if (!(bytes instanceof Uint8Array) || bytes.length > MAX_CHUNK_BYTES) throw new FolderError('invalid', 'invalid chunk');
     if (!Number.isSafeInteger(offset) || offset < 0) throw new FolderError('invalid', 'invalid offset');
     const known = s.files.get(clean);
@@ -129,6 +161,7 @@ function createFolderWriter(options = {}) {
     if (offset > 0 && known !== offset) throw new FolderError('invalid', 'chunk out of order');
     if (offset === 0 && s.files.size >= MAX_FILES) throw new FolderError('too-large', 'too many files');
     if (offset + bytes.length > MAX_FILE_BYTES) throw new FolderError('too-large');
+    if (offset === 0) await makeFolders(s, folders);
     let handle;
     try {
       handle = await files.open(full, offset === 0 ? 'wx' : 'r+', 0o644);
@@ -163,7 +196,9 @@ function createFolderWriter(options = {}) {
     if (!s) return true;
     s.done = true;
     sessions.delete(id);
-    for (const name of s.files.keys()) await files.rm(path.join(s.dir, name), { force: true }).catch(() => {});
+    for (const name of s.files.keys()) await files.rm(path.join(s.dir, ...name.split('/')), { force: true }).catch(() => {});
+    // The deepest sub-folders first; each only if it is empty.
+    for (const dir of [...s.dirs].reverse()) await files.rmdir(dir).catch(() => {});
     await files.rmdir(s.dir).catch(() => {});
     return true;
   }
@@ -221,4 +256,4 @@ function registerFolderIpc(handle, options) {
   return writer;
 }
 
-module.exports = { createFolderWriter, registerFolderIpc, FolderError, shownPath, MAX_CHUNK_BYTES, MAX_FILES };
+module.exports = { createFolderWriter, registerFolderIpc, FolderError, shownPath, MAX_CHUNK_BYTES, MAX_FILES, MAX_DEPTH };

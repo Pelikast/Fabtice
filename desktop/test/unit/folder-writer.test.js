@@ -36,6 +36,7 @@ test('a new folder where the panel said, files written by chunks, the name and t
   const b = await writer.begin({ suggestedName: 'Blues – Logic Pro', pickPath: async (name) => path.join(home, 'Musique', name) });
   assert.equal(b.name, 'Blues – Logic Pro');
   assert.equal(b.where, `~${path.sep}Musique`);
+  assert.equal(b.path, path.join(home, 'Musique', 'Blues – Logic Pro'), 'the full path, for a file that names where its neighbours lie');
   await writer.write(b.session, '01 Morceau.wav', 0, bytes(10));
   await writer.write(b.session, '01 Morceau.wav', 10, bytes(5, 9));
   await writer.write(b.session, 'Lisez-moi.txt', 0, bytes(3));
@@ -69,7 +70,7 @@ test('names stay inside the folder; abort removes only what the export wrote', a
   const root = tempDir();
   const writer = createFolderWriter({ home: '' });
   const b = await writer.begin({ suggestedName: 'X', pickPath: async () => path.join(root, 'X') });
-  for (const bad of ['../evil.txt', 'a/b.txt', '..', '.cache', '', 'a\\b', 'x\u0000y', `${'n'.repeat(300)}`]) {
+  for (const bad of ['../evil.txt', 'a/../../b.txt', '/abs.txt', 'a//b.txt', 'a/./b.txt', 'a/b/c/d/e.txt', '..', '.cache', 'a/.cache/b', '', 'a\\b', 'x\u0000y', `${'n'.repeat(300)}`]) {
     assert.equal(await codeOf(writer.write(b.session, bad, 0, bytes(1))), 'invalid', `refused: ${JSON.stringify(bad)}`);
   }
   assert.deepEqual(fs.readdirSync(root), ['X']);
@@ -82,6 +83,34 @@ test('names stay inside the folder; abort removes only what the export wrote', a
   fs.writeFileSync(path.join(root, 'Y', 'autre.txt'), 'x');
   await writer.abort(c.session);
   assert.deepEqual(fs.readdirSync(path.join(root, 'Y')), ['autre.txt']);
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('sub-folders (« Samples/Imported/… »): made by the export, kept inside, removed by abort when empty', async () => {
+  const root = tempDir();
+  const writer = createFolderWriter({ home: '' });
+  const b = await writer.begin({ suggestedName: 'Blues Project', pickPath: async () => path.join(root, 'Blues Project') });
+  await writer.write(b.session, 'Samples/Imported/01 Morceau.wav', 0, bytes(6));
+  await writer.write(b.session, 'Samples/Imported/01 Morceau.wav', 6, bytes(2, 5));
+  await writer.write(b.session, 'Samples/Imported/02 Voix.wav', 0, bytes(3));
+  await writer.write(b.session, 'Blues.als', 0, bytes(4));
+  assert.equal(await codeOf(writer.write(b.session, 'Samples/Imported/02 Voix.wav', 0, bytes(1))), 'invalid', 'a file written twice');
+  const done = await writer.finish(b.session);
+  assert.equal(done.files, 3);
+  const dir = path.join(root, 'Blues Project');
+  assert.deepEqual(fs.readdirSync(path.join(dir, 'Samples', 'Imported')).sort(), ['01 Morceau.wav', '02 Voix.wav']);
+  assert.deepEqual([...fs.readFileSync(path.join(dir, 'Samples', 'Imported', '01 Morceau.wav'))], [...bytes(6), ...bytes(2, 5)]);
+  // Abort: the files, then the sub-folders made, then the folder.
+  const c = await writer.begin({ suggestedName: 'Z', pickPath: async () => path.join(root, 'Z') });
+  await writer.write(c.session, 'Samples/Imported/a.wav', 0, bytes(2));
+  await writer.abort(c.session);
+  assert.equal(fs.existsSync(path.join(root, 'Z')), false);
+  // A sub-folder that something else wrote into is kept.
+  const d = await writer.begin({ suggestedName: 'W', pickPath: async () => path.join(root, 'W') });
+  await writer.write(d.session, 'Samples/a.wav', 0, bytes(2));
+  fs.writeFileSync(path.join(root, 'W', 'Samples', 'autre.txt'), 'x');
+  await writer.abort(d.session);
+  assert.deepEqual(fs.readdirSync(path.join(root, 'W', 'Samples')), ['autre.txt']);
   fs.rmSync(root, { recursive: true, force: true });
 });
 
