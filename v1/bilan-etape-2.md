@@ -192,6 +192,19 @@ Aspect
 - Tourner l'appareil (ou passer d'une fenêtre large à étroite) pendant que
   Réglages est ouvert n'a pas été essayé à fond.
 - Le pourcentage du téléchargement des grilles est lissé, pas mesuré.
+- **Téléphone tenu en largeur** (844 × 390) : l'app y prend la forme
+  ordinateur, avec des cibles de 34 à 36 px. Seul le menu Fabtice y passe en
+  feuille défilante (sinon « Réglages… » était hors de l'écran). Changer le
+  seuil reviendrait à redessiner le lecteur : laissé tel quel, à décider.
+- Sur téléphone, des commandes du lecteur d'avant cette étape font moins de
+  40 px (M / S, liste de la sous-grille, boutons de tonalité et de tempo,
+  lettres de section) : notées, pas touchées (hors des écrans de l'étape).
+- La passe mobile est une émulation dans Chromium : rien n'a été essayé sur un
+  vrai téléphone.
+- `npm run captures` a besoin de Playwright et de Chromium : il marche sur
+  cette machine de travail, pas tel quel sur le Mac du propriétaire. Les
+  captures utilisent le morceau de démonstration, des grilles inventées et une
+  fausse liste de projets récents.
 
 ## Pièges rencontrés
 
@@ -213,6 +226,10 @@ Aspect
 - **Lien `node_modules`** : un agent en a commité un par erreur dans sa
   branche (retiré avant la fusion). Vérifier `git status` avant chaque commit
   dans un arbre de travail d'agent.
+- **Une analyse complète vide l'historique d'annulation** (règle de
+  l'étape 1). Sur les Mac de GitHub, l'analyse finissait au milieu du test de
+  la barre de menus et « Annuler : piste coupée » redevenait « Annuler » : un
+  test qui compte des étapes d'annulation attend d'abord la fin de l'analyse.
 - `collections.json` : le champ `verified` veut dire « vérifié depuis le bac
   à sable » ; un test le contrôle. Ne pas le passer à vrai pour une adresse
   vérifiée ailleurs.
