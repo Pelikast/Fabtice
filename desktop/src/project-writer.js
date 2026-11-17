@@ -319,7 +319,9 @@ function createProjectWriter(options) {
     } catch {
       // fine
     }
-    current = { projectId: s.projectId, path: s.target };
+    // Another project may have been adopted while this one was written (a project opened meanwhile): that one
+    // keeps its own file. The saved project only becomes « current » again if nothing else took its place.
+    if (!current || current.projectId === s.projectId) current = { projectId: s.projectId, path: s.target };
     await remember(s.projectId, s.target);
     if (options.onSaved) options.onSaved(s.target);
     await cleanStale([path.dirname(s.target)]);

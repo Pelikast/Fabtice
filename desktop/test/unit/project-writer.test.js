@@ -251,6 +251,37 @@ test('« Enregistrer sous… »: the chosen path gets the .fab extension, become
   }
 });
 
+test('another project opened while one is written keeps its own file; the saved one is still remembered', async () => {
+  const { dir, writer, saved, cleanup } = setup();
+  try {
+    const first = path.join(dir, 'a.fab');
+    const other = path.join(dir, 'b.fab');
+    fs.writeFileSync(first, bytesOf(10));
+    fs.writeFileSync(other, bytesOf(20, 3));
+    await writer.adopt('p1', first);
+    const s = await writer.begin({ projectId: 'p1', target: 'choose', pickPath: async () => path.join(dir, 'Copie.fab') });
+    await writer.write(s.session, bytesOf(300, 5));
+    // The person opens another project before the save ends.
+    await writer.adopt('p2', other);
+    await writer.finish(s.session);
+    assert.equal(writer.pathFor('p2'), other, 'the open project keeps its file');
+    assert.equal(writer.pathFor('p1'), null);
+    assert.deepEqual((await writer.info('p2')).name, 'b.fab');
+    assert.deepEqual(saved, [path.join(dir, 'Copie.fab')]);
+    // The saved project's file is remembered: reopened later from its autosave, it finds it.
+    writer.forget();
+    assert.deepEqual(await writer.recall('p1'), { name: 'Copie.fab' });
+    // With no project in the meantime (a new one only forgot the file), the saved one is current again.
+    const t = await writer.begin({ projectId: 'p1', target: 'current' });
+    writer.forget();
+    await writer.write(t.session, bytesOf(30, 7));
+    await writer.finish(t.session);
+    assert.equal(writer.pathFor('p1'), path.join(dir, 'Copie.fab'));
+  } finally {
+    cleanup();
+  }
+});
+
 test('a cancelled « Enregistrer sous… » changes nothing', async () => {
   const { dir, writer, cleanup } = setup();
   try {
