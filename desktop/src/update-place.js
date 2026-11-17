@@ -10,7 +10,11 @@
 //     /private/var/folders/xx/yyyy/T/AppTranslocation/<UUID>/d/Fabtice.app ;
 //   - the app is on a read-only volume (the mounted disk image itself: /Volumes/Fabtice/Fabtice.app);
 //   - its folder cannot be written with this account (an /Applications set up for administrators only);
-//   - it is not a packaged app bundle (development, `electron .`), or not on macOS.
+//   - it is not a packaged app bundle (development, `electron .`), or not on macOS;
+//   - it runs from a copy the update itself makes: the old app set aside (`.Fabtice-ancienne.app`, opened
+//     by hand to get out of trouble) or an unpacked app in a work folder (`.Fabtice-maj-…`). The swap
+//     would then remove the running app before failing. Said as « not-packaged » (the page: this copy
+//     cannot update itself, download the new version by hand).
 // Each case has its code; the page says it in French and offers the manual download.
 
 const fs = require('node:fs');
@@ -36,6 +40,12 @@ function bundleOf(execPath) {
 /** True for a path macOS's App Translocation gave (real path, i.e. with /private). */
 function isTranslocated(realBundlePath) {
   return typeof realBundlePath === 'string' && /^\/private\/var\/folders\/.+\/AppTranslocation\//.test(realBundlePath);
+}
+
+/** True for a bundle the update itself puts aside or unpacks: never one it may replace. */
+function isUpdateCopy(realBundlePath) {
+  const name = path.basename(realBundlePath);
+  return name === ASIDE_NAME || name.startsWith(STAGING_PREFIX) || path.basename(path.dirname(realBundlePath)).startsWith(STAGING_PREFIX);
 }
 
 /**
@@ -78,6 +88,7 @@ function locate({ execPath, packaged, platform, fsImpl = fs, testBundle = null }
     return { ok: false, code: 'not-packaged' };
   }
   if (isTranslocated(real)) return { ok: false, code: 'translocated' };
+  if (isUpdateCopy(real)) return { ok: false, code: 'not-packaged' };
   // A volume mounted from a disk image is read-only: the probe below says so (EROFS).
   const folder = path.dirname(real);
   const writable = probeWritable(folder, fsImpl);
@@ -95,9 +106,12 @@ async function freeBytes(folder, fsp = fs.promises) {
   }
 }
 
-/** The room the update needs next to the app: the archive, what it unpacks to and a margin (three times the archive). */
+/**
+ * The room the update needs next to the app: the archive (kept until the end), what it unpacks to (about 2.4 times
+ * the archive, the estimate of update-install.js) and a margin: four times the archive.
+ */
 function roomNeeded(archiveBytes) {
-  return archiveBytes * 3;
+  return archiveBytes * 4;
 }
 
-module.exports = { BUNDLE_NAME, ASIDE_NAME, STAGING_PREFIX, bundleOf, isTranslocated, probeWritable, locate, freeBytes, roomNeeded };
+module.exports = { BUNDLE_NAME, ASIDE_NAME, STAGING_PREFIX, bundleOf, isTranslocated, isUpdateCopy, probeWritable, locate, freeBytes, roomNeeded };

@@ -293,6 +293,9 @@ function cleanEnv() {
 async function swap(plan, deps = defaultDeps()) {
   const { target, unpacked } = plan;
   const aside = path.join(path.dirname(target), ASIDE_NAME);
+  // The running app is itself the set-aside copy (opened by hand): removing « the old copy » would remove it.
+  // locate() refuses this place already; this is the last lock, before anything is touched.
+  if (path.resolve(aside) === path.resolve(target)) throw new InstallError('aside', 'the app runs from the set-aside copy');
   // A set-aside app of an earlier update that could not be removed: it is not the one running (that one is at `target`).
   if (deps.fs.existsSync(aside)) {
     removeQuiet(aside, deps);

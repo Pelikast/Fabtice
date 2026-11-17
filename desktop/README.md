@@ -232,8 +232,11 @@ première adresse est toujours là), et les hôtes où GitHub range les fichiers
 des versions : `objects.githubusercontent.com` (relevé le 17 novembre 2026)
 et `release-assets.githubusercontent.com` (utilisé par GitHub en 2025). Rien
 d’autre. La fabrication relève à chaque passage l’hôte de la redirection du
-jour (étape « GitHub release redirect host », `ci/release-host.js`) : si
-GitHub en change, l’ajouter à `ALLOWED_HOSTS` avant une version.
+jour (étape « GitHub release redirect host », `ci/release-host.js`, qui écrit
+« HÔTE HORS LISTE » et un avertissement quand un saut est refusé, sans
+bloquer) : si GitHub en change, l’ajouter à `ALLOWED_HOSTS` avant une
+version. Après chaque publication, `ci/publish-release.js` refait le chemin
+réel de la nouvelle version et finit en rouge si un hôte est refusé.
 
 ### Le remplacement, pas à pas
 
@@ -241,8 +244,13 @@ GitHub en change, l’ajouter à `ALLOWED_HOSTS` avant une version.
    l’exécutable, chemin réel. Refus si emplacement protégé
    (`/private/var/folders/…/AppTranslocation/…`), volume en lecture seule
    (`EROFS`), dossier non modifiable (un fichier d’essai y est créé puis
-   effacé), app non empaquetée.
-2. **Place sur le disque** : environ trois fois l’archive.
+   effacé), app non empaquetée, et app lancée depuis une copie que la mise à
+   jour fabrique elle-même (`.Fabtice-ancienne.app` ouverte à la main pour se
+   dépanner, ou une app d’un dossier `.Fabtice-maj-…`) : l’échange effacerait
+   l’app en cours. L’app le dit comme pour une copie non empaquetée, avec
+   « Télécharger à la main ».
+2. **Place sur le disque** : quatre fois l’archive (l’archive, gardée jusqu’à
+   la fin, l’app déballée, environ 2,4 fois l’archive, et une marge).
 3. **Téléchargement** dans un dossier de travail neuf à côté de l’app
    (`.Fabtice-maj-<hasard>`, même volume), taille exacte exigée, SHA-256
    calculé en écrivant. Une empreinte fausse efface le téléchargement :
@@ -263,7 +271,9 @@ GitHub en change, l’ajouter à `ALLOWED_HOSTS` avant une version.
    même dossier, la nouvelle renommée à sa place, puis relue. À toute erreur,
    l’ancienne est remise à sa place (la nouvelle retourne dans le dossier de
    travail, effacé). Rien n’est jamais modifié à l’intérieur d’un paquet.
-7. **Relance** : un petit `sh` détaché attend la fin du processus, puis
+7. **Relance** : un petit `sh` détaché attend la fin du processus (jusqu’à
+   dix minutes : une nouvelle app ouverte pendant que l’ancienne vit encore
+   perdrait le verrou d’instance unique et se fermerait aussitôt), puis
    `open -n` du paquet (comme le Finder) ; les chemins passent en arguments,
    jamais dans le script.
 8. **Au démarrage suivant**, la nouvelle app efface `.Fabtice-ancienne.app`
@@ -737,20 +747,29 @@ fabrique rien), et à la main (« Run workflow ») sur n’importe quelle branch
    `build:desktop` dans `app/`), puis les tests unitaires de l’app Mac.
 3. **Les deux apps** construites sur un Mac à puce Apple : `.dmg` (ce qu’on
    télécharge) et `.zip` (ce que télécharge la mise à jour automatique), puis
-   essayées : bout en bout avec le faux yt-dlp, essai complet de la mise à
-   jour… L’app Intel est essayée ensuite sur un Mac Intel (tâche `intel`).
+   essayées : chaque `.dmg` monté en lecture seule et son app inspectée
+   (présente, signature valide, bon numéro, bonne puce ; journal
+   `07b-inspect-dmg`), bout en bout avec le faux yt-dlp, essai complet de la
+   mise à jour… L’app Intel est essayée ensuite sur un Mac Intel (tâche `intel`).
 4. **Publication** (tâche `publish`), seulement sur `main` et seulement si
    les deux puces sont vertes, avec les fichiers fabriqués à l’étape 3, par
    `ci/publish-release.js` :
    1. la version `V` est lue dans `desktop/package.json`, l’étiquette est
-      `vV` ;
-   2. **déjà publiée ?** Si l’étiquette `vV` existe, ou une release `vV`
-      publiée : **rien n’est publié ni modifié** (aucun fichier remplacé,
-      aucune étiquette déplacée), le journal le dit (« RIEN À PUBLIER ») et
-      la tâche finit en vert. Un envoi sur `main` sans nouveau numéro
-      fabrique et essaie donc tout, mais ne republie pas. Si un **brouillon**
-      `vV` traîne (fabrication interrompue au milieu) : rien non plus, mais en
-      rouge, pour qu’on le supprime à la main sur GitHub avant de relancer ;
+      `vV`. Si la première section de `CHANGELOG.md` dit encore « En
+      préparation », tout s’arrête là, en rouge, avant toute commande `gh`
+      (l’essai à blanc le dit en gros, au début et à la fin, et continue) ;
+   2. **déjà publiée ?** Si une release `vV` est publiée : **rien n’est
+      publié ni modifié** (aucun fichier remplacé, aucune étiquette
+      déplacée), le journal le dit (« RIEN À PUBLIER ») et la tâche finit en
+      vert. Un envoi sur `main` sans nouveau numéro fabrique et essaie donc
+      tout, mais ne republie pas. Si un **brouillon** `vV` traîne
+      (fabrication interrompue au milieu), ou si l’**étiquette** `vV` existe
+      sans release publiée de ce numéro (étiquette poussée à la main,
+      version supprimée) : rien non plus, mais en rouge, avec la phrase qui
+      dit quoi regarder et supprimer à la main sur GitHub avant de relancer.
+      Un numéro **plus petit** que celui de la dernière version publiée (les
+      étiquettes `va.b.c` seulement, pas `desktop-dev`) : rien non plus, en
+      rouge, car les apps installées ne le proposeraient jamais ;
    3. `fabtice-version.json` est fait par `ci/make-version-file.js` à partir
       des deux `.zip` (adresses de l’étiquette `vV`), et les notes de la
       release : quel fichier télécharger (puce Apple ou Intel, comment le
@@ -768,7 +787,17 @@ fabrique rien), et à la main (« Run workflow ») sur n’importe quelle branch
    6. le brouillon est **publié** : pas une préversion, marqué « dernière
       version » (`latest`). C’est à ce moment que GitHub crée l’étiquette
       `vV` sur le commit. Le script vérifie ensuite que la dernière version
-      selon GitHub est bien `vV` et que l’étiquette est sur le commit.
+      selon GitHub est bien `vV` et que l’étiquette est sur le commit, puis
+      la **vraie chaîne de mise à jour**, avec le code même de l’app
+      (`ci/update-chain.js` : `src/update-net.js` et `src/update-version.js`) :
+      l’adresse que lisent les apps installées
+      (`…/releases/latest/download/fabtice-version.json`) doit donner `V`, et
+      l’adresse du `.zip` de chaque puce doit se joindre par les hôtes permis
+      seulement (redirections suivies, le fichier n’est pas téléchargé).
+      Quelques essais espacés de 10 s (GitHub peut tarder) ; un hôte hors
+      liste arrête tout de suite, en rouge, avec « HÔTE HORS LISTE » et quoi
+      faire (la version reste publiée : ajouter l’hôte à `ALLOWED_HOSTS`, puis
+      publier un correctif).
 
    Un échec aux étapes 4 et 5 supprime le brouillon (seulement s’il est
    encore brouillon) et met la tâche en rouge : rien ne s’est vu, aucune
@@ -821,8 +850,11 @@ node ci/publish-release.js publish --dry-run --assets <dossier des quatre fichie
 
 (`gh` absent ou non connecté : seule l’étiquette est vérifiée.) Les tests
 unitaires essaient le script entier avec un faux `gh` (`test/unit/fake-gh.js`)
-et un dépôt local à la place de GitHub : déjà publié, brouillon resté,
-publication complète, fichier relu différent, envoi qui échoue.
+et un dépôt local à la place de GitHub (`fetch` remplacé par
+`test/unit/fake-fetch.js`) : déjà publié, brouillon resté, étiquette sans
+version, numéro plus petit, notes « En préparation », publication complète,
+fichier relu différent, envoi qui échoue, redirection vers un hôte hors
+liste après publication.
 
 ### Listes distantes : rester lisible par les versions installées
 

@@ -11,11 +11,12 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync, execFileSync } = require('node:child_process');
-const { checkVersion, publishedState, releaseNotes, checkUploaded } = require('../../ci/publish-release');
+const { checkVersion, preparationVerdict, newestPublished, publishedState, releaseNotes, checkUploaded } = require('../../ci/publish-release');
 
 const DESKTOP = path.join(__dirname, '..', '..');
 const ROOT = path.join(DESKTOP, '..');
 const SCRIPT = path.join(DESKTOP, 'ci', 'publish-release.js');
+const FAKE_FETCH = path.join(__dirname, 'fake-fetch.js'); // the network of the script: GitHub as the fake gh left it
 const VERSION = JSON.parse(fs.readFileSync(path.join(DESKTOP, 'package.json'), 'utf8')).version;
 const TAG = `v${VERSION}`;
 
@@ -51,15 +52,51 @@ test('the number: three numbers, the same in both, named by the first « ## » t
   fails('1.0.1', '1.0.1', '### Version 1.0.1\n## Version 1.0.0\n', /ne nomme pas/);
 });
 
-test('already published: a published release or the tag means nothing to do; a draft must be looked at', () => {
+test('notes « en préparation »: a real publication stops, a dry run warns loudly', () => {
+  const ready = '# Nouveautés\n\n## Version 1.0.1\n\n- Une chose.\n\n## Version 1.0.0 (en préparation autrefois)\n';
+  assert.equal(preparationVerdict(ready, false), null, 'only the first section counts');
+  assert.equal(preparationVerdict('# Rien\n', false), null);
+  for (const log of ['## Version 1.0.1\n\nEn préparation.\n', '## Version 1.0.1 (en préparation)\n\n- Une chose.\n', '## Version 1.0.1\r\n\r\n- EN PRÉPARATION\r\n']) {
+    const real = preparationVerdict(log, false);
+    assert.equal(real.stop, true, log);
+    assert.match(real.message, /^ERREUR : .*En préparation/);
+    const dry = preparationVerdict(log, true);
+    assert.equal(dry.stop, false);
+    assert.match(dry.message, /^ATTENTION !!! .*s’arrêterait/);
+  }
+});
+
+test('already published: a published release means nothing to do; a tag alone or a draft must be looked at', () => {
   const lines = 'abc123\trefs/tags/v1.0.1\n';
   assert.deepEqual(publishedState('v1.0.1', '', []), { state: 'new' });
   assert.deepEqual(publishedState('v1.0.1', '', [{ tag_name: 'desktop-dev', draft: false, id: 1 }, { tag_name: 'v1.0.0', draft: false, id: 2 }]), { state: 'new' });
-  assert.equal(publishedState('v1.0.1', lines, []).state, 'published');
   assert.equal(publishedState('v1.0.1', 'abc\trefs/tags/v1.0.10\n', []).state, 'new');
   assert.equal(publishedState('v1.0.1', '', [{ tag_name: 'v1.0.1', draft: false, id: 3 }]).state, 'published');
+  assert.equal(publishedState('v1.0.1', lines, [{ tag_name: 'v1.0.1', draft: false, id: 3 }]).state, 'published');
   assert.equal(publishedState('v1.0.1', '', [{ tag_name: 'v1.0.1', draft: true, id: 3 }]).state, 'draft');
-  assert.equal(publishedState('v1.0.1', lines, [{ tag_name: 'v1.0.1', draft: true, id: 3 }]).state, 'published');
+  // The tag without a published release of this number: stop, and say what to look at.
+  const alone = publishedState('v1.0.1', lines, [{ tag_name: 'v1.0.0', draft: false, id: 2 }]);
+  assert.equal(alone.state, 'tag-only');
+  assert.match(alone.reason, /l’étiquette v1\.0\.1 existe \(abc123\) mais aucune version publiée ne porte ce numéro : .*supprimer l’étiquette v1\.0\.1/);
+  assert.equal(publishedState('v1.0.1', lines, []).state, 'tag-only');
+  assert.match(publishedState('v1.0.1', lines, [{ tag_name: 'v1.0.1', draft: true, id: 3 }]).reason, /seulement un brouillon/);
+  // Releases not read (a dry run without gh): the tag alone says « already there ».
+  assert.equal(publishedState('v1.0.1', lines, null).state, 'published');
+  assert.deepEqual(publishedState('v1.0.1', '', null), { state: 'new' });
+});
+
+test('the newest numbered version published: drafts and tags that are not « v a.b.c » are ignored', () => {
+  assert.equal(newestPublished(null), null);
+  assert.equal(newestPublished([]), null);
+  assert.equal(newestPublished([{ tag_name: 'desktop-dev', draft: false }, { tag_name: 'v2.0', draft: false }, { tag_name: 'v9.9.9-beta', draft: false }]), null);
+  const list = [
+    { tag_name: 'v1.0.9', draft: false },
+    { tag_name: 'desktop-dev', draft: false, prerelease: true },
+    { tag_name: 'v1.0.10', draft: false },
+    { tag_name: 'v3.0.0', draft: true },
+    { tag_name: 'v1.0.2', draft: false },
+  ];
+  assert.deepEqual(newestPublished(list), { version: '1.0.10', tag: 'v1.0.10' }, 'compared as numbers, the draft left out');
 });
 
 test('the notes: which file to download, then the version file’s notes unchanged', () => {
@@ -87,8 +124,17 @@ test('the draft on GitHub: exactly the five files, the same sizes, all uploaded'
 // ---------------------------------------------------------------------------------------------------------
 // The whole script, with a fake gh and a local remote.
 
-function setup({ releases = [], tagged = false, corrupt, failUpload } = {}) {
+function setup({ releases = [], tagged = false, corrupt, failUpload, changelog } = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fabtice-publish-'));
+  // Another changelog: a copy of the repository's three files that count, in a folder standing for it.
+  const root = changelog === undefined ? null : path.join(dir, 'repo');
+  if (root) {
+    for (const sub of ['app', 'desktop']) {
+      fs.mkdirSync(path.join(root, sub), { recursive: true });
+      fs.writeFileSync(path.join(root, sub, 'package.json'), JSON.stringify({ version: VERSION }));
+    }
+    fs.writeFileSync(path.join(root, 'CHANGELOG.md'), changelog);
+  }
   const git = (...a) => execFileSync('git', a, { cwd: dir, encoding: 'utf8', env: { ...process.env, GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@t', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@t' } }).trim();
   const bare = path.join(dir, 'remote.git');
   git('init', '-q', '--bare', bare);
@@ -112,9 +158,13 @@ function setup({ releases = [], tagged = false, corrupt, failUpload } = {}) {
   const runScriptWith = (more) => (...extra) => {
     const env = { ...process.env, PATH: `${bin}${path.delimiter}${process.env.PATH}`, FAKE_GH_STATE: stateFile, FAKE_GH_BARE: bare, FABTICE_RELEASE_REMOTE: bare, GITHUB_SHA: sha, GITHUB_REPOSITORY: 'pelikast/fabtice' };
     delete env.FABTICE_GH;
+    delete env.FABTICE_RELEASE_ROOT;
     delete env.GITHUB_REF; // the unit tests also run in GitHub Actions, on any branch
+    if (root) env.FABTICE_RELEASE_ROOT = root;
+    delete env.FAKE_FETCH_HOST;
+    delete env.FAKE_FETCH_ZIP_HOST;
     Object.assign(env, more);
-    const r = spawnSync(process.execPath, [SCRIPT, 'publish', '--assets', assets, '--out', path.join(dir, 'out'), ...extra], { env, encoding: 'utf8' });
+    const r = spawnSync(process.execPath, ['--require', FAKE_FETCH, SCRIPT, 'publish', '--assets', assets, '--out', path.join(dir, 'out'), ...extra], { env, encoding: 'utf8' });
     return { code: r.status, out: r.stdout + r.stderr };
   };
   const runScript = Object.assign(runScriptWith({}), { withEnv: runScriptWith });
@@ -157,8 +207,8 @@ test('dry run without gh: the tag is still checked by git', (t) => {
   assert.match(r.stdout, /RIEN À PUBLIER : l’étiquette/);
 });
 
-test('already published (release or tag): nothing is published or changed, success', (t) => {
-  for (const opts of [{ releases: [{ id: 5, tag_name: TAG, draft: false, prerelease: false, html_url: 'https://x', assets: [] }] }, { tagged: true }]) {
+test('already published: nothing is published or changed, success', (t) => {
+  for (const opts of [{ releases: [{ id: 5, tag_name: TAG, draft: false, prerelease: false, html_url: 'https://x', assets: [] }] }, { tagged: true, releases: [{ id: 5, tag_name: TAG, draft: false, prerelease: false, html_url: 'https://x', assets: [] }] }]) {
     const s = setup(opts);
     t.after(s.cleanup);
     for (const extra of [[], ['--dry-run']]) {
@@ -168,6 +218,40 @@ test('already published (release or tag): nothing is published or changed, succe
     }
     assert.deepEqual(writes(s.state().calls), []);
   }
+});
+
+test('a number lower than the newest published one: nothing done, failure; the same number already published stays green', (t) => {
+  const [a, b, c] = VERSION.split('.').map(Number);
+  const higher = `v${a}.${b}.${c + 1}`;
+  const s = setup({ releases: [{ id: 2, tag_name: higher, draft: false, prerelease: false, assets: [] }, { id: 1, tag_name: 'desktop-dev', draft: false, prerelease: true, assets: [] }] });
+  t.after(s.cleanup);
+  for (const extra of [[], ['--dry-run']]) {
+    const r = s.runScript(...extra);
+    assert.equal(r.code, 1, r.out);
+    assert.match(r.out, new RegExp(`ERREUR : le numéro ${VERSION.replace(/\./g, '\\.')} est plus petit que celui de la dernière version publiée, ${higher.replace(/\./g, '\\.')}`));
+  }
+  assert.deepEqual(writes(s.state().calls), []);
+  // A draft of a higher number, or a tag that is not a number, does not count.
+  const t2 = setup({ releases: [{ id: 3, tag_name: higher, draft: true, prerelease: false, assets: [] }, { id: 4, tag_name: 'v99', draft: false, prerelease: false, assets: [] }] });
+  t.after(t2.cleanup);
+  const dry = t2.runScript('--dry-run');
+  assert.equal(dry.code, 0, dry.out);
+  // The same number, published: nothing to do, green (as before).
+  const same = setup({ releases: [{ id: 5, tag_name: TAG, draft: false, prerelease: false, assets: [] }] });
+  t.after(same.cleanup);
+  assert.equal(same.runScript().code, 0);
+});
+
+test('the tag of this number without a published release: nothing done, failure that says what to look at', (t) => {
+  const s = setup({ tagged: true, releases: [{ id: 1, tag_name: 'desktop-dev', draft: false, prerelease: true, assets: [] }] });
+  t.after(s.cleanup);
+  for (const extra of [[], ['--dry-run']]) {
+    const r = s.runScript(...extra);
+    assert.equal(r.code, 1, r.out);
+    assert.match(r.out, new RegExp(`ERREUR : l’étiquette ${TAG.replace(/\./g, '\\.')} existe .* mais aucune version publiée ne porte ce numéro`));
+    assert.doesNotMatch(r.out, /RIEN À PUBLIER/);
+  }
+  assert.deepEqual(writes(s.state().calls), []);
 });
 
 test('a draft of this number left by a stopped run: nothing done, failure that says to delete it by hand', (t) => {
@@ -198,6 +282,16 @@ test('publication: draft, five files, read back, then published and latest, with
   assert.equal(s.tagOf(), `${s.sha}\trefs/tags/${TAG}`);
   assert.match(r.out, /PUBLIÉE/);
   assert.match(r.out, /est la dernière version/);
+  // The real chain of the update, walked with the app's code: the version file of « latest », then both zips.
+  assert.match(r.out, new RegExp(`Vérifié : https://github\\.com/pelikast/fabtice/releases/latest/download/fabtice-version\\.json donne ${VERSION.replace(/\./g, '\\.')}`));
+  assert.deepEqual(st.fetched, [
+    'GET https://github.com/pelikast/fabtice/releases/latest/download/fabtice-version.json',
+    'GET https://objects.githubusercontent.com/store/pelikast/fabtice/releases/latest/download/fabtice-version.json',
+    `GET https://github.com/pelikast/fabtice/releases/download/${TAG}/Fabtice-mac-apple-silicon.zip`,
+    `GET https://objects.githubusercontent.com/store/pelikast/fabtice/releases/download/${TAG}/Fabtice-mac-apple-silicon.zip`,
+    `GET https://github.com/pelikast/fabtice/releases/download/${TAG}/Fabtice-mac-intel.zip`,
+    `GET https://objects.githubusercontent.com/store/pelikast/fabtice/releases/download/${TAG}/Fabtice-mac-intel.zip`,
+  ]);
   // The prerelease of before is not touched.
   assert.deepEqual(st.releases.find((x) => x.tag_name === 'desktop-dev'), { id: 1, tag_name: 'desktop-dev', draft: false, prerelease: true, assets: [] });
 
@@ -206,6 +300,25 @@ test('publication: draft, five files, read back, then published and latest, with
   assert.equal(again.code, 0, again.out);
   assert.match(again.out, /RIEN À PUBLIER/);
   assert.equal(writes(s.state().calls).length, 3);
+});
+
+test('after the publication, a redirect to a host outside the app’s list: failure that says what to do; the version stays published', (t) => {
+  for (const more of [{ FAKE_FETCH_ZIP_HOST: 'evil.example.com' }, { FAKE_FETCH_HOST: 'storage.example.net' }]) {
+    const s = setup();
+    t.after(s.cleanup);
+    const r = s.runScript.withEnv(more)();
+    assert.equal(r.code, 1, r.out);
+    assert.match(r.out, /PUBLIÉE/);
+    const host = Object.values(more)[0];
+    assert.match(r.out, new RegExp(`HÔTE HORS LISTE\\. .*« ${host.replace(/\./g, '\\.')} »`));
+    assert.match(r.out, new RegExp(`La version ${TAG.replace(/\./g, '\\.')} reste publiée`));
+    assert.match(r.out, new RegExp(`ajouter « ${host.replace(/\./g, '\\.')} » à ALLOWED_HOSTS dans desktop/src/update-net\\.js`));
+    assert.equal((r.out.match(/essai \d\/\d/g) || []).length, 1, 'a host outside the list is not tried again');
+    const st = s.state();
+    assert.ok(!st.calls.some((c) => c.includes('DELETE')), 'never deleted');
+    assert.equal(st.releases.find((x) => x.tag_name === TAG).draft, false);
+    assert.ok(!st.fetched.some((u) => new URL(u.split(' ')[1]).hostname === host), 'the refused host is never asked');
+  }
 });
 
 test('a file read back different, or an upload that fails: the draft is deleted, no tag, failure', (t) => {
@@ -221,6 +334,21 @@ test('a file read back different, or an upload that fails: the draft is deleted,
     assert.equal(s.tagOf(), '');
     assert.match(r.out, /Brouillon 100 supprimé/);
   }
+});
+
+test('notes « en préparation »: the real publication stops before any gh command; the dry run goes on, warning', (t) => {
+  const s = setup({ changelog: `# Nouveautés\n\n## Version ${VERSION}\n\nEn préparation.\n` });
+  t.after(s.cleanup);
+  const r = s.runScript();
+  assert.equal(r.code, 1, r.out);
+  assert.match(r.out, /ERREUR : la première section de CHANGELOG\.md dit encore « En préparation »/);
+  assert.deepEqual(s.state().calls, [], 'not one gh command');
+  assert.equal(s.tagOf(), '');
+  const dry = s.runScript('--dry-run');
+  assert.equal(dry.code, 0, dry.out);
+  assert.equal(dry.out.match(/ATTENTION !!! /g).length, 2, 'said at the start and at the end');
+  assert.match(dry.out, /ESSAI À BLANC TERMINÉ/);
+  assert.deepEqual(writes(s.state().calls), []);
 });
 
 test('in GitHub Actions, a real publication outside main is refused before anything is read', (t) => {

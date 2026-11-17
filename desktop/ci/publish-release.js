@@ -10,25 +10,34 @@
 //   node ci/publish-release.js publish --assets <dir> [--dry-run] [--out <dir>]
 //       <dir> holds the four files the build made: Fabtice-mac-apple-silicon.dmg, Fabtice-mac-intel.dmg,
 //       Fabtice-mac-apple-silicon.zip, Fabtice-mac-intel.zip. In order:
-//         1. the check above; the version V and the tag vV;
+//         1. the check above; the version V and the tag vV. The first section of CHANGELOG.md still says
+//            « en préparation »: a real publication stops here (exit 1, before any gh command); a dry run says
+//            it loudly and goes on;
 //         2. already published? the tag vV on the remote (git ls-remote) and every release of the project
-//            (gh api, drafts included). The tag or a published release exists: nothing is published, nothing
-//            is changed, exit 0. A draft of vV exists (a run that stopped in the middle): nothing either,
-//            exit 1, because a person must look at it and delete it;
+//            (gh api, drafts included). A published release vV exists: nothing is published, nothing is
+//            changed, exit 0. The tag vV exists without a published release vV (a tag pushed by hand, a
+//            release deleted), or a draft of vV exists (a run that stopped in the middle): nothing either,
+//            exit 1, because a person must look at it. A number lower than the newest published one (tags
+//            « v a.b.c » only; desktop-dev and the like are not numbers): exit 1, the installed apps would never
+//            take it;
 //         3. fabtice-version.json made by ci/make-version-file.js from the two zips (URLs of the tag vV), and
 //            the notes of the release (which file to download, then the same notes as the version file);
 //         4. a DRAFT release « Fabtice V » for the tag vV on the commit (a draft creates no tag), the five
 //            files uploaded to it, checked (names, sizes, and the two zips and the version file downloaded
 //            back: their SHA-256 equal to the version file's);
 //         5. the draft published: not a prerelease, marked latest; GitHub creates the tag vV on the commit
-//            at that moment. Then checked: the latest release is vV, the tag is on the commit.
+//            at that moment. Then checked: the latest release is vV, the tag is on the commit, and the real
+//            update chain (ci/update-chain.js, the app's own code and host list): the address the installed
+//            apps read gives vV, and each chip's .zip is reached through allowed hosts only.
 //       Anything that fails in 4 deletes the draft (only while it is still a draft) and exits 1: no tag was
 //       created, nothing is visible. A check that fails after 5 exits 1 and leaves the published version.
 //       --dry-run does 1 to 3 for real (they only read, and write in a temporary folder) and prints the
 //       commands of 4 and 5 instead of running them. It works on any branch.
 //
 // Environment: GITHUB_REPOSITORY (owner/name, default pelikast/fabtice), GITHUB_SHA (default: git rev-parse
-// HEAD), GITHUB_REF (when set, a real publication needs refs/heads/main), FABTICE_GH (the gh command, default « gh »), FABTICE_RELEASE_REMOTE (the git remote, default origin).
+// HEAD), GITHUB_REF (when set, a real publication needs refs/heads/main), FABTICE_GH (the gh command, default « gh »), FABTICE_RELEASE_REMOTE (the git remote, default origin),
+// FABTICE_RELEASE_ROOT (the tests only: the folder that stands for the repository, with app/package.json,
+// desktop/package.json and CHANGELOG.md; default: this repository).
 // gh reads its token from GH_TOKEN. No dependency.
 
 const crypto = require('node:crypto');
@@ -36,10 +45,12 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
-const { parseVersion } = require('../src/update-version');
+const { parseVersion, compareVersions } = require('../src/update-version');
+const { ALLOWED_HOSTS, VERSION_FILE_URL } = require('../src/update-net');
+const { checkUpdateChain } = require('./update-chain');
 
-const DESKTOP = path.join(__dirname, '..');
-const ROOT = path.join(DESKTOP, '..');
+const ROOT = process.env.FABTICE_RELEASE_ROOT ? path.resolve(process.env.FABTICE_RELEASE_ROOT) : path.join(__dirname, '..', '..');
+const DESKTOP = path.join(ROOT, 'desktop');
 const DMG = ['Fabtice-mac-apple-silicon.dmg', 'Fabtice-mac-intel.dmg'];
 const ZIP = ['Fabtice-mac-apple-silicon.zip', 'Fabtice-mac-intel.zip'];
 const VERSION_FILE = 'fabtice-version.json';
@@ -67,21 +78,61 @@ function checkVersion({ appPackage, desktopPackage, changelog }) {
 }
 
 /**
+ * The first « ## » section of the changelog (title and body) still says the version is being prepared?
+ * A real publication stops; a dry run warns. Answers null when the notes are ready.
+ * @returns {null | { stop: boolean, message: string }}
+ */
+function preparationVerdict(changelog, dryRun) {
+  const lines = String(changelog || '').replace(/\r\n?/g, '\n').split('\n');
+  const start = lines.findIndex((l) => /^## /.test(l));
+  if (start < 0) return null;
+  let end = lines.findIndex((l, i) => i > start && /^## /.test(l));
+  if (end < 0) end = lines.length;
+  if (!/en préparation/i.test(lines.slice(start, end).join('\n'))) return null;
+  const what = 'la première section de CHANGELOG.md dit encore « En préparation »';
+  if (dryRun) return { stop: false, message: `ATTENTION !!! ${what} : sur main, la publication s’arrêterait ici, en rouge. Écrire les vraies notes de la version avant de pousser sur main.` };
+  return { stop: true, message: `ERREUR : ${what}. Rien n’est publié ni lu sur GitHub. Écrire les vraies notes de la version (ce texte est celui de la page de la version et du message de mise à jour dans l’app), puis pousser sur main.` };
+}
+
+/**
  * Is this version already on GitHub?
  * @param {string} tag
  * @param {string} lsRemote  output of `git ls-remote --tags <remote> refs/tags/<tag>`
- * @param {Array<{ tag_name: string, draft: boolean, id: number, html_url?: string }>} releases
- * @returns {{ state: 'new' } | { state: 'published', reason: string } | { state: 'draft', reason: string }}
+ * @param {Array<{ tag_name: string, draft: boolean, id: number, html_url?: string }> | null} releases  null: not
+ *   read (a dry run without gh), only the tag is known
+ * @returns {{ state: 'new' } | { state: 'published' | 'tag-only' | 'draft', reason: string }}
  */
 function publishedState(tag, lsRemote, releases) {
   const tagLine = String(lsRemote || '').split('\n').find((l) => l.split(/\s+/)[1] === `refs/tags/${tag}`);
+  const tagSha = tagLine ? tagLine.split(/\s+/)[0] : null;
+  if (releases === null) return tagSha ? { state: 'published', reason: `l’étiquette ${tag} existe déjà (${tagSha} ; les releases n’ont pas pu être lues ici)` } : { state: 'new' };
   const same = releases.filter((r) => r.tag_name === tag);
   const published = same.find((r) => !r.draft);
   if (published) return { state: 'published', reason: `la version ${tag} est déjà publiée (${published.html_url || `release ${published.id}`})` };
-  if (tagLine) return { state: 'published', reason: `l’étiquette ${tag} existe déjà (${tagLine.split(/\s+/)[0]})` };
+  if (tagSha) {
+    return {
+      state: 'tag-only',
+      reason: `l’étiquette ${tag} existe (${tagSha}) mais aucune version publiée ne porte ce numéro${same.length ? ' (seulement un brouillon)' : ''} : une étiquette poussée à la main, ou une version supprimée. Regarder sur GitHub : si rien n’a été publié sous ce numéro, supprimer l’étiquette ${tag} (et le brouillon s’il y en a un) puis relancer ; sinon changer de numéro`,
+    };
+  }
   const draft = same.find((r) => r.draft);
   if (draft) return { state: 'draft', reason: `un brouillon de la version ${tag} existe (release ${draft.id}), laissé par une fabrication interrompue : le supprimer à la main sur GitHub, puis relancer` };
   return { state: 'new' };
+}
+
+/**
+ * The newest numbered version published on GitHub: releases that are not drafts, tagged « v a.b.c » (others,
+ * such as desktop-dev, are ignored). Null when there is none, or when the releases were not read.
+ * @returns {{ version: string, tag: string } | null}
+ */
+function newestPublished(releases) {
+  let newest = null;
+  for (const r of releases || []) {
+    const version = !r.draft && typeof r.tag_name === 'string' && r.tag_name.startsWith('v') ? r.tag_name.slice(1) : null;
+    if (!parseVersion(version)) continue;
+    if (!newest || compareVersions(version, newest.version) > 0) newest = { version, tag: r.tag_name };
+  }
+  return newest;
 }
 
 /** The notes of the release: which file to download, then the notes of the version file, unchanged. */
@@ -183,7 +234,7 @@ function check() {
   return result;
 }
 
-function publish({ assetsDir, dryRun, outDir }) {
+async function publish({ assetsDir, dryRun, outDir }) {
   const gh = process.env.FABTICE_GH || 'gh';
   const remote = process.env.FABTICE_RELEASE_REMOTE || 'origin';
   const repo = process.env.GITHUB_REPOSITORY || 'pelikast/fabtice';
@@ -196,16 +247,21 @@ function publish({ assetsDir, dryRun, outDir }) {
   const mode = dryRun ? 'ESSAI À BLANC (rien n’est écrit sur GitHub)' : 'PUBLICATION';
   log(`== ${mode} — dépôt ${repo}, commit ${sha}`);
 
-  // 1. The number.
+  // 1. The number, and notes that are not « en préparation ».
   const { version } = check();
   if (!version) return 1;
   const tag = `v${version}`;
+  const preparation = preparationVerdict(fs.readFileSync(path.join(ROOT, 'CHANGELOG.md'), 'utf8'), dryRun);
+  if (preparation) {
+    log(preparation.message);
+    if (preparation.stop) return 1;
+  }
 
   // 2. Already published?
   const ls = run('git', ['ls-remote', '--tags', remote, `refs/tags/${tag}`]);
   log(`$ git ls-remote --tags ${remote} refs/tags/${tag}\n${ls.stdout.trim() || '(aucune étiquette)'}`);
   const list = run(gh, ['api', `repos/${repo}/releases?per_page=100`], { allowFail: dryRun });
-  let releases = [];
+  let releases = null;
   if (list.ok) {
     releases = JSON.parse(list.stdout);
     log(`$ ${gh} api repos/${repo}/releases?per_page=100\n${releases.length} release(s) : ${releases.map((r) => `${r.tag_name}${r.draft ? ' (brouillon)' : ''}${r.prerelease ? ' (préversion)' : ''}`).join(', ') || 'aucune'}`);
@@ -213,13 +269,18 @@ function publish({ assetsDir, dryRun, outDir }) {
   } else {
     log(`(essai à blanc) ${gh} indisponible ici (${list.stderr.trim().split('\n')[0]}) : seule l’étiquette est vérifiée.`);
   }
+  const newest = newestPublished(releases);
+  if (newest && compareVersions(version, newest.version) < 0) {
+    log(`ERREUR : le numéro ${version} est plus petit que celui de la dernière version publiée, ${newest.tag}. Les apps installées ne proposent jamais une version plus ancienne : rien n’est publié ni modifié. Mettre un numéro plus grand que ${newest.version} dans app/package.json et desktop/package.json, avec sa section en tête de CHANGELOG.md, puis pousser sur main.`);
+    return 1;
+  }
   const state = publishedState(tag, ls.stdout, releases);
   if (state.state === 'published') {
     log(`RIEN À PUBLIER : ${state.reason}. Rien n’est publié ni modifié (pas de fichier remplacé, pas d’étiquette déplacée).`);
     log(`Pour publier une nouvelle version : changer le numéro dans app/package.json et desktop/package.json, ajouter sa section en tête de CHANGELOG.md, pousser sur main.`);
     return 0;
   }
-  if (state.state === 'draft') {
+  if (state.state === 'draft' || state.state === 'tag-only') {
     log(`ERREUR : ${state.reason}. Rien n’est publié ni modifié.`);
     return 1;
   }
@@ -231,7 +292,6 @@ function publish({ assetsDir, dryRun, outDir }) {
   const make = run(process.execPath, [path.join(__dirname, 'make-version-file.js'), version, tag, path.join(assetsDir, ZIP[0]), path.join(assetsDir, ZIP[1]), path.join(ROOT, 'CHANGELOG.md'), versionFile]);
   log(make.stdout.trim());
   const data = readJson(versionFile);
-  if (/en préparation/i.test(data.notes)) log('ATTENTION : les notes de CHANGELOG.md disent encore « En préparation ».');
   const notesFile = path.join(outDir, 'notes.md');
   fs.writeFileSync(notesFile, releaseNotes({ version, notes: data.notes, sha, repo }));
   log(`Notes de la release : ${notesFile} (${fs.statSync(notesFile).size} octets ; « Nouveautés » = les notes du fichier de version)`);
@@ -261,8 +321,10 @@ function publish({ assetsDir, dryRun, outDir }) {
       ['git', 'ls-remote', '--tags', remote, `refs/tags/${tag}`],
     ];
     for (const s of steps) log(`  ${s.map(quote).join(' ')}`);
+    log(`  puis la chaîne de mise à jour, avec le code de l’app : ${VERSION_FILE_URL} doit donner ${version}, et les deux .zip doivent se joindre par les hôtes permis (${ALLOWED_HOSTS.join(', ')})`);
     log('  (en cas d’échec avant la publication : ' + `${gh} api -X DELETE repos/${repo}/releases/<id>, seulement tant que c’est un brouillon)`);
-    log(`ESSAI À BLANC TERMINÉ : la version ${tag} serait publiée.`);
+    if (preparation) log(preparation.message);
+    log(`ESSAI À BLANC TERMINÉ : la version ${tag} serait publiée${preparation ? ' (sauf les notes « En préparation », voir ci-dessus)' : ''}.`);
     return 0;
   }
 
@@ -320,12 +382,25 @@ function publish({ assetsDir, dryRun, outDir }) {
   const tagNow = run('git', ['ls-remote', '--tags', remote, `refs/tags/${tag}`], { allowFail: true }).stdout.trim().split(/\s+/)[0];
   if (tagNow !== sha) problems.push(`l’étiquette ${tag} est sur ${tagNow || 'rien'}, pas sur ${sha}`);
   for (const p of problems) log(`ATTENTION après publication : ${p}`);
-  if (problems.length) return 1;
-  log(`Vérifié : ${tag} est la dernière version, son étiquette est sur ${sha}.`);
-  return 0;
+  if (!problems.length) log(`Vérifié : ${tag} est la dernière version, son étiquette est sur ${sha}.`);
+
+  // The real chain of the update, as an installed app walks it (same code, same host list).
+  log(`Chaîne de mise à jour (code de l’app, hôtes permis : ${ALLOWED_HOSTS.join(', ')}) :`);
+  const chain = await checkUpdateChain({ version, log });
+  if (chain.ok) {
+    log(`Vérifié : ${VERSION_FILE_URL} donne ${version} ; les .zip se joignent par ${Object.entries(chain.hosts).map(([arch, host]) => `${host} (${arch})`).join(', ')}.`);
+  } else if (chain.host) {
+    log(`ERREUR après publication : HÔTE HORS LISTE. ${chain.message}.`);
+    log(`La version ${tag} reste publiée (ne pas la supprimer), mais les apps installées ne pourront pas se mettre à jour d’elles-mêmes vers elle.`);
+    log(`À faire : ajouter « ${chain.host} » à ALLOWED_HOSTS dans desktop/src/update-net.js (et à la liste de desktop/README.md), puis publier un correctif : nouveau numéro dans app/package.json et desktop/package.json, sa section en tête de CHANGELOG.md, push sur main. Les apps déjà installées avec l’ancienne liste devront être mises à jour à la main (page de la version).`);
+  } else {
+    log(`ERREUR après publication : la chaîne de mise à jour ne répond pas comme prévu : ${chain.message}.`);
+    log(`La version ${tag} reste publiée (ne pas la supprimer). À faire : dans quelques minutes, ouvrir ${VERSION_FILE_URL} dans un navigateur : il doit donner « "version": "${version}" ». Si oui, GitHub était seulement lent : rien d’autre à faire. Sinon, regarder la page des versions (${tag} doit être « Latest ») et ce journal.`);
+  }
+  return problems.length || !chain.ok ? 1 : 0;
 }
 
-function main(argv) {
+async function main(argv) {
   const [command, ...rest] = argv;
   const opt = (name) => {
     const i = rest.indexOf(name);
@@ -334,7 +409,7 @@ function main(argv) {
   try {
     if (command === 'check') return check().version ? 0 : 1;
     if (command === 'publish' && opt('--assets')) {
-      return publish({
+      return await publish({
         assetsDir: path.resolve(opt('--assets')),
         dryRun: rest.includes('--dry-run'),
         outDir: path.resolve(opt('--out') || fs.mkdtempSync(path.join(process.env.RUNNER_TEMP || os.tmpdir(), 'fabtice-release-'))),
@@ -348,6 +423,10 @@ function main(argv) {
   }
 }
 
-if (require.main === module) process.exitCode = main(process.argv.slice(2));
+if (require.main === module) {
+  main(process.argv.slice(2)).then((code) => {
+    process.exitCode = code;
+  });
+}
 
-module.exports = { checkVersion, publishedState, releaseNotes, assetList, checkUploaded, main, ASSETS };
+module.exports = { checkVersion, preparationVerdict, newestPublished, publishedState, releaseNotes, assetList, checkUploaded, main, ASSETS };

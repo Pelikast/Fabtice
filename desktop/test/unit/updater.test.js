@@ -12,7 +12,7 @@ const fs = require('node:fs');
 const http = require('node:http');
 const os = require('node:os');
 const path = require('node:path');
-const { createUpdater, relaunchAfterExit, LATEST_PAGE } = require('../../src/updater');
+const { createUpdater, relaunchAfterExit, LATEST_PAGE, RELAUNCH_WAIT_TENTHS } = require('../../src/updater');
 const { fakeApp, marker, zipFolder } = require('../update-fixtures');
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -298,7 +298,7 @@ test('not enough room on the disk: said before downloading', async () => {
     updater.start();
     const s = await until(() => updater.state(), (x) => x.phase === 'available' && x.error);
     assert.equal(s.error.code, 'disk-space');
-    assert.equal(s.room.needed, s.available.size * 3);
+    assert.equal(s.room.needed, s.available.size * 4);
     assert.ok(!w.seen.some((u) => u.includes('zip')), 'nothing downloaded');
   } finally {
     await w.close();
@@ -314,6 +314,26 @@ test('places where it cannot work: said at the check, refused at the start', asy
     assert.deepEqual(updater.start(), { ok: false, reason: 'read-only' });
     assert.deepEqual(updater.state().error, { code: 'read-only', during: 'update' });
     assert.equal(marker(w.installed), 'old');
+  } finally {
+    await w.close();
+  }
+});
+
+test('the app opened from the set-aside copy: refused at the check and at the start, nothing removed', async () => {
+  const w = await world();
+  try {
+    const aside = fakeApp(path.join(w.folder, '.Fabtice-ancienne.app'), { version: '1.0.0', archs: ['x64'], marker: 'running' });
+    w.env.FABTICE_UPDATE_TEST_APP = aside;
+    const { updater, calls } = updaterFor(w);
+    const s = await updater.check('launch');
+    assert.deepEqual(s.blocked, { code: 'not-packaged' });
+    assert.deepEqual(updater.start(), { ok: false, reason: 'not-packaged' });
+    assert.deepEqual(updater.state().error, { code: 'not-packaged', during: 'update' });
+    assert.equal(marker(aside), 'running');
+    assert.equal(marker(w.installed), 'old');
+    assert.deepEqual(leftInFolder(w), ['.Fabtice-ancienne.app', 'Fabtice.app']);
+    assert.ok(!w.seen.some((u) => u.includes('zip')), 'nothing downloaded');
+    assert.equal(calls.quit, 0);
   } finally {
     await w.close();
   }
@@ -371,4 +391,32 @@ test('the relaunch: a detached shell waits for this process, then opens the new 
   // In test mode the FABTICE_ variables travel with `open --env`.
   relaunchAfterExit({ bundle: '/a/Fabtice.app', executable: '/a/Fabtice.app/Contents/MacOS/Fabtice' }, { env: { FABTICE_HOLD_WINDOW: '1', FABTICE_USER_DATA: '/tmp/u', OTHER: 'no' }, pid: 1, spawnImpl });
   assert.deepEqual(spawned[1].args.slice(6), ['--env', 'FABTICE_HOLD_WINDOW=1', '--env', 'FABTICE_USER_DATA=/tmp/u']);
+});
+
+test('the relaunch waits as long as the old app lives (up to ten minutes), and only then opens the new one', async () => {
+  assert.equal(RELAUNCH_WAIT_TENTHS, 6000);
+  let spawned;
+  relaunchAfterExit({ bundle: '/x', executable: '/x' }, { env: {}, pid: 1, spawnImpl: (file, args) => ((spawned = args), { unref() {} }) });
+  assert.match(spawned[1], /while kill -0 "\$pid" 2>\/dev\/null && \[ "\$i" -lt 6000 \]; do sleep 0\.1/);
+  // The real shell: the old app (a process that lives 1.5 s, longer than the former bound of a test) is waited
+  // for. `open` cannot open this bundle (or does not exist here), so the script starts the « executable », which
+  // writes when it ran.
+  const { spawn } = require('node:child_process');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fabtice-relaunch-'));
+  try {
+    const ran = path.join(dir, 'ran');
+    const exe = path.join(dir, 'Nouvelle app é');
+    fs.writeFileSync(exe, `#!/bin/sh\necho started > "${ran}"\n`, { mode: 0o755 });
+    const old = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 1500)']);
+    let gone = 0;
+    old.on('exit', () => (gone = Date.now()));
+    relaunchAfterExit({ bundle: path.join(dir, 'Absent.app'), executable: exe }, { env: process.env, pid: old.pid, spawnImpl: spawn });
+    await sleep(700);
+    assert.equal(fs.existsSync(ran), false, 'nothing started while the old app lives');
+    await until(() => fs.existsSync(ran) && fs.readFileSync(ran, 'utf8').trim(), Boolean);
+    await until(() => gone, Boolean);
+    assert.ok(fs.statSync(ran).mtimeMs >= gone - 200, 'not before the old one was gone');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });
