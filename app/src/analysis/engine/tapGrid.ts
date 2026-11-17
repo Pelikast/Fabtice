@@ -7,42 +7,53 @@
 // The user hears the music and taps the space bar roughly on each beat from
 // the chosen bar (a downbeat of the grid in force, right before it) to the end
 // of the passage. The taps arrive in source seconds, as heard (`tapFix.ts#tapNow`
-// takes the output latency off), so a slowed playback needs nothing special.
-// What a tap is worth, and how it becomes a beat:
+// takes the output latency off), so a slowed playback needs nothing special
+// (its errors are smaller in source time). What a tap is worth, and how it
+// becomes a beat:
 //
 //   1. Who taps how. A tapper is early or late by a fairly constant amount
 //      (usually a little early) and wanders around it (±30 to ±100 ms); some
-//      taps are forgotten, some doubled; the tempo may move. A first guess of
-//      the constant offset (`offsetGuess`): the shift that brings the most
-//      taps onto the network's beat peaks, with a prior around −20 ms and a
-//      bound of ±250 ms and a third of a beat, so that it never locks half a
-//      beat off on a passage where the network hears the off-beats; taps
-//      made during the count-in on the beats of the grid in force count
-//      double (those beats are known).
+//      taps are forgotten, some doubled; the tempo may move. The tapper's
+//      spread is measured on the taps alone (`tapSpread`: second differences
+//      of ordinary taps). A first guess of the constant offset (`offsetGuess`):
+//      the shift that best puts the first taps on the tempo of the bars before
+//      the chosen bar, the count-in taps on the beats of the grid in force,
+//      and (weakly: the network may be wrong just there) the taps on the
+//      network's beat peaks, with a prior around −20 ms; bounded by ±250 ms
+//      and 0.3 of a beat, so that it never locks half a beat off on a passage
+//      where the network hears the off-beats.
 //   2. Which taps are beats, and how many beats between two taps (`tapPath`):
 //      dynamic programming over the taps. Each step from one kept tap to the
 //      next holds 1 to `maxGap` tapped beats (more than one: forgotten taps,
-//      filled at the local tempo); a tap may be dropped (doubled or stray);
-//      the cost is the change of the beat length from one step to the next
-//      (a Huber loss of its logarithm), an attraction to the local tapped
-//      tempo, a cost per forgotten tap lowered where the network hears a
-//      beat at the filled place, a cost per dropped tap, and, when the
-//      network's downbeats are worth something here (measured on the bars
-//      before the chosen bar), a reward for the bar lines the count puts on
-//      them. A held beat (a fermata: one interval much longer than the beat
-//      before, no tap inside) is one beat, not filled: its own cost, higher
-//      when its length is close to a whole number of beats (then forgotten
-//      taps are as likely, and the count goes on).
+//      filled at the step's tempo); a tap may be dropped (doubled or stray).
+//      Each step's beat length is scored against the local tapped tempo (a
+//      median of about ten intervals, forgotten taps folded) and, less,
+//      against the step before, as a Gaussian of the noise the taps put in it
+//      (the tapper's spread over the step) and the tempo's own wandering, Huber
+//      beyond three spreads; a forgotten tap costs, less where the network
+//      hears a beat at the filled place; a dropped tap costs. A held beat (a
+//      fermata: one interval much longer than the beat before, no tap inside)
+//      is one beat, not filled: its own cost, higher when it is long, when its
+//      length is close to a whole number of beats (then forgotten taps are as
+//      likely, and the count goes on: decided so) and when the network hears
+//      beats inside it; forgotten taps next to a held beat are read too. The
+//      network's downbeats, where they are worth something (measured on the
+//      bars before the chosen bar), weigh in twice: a little on the bar lines
+//      the count puts in the passage, more on the bar phase the count leaves
+//      at its end, against the downbeats of the eight bars after it (where the
+//      network is usually right again): a count one beat off shows there.
 //   3. Where each beat goes (`placeBeats`): a robust least-squares fit of the
 //      beat times and of the offset together. Each tap says « its beat + the
-//      offset »; each beat near a credible network peak (within a window that
-//      follows the tapper's own spread, at most a fifth of a beat) is pulled
-//      onto it; the beat lengths change smoothly (second differences, with
-//      robust weights so that a sudden change is not smeared, and none
-//      across a held beat); the chosen bar's start and the beats before it
-//      are fixed. Iterated: the spread of the taps is measured from the fit,
-//      the peaks are matched again. Where the network heard nothing useful,
-//      the beats are the smoothed taps.
+//      offset »; the beat lengths change smoothly (second differences, with
+//      robust weights so that a sudden change is not smeared, none across a
+//      held beat, and full ones at the chosen bar, where the tempo before goes
+//      on: what places the taps when the network hears nothing); how smooth is
+//      chosen from the taps (the candidate that predicts best every other tap
+//      left out). A first round from the taps alone; then each beat near a
+//      credible network peak (within a window that follows the tapper's spread,
+//      at most a fifth of a beat) is pulled onto it, in rounds. The chosen
+//      bar's start and the beats before it are fixed. Where the network heard
+//      nothing useful, the beats are the smoothed taps.
 //   4. After the last tapped beat (`end`), the rest of the piece is analysed
 //      again as « Réanalyser le tempo à partir de cette mesure » does (peaks,
 //      the whole beat analysis), from `end`; the bars go on counting from the
@@ -55,9 +66,11 @@
 // half notes, a 6/8 tapped in dotted quarters when the grid counts eighths)
 // are recognised from their median spacing and filled (`level`).
 //
+// Measured on the bench (`tapGrid.bench.test.ts`, figures in app/README).
+//
 // Pure; the worker runs it on the kept network outputs, the tests on recorded
-// ones; without outputs (the stand-in analyser), the taps alone place the
-// beats and the grid in force goes on after them.
+// ones; without outputs, the taps alone place the beats and the grid in force
+// goes on after them.
 
 import type { GridHint } from '../types';
 import { downProbAt, pickPeaks, refinePeak, type BeatActivations } from './beats';
