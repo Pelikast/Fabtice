@@ -67,6 +67,8 @@ export async function updateCaptures(form, { browser, openPage, snap, contextOpt
     await context.addInitScript(installUpdateBridge);
     const page = await openPage(context, '?debug');
     const emit = (patch) => page.evaluate((p) => window.__maj.emit(p), patch);
+    // The page follows the Mac app's update once its start-up is over.
+    await page.waitForFunction(() => window.__fabticeUpdate?.store.getState().mode === 'desktop', null, { timeout: 15000 });
     await emit({ ...AVAILABLE, seq: 1 });
     await page.waitForSelector('[data-testid="maj-message"][data-etat="available"]');
     await snap(page, form, 'maj-message');

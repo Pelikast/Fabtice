@@ -4,13 +4,13 @@
    over `dialog.css`, which comes later. */
 
 .voile-message.voile-maj { z-index: 43; }
-.accueil.message-grilles.message-maj { width: min(540px, 100%); }
+.accueil.message-grilles.message-maj { width: min(540px, 100%); max-height: calc(100dvh - 24px); overflow-y: auto; }
 .accueil.message-grilles.message-maj h2 { margin-bottom: 12px; }
 .message-maj .maj-notes-titre { margin: 16px 0 6px; }
 
 /* The notes of the new version: short, scrollable when long. */
 .maj-notes {
-  max-height: min(220px, 34vh);
+  max-height: min(220px, 30vh);
   overflow-y: auto;
   padding: 10px 14px;
   border: 1px solid var(--trait-fin);
@@ -51,6 +51,8 @@
 .maj-section .maj-resultat { width: 100%; }
 .maj-section .maj-resultat > p { margin: 0 0 6px; font-size: 14.5px; color: var(--encre); }
 .maj-section .maj-resultat .maj-erreur { margin: 0 0 8px; font-size: 14.5px; }
+.maj-section .maj-notes { max-height: 160px; margin: 0 0 12px; }
+.maj-section .maj-resultat .maj-boutons { margin-top: 4px; }
 .maj-section .maj-progres { width: 100%; margin: 2px 0 6px; }
 .maj-section .maj-progres .import-note { margin: 6px 0 0; font-size: 13px; color: var(--encre-douce); font-variant-numeric: tabular-nums; }
 .reglages-corps .maj-section .plein.encre { width: auto; min-height: 40px; padding: 0 16px; }
@@ -60,7 +62,8 @@
   .accueil.message-grilles.message-maj { width: 100%; }
   .maj-notes { max-height: 30dvh; }
   .message-actions .maj-lien { order: 3; margin: 4px 0 0; align-self: center; min-height: 44px; }
-  .maj-section .maj-boutons { flex-direction: column; align-items: stretch; }
+  .maj-section .maj-boutons { flex-direction: column; align-items: stretch; align-self: stretch; width: 100%; }
+  .reglages-corps .maj-section .maj-boutons .bouton-cadre { align-self: stretch; width: 100%; min-height: 48px; }
   .reglages-corps .maj-section .plein.encre { min-height: 48px; }
   .maj-section .maj-version { margin-left: 2px; }
 }
