@@ -11,7 +11,7 @@
 import { isChordExtension, isChordQuality } from '../harmony/chord';
 import { isPitchClass } from '../harmony/pitch';
 import { ANALYSIS_RESULT_VERSION } from '../model/analysis';
-import { AUDIO_FORMATS, defaultExportPreferences, EXPORT_RANGES, EXPORT_WHATS } from '../model/audioExport';
+import { AUDIO_FORMATS, defaultExportPreferences, EXPORT_RANGES, EXPORT_WHATS, MP3_KBPS, WAVE_BITS, WAVE_RATES } from '../model/audioExport';
 import { emptyCorrections, TEMPO_FIX_KINDS } from '../model/corrections';
 import { PROJECT_DOCUMENT_VERSION, type ProjectDocument } from '../model/document';
 import { INSTRUMENTS } from '../model/harmony';
@@ -308,6 +308,11 @@ function readExportPrefs(p: unknown): unknown {
     what: EXPORT_WHATS.includes(p.what as never) ? p.what : d.what,
     range: EXPORT_RANGES.includes(p.range as never) ? p.range : d.range,
     format: AUDIO_FORMATS.includes(p.format as never) ? p.format : d.format,
+    // Added in 1.0.0 (« Audio… »): a document written before has none of them, each reads as its default.
+    waveRate: WAVE_RATES.includes(p.waveRate as never) ? p.waveRate : d.waveRate,
+    waveBits: WAVE_BITS.includes(p.waveBits as never) ? p.waveBits : d.waveBits,
+    mp3Kbps: MP3_KBPS.includes(p.mp3Kbps as never) ? p.mp3Kbps : d.mp3Kbps,
+    separate: typeof p.separate === 'boolean' ? p.separate : d.separate,
   };
 }
 

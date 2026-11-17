@@ -7,6 +7,7 @@
 import { CHUNK, type PcmAudio } from '../../../audio/pcm';
 import type { AudioFormat } from '../../../model/audioExport';
 import { ExportError, type AudioEncoder } from '../types';
+import { mp3Bitrate } from './settings';
 import { WINDOW, type EncoderFormat, type FromWorker, type ToWorker } from './protocol';
 
 interface Spec {
@@ -25,8 +26,8 @@ export function createWorkerEncoder(spec: Spec, makeWorker: WorkerFactory = real
     format: spec.format,
     extension: spec.extension,
     mimeType: spec.mimeType,
-    encode(audio, { onProgress, signal, title } = {}) {
-      return encodeInWorker(spec, audio, { onProgress, signal, title: title ?? '' }, makeWorker);
+    encode(audio, { onProgress, signal, title, kbps } = {}) {
+      return encodeInWorker(spec, audio, { onProgress, signal, title: title ?? '', kbps: mp3Bitrate(kbps) }, makeWorker);
     },
   };
 }
@@ -34,7 +35,7 @@ export function createWorkerEncoder(spec: Spec, makeWorker: WorkerFactory = real
 function encodeInWorker(
   spec: Spec,
   audio: PcmAudio,
-  { onProgress, signal, title }: { onProgress?: (f: number) => void; signal?: AbortSignal; title: string },
+  { onProgress, signal, title, kbps }: { onProgress?: (f: number) => void; signal?: AbortSignal; title: string; kbps: number },
   makeWorker: WorkerFactory,
 ): Promise<Blob> {
   return new Promise<Blob>((resolve, reject) => {
@@ -124,6 +125,7 @@ function encodeInWorker(
           sampleRate: audio.sampleRate,
           channels,
           frames: audio.frames,
+          kbps,
           title,
           mp3WasmUrl: new URL(mp3WasmUrl, import.meta.url).href,
         });
