@@ -265,6 +265,19 @@ appliquées (commit `548b544`) et inscrites dans `CLAUDE.md`.
 3. **L'appui sur la grille du livre dans la grille simplifiée est
    accepté** tel qu'il est décrit plus haut.
 
+Vérifié sur le commit de ces décisions (`d1f6821`) : typecheck sans erreur ;
+`npm test` : 1 930 réussis, 43 sautés ; Chromium `smoke`, `settings`,
+`analysis`, `export`, `harmony`, `chart`, `print`, `simplified`, `menu`
+verts ; `desktop/` : 122 tests unitaires, e2e sous `xvfb-run` : 40 tests, 37
+réussis, 3 sautés. **Fabrication sur les Mac de GitHub (run 44148292872) :
+verte sur puce Apple, rouge sur Intel**, à l'étape des tests e2e. Le journal
+n'a pas pu être relu (la branche `ci-logs` ne garde que le dernier
+lancement) ; la session de l'étape 6 a corrigé une minute plus tard le test
+de la barre d'espace de `tempo-by-hand.test.js` « vu sur le Mac Intel de
+GitHub » (commit `01cc16e`) : c'est le test instable signalé plus bas. Je
+n'ai pas relancé de fabrication, pour ne pas annuler celles de l'étape 6 :
+**sa prochaine fabrication sur `v1` doit confirmer le vert sur Intel.**
+
 ## Pas fait, ou fragile
 
 - **Rien n'a été vu sur un vrai Mac, un vrai téléphone, ni entendu sur un
