@@ -11,7 +11,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync, execFileSync } = require('node:child_process');
-const { checkVersion, preparationVerdict, publishedState, releaseNotes, checkUploaded } = require('../../ci/publish-release');
+const { checkVersion, preparationVerdict, newestPublished, publishedState, releaseNotes, checkUploaded } = require('../../ci/publish-release');
 
 const DESKTOP = path.join(__dirname, '..', '..');
 const ROOT = path.join(DESKTOP, '..');
@@ -82,6 +82,20 @@ test('already published: a published release means nothing to do; a tag alone or
   // Releases not read (a dry run without gh): the tag alone says « already there ».
   assert.equal(publishedState('v1.0.1', lines, null).state, 'published');
   assert.deepEqual(publishedState('v1.0.1', '', null), { state: 'new' });
+});
+
+test('the newest numbered version published: drafts and tags that are not « v a.b.c » are ignored', () => {
+  assert.equal(newestPublished(null), null);
+  assert.equal(newestPublished([]), null);
+  assert.equal(newestPublished([{ tag_name: 'desktop-dev', draft: false }, { tag_name: 'v2.0', draft: false }, { tag_name: 'v9.9.9-beta', draft: false }]), null);
+  const list = [
+    { tag_name: 'v1.0.9', draft: false },
+    { tag_name: 'desktop-dev', draft: false, prerelease: true },
+    { tag_name: 'v1.0.10', draft: false },
+    { tag_name: 'v3.0.0', draft: true },
+    { tag_name: 'v1.0.2', draft: false },
+  ];
+  assert.deepEqual(newestPublished(list), { version: '1.0.10', tag: 'v1.0.10' }, 'compared as numbers, the draft left out');
 });
 
 test('the notes: which file to download, then the version file’s notes unchanged', () => {
@@ -201,6 +215,28 @@ test('already published: nothing is published or changed, success', (t) => {
     }
     assert.deepEqual(writes(s.state().calls), []);
   }
+});
+
+test('a number lower than the newest published one: nothing done, failure; the same number already published stays green', (t) => {
+  const [a, b, c] = VERSION.split('.').map(Number);
+  const higher = `v${a}.${b}.${c + 1}`;
+  const s = setup({ releases: [{ id: 2, tag_name: higher, draft: false, prerelease: false, assets: [] }, { id: 1, tag_name: 'desktop-dev', draft: false, prerelease: true, assets: [] }] });
+  t.after(s.cleanup);
+  for (const extra of [[], ['--dry-run']]) {
+    const r = s.runScript(...extra);
+    assert.equal(r.code, 1, r.out);
+    assert.match(r.out, new RegExp(`ERREUR : le numéro ${VERSION.replace(/\./g, '\\.')} est plus petit que celui de la dernière version publiée, ${higher.replace(/\./g, '\\.')}`));
+  }
+  assert.deepEqual(writes(s.state().calls), []);
+  // A draft of a higher number, or a tag that is not a number, does not count.
+  const t2 = setup({ releases: [{ id: 3, tag_name: higher, draft: true, prerelease: false, assets: [] }, { id: 4, tag_name: 'v99', draft: false, prerelease: false, assets: [] }] });
+  t.after(t2.cleanup);
+  const dry = t2.runScript('--dry-run');
+  assert.equal(dry.code, 0, dry.out);
+  // The same number, published: nothing to do, green (as before).
+  const same = setup({ releases: [{ id: 5, tag_name: TAG, draft: false, prerelease: false, assets: [] }] });
+  t.after(same.cleanup);
+  assert.equal(same.runScript().code, 0);
 });
 
 test('the tag of this number without a published release: nothing done, failure that says what to look at', (t) => {

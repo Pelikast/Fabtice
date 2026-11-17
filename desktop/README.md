@@ -761,7 +761,10 @@ fabrique rien), et à la main (« Run workflow ») sur n’importe quelle branch
       (fabrication interrompue au milieu), ou si l’**étiquette** `vV` existe
       sans release publiée de ce numéro (étiquette poussée à la main,
       version supprimée) : rien non plus, mais en rouge, avec la phrase qui
-      dit quoi regarder et supprimer à la main sur GitHub avant de relancer ;
+      dit quoi regarder et supprimer à la main sur GitHub avant de relancer.
+      Un numéro **plus petit** que celui de la dernière version publiée (les
+      étiquettes `va.b.c` seulement, pas `desktop-dev`) : rien non plus, en
+      rouge, car les apps installées ne le proposeraient jamais ;
    3. `fabtice-version.json` est fait par `ci/make-version-file.js` à partir
       des deux `.zip` (adresses de l’étiquette `vV`), et les notes de la
       release : quel fichier télécharger (puce Apple ou Intel, comment le

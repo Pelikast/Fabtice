@@ -17,7 +17,9 @@
 //            (gh api, drafts included). A published release vV exists: nothing is published, nothing is
 //            changed, exit 0. The tag vV exists without a published release vV (a tag pushed by hand, a
 //            release deleted), or a draft of vV exists (a run that stopped in the middle): nothing either,
-//            exit 1, because a person must look at it;
+//            exit 1, because a person must look at it. A number lower than the newest published one (tags
+//            « v a.b.c » only; desktop-dev and the like are not numbers): exit 1, the installed apps would never
+//            take it;
 //         3. fabtice-version.json made by ci/make-version-file.js from the two zips (URLs of the tag vV), and
 //            the notes of the release (which file to download, then the same notes as the version file);
 //         4. a DRAFT release « Fabtice V » for the tag vV on the commit (a draft creates no tag), the five
@@ -41,7 +43,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
-const { parseVersion } = require('../src/update-version');
+const { parseVersion, compareVersions } = require('../src/update-version');
 
 const ROOT = process.env.FABTICE_RELEASE_ROOT ? path.resolve(process.env.FABTICE_RELEASE_ROOT) : path.join(__dirname, '..', '..');
 const DESKTOP = path.join(ROOT, 'desktop');
@@ -112,6 +114,21 @@ function publishedState(tag, lsRemote, releases) {
   const draft = same.find((r) => r.draft);
   if (draft) return { state: 'draft', reason: `un brouillon de la version ${tag} existe (release ${draft.id}), laissé par une fabrication interrompue : le supprimer à la main sur GitHub, puis relancer` };
   return { state: 'new' };
+}
+
+/**
+ * The newest numbered version published on GitHub: releases that are not drafts, tagged « v a.b.c » (others,
+ * such as desktop-dev, are ignored). Null when there is none, or when the releases were not read.
+ * @returns {{ version: string, tag: string } | null}
+ */
+function newestPublished(releases) {
+  let newest = null;
+  for (const r of releases || []) {
+    const version = !r.draft && typeof r.tag_name === 'string' && r.tag_name.startsWith('v') ? r.tag_name.slice(1) : null;
+    if (!parseVersion(version)) continue;
+    if (!newest || compareVersions(version, newest.version) > 0) newest = { version, tag: r.tag_name };
+  }
+  return newest;
 }
 
 /** The notes of the release: which file to download, then the notes of the version file, unchanged. */
@@ -247,6 +264,11 @@ function publish({ assetsDir, dryRun, outDir }) {
     if (releases.length >= 100) log('ATTENTION : 100 releases ou plus, seule la première page est lue.');
   } else {
     log(`(essai à blanc) ${gh} indisponible ici (${list.stderr.trim().split('\n')[0]}) : seule l’étiquette est vérifiée.`);
+  }
+  const newest = newestPublished(releases);
+  if (newest && compareVersions(version, newest.version) < 0) {
+    log(`ERREUR : le numéro ${version} est plus petit que celui de la dernière version publiée, ${newest.tag}. Les apps installées ne proposent jamais une version plus ancienne : rien n’est publié ni modifié. Mettre un numéro plus grand que ${newest.version} dans app/package.json et desktop/package.json, avec sa section en tête de CHANGELOG.md, puis pousser sur main.`);
+    return 1;
   }
   const state = publishedState(tag, ls.stdout, releases);
   if (state.state === 'published') {
@@ -385,4 +407,4 @@ function main(argv) {
 
 if (require.main === module) process.exitCode = main(process.argv.slice(2));
 
-module.exports = { checkVersion, preparationVerdict, publishedState, releaseNotes, assetList, checkUploaded, main, ASSETS };
+module.exports = { checkVersion, preparationVerdict, newestPublished, publishedState, releaseNotes, assetList, checkUploaded, main, ASSETS };
