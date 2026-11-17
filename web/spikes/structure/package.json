@@ -1,0 +1,15 @@
+{
+  "name": "fabtice-banc-structure",
+  "private": true,
+  "license": "GPL-3.0-or-later",
+  "type": "module",
+  "description": "Banc de mesure de la structure de Fabtice (hors de l'app)",
+  "scripts": {
+    "build": "node banc/build.mjs",
+    "bench": "node banc/build.mjs && node dist/run.mjs"
+  },
+  "dependencies": {
+    "esbuild": "0.25.12",
+    "onnxruntime-web": "1.31.1"
+  }
+}
