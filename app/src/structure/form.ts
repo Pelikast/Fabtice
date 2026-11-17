@@ -110,6 +110,8 @@ export interface FormOptions {
 }
 
 const MIN_CHORUS = 12;
+/** No chorus is longer (forms of 64 bars exist; longer ones are two choruses). */
+const MAX_CHORUS = 96;
 
 // ---------------------------------------------------------------- helpers
 
@@ -204,7 +206,7 @@ function bestLattice(toks: readonly BarTokens[], S: Float32Array, n: number, L: 
       for (let b = a + 1; b < k && b <= a + NEIGHBOURS; b++) {
         // a pair that does not match (a drum solo) counts nothing, not against; the last chorus may be a step up
         let pair = pairScore(a, b, 0);
-        if (pair <= 0 && b === k - 1) for (const t of [1, 2, -1, -2]) pair = Math.max(pair, pairScore(a, b, t) - 2);
+        if (pair <= 0 && b === k - 1 && k >= 3 && L <= MAX_CHORUS / 2) for (const t of [1, 2, -1, -2]) pair = Math.max(pair, pairScore(a, b, t) - 2);
         if (pair > 0) {
           matched[a] = 1;
           matched[b] = 1;
@@ -250,6 +252,8 @@ function bestLattice(toks: readonly BarTokens[], S: Float32Array, n: number, L: 
       let bestT = 0;
       let bestC = 0;
       for (const t of TRANSPOSE_TRIES) {
+        // a transposition is only looked for when the pair does not match as it is
+        if (t !== 0 && best > 0.5) break;
         for (let e = -2; e <= 2; e++) {
           const [mean, c] = pairMean(a, b, e, t);
           if (c < L / 3) continue;
@@ -299,7 +303,7 @@ export function chooseChorusLength(toks: readonly BarTokens[], S: Float32Array, 
   const none = (why: string, tried: LengthChoice['tried'] = []): LengthChoice => ({ length: null, lattice: null, tried, why });
   if (n < 2 * MIN_CHORUS - 2) return none('too short');
   const raw = lagProfile(S, n);
-  const maxLag = Math.floor(n / 1.7);
+  const maxLag = Math.min(MAX_CHORUS, Math.floor(n / 1.7));
   // forms are multiples of 4 bars (12, 16, 24, 32, 40…); a lag one bar off (a bar dropped or added) counts for its neighbour
   const peaks: { lag: number; score: number }[] = [];
   for (let L = 8; L <= maxLag + 1; L += 4) {
@@ -316,7 +320,7 @@ export function chooseChorusLength(toks: readonly BarTokens[], S: Float32Array, 
     while (L < MIN_CHORUS) L *= 2;
     cands.add(L);
     if (L % 8 === 0 && L / 2 >= MIN_CHORUS) cands.add(L / 2);
-    if (2 * L <= maxLag) cands.add(2 * L);
+    if (2 * L <= Math.min(maxLag, 64)) cands.add(2 * L);
   }
   const scored: { length: number; lattice: Lattice; value: number; cover: number; contrast: number; z: number }[] = [];
   for (const L of cands) {
@@ -333,11 +337,16 @@ export function chooseChorusLength(toks: readonly BarTokens[], S: Float32Array, 
   if (!scored.length) return none('no lag', tried);
   const top = scored.reduce((a, b) => (b.value > a.value ? b : a));
   if (top.contrast < MIN_CONTRAST || top.z < MIN_Z) return none('weak', tried);
-  // The shortest length that is a true period: consecutive choruses agree as well as choruses 2 or 3
-  // apart (a blues: 12, not 24). A half chorus is not one: consecutive halves differ (AABA: AA and BA)
-  // while halves two apart agree.
-  const periodic = (x: (typeof scored)[number]) =>
-    [2, 3].every((d) => !(x.lattice.contrastAt[d]! > 0) || !(x.lattice.contrastAt[1]! < PERIOD_RATIO * x.lattice.contrastAt[d]!));
+  // The shortest length that is a true period. A half chorus is not one: halves one or three apart differ
+  // (AABA: AA and BA) while halves two apart agree; a true chorus agrees at every distance (a blues: 12, not
+  // 24), one pair spoilt by a dropped bar aside.
+  const periodic = (x: (typeof scored)[number]) => {
+    const c = x.lattice.contrastAt;
+    const d2 = c[2] ?? NaN;
+    if (!(d2 > 0)) return true;
+    const odd = Math.max(...[c[1], c[3]].map((v) => (v === undefined || Number.isNaN(v) ? -Infinity : v)));
+    return odd >= PERIOD_RATIO * d2;
+  };
   const pick = scored
     .filter((x) => top.length % x.length === 0 || x.length % top.length === 0)
     .filter((x) => x.z >= MIN_Z && x.contrast >= Math.max(MIN_CONTRAST, 0.6 * top.contrast) && x.cover >= top.cover - 0.15 && periodic(x))
@@ -644,8 +653,8 @@ class Phrases {
     let n = 0;
     const K = this.choruses.length;
     for (let x = 0; x < K; x++) {
-      for (let y = 0; y < K; y++) {
-        if (x === y) continue;
+      for (let y = Math.max(0, x - NEIGHBOURS); y < Math.min(K, x + NEIGHBOURS + 1); y++) {
+        if (x === y) continue; // choruses near each other only (as the lattice: far ones drift)
         for (let k = 0; k < len; k++) {
           const bx = this.bar(x, a + k, r);
           const by = this.bar(y, b + k, r);
@@ -835,6 +844,8 @@ export function knownBody(chart: StandardChart): KnownBody | null {
 
 // ---------------------------------------------------------------- phrases
 
+const PHRASE_SAME = 0.55;
+
 /** Phrases of `len` bars from the offset where they repeat best; letters only for repeated phrases. */
 function phraseLayout(toks: readonly BarTokens[], S: Float32Array, bg: number, len: number): Layout | null {
   const n = toks.length;
@@ -873,7 +884,8 @@ function phraseLayout(toks: readonly BarTokens[], S: Float32Array, bg: number, l
   }
   const starts: number[] = [];
   for (let s = bestO; s + len <= n; s += len) starts.push(s);
-  const thr = bg + 0.45 * (1 - bg);
+  // two phrases are one section only when most of their bars agree (a through-composed tune full of II-V resembles itself a little)
+  const thr = bg + PHRASE_SAME * (1 - bg);
   const letters: number[] = [];
   const reps: number[] = [];
   for (const s of starts) {
@@ -991,8 +1003,10 @@ export function analyseForm(bars: readonly HarmonyBar[], o: FormOptions): FormAn
   const n = bars.length;
   const toks = barTokens(bars);
   const S = similarityMatrix(toks);
+  // the background: the median similarity of bar pairs (a sample of them on long pieces)
   const off: number[] = [];
-  for (let i = 0; i < n; i++) for (let j = i + 2; j < n; j += 3) {
+  const stride = Math.max(3, Math.floor((n * n) / 40000));
+  for (let i = 0; i < n; i++) for (let j = i + 2 + (i % stride); j < n; j += stride) {
     const v = S[i * n + j]!;
     if (!Number.isNaN(v)) off.push(v);
   }

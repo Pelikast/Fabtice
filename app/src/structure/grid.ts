@@ -160,6 +160,13 @@ export function barSim(a: BarTokens, b: BarTokens, semitones = 0): number {
  * the shifted readings a little less trusted. Same-length bars only.
  */
 export function barSimShift(a: BarTokens, b: BarTokens, semitones = 0): number {
+  // a bar of one chord reads the same one beat off: one comparison
+  const ua = single(a);
+  const ub = single(b);
+  if (ua !== MIXED && ub !== MIXED) {
+    if (ua < 0 || ub < 0) return NaN;
+    return tokenSim(ua, semitones ? transposeToken(ub, semitones) : ub);
+  }
   const v0 = barSim(a, b, semitones);
   const n = a.slots.length;
   if (n !== b.slots.length || n < 3) return v0;
@@ -187,6 +194,24 @@ export function barSimShift(a: BarTokens, b: BarTokens, semitones = 0): number {
 }
 
 const SHIFT_TRUST = 0.92;
+
+const MIXED = -2;
+const singles = new WeakMap<BarTokens, number>();
+
+/** The bar's token when the same one sounds on every beat, `MIXED` otherwise. */
+function single(b: BarTokens): number {
+  let v = singles.get(b);
+  if (v === undefined) {
+    const s = b.slots;
+    v = s[0]!;
+    for (let k = 1; k < s.length; k++) if (s[k] !== s[0]) {
+      v = MIXED;
+      break;
+    }
+    singles.set(b, v);
+  }
+  return v;
+}
 
 /** The bars' similarity matrix (n × n, row-major; NaN where nothing compares), a beat of shift tolerated. */
 export function similarityMatrix(toks: readonly BarTokens[]): Float32Array {
