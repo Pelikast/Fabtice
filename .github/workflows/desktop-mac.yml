@@ -145,7 +145,7 @@ jobs:
       # The two .dmg files are what people download and open: each one is mounted
       # read-only and its app inspected like the zips' (inspect-app.sh only reads the
       # bundle, it never runs it: the Intel app is fine on this Mac), then required:
-      # Fabtice.app present, a valid signature, this version, the chip of the file.
+      # Fabtice.app present, a valid signature (Apple chip), this version, the chip of the file.
       # The volume is detached in every case. Required.
       - name: Inspect the two dmg files (mounted read-only)
         id: inspect-dmg
@@ -166,12 +166,14 @@ jobs:
             app="$mnt/Fabtice.app"
             if [ ! -d "$app" ]; then echo "ERREUR : pas de Fabtice.app dans $dmg"; exit 1; fi
             ci/inspect-app.sh "$app"
-            if ! codesign --verify --deep --strict "$app"; then echo "ERREUR : la signature de Fabtice.app ne tient pas dans $dmg"; exit 1; fi
+            # Like the update (update-install.js): the signature is required on an Apple chip, only told on Intel.
+            if codesign --verify --deep "$app"; then signature="signature valide"; else signature="signature non valide"; fi
+            if [ "$signature" != "signature valide" ] && [ "$arch" = "arm64" ]; then echo "ERREUR : la signature de Fabtice.app ne tient pas dans $dmg"; exit 1; fi
             got=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Contents/Info.plist")
             if [ "$got" != "$VERSION" ]; then echo "ERREUR : $dmg contient la version $got, pas $VERSION"; exit 1; fi
             archs=$(lipo -archs "$app/Contents/MacOS/Fabtice")
             if [ "$archs" != "$arch" ]; then echo "ERREUR : $dmg contient une app pour « $archs », pas « $arch »"; exit 1; fi
-            echo "$dmg : Fabtice.app $got, $archs, signature valide"
+            echo "$dmg : Fabtice.app $got, $archs, $signature"
             hdiutil detach "$mnt"
             MOUNTED=""
           done
