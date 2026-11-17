@@ -306,6 +306,19 @@ export interface DesktopBridge {
   finishProjectSave?(session: string): Promise<{ ok: true; name: string; size: number } | { ok: false; reason: string }>;
   /** Gives up: the temporary file is removed, the target is not touched. */
   abortProjectSave?(session: string): Promise<true>;
+  /**
+   * Folder exports (C15.4, `desktop/src/folder-writer.js`, used by `export/folder/`): the system's save panel,
+   * then a NEW folder there (« name 2 » when something already has the name: nothing is ever replaced).
+   * `where`: its parent, home as « ~ ». Answers with data, never rejects. A Mac app that predates it lacks these.
+   */
+  beginFolderExport?(request: { suggestedName: string }): Promise<{ ok: true; session: string; name: string; where: string } | { ok: false; reason: string }>;
+  /** Bytes at `offset` of the plain file `name` inside the folder: offset 0 creates it, later chunks follow in order. */
+  writeFolderFile?(session: string, name: string, offset: number, bytes: Uint8Array): Promise<{ ok: true; size: number } | { ok: false; reason: string }>;
+  finishFolderExport?(session: string): Promise<{ ok: true; name: string; where: string; files: number } | { ok: false; reason: string }>;
+  /** Gives up: the files written are removed, then the folder if it is empty. */
+  abortFolderExport?(session: string): Promise<true>;
+  /** Shows a finished export's folder in the Finder. */
+  revealFolderExport?(session: string): Promise<boolean>;
   /** The title bar: the dot in the close button (`modified`) and the proxy icon of the project's file. */
   reportProjectState?(state: { projectId: string | null; modified: boolean }): Promise<boolean>;
   /**

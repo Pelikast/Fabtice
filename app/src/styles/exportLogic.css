@@ -1,0 +1,77 @@
+/* « Dossier pour Logic Pro » (C15.4): a window of the family (DESIGN.md, « Nouveau projet »): paper, Fraunces
+   title, the main button in ink on the right, the secondary one framed. What the folder holds as a short list
+   with hairlines, the three gestures numbered. On a phone: a sheet at the bottom, buttons stacked full width,
+   the main one first, targets of at least 44 px. */
+.export-logic { width: min(580px, 100%); }
+.export-logic h3 {
+  margin: 20px 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--encre-douce);
+}
+.contenu-logic {
+  margin: 0 0 18px;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--trait-fin);
+}
+.contenu-logic li {
+  display: grid;
+  grid-template-columns: minmax(150px, 34%) 1fr;
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--trait-fin);
+  font-size: 14px;
+  line-height: 1.4;
+}
+.contenu-logic strong { font-weight: 600; color: var(--encre); }
+.contenu-logic span { color: var(--encre-douce); }
+.gestes-logic {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: geste;
+}
+.gestes-logic li {
+  position: relative;
+  padding: 6px 0 8px 36px;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--encre);
+  counter-increment: geste;
+}
+.gestes-logic li::before {
+  content: counter(geste);
+  position: absolute;
+  left: 0;
+  top: 5px;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--encre);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-family: var(--titre);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+}
+.export-logic .fichier-pret { margin-bottom: 4px; }
+.export-logic .import-etat .export-resume { margin-top: 10px; }
+
+@media (max-width: 760px) {
+  .voile-logic { padding: 0; place-items: end stretch; }
+  .export-logic {
+    width: 100%;
+    max-height: 100dvh;
+    padding: 22px 18px calc(18px + env(safe-area-inset-bottom));
+    border-width: 1px 0 0;
+    border-radius: var(--rayon-fenetre) var(--rayon-fenetre) 0 0;
+  }
+  .contenu-logic li { grid-template-columns: 1fr; gap: 2px; }
+  .export-logic .import-actions { flex-direction: column-reverse; align-items: stretch; }
+  .export-logic .import-actions > * { width: 100%; min-height: 46px; }
+  .export-logic .fermer { width: 44px; height: 44px; }
+}
