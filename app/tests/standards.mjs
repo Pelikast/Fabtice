@@ -193,7 +193,11 @@ async function messagePaths(viewport, tag) {
 
     await press(page, page.locator('[data-testid="grilles-oui"]'));
     await waitMessage(page, 'running');
-    const lineSeen = await page.evaluate(() => document.querySelector('[data-testid="standards-courant"]')?.textContent ?? '');
+    // The line is fleeting (one collection after the other): wait for it rather than read it once, under load it may not be drawn yet.
+    const lineSeen = await page
+      .waitForFunction((n) => { const t = document.querySelector('[data-testid="standards-courant"]')?.textContent ?? ''; return new RegExp(`\\d sur ${n}$`).test(t) ? t : false; }, WEB_COUNT, { timeout: 5000, polling: 50 })
+      .then((h) => h.jsonValue())
+      .catch(() => page.evaluate(() => document.querySelector('[data-testid="standards-courant"]')?.textContent ?? ''));
     check(`${tag}: the collection being read and « n sur N »`, new RegExp(`\\d sur ${WEB_COUNT}$`).test(lineSeen), lineSeen);
     check(`${tag}: it can be cancelled, or left while it goes on`, (await page.locator('[data-testid="grilles-annuler"]').count()) === 1 && (await page.locator('[data-testid="grilles-arriere-plan"]').count()) === 1);
     // The percentage advances steadily: sampled while it runs, never backwards, in more than a few steps.

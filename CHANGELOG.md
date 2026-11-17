@@ -5,15 +5,31 @@ récente en haut. La première section est recopiée sur la page de la version.
 
 ## Version 1.0.0
 
-En préparation. Chaque étape du plan (`v1/PLAN.md`) ajoute ici ses nouveautés,
-en français simple.
+La première version numérotée de Fabtice. Elle réorganise toute l'app autour
+d'un seul menu, sait annuler, enregistrer comme un vrai logiciel, trouver la
+structure d'un morceau, et se met à jour toute seule. Les projets enregistrés
+avec les versions précédentes s'ouvrent comme avant.
+
+### L'essentiel
+- Un **menu Fabtice** sous le logo, et des **Réglages** à onglets.
+- **Annuler / Rétablir**, **Enregistrer** (cmd + S) et une alerte avant de
+  perdre son travail.
+- **Structure du morceau** (forme, sections, thèmes et solos), **modulations**
+  et **grille complète simplifiée**, façon Real Book.
+- **Corriger le tempo en tapant** les temps, et **changer la signature
+  rythmique** d'une mesure.
+- **Imprimer** avec aperçu ; nouveaux **exports** : audio au choix, dossier
+  pour Logic Pro, projet Ableton Live (à l'essai).
+- **Alléger le travail pour l'appareil**, pour qu'il chauffe moins.
+- **Mise à jour automatique** de l'app Mac.
 
 ### Nouvelle organisation de l'app
 - **Menu Fabtice** : un clic sur le logo, en haut à gauche, ouvre le menu de
   l'app : Annuler, Rétablir, Nouveau projet (à partir d'un lien YouTube ou
-  d'un fichier audio), Ouvrir, Enregistrer, Enregistrer sous…, Exporter,
-  Imprimer, Réglages, Quitter. Les anciens menus « Exporter » et « ⋯ » ont
-  disparu : tout est là. Sur téléphone, le même menu s'ouvre en pleine page.
+  d'un fichier audio), Ouvrir, Projets récents, Enregistrer, Enregistrer
+  sous…, Exporter, Imprimer, Réglages, Quitter. Les anciens menus
+  « Exporter » et « ⋯ » ont disparu : tout est là. Sur téléphone, le même menu
+  s'ouvre en pleine page.
 - **Barre de menus du Mac** : les mêmes commandes, avec leurs raccourcis
   (cmd + O, cmd + S, cmd + P, cmd + virgule pour les Réglages…). Une
   commande impossible sur le moment est grisée.
@@ -35,18 +51,13 @@ en français simple.
   télécharger ou d'en retirer un, et de « Vérifier les mises à jour de
   grilles ». Sept recueils de plus sont proposés dans l'app Mac (samba,
   choro, Real Book I à III, Beatles…).
-- **Imprimer** : cmd + P ouvre une fenêtre avec l'aperçu de la grille, page
-  par page, tel qu'il sortira, et les options : format du papier, portrait ou
-  paysage, marges, échelle ou « Tenir sur une page », instrument (Ut, Si♭,
-  Mi♭), en-tête ; dans l'app Mac, l'imprimante et le nombre de copies.
-  « Enregistrer en PDF » est dans la même fenêtre.
 - **Chargement plus visible** : pendant une analyse ou une séparation, le
   texte qui l'annonce en haut de l'écran est plus grand, en rouge braise, et
   un reflet le parcourt.
 - **Sous-grille** : « Blanches » s'ajoute à la liste, et « Noires » est le
   choix de départ.
-- Un projet rouvert au lancement n'est plus annoncé « modifié » quand il est
-  identique à son fichier enregistré.
+- **Barre d'espace** : quand une fenêtre ou un menu est ouvert, elle ne lance
+  plus la lecture ; elle actionne le bouton ou la case en cours.
 
 ### Annuler, enregistrer
 - **Annuler et Rétablir** : cmd + Z défait la dernière modification du morceau
@@ -63,73 +74,6 @@ en français simple.
   pas enregistrer » ou « Annuler ».
 - **Titre de la fenêtre** : il montre le nom du fichier du projet, et un point
   quand il y a des modifications non enregistrées.
-- Les projets enregistrés avec les versions précédentes s'ouvrent comme avant.
-
-### Grille et export
-- La grille d'accords écrit la signature rythmique à la mesure où elle
-  change, et l'app sait maintenant suivre des signatures différentes d'une
-  mesure à l'autre (la fenêtre pour les changer arrive plus bas dans cette
-  version).
-- Export iReal Pro : un morceau en 6/8 ou en 12/8 sort avec la bonne
-  signature.
-
-### Exports
-- **Exporter → Audio…** : une nouvelle fenêtre. On choisit le format (Wave
-  avec sa fréquence et sa quantification, Flac, ou MP3 de 96 à 320 kbit/s,
-  320 par défaut), ce qu'on exporte (le mix complet comme on l'entend, ou les
-  pistes que l'on coche), et si l'on veut un fichier par piste ou un seul
-  fichier. « La boucle seulement » reste proposé. Comme avant, le son sort
-  dans la tonalité et le tempo choisis.
-- **Exporter → Dossier pour Logic Pro…** : un dossier avec toutes les pistes
-  en audio (dans la tonalité et le tempo choisis, alignées au début), un
-  fichier MIDI qui porte le tempo exact du morceau, ses signatures, ses
-  armures et ses accords en marqueurs (sections comprises), et un mode
-  d'emploi en trois gestes. Dans l'app Mac, c'est un vrai dossier à l'endroit
-  que vous choisissez ; dans l'app web, une archive à décompresser.
-- Le volume, le muet et le solo ne s'appliquent pas aux pistes de ces
-  dossiers : chaque piste sort entière, pour être mixée dans le séquenceur.
-
-### Projet Ableton Live (à l'essai)
-- **Exporter → Projet Ableton Live…** crée un dossier à ouvrir dans Ableton
-  Live : les pistes en audio, posées au début et jouées telles quelles, la
-  courbe de tempo du morceau, ses signatures, ses accords, ses sections et ses
-  changements de tonalité en repères. Un projet pour Live 11 et 12, un autre
-  pour Live 10 (qui demandera une fois où sont les pistes).
-- **À l'essai** : personne n'a encore pu ouvrir ces projets dans un vrai
-  Ableton Live ; ils ont été vérifiés avec des outils qui lisent le format de
-  Live. Le dossier contient aussi un fichier MIDI et les pistes, qui marchent
-  dans tous les cas, et un mode d'emploi.
-
-### Tempo et signature, à la main
-- **Corriger le tempo en tapant** : un clic droit sur une mesure (un appui
-  long sur téléphone) propose « Correction de la courbe en tapant le tempo ».
-  Une petite fenêtre lance un décompte au métronome (une mesure par défaut),
-  puis vous tapez la barre d'espace (ou touchez l'écran) sur chaque temps du
-  passage que l'analyse a mal compris : point d'orgue, ralenti, vieux disque.
-  « Ok, j'ai fini », puis « Vérifier en écoutant » fait entendre le passage
-  avec le clic sur la nouvelle grille. « C'est bon, c'est corrigé » la garde,
-  et la suite du morceau est réanalysée ; « Ce n'est pas bon, réessayer »
-  recommence.
-- Pas besoin de taper parfaitement : l'app compense d'elle-même votre avance
-  ou votre retard habituel, cale les temps sur les attaques de la musique,
-  rajoute un temps oublié et écarte une tape en trop. On peut taper en
-  lecture ralentie. La correction s'annule comme les autres.
-- **Changer la signature rythmique** : dans le même menu. Deux cases l'une sur
-  l'autre, comme une signature écrite (1 à 64, sur 4, 8, 16 ou 32), et le
-  choix « Changement permanent à partir de cette mesure » ou « Changement
-  uniquement pour cette mesure ». La noire garde sa durée : une mesure en 6/8
-  dure trois noires.
-- La signature s'écrit maintenant aussi sur la règle des mesures, là où elle
-  change.
-- **Métronome** : quand le morceau a plusieurs signatures, on choisit celle
-  dont on règle les temps forts et faibles.
-- Les corrections de tempo à la main marchent aussi après une mesure en 7/8
-  ou 7/16.
-- Sur une très longue mesure (13/8, 64/32…), la fenêtre d'un accord range les
-  temps sur plusieurs lignes.
-- **Barre d'espace** : quand une fenêtre ou un menu est ouvert, elle ne lance
-  plus la lecture ; elle actionne le bouton ou la case en cours.
-- Téléphone : le tempo affiché en haut à gauche n'est plus coupé.
 
 ### Structure du morceau, modulations, grille simplifiée
 - **Fabtice cherche la structure du morceau** : la forme (par exemple AABC),
@@ -177,15 +121,6 @@ en français simple.
 - **Tout se recalcule tout seul** quand les accords ou les mesures changent
   (une correction de tempo, un accord écrit à la main…), sans jamais toucher à
   ce que vous avez corrigé.
-- **Imprimer** : la fenêtre propose « Ce qu'on imprime » : la grille complète,
-  la grille complète simplifiée (sur une page quand elle tient), ou une
-  section. La ligne « Forme » s'ajoute sous le titre (case « Forme » dans
-  l'en-tête). L'aperçu est la page.
-- **iReal Pro** : « Ouvrir dans iReal Pro » existe aussi dans l'app web (un
-  avis calme s'affiche si rien ne s'ouvre, avec « Enregistrer le fichier… »).
-  Quand l'affichage est la grille simplifiée, c'est elle qui est exportée, avec
-  de vraies reprises ; les modulations sont écrites en note sur leur mesure,
-  iReal Pro n'ayant qu'une tonalité par grille.
 - **Un petit outil pour reconnaître les instruments à vent** : quelques
   mégaoctets, licence libre, téléchargé la première fois qu'on en a besoin
   (la source et la licence sont affichées), uniquement pour distinguer
@@ -200,8 +135,91 @@ en français simple.
   accords, « Automatique (recommandé) » dit lequel sert sur votre appareil, et
   vous pouvez toujours choisir l'un ou l'autre. Un morceau déjà analysé n'est
   pas refait tout seul : « Analyser de nouveau ce morceau avec ce modèle ».
-- **Les tonalités s'écrivent en lettres américaines partout**, y compris dans
-  la note d'une modulation exportée vers iReal Pro (« Ton : Ab »).
+- **Les tonalités s'écrivent en lettres américaines partout** (« Ton : A♭ »).
+
+### Tempo et signature, à la main
+- **Corriger le tempo en tapant** : un clic droit sur une mesure (un appui
+  long sur téléphone) propose « Correction de la courbe en tapant le tempo ».
+  Une petite fenêtre lance un décompte au métronome (une mesure par défaut),
+  puis vous tapez la barre d'espace (ou touchez l'écran) sur chaque temps du
+  passage que l'analyse a mal compris : point d'orgue, ralenti, vieux disque.
+  « Ok, j'ai fini », puis « Vérifier en écoutant » fait entendre le passage
+  avec le clic sur la nouvelle grille. « C'est bon, c'est corrigé » la garde,
+  et la suite du morceau est réanalysée ; « Ce n'est pas bon, réessayer »
+  recommence.
+- Pas besoin de taper parfaitement : l'app compense d'elle-même votre avance
+  ou votre retard habituel, cale les temps sur les attaques de la musique,
+  rajoute un temps oublié et écarte une tape en trop. On peut taper en
+  lecture ralentie. La correction s'annule comme les autres.
+- **Changer la signature rythmique** : dans le même menu. Deux cases l'une sur
+  l'autre, comme une signature écrite (1 à 64, sur 4, 8, 16 ou 32), et le
+  choix « Changement permanent à partir de cette mesure » ou « Changement
+  uniquement pour cette mesure ». La noire garde sa durée : une mesure en 6/8
+  dure trois noires.
+- La signature s'écrit sur la grille d'accords et sur la règle des mesures,
+  là où elle change ; le métronome, les boucles, les repères et les exports
+  suivent.
+- **Métronome** : quand le morceau a plusieurs signatures, on choisit celle
+  dont on règle les temps forts et faibles.
+- Les corrections de tempo à la main marchent aussi après une mesure en 7/8
+  ou 7/16.
+- Sur une très longue mesure (13/8, 64/32…), la fenêtre d'un accord range les
+  temps sur plusieurs lignes.
+
+### Imprimer
+- **cmd + P** ouvre une fenêtre avec l'aperçu de la grille, page par page,
+  telle qu'elle sortira, et les options : format du papier, portrait ou
+  paysage, marges, échelle ou « Tenir sur une page », instrument (Ut, Si♭,
+  Mi♭), en-tête ; dans l'app Mac, l'imprimante et le nombre de copies.
+  « Enregistrer en PDF » est dans la même fenêtre.
+- **« Ce qu'on imprime »** : la grille complète, la grille complète simplifiée
+  (sur une page quand elle tient), ou une section. La ligne « Forme » s'ajoute
+  sous le titre (case « Forme » dans l'en-tête).
+
+### Exports
+- **Exporter → Audio…** : une nouvelle fenêtre. On choisit le format (Wave
+  avec sa fréquence et sa quantification, Flac, ou MP3 de 96 à 320 kbit/s,
+  320 par défaut), ce qu'on exporte (le mix complet comme on l'entend, ou les
+  pistes que l'on coche), et si l'on veut un fichier par piste ou un seul
+  fichier. « La boucle seulement » reste proposé. Comme avant, le son sort
+  dans la tonalité et le tempo choisis.
+- **Exporter → Dossier pour Logic Pro…** : un dossier avec toutes les pistes
+  en audio (dans la tonalité et le tempo choisis, alignées au début), un
+  fichier MIDI qui porte le tempo exact du morceau, ses signatures, ses
+  armures et ses accords en marqueurs (sections comprises), et un mode
+  d'emploi en trois gestes. Dans l'app Mac, c'est un vrai dossier à l'endroit
+  que vous choisissez ; dans l'app web, une archive à décompresser.
+- Le volume, le muet et le solo ne s'appliquent pas aux pistes de ces
+  dossiers : chaque piste sort entière, pour être mixée dans le séquenceur.
+- **iReal Pro** : « Ouvrir dans iReal Pro » existe aussi dans l'app web (un
+  avis calme s'affiche si rien ne s'ouvre, avec « Enregistrer le fichier… »).
+  Quand l'affichage est la grille simplifiée, c'est elle qui est exportée, avec
+  de vraies reprises ; les modulations sont écrites en note sur leur mesure
+  (« Ton : Ab »), iReal Pro n'ayant qu'une tonalité par grille. Un morceau en
+  6/8 ou en 12/8 sort avec la bonne signature.
+
+### Projet Ableton Live (à l'essai)
+- **Exporter → Projet Ableton Live…** crée un dossier à ouvrir dans Ableton
+  Live : les pistes en audio, posées au début et jouées telles quelles, la
+  courbe de tempo du morceau, ses signatures, ses accords, ses sections et ses
+  changements de tonalité en repères. Un projet pour Live 11 et 12, un autre
+  pour Live 10 (qui demandera une fois où sont les pistes).
+- **À l'essai** : personne n'a encore pu ouvrir ces projets dans un vrai
+  Ableton Live ; ils ont été vérifiés avec des outils qui lisent le format de
+  Live. Le dossier contient aussi un fichier MIDI et les pistes, qui marchent
+  dans tous les cas, et un mode d'emploi.
+
+### Alléger le travail pour l'appareil
+- Nouvelle case « Alléger le travail pour l'appareil » : l'ordinateur ou le
+  téléphone chauffe et souffle moins pendant la séparation, l'analyse et
+  « Appliquer meilleure qualité », au prix d'un travail plus long. Fabtice
+  fait une pause après chaque tranche de calcul.
+- Vous la trouvez dans « Nouveau projet », dans Réglages → Général et quand
+  vous lancez une séparation plus tard ; le dernier choix est retenu.
+- Dans Réglages → Avancé, un curseur règle la part des capacités utilisée, de
+  20 à 99 % (75 % par défaut). C'est une moyenne : sur une longue tranche de
+  calcul, le ventilateur peut quand même monter par moments.
+- Les durées annoncées tiennent compte de ce réglage.
 
 ### Mise à jour automatique et numéro de version
 - **Fabtice porte maintenant un numéro de version : 1.0.0.** On le voit dans
@@ -227,17 +245,10 @@ en français simple.
   https://github.com/pelikast/fabtice/releases/latest mène toujours à la
   dernière.
 
-### Alléger le travail pour l'appareil
-- Nouvelle case « Alléger le travail pour l'appareil » : l'ordinateur ou le
-  téléphone chauffe et souffle moins pendant la séparation, l'analyse et
-  « Appliquer meilleure qualité », au prix d'un travail plus long. Fabtice
-  fait une pause après chaque tranche de calcul.
-- Vous la trouvez dans « Nouveau projet », dans Réglages → Général et quand
-  vous lancez une séparation plus tard ; le dernier choix est retenu.
-- Dans Réglages → Avancé, un curseur règle la part des capacités utilisée, de
-  20 à 99 % (75 % par défaut). C'est une moyenne : sur une longue tranche de
-  calcul, le ventilateur peut quand même monter par moments.
-- Les durées annoncées tiennent compte de ce réglage.
+### Petites corrections
+- Un projet rouvert au lancement n'est plus annoncé « modifié » quand il est
+  identique à son fichier enregistré.
+- Téléphone : le tempo affiché en haut à gauche n'est plus coupé.
 
 ## Version du 16 novembre 2026
 

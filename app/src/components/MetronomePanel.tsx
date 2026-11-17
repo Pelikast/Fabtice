@@ -165,7 +165,7 @@ function MeterChoice({ edited }: { edited: EditedMeter }) {
   return (
     <div className="metro-bloc">
       <label className="metro-ligne">
-        <span>{t('metronome.meter')}</span>
+        <span>{t(edited.all.length > 1 ? 'metronome.meterFirst' : 'metronome.meter')}</span>
         <select
           value={key}
           data-testid="mesure-metrique"

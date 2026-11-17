@@ -1306,6 +1306,7 @@ export const fr = {
   'partDialog.byHand': 'Cette partie est corrigée à la main : une nouvelle analyse n’y touchera pas.',
 
   // Métronome : les accents de chaque signature du morceau (stage 4)
+  'metronome.meterFirst': 'Mesure au début',
   'metronome.edited': 'Réglage des temps pour la signature',
   'metronome.editedHint': 'Ce morceau change de signature : choisissez celle dont vous réglez le groupement et les temps forts. Le clic suit le choix de chacune.',
 
