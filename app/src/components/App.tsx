@@ -14,6 +14,7 @@ import { ChartView } from './ChartView';
 import { ExportAudioDialog } from './ExportAudioDialog';
 import { ExportLogicDialog } from './ExportLogicDialog';
 import { logicDialog } from '../export/logic/dialog';
+import { tapFixDialog } from '../ui/barDialogs';
 import { abletonDialog } from '../export/ableton/dialog';
 import { ExportAbletonDialog } from './ExportAbletonDialog';
 import { LeaveProjectDialog } from './LeaveProjectDialog';
@@ -42,7 +43,9 @@ export function App() {
   const saving = useStore(saveActivity, (s) => (s.phase === 'working' && s.visible) || s.phase === 'error');
   const exportingLogic = useStore(logicDialog, (s) => s.open);
   const exportingAbleton = useStore(abletonDialog, (s) => s.open);
-  const inert = dialogOpen || messageOpen || leaving || saving || exportingLogic || exportingAbleton;
+  // « Correction de la courbe en tapant le tempo »: its window leaves the ruler and the playhead in view, and the rest of the app waits.
+  const tapping = useStore(tapFixDialog, (s) => s.at !== null);
+  const inert = dialogOpen || messageOpen || leaving || saving || exportingLogic || exportingAbleton || tapping;
   const dragging = useFileDrop();
   useGlobalKeys();
   // Each newly opened piece is analysed in the background once it can play (analysis/runner.ts).

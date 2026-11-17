@@ -46,6 +46,8 @@ export interface MockEngineSnapshot {
   tempoRatio: number;
   metronome: boolean;
   clicks: number;
+  /** The click track's times (source seconds), for the checks that say where the clicks stop. */
+  clickTimes: number[];
   /** Lot 4: click gain, acceleration given (factors, passes per step) and the step heard. */
   metronomeVolume: number;
   acceleration: { factors: number[]; every: number } | null;
@@ -325,6 +327,7 @@ export class MockEngine implements AudioEngine {
       tempoRatio: this.ratio,
       metronome: this.metronome,
       clicks: this.clicks.times.length,
+      clickTimes: [...this.clicks.times],
       metronomeVolume: this.metronomeVolume,
       acceleration: this.acceleration ? { factors: [...this.acceleration.factors], every: this.acceleration.every } : null,
       accelerationStep: this.getMetronomeStatus().accelerationStep,

@@ -1,0 +1,134 @@
+/* « Correction de la courbe en tapant le tempo » (C12): a small window docked
+   above the transport, nothing darkened, so that the ruler and the playhead
+   stay in view while the user listens and taps. A sheet at the bottom of the
+   screen on a phone, with a big zone to touch while tapping. */
+.tapes {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: var(--tapes-bas, 120px);
+  z-index: 41;
+  width: min(460px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  margin: 0 auto;
+  overflow: auto;
+  padding: 18px 22px 20px;
+  background: var(--papier-clair);
+  border: 1px solid var(--trait);
+  border-radius: var(--rayon-fenetre);
+  box-shadow: var(--ombre-fenetre);
+  animation: monte var(--pose) var(--courbe);
+  outline: none;
+}
+.tapes-entete { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.tapes h2 {
+  margin: 0;
+  font-family: var(--titre);
+  font-size: 21px;
+  font-weight: 500;
+  font-variation-settings: "opsz" 72, "SOFT" 60;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+.tapes .fermer { flex: none; margin: -6px -10px 0 0; }
+.tapes-texte { margin: 0 0 14px; color: var(--encre-douce); line-height: 1.45; }
+.tapes-champ { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 4px; }
+.tapes-champ label { font-weight: 500; }
+.tapes-champ input {
+  width: 84px;
+  height: 44px;
+  padding: 0 10px;
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  color: var(--encre);
+  background: #fff;
+  border: 1px solid var(--trait);
+  border-radius: var(--rayon);
+}
+.tapes-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+.tapes-actions .plein, .tapes-actions .bouton-cadre { width: auto; min-height: 44px; height: auto; padding: 0 18px; }
+.tapes-ecoute { margin-bottom: 0; }
+.tapes-ecoute.actif { border-color: var(--encre); background: var(--encre); color: var(--papier-clair); }
+.tapes-refus {
+  margin: 0;
+  padding: 2px 0 2px 14px;
+  border-left: 3px solid var(--laiton);
+  color: var(--encre);
+  line-height: 1.45;
+}
+.tapes-attente { margin: 8px 0 2px; }
+.tapes-attente .jauge span { transition-duration: 0.4s; }
+
+/* While tapping: a calm pulse, what to do now, the count of taps. */
+.tapes-zone {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 64px;
+  padding: 10px 14px;
+  border: 1px solid var(--trait-fin);
+  border-radius: var(--rayon);
+  background: var(--papier);
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.tapes-pouls {
+  flex: none;
+  box-sizing: border-box;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px dashed var(--encre-pale);
+  transition: border-color var(--vite) var(--courbe);
+}
+.tapes-zone[data-phase="go"] .tapes-pouls { border-style: solid; border-color: var(--encre-douce); }
+.tapes-pouls.bat { animation: tapes-bat 380ms var(--courbe); }
+@keyframes tapes-bat {
+  from { background: var(--laiton); box-shadow: 0 0 0 0 rgba(184, 135, 58, 0.5); transform: scale(1.12); }
+  to { background: transparent; box-shadow: 0 0 0 12px rgba(184, 135, 58, 0); transform: none; }
+}
+.tapes-consigne-vive { flex: 1; min-width: 0; font-weight: 500; line-height: 1.3; }
+.tapes-zone[data-phase="listen"] .tapes-consigne-vive { color: var(--encre-douce); font-weight: 400; }
+.tapes-compte { flex: none; color: var(--encre-douce); font-size: 13.5px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+@media (max-width: 760px) {
+  /* A sheet at the bottom of the screen: the ruler stays visible above it, the zone to touch fills it. */
+  .tapes {
+    width: auto;
+    max-height: 100dvh;
+    margin: 0;
+    bottom: 0;
+    padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+    border-width: 1px 0 0;
+    border-radius: var(--rayon-fenetre) var(--rayon-fenetre) 0 0;
+  }
+  .tapes[data-etape="tapping"] { display: flex; flex-direction: column; height: min(62dvh, 540px); }
+  .tapes[data-etape="tapping"] .tapes-entete { flex: none; }
+  .tapes[data-etape="tapping"] .tapes-actions { flex: none; }
+  .tapes-zone {
+    flex: 1;
+    flex-direction: column;
+    justify-content: center;
+    gap: 18px;
+    min-height: 160px;
+    text-align: center;
+    border-style: dashed;
+    border-color: var(--trait);
+  }
+  .tapes-pouls { width: 84px; height: 84px; border-width: 3px; }
+  @keyframes tapes-bat {
+    from { background: var(--laiton); box-shadow: 0 0 0 0 rgba(184, 135, 58, 0.5); transform: scale(1.08); }
+    to { background: transparent; box-shadow: 0 0 0 26px rgba(184, 135, 58, 0); transform: none; }
+  }
+  .tapes-consigne-vive { flex: none; font-size: 17px; }
+  .tapes-compte { font-size: 15px; }
+  .tapes-champ input { height: 48px; }
+  .tapes-actions { flex-direction: column-reverse; align-items: stretch; }
+  .tapes-actions .plein, .tapes-actions .bouton-cadre { width: 100%; min-height: 48px; }
+  .tapes .fermer { width: 44px; height: 44px; }
+  .tapes-ecoute { min-height: 48px; }
+}
