@@ -1,9 +1,11 @@
 // The bar menu: a right click (a long press on a touch screen, the context-menu
 // key or Shift+F10 from the keyboard) on a bar of the ruler (« Pistes ») or of
-// the chord chart opens it at that bar, with exactly the owner's two entries:
-// « Corriger un changement de tempo indésirable » and « Réanalyser le tempo à
-// partir de cette mesure », each with one calm line saying what it assumes;
-// and, on a bar where such an action starts, « Revenir à l'analyse ».
+// the chord chart opens it at that bar, with the owner's entries: « Corriger
+// un changement de tempo indésirable », « Réanalyser le tempo à partir de
+// cette mesure », « Correction de la courbe en tapant le tempo » (C12) and
+// « Changer la signature rythmique » (C13), each with one calm line saying
+// what it does; and, on a bar where a tempo action starts, « Revenir à
+// l'analyse ». The last two open a small window (`ui/barDialogs.ts`).
 // What they compute: `analysis/engine/tempoFix.ts`; how they are kept:
 // `store/tempoFixActions.ts`.
 
@@ -14,7 +16,9 @@ import { formatBarNumber } from '../grid/format';
 import { barStartTime, timeToBar } from '../grid/tempoMap';
 import { t } from '../i18n';
 import { useApp, type AppState } from '../store/store';
+import { canChangeMeterAt } from '../store/meterActions';
 import { tempoFixAt, undoTempoFix } from '../store/tempoFixActions';
+import { openMeterDialog, openTapFix } from '../ui/barDialogs';
 import { useOutsideClose } from '../ui/useOutsideClose';
 import { closeTempoMenu, tempoMenuStore } from '../ui/tempoMenu';
 import '../styles/tempoMenu.css';
@@ -87,6 +91,34 @@ export function TempoFixMenu() {
       <button className="option" role="menuitem" data-action="fresh" disabled={!enabled} onClick={() => run('fresh')}>
         <span>{t('tempoMenu.fresh')}</span>
         <small>{t('tempoMenu.freshHint')}</small>
+      </button>
+      <button
+        className="option"
+        role="menuitem"
+        data-action="tap"
+        disabled={!enabled}
+        onClick={() => {
+          const bar = at.bar;
+          closeTempoMenu();
+          openTapFix(bar);
+        }}
+      >
+        <span>{t('tempoMenu.tap')}</span>
+        <small>{t('tempoMenu.tapHint')}</small>
+      </button>
+      <button
+        className="option"
+        role="menuitem"
+        data-action="meter"
+        disabled={!canChangeMeterAt(at.bar)}
+        onClick={() => {
+          const bar = at.bar;
+          closeTempoMenu();
+          openMeterDialog(bar);
+        }}
+      >
+        <span>{t('tempoMenu.meter')}</span>
+        <small>{t('tempoMenu.meterHint')}</small>
       </button>
       {fix && (
         <button

@@ -26,6 +26,8 @@ import { SeparationPanelHost } from './SeparationPanel';
 import { StandardsMessage, useMessageStep } from './StandardsMessage';
 import { StorageNotice } from './StorageNotice';
 import { TopBar } from './TopBar';
+import { MeterDialog } from './MeterDialog';
+import { TapFixDialog } from './TapFixDialog';
 import { TempoFixMenu } from './TempoFixMenu';
 import { TracksView } from './TracksView';
 import { Transport } from './Transport';
@@ -71,6 +73,8 @@ export function App() {
       <LeaveProjectDialog />
       <ApplyWaiting />
       <TempoFixMenu />
+      <TapFixDialog />
+      <MeterDialog />
       {dragging && (
         <div className="depot" aria-hidden="true">
           <div>
