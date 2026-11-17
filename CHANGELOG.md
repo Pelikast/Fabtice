@@ -163,7 +163,7 @@ en français simple.
   plusieurs mesures, on boucle leurs prochaines occurrences. Pour corriger un
   accord, on passe par « Affichage complet ».
 - **Modulations** : un changement de tonalité qui dure est repéré. Il est
-  marqué sur la grille (« Ton : La♭ » au-dessus de la mesure), sur la règle des
+  marqué sur la grille (« Ton : A♭ » au-dessus de la mesure), sur la règle des
   mesures de « Pistes » et sur le papier. Les accords qui suivent s'écrivent
   dans la tonalité du passage, y compris un accord qui descend d'un demi-ton,
   écrit avec un bémol comme sur une grille de jazz. La tonalité affichée dans
