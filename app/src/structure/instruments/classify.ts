@@ -36,13 +36,15 @@ export async function readExcerpt(
   mono: Float32Array,
   sampleRate: number,
   run: WindowRunner,
-  options: { signal?: AbortSignal; rule?: DecisionRule } = {},
+  options: { signal?: AbortSignal; rule?: DecisionRule; pause?: () => Promise<unknown> } = {},
 ): Promise<ExcerptReading> {
   const windows = excerptWindows(mono, sampleRate);
   const each: GroupScores[] = [];
   for (const w of windows) {
     if (options.signal?.aborted) throw new DOMException('aborted', 'AbortError');
     each.push(groupScores(await run(w)));
+    // « Alléger le travail pour l'appareil »: a rest after each window (absent at full speed).
+    if (options.pause) await options.pause();
   }
   const scores = meanScores(each);
   return { guess: scores ? decide(scores, options.rule ?? DECISION) : null, scores, windows: each.length };
@@ -53,7 +55,7 @@ export async function classifyExcerpt(
   mono: Float32Array,
   sampleRate: number,
   run: WindowRunner,
-  options: { signal?: AbortSignal; rule?: DecisionRule } = {},
+  options: { signal?: AbortSignal; rule?: DecisionRule; pause?: () => Promise<unknown> } = {},
 ): Promise<InstrumentGuess | null> {
   return (await readExcerpt(mono, sampleRate, run, options)).guess;
 }

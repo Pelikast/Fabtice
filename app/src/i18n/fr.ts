@@ -42,6 +42,15 @@ export const fr = {
   'settingsWin.launch.last': 'Reprendre le dernier projet',
   'settingsWin.launch.new': 'Ouvrir la fenêtre « Nouveau projet »',
   'settingsWin.launch.note': 'Dans les deux cas, le dernier projet reste gardé sur cet appareil.',
+  // « Alléger le travail pour l'appareil » (stage 6, C2)
+  'ease.label': 'Alléger le travail pour l’appareil',
+  'ease.note': 'L’appareil travaille à {percent} % de ses capacités : il chauffe et souffle moins, mais le travail est plus long.',
+  'ease.noteBusy': 'Un calcul est en cours : ce réglage s’appliquera au prochain.',
+  'ease.slider.label': 'Part des capacités utilisée',
+  'ease.slider.value': '{percent} %',
+  'ease.slider.note':
+    'Quand « Alléger le travail pour l’appareil » est coché, l’appareil travaille à cette part de ses capacités, en moyenne : Fabtice fait une pause après chaque tranche de calcul. Sur une longue tranche (27 secondes sur un Mac Intel avec le meilleur outil de séparation, par exemple), le ventilateur montera quand même par moments.',
+  'ease.slider.inactive': 'La case « Alléger le travail pour l’appareil » est décochée : l’appareil travaille à pleine capacité. Vous la trouvez dans l’onglet « Général ».',
   'settingsWin.shortcuts.title': 'Raccourcis clavier',
   'settingsWin.shortcuts.play': 'Lecture, pause',
   'settingsWin.key.space': 'Espace',

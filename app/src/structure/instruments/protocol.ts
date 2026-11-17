@@ -11,6 +11,8 @@ export type ToInstrumentsWorker =
       sampleRate: number;
       /** Whether the model may be downloaded if it is not on the device yet. */
       download: boolean;
+      /** « Alléger le travail pour l'appareil »: the share of the time the worker may spend working (0.2…0.99), absent at full speed. */
+      loadShare?: number;
     }
   | { type: 'cancel'; id: number };
 

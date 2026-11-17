@@ -3,6 +3,7 @@
 // loaded on the first `start` (the page decides when: only when « Appliquer »
 // or an export is used).
 
+import { createSleeper, createThrottle, type Throttle } from '../../settings/easeLoad';
 import type { FromRenderWorker, StartMessage, ToRenderWorker } from './protocol';
 import { measureDelay, OfflineStretch, type RubberBandEngine } from './stretcher';
 
@@ -23,10 +24,15 @@ export class RenderJob {
   /** Messages are handled one at a time, in order (the first one waits for the engine to load). */
   private chain: Promise<void> = Promise.resolve();
   private dead = false;
+  /** « Alléger le travail pour l'appareil »: the rest after each block; null at full speed. */
+  private throttle: Throttle | null = null;
+  private readonly sleeper = createSleeper();
 
   constructor(
     private readonly loadEngine: () => Promise<RubberBandEngine>,
     private readonly post: Post,
+    /** The rest of « Alléger » (replaceable in tests). */
+    private readonly sleep?: (ms: number) => Promise<void>,
   ) {}
 
   receive(message: ToRenderWorker): void {
@@ -35,6 +41,7 @@ export class RenderJob {
 
   dispose(): void {
     this.dead = true;
+    this.sleeper.wake();
     this.stretch?.destroy();
     this.stretch = null;
   }
@@ -43,7 +50,11 @@ export class RenderJob {
     if (this.dead) return;
     try {
       if (m.type === 'start') await this.start(m);
-      else if (m.type === 'block') this.block(m.l, m.r);
+      else if (m.type === 'block') {
+        // At full speed `block` returns nothing and nothing is awaited: the same path as before.
+        const rest = this.block(m.l, m.r);
+        if (rest) await rest;
+      }
       else this.end();
     } catch (e) {
       this.stretch?.destroy();
@@ -77,15 +88,21 @@ export class RenderJob {
         this.post({ type: 'out', l: ol, r: or, n }, or ? [ol.buffer, or.buffer] : [ol.buffer]);
       },
     );
+    this.throttle = createThrottle({ share: m.loadShare ?? 1, sleep: this.sleep ?? this.sleeper.sleep });
     this.post({ type: 'ready', delay, ms: now() - t0 });
+    this.throttle?.mark();
   }
 
-  private block(l: Float32Array, r: Float32Array | undefined): void {
+  private block(l: Float32Array, r: Float32Array | undefined): Promise<unknown> | undefined {
     if (!this.stretch) throw new Error('block before start');
     const t0 = now();
+    this.throttle?.mark(); // the block's own work, not the wait for it to arrive
     this.stretch.push(l, r, l.length);
     this.computeMs += now() - t0;
     this.post({ type: 'ack' });
+    // « Alléger »: the rest, as long as the block took, scaled by the share. The next block waits in the queue; a
+    // cancellation ends the worker (`dispose`), which wakes the rest at once.
+    return this.throttle?.pause();
   }
 
   private end(): void {

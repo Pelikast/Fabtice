@@ -27,6 +27,8 @@ export interface StartMessage {
    * hard cut): the output they make is dropped, `preRoll / tempoRatio` frames of it.
    */
   preRoll: number;
+  /** « Alléger »: the share of the time the worker may spend working (0.2…0.99), absent at full speed. */
+  loadShare?: number;
 }
 
 export type ToRenderWorker =

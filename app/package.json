@@ -49,6 +49,7 @@
     "test:simplified": "node tests/simplified.mjs",
     "test:new-project": "node tests/new-project.mjs",
     "test:ease": "node tests/ease.mjs",
+    "measure:ease": "node tests/ease-measure.mjs",
     "test:update": "node tests/update.mjs",
     "captures": "vite build && node tests/captures.mjs",
     "essais": "vite build && node tests/essais.mjs"

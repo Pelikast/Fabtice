@@ -10,11 +10,13 @@ import { closeNewPiece, setImportStatus } from '../store/actions';
 import { useApp, type ImportStatus, type ReopenOffer } from '../store/store';
 import { CloseIcon } from '../ui/icons';
 import { estimateWait, useSeparationChoice } from '../separation/useChoice';
+import { useLoadShare } from '../settings/easeLoadShare';
 import { isSeparateTicked, reconcileStems, setSeparateOnImport } from '../separation/importChoice';
 import type { StemId } from '../model/separation';
 import { toggleImportStem } from '../store/separationActions';
 import { offeredStems, StemChips } from './SeparationPanel';
 import { useMessageStep } from './StandardsMessage';
+import { EaseLoadCheck } from './settings/EaseLoad';
 import { CheckRow } from './settings/parts';
 
 /**
@@ -288,13 +290,15 @@ const TYPICAL_PIECE_SECONDS = 240;
  * unticked). The selected instruments are separated once the piece has been imported and can play, in the
  * background; the estimate is honest (this device, a typical piece).
  *
- * Stage 6 (C2) adds « Alléger le travail pour l'appareil » here, right after this box.
+ * « Alléger le travail pour l'appareil » (stage 6, C2) comes right after this box, whatever the way in: it
+ * lightens the analysis as well as the separation, so it is offered even when nothing is ticked above.
  */
 function ImportStems() {
   const stems = useApp((s) => s.ui.importStems);
   const ticked = isSeparateTicked(stems);
   // The graphics chip is asked only once the box is ticked (the estimate depends on it).
   const choice = useSeparationChoice(ticked);
+  const share = useLoadShare();
   const offered = offeredStems(choice);
   const offeredKey = offered.join(',');
   // The tool in use may change once the device has been probed: the choice follows what it provides.
@@ -308,25 +312,30 @@ function ImportStems() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [offeredKey]);
   return (
-    <section className="stems-choix" aria-label={t('new.separate')}>
-      <CheckRow
-        checked={ticked}
-        onChange={(on) => setSeparateOnImport(on, offered)}
-        label={t('new.separate')}
-        note={choice ? t('new.separateNote') : t('new.stemsNone')}
-        disabled={!choice}
-        testId="separer-case"
-      />
-      {ticked && choice && (
-        <div className="stems-liste" data-testid="stems-liste">
-          <h3 id="stems-titre">{t('new.stemsTitle')}</h3>
-          <StemChips stems={offered} pressed={stems} onToggle={toggleImportStem} label={t('new.stemsTitle')} />
-          <p className="stems-note" data-testid="estimation-import">
-            {t('new.stemsEstimate', { time: estimateWait(choice, TYPICAL_PIECE_SECONDS) })} {stems.length < offered.length && t('new.stemsOthers')}
-          </p>
-        </div>
-      )}
-    </section>
+    <>
+      <section className="stems-choix" aria-label={t('new.separate')}>
+        <CheckRow
+          checked={ticked}
+          onChange={(on) => setSeparateOnImport(on, offered)}
+          label={t('new.separate')}
+          note={choice ? t('new.separateNote') : t('new.stemsNone')}
+          disabled={!choice}
+          testId="separer-case"
+        />
+        {ticked && choice && (
+          <div className="stems-liste" data-testid="stems-liste">
+            <h3 id="stems-titre">{t('new.stemsTitle')}</h3>
+            <StemChips stems={offered} pressed={stems} onToggle={toggleImportStem} label={t('new.stemsTitle')} />
+            <p className="stems-note" data-testid="estimation-import">
+              {t('new.stemsEstimate', { time: estimateWait(choice, TYPICAL_PIECE_SECONDS, share) })} {stems.length < offered.length && t('new.stemsOthers')}
+            </p>
+          </div>
+        )}
+      </section>
+      <section className="stems-choix alleger-choix" aria-label={t('ease.label')}>
+        <EaseLoadCheck testId="alleger-nouveau" />
+      </section>
+    </>
   );
 }
 

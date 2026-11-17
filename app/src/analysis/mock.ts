@@ -6,6 +6,7 @@
 // Grid and key hints are honoured as the real analyser must.
 
 import { tempoMapFromBeats } from '../grid/beats';
+import { stretchedSeconds } from '../settings/easeLoad';
 import type { ManualTempoFix, TappedFixRequest, TappedGrid } from './engine/tapGrid';
 import type { AnalysisResult } from '../model/analysis';
 import { demoSwingResult } from './fromDemoSwing';
@@ -81,7 +82,8 @@ export class MockAnalyzer implements Analyzer {
       let done = 0;
       for (const [step, share] of STEPS) {
         const from = done;
-        await this.walk(request, this.opts.durationMs * share, (f) => ({ step, fraction: base + (1 - base) * (from + share * f) }));
+        // « Alléger le travail pour l'appareil »: the work is spread over `1 / share` of the time.
+        await this.walk(request, stretchedSeconds(this.opts.durationMs, request.loadShare ?? 1) * share, (f) => ({ step, fraction: base + (1 - base) * (from + share * f) }));
         done += share;
       }
       if (this.opts.failWith) throw new AnalysisError(this.opts.failWith);

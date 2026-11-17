@@ -56,6 +56,8 @@ export interface SeparateMessage {
    * mid-run is checked for real. Never set for a user.
    */
   simulateGpuFailureAt?: number;
+  /** « Alléger »: the share of the device's capacity to use (0.2…0.99), absent at full speed. */
+  loadShare?: number;
 }
 
 export type ToWorker = SeparateMessage | { type: 'cancel' };

@@ -16,6 +16,7 @@
 // never changed behind their back (and a graphics failure keeps the tool).
 
 import type { SeparationBackend } from '../model/separation';
+import { stretchedSeconds } from '../settings/easeLoad';
 import type { DeviceProfile, ModelChoice, SeparationModelSpec } from './types';
 
 /** What `probeDevice` reads from the browser, kept raw so `assessDevice` stays pure. */
@@ -94,13 +95,14 @@ export function resolveModel(models: readonly SeparationModelSpec[], d: DevicePr
 
 /**
  * Honest estimate of the computation, in seconds, for `pieceSeconds` of audio
- * (download excluded). The processor speed of the list is for an 8-core
+ * (download excluded), lengthened by `1 / share` when « Alléger » is on. The processor speed of the list is for an 8-core
  * computer; fewer cores take proportionally longer (up to three times).
  */
-export function estimateSeconds(model: SeparationModelSpec, backend: SeparationBackend, d: DeviceProfile, pieceSeconds: number): number {
+export function estimateSeconds(model: SeparationModelSpec, backend: SeparationBackend, d: DeviceProfile, pieceSeconds: number, share = 1): number {
   const cpuFactor = Math.min(3, Math.max(1, 8 / d.cores));
   const factor = backend === 'gpu' && model.speed.gpu !== null ? model.speed.gpu : model.speed.cpu * cpuFactor;
-  return Math.max(5, pieceSeconds * factor);
+  // « Alléger le travail pour l'appareil »: the device works `share` of the time, so the wait is `1 / share` longer.
+  return stretchedSeconds(Math.max(5, pieceSeconds * factor), share);
 }
 
 type Nav = Navigator & { deviceMemory?: number; gpu?: { requestAdapter(o?: unknown): Promise<unknown> } };

@@ -16,6 +16,7 @@
 // without running the networks.
 
 import type { AnalysisResult } from '../model/analysis';
+import { isEased, stretchedSeconds } from '../settings/easeLoad';
 import { mixToMono } from './engine/resample';
 import type { NetworkOutputs } from './engine/pipeline';
 import { CHORD_MODEL_ID, modelsFor, type BeatModelChoice, type ChordModelChoice } from './models';
@@ -172,6 +173,7 @@ export class FabticeAnalyzer implements Analyzer {
           key: request.key ?? null,
           known: request.knownCharts ?? null,
           tempoFix: request.tempoFix ?? null,
+          ...(isEased(request.loadShare) ? { loadShare: request.loadShare } : {}),
         } satisfies AnalyseRequestMessage;
         transfer = [mono.buffer, ...stereo.map((c) => c.buffer)];
       }
@@ -236,7 +238,9 @@ export class FabticeAnalyzer implements Analyzer {
       let latest = 0;
       let download: AnalysisProgress['download'];
       let chordWindow: AnalysisProgress['chordWindow'];
-      const clock = createWindowClock(sessionWindowSeconds ?? DEFAULT_WINDOW_SECONDS);
+      // « Alléger »: the windows take 1 / share longer (the clock's prior is kept at full speed and scaled here).
+      const ease = isEased(request.loadShare) ? request.loadShare : 1;
+      const clock = createWindowClock(stretchedSeconds(sessionWindowSeconds ?? DEFAULT_WINDOW_SECONDS, ease));
       let windowsMeasured = false;
       const weights = request.chordModel === 'fine' ? FINE_STEP_WEIGHTS : STEP_WEIGHTS;
       const share = (s: AnalysisStep): [number, number] => {
@@ -258,7 +262,7 @@ export class FabticeAnalyzer implements Analyzer {
           f = clock.fraction(performance.now());
           chordWindow = { ...chordWindow, fraction: f };
         } else if (step === 'chords' && f === 0 && request.chordModel !== 'fine') {
-          const expected = Math.max(1, duration * CHORD_SECONDS_PER_SECOND);
+          const expected = stretchedSeconds(Math.max(1, duration * CHORD_SECONDS_PER_SECOND), ease);
           f = Math.min(0.95, 1 - Math.exp(-(performance.now() - stepStarted) / 1000 / expected));
         }
         latest = Math.max(latest, Math.min(1, base + weight * f));
@@ -309,7 +313,7 @@ export class FabticeAnalyzer implements Analyzer {
             break;
           case 'result':
             latest = 1;
-            if (windowsMeasured) sessionWindowSeconds = clock.windowSeconds();
+            if (windowsMeasured) sessionWindowSeconds = clock.windowSeconds() * ease;
             try {
               request.onProgress?.({ step: 'finish', fraction: 1 });
             } catch {

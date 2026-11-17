@@ -169,6 +169,57 @@ describe('FabticeAnalyzer', () => {
     await work;
   });
 
+  it('« Alléger »: tells the worker the share only when eased, and expects the chord network to take 1 / share longer', async () => {
+    const sent = async (loadShare?: number) => {
+      const { a, workers } = analyser();
+      const seen: AnalysisProgress[] = [];
+      const work = a.analyse(request({ loadShare, onProgress: (p) => seen.push(p) }));
+      await vi.advanceTimersByTimeAsync(0);
+      const w = workers[0]!;
+      const message = w.posted[0]!.message;
+      w.emit({ type: 'plan', downloadBytes: 0 });
+      w.emit({ type: 'step', step: 'chords' });
+      await vi.advanceTimersByTimeAsync(1500);
+      const f = seen.filter((p) => p.step === 'chords').at(-1)!.fraction;
+      finishWith(w);
+      await work;
+      return { message, f };
+    };
+    const plain = await sent();
+    const one = await sent(1);
+    const half = await sent(0.5);
+    expect('loadShare' in plain.message).toBe(false);
+    expect('loadShare' in one.message).toBe(false);
+    expect((half.message as { loadShare?: number }).loadShare).toBe(0.5);
+    // The steady progress of the chord step runs at half the pace (the expected duration is doubled).
+    expect(one.f).toBeCloseTo(plain.f, 9);
+    const base = STEP_WEIGHTS.prepare + STEP_WEIGHTS.tuning + STEP_WEIGHTS.beats;
+    expect(half.f - base).toBeLessThan((plain.f - base) * 0.75);
+    expect(half.f - base).toBeGreaterThan(0);
+  });
+
+  it('« Alléger »: the windows of the fine chord model are expected to take 1 / share longer before the first is measured', async () => {
+    const at = async (loadShare: number) => {
+      const { a, workers } = analyser();
+      const seen: AnalysisProgress[] = [];
+      const work = a.analyse(request({ chordModel: 'fine', loadShare, onProgress: (p) => seen.push(p) }));
+      await vi.advanceTimersByTimeAsync(0);
+      const w = workers[0]!;
+      w.emit({ type: 'plan', downloadBytes: 0 });
+      w.emit({ type: 'step', step: 'chords' });
+      w.emit({ type: 'progress', step: 'chords', fraction: 0, chordWindow: { done: 0, total: 4 } });
+      await vi.advanceTimersByTimeAsync(10_000);
+      const f = seen.filter((p) => p.chordWindow).at(-1)!.chordWindow!.fraction!;
+      finishWith(w);
+      await work;
+      return f;
+    };
+    const full = await at(1);
+    const half = await at(0.5);
+    expect(half).toBeLessThan(full * 0.65);
+    expect(half).toBeGreaterThan(0);
+  });
+
   it('moves steadily between the windows of the fine chord model, never back, never past the end of the step', async () => {
     const { a, workers } = analyser();
     const seen: AnalysisProgress[] = [];
