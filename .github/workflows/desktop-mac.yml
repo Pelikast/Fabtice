@@ -21,8 +21,10 @@ on:
       - 'CHANGELOG.md'
   workflow_dispatch:
 
+# Read only by default: the jobs that run third-party code (npm ci, the builds, the
+# tests) get a token that cannot write. Only publish and ci-logs write (below).
 permissions:
-  contents: write
+  contents: read
 
 # A run on main is never cancelled by a newer push (it may be publishing): the
 # newer one waits. Runs on other branches share one group and replace each other.
@@ -43,7 +45,10 @@ jobs:
     runs-on: macos-15
     timeout-minutes: 60
     steps:
+      # No step of this job pushes or calls gh: the token is not left in .git/config.
       - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-node@v6
         with:
@@ -269,7 +274,10 @@ jobs:
     runs-on: macos-15-intel
     timeout-minutes: 45
     steps:
+      # No step of this job pushes or calls gh: the token is not left in .git/config.
       - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-node@v6
         with:
@@ -360,6 +368,8 @@ jobs:
     if: success() && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v6
 
@@ -419,7 +429,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
+      # Reads only: git ls-remote of the public repository (no credentials needed) and
+      # gh api in reading with GH_TOKEN (contents: read). With a read-only token, GitHub
+      # does not list draft releases: a draft left behind is only seen by the real job.
       - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-node@v6
         with:
@@ -472,6 +487,8 @@ jobs:
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: write
     steps:
       - uses: actions/download-artifact@v7
         continue-on-error: true
