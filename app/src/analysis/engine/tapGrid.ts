@@ -82,8 +82,14 @@ export interface TapOptions {
    */
   tempoSpread: number;
   zHuber: number;
-  /** Weak attraction of each step's beat length to the local tapped tempo: `attract` × Huber(ln ratio, 0.25). */
-  attract: number;
+  /**
+   * Each step's beat length against the local tapped tempo (a median of about nine tap intervals,
+   * which lags a quick change: `localSpread` of the beat allowed), scored the same way; the change
+   * from the step before counts `chain` of that (two noisy steps compared with each other would
+   * read a tap that is merely late as a beat more or less).
+   */
+  localSpread: number;
+  chain: number;
   /** Cost of one forgotten tap (a beat filled between two taps). */
   miss: number;
   /** A filled beat where the network hears a beat costs this much less (logit clipped to ±4, scaled to ±1). */
@@ -101,6 +107,14 @@ export interface TapOptions {
   heldWhole: number;
   /** Reward of a bar line on a network downbeat (logit clipped to ±4, scaled to ±1), when the downbeats are informative. */
   downEvidence: number;
+  /**
+   * Reward of the bar phase the count leaves at the end when the network's downbeats over the
+   * `afterBars` bars after the passage agree with it (mean downbeat logit on the bar lines it
+   * implies against the other beats, clipped to ±4, scaled to ±1): there the network is usually
+   * right again, so a count one beat off in the passage shows.
+   */
+  endEvidence: number;
+  afterBars: number;
   /** Most taps dropped in a row. */
   maxSkip: number;
   /** Most tapped beats in one step (one more than the forgotten taps in a row). */
@@ -133,7 +147,8 @@ export interface TapOptions {
 export const TAP: TapOptions = {
   tempoSpread: 0.04,
   zHuber: 3,
-  attract: 1,
+  localSpread: 0.07,
+  chain: 0.3,
   miss: 1.7,
   beatEvidence: 1,
   extra: 2,
@@ -143,7 +158,9 @@ export const TAP: TapOptions = {
   heldRatio: 1.35,
   wholeTol: 0.25,
   heldWhole: 2.5,
-  downEvidence: 0.8,
+  downEvidence: 0.4,
+  endEvidence: 8,
+  afterBars: 8,
   maxSkip: 3,
   maxGap: 4,
   startBars: 2,
@@ -200,11 +217,6 @@ function median(values: readonly number[]): number {
 }
 
 const clip = (x: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, x));
-
-function huber(x: number, k: number): number {
-  const a = Math.abs(x);
-  return a <= k ? x * x : 2 * k * a - k * k;
-}
 
 /** Index of the beat of `times` at `t` (within 1 ms), or −1. */
 function indexAt(times: readonly number[], t: number): number {
@@ -321,21 +333,41 @@ export interface TapStep {
   prev: number;
   tap: number;
   beats: number;
-  /** The step is one held beat (a fermata). */
+  /** The step holds a held beat (a fermata): the whole step, or with `heldAt` its beat `heldAt` (1-based), the others forgotten taps at the beat before. */
   held: boolean;
+  heldAt?: number;
+  /** With `heldAt`: the beat length of the other beats of the step. */
+  regular?: number;
 }
 
-/** Local tapped beat length at each tap: median of the tap intervals around it (9), short ones (doubles) left out. */
+/**
+ * Local tapped beat length at each tap: the median of the tap intervals
+ * around it (ten), short ones (doubles) left out; then again with each
+ * interval divided by the number of beats it holds at that first estimate
+ * (forgotten taps), so that a run of them does not draw it.
+ */
 export function localPeriods(x: readonly number[]): number[] {
   const d = x.slice(1).map((t, i) => t - x[i]!);
   if (!d.length) return x.map(() => NaN);
   const all = median(d.filter((v) => v > MIN_GAP));
-  return x.map((_, j) => {
+  const around = (j: number) => {
     const w: number[] = [];
-    for (let i = Math.max(0, j - 5); i < Math.min(d.length, j + 5); i++) w.push(d[i]!);
+    for (let i = Math.max(0, j - 5); i < Math.min(d.length, j + 5); i++) w.push(i);
+    return w;
+  };
+  const first = x.map((_, j) => {
+    const w = around(j).map((i) => d[i]!);
     const m0 = median(w);
     const kept = w.filter((v) => v >= 0.55 * m0 && v >= 0.35 * all);
     return kept.length ? median(kept) : all;
+  });
+  return x.map((_, j) => {
+    const q = first[j]!;
+    const folded = around(j)
+      .map((i) => d[i]!)
+      .filter((v) => v >= 0.55 * q)
+      .map((v) => v / Math.max(1, Math.round(v / q)));
+    return folded.length ? median(folded) : q;
   });
 }
 
@@ -375,7 +407,20 @@ interface Node {
  * `level` grid beats per tapped beat; `m` beats per bar and `trust` the
  * worth of the network's downbeats (0: none); `sigma` the tapper's spread.
  */
-export function tapPath(x: readonly number[], from: number, P: number, delta: number, level: number, m: number, trust: number, ev: Evidence, sigma: number, o: TapOptions = TAP): TapStep[] {
+export function tapPath(
+  x: readonly number[],
+  from: number,
+  P: number,
+  delta: number,
+  level: number,
+  m: number,
+  trust: number,
+  ev: Evidence,
+  sigma: number,
+  o: TapOptions = TAP,
+  /** The beats after the passage (from the last tap on, the first one at it), to score the bar phase the count leaves. */
+  after: readonly number[] = [],
+): TapStep[] {
   const N = x.length;
   if (!N) return [];
   const r = localPeriods(x).map((v) => (Number.isFinite(v) ? v / level : P));
@@ -404,14 +449,24 @@ export function tapPath(x: readonly number[], from: number, P: number, delta: nu
     }
     return c;
   };
+  /** The same for beats at given times (the last one the tap), all forgotten taps but the last. */
+  const insideAt = (times: readonly number[], pos0: number) => {
+    let c = 0;
+    times.forEach((t, e) => {
+      const k = e + 1;
+      if (beta > 0 && (pos0 + k) % M === 0) c -= beta * downEv(t);
+      if (k < times.length) c += o.miss - o.beatEvidence * beatEv(t);
+    });
+    return c;
+  };
   /**
    * The change from a step of n1 beats of length q1 to one of n2 beats of length q2: their log ratio
    * against the noise the taps put in each (√2 σ over the step) and the tempo's own wandering.
    */
+  const loss = (z: number) => (z <= o.zHuber ? 0.5 * z * z : o.zHuber * z - 0.5 * o.zHuber * o.zHuber);
   const change = (q1: number, n1: number, noise1: number, q2: number, n2: number, noise2: number) => {
     const v = (noise1 / (n1 * q1)) ** 2 + (noise2 / (n2 * q2)) ** 2 + o.tempoSpread ** 2 * ((n1 + n2) / 2);
-    const z = Math.abs(Math.log(q2 / q1)) / Math.sqrt(v);
-    return z <= o.zHuber ? 0.5 * z * z : o.zHuber * z - 0.5 * o.zHuber * o.zHuber;
+    return o.chain * loss(Math.abs(Math.log(q2 / q1)) / Math.sqrt(v));
   };
   /** A held beat of length q after beats of length qref, from t0 to t1. */
   const heldCost = (q: number, qref: number, t0: number, t1: number) => {
@@ -423,7 +478,11 @@ export function tapPath(x: readonly number[], from: number, P: number, delta: nu
     return c;
   };
   const pair = Math.SQRT2 * sigma;
-  const attract = (q: number, j: number) => o.attract * huber(Math.log(q / r[j]!), 0.25);
+  /** The step ending at tap j, n beats of length q (its own noise `noise`), against the local tapped tempo there. */
+  const attract = (q: number, n: number, noise: number, j: number) => {
+    const v = (noise / (n * q)) ** 2 + o.localSpread ** 2;
+    return loss(Math.abs(Math.log(q / r[j]!)) / Math.sqrt(v));
+  };
   // From the chosen bar's start to the first kept tap (its tap stands alone: one tap's spread and the offset's).
   const single = Math.hypot(sigma, 0.03);
   const kmax = Math.max(1, o.startBars * m);
@@ -435,7 +494,7 @@ export function tapPath(x: readonly number[], from: number, P: number, delta: nu
       const q = d / n;
       if (q < MIN_GAP) break;
       const t1 = x[j]! - delta;
-      const base = skip + change(P, 4, 0, q, n, single) + attract(q, j) + o.lateStart * (n - 1) + inside(from, t1, n, 0, Number.POSITIVE_INFINITY);
+      const base = skip + change(P, 4, 0, q, n, single) + attract(q, n, single, j) + o.lateStart * (n - 1) + inside(from, t1, n, 0, Number.POSITIVE_INFINITY);
       put(j, { cost: base, q, n, held: false, pos: n % M, back: -1, step: { prev: -1, tap: j, beats: n, held: false } });
       if (n === level && q >= o.heldRatio * P) {
         put(j, { cost: skip + heldCost(q, P, from, t1) + inside(from, t1, n, 0, Number.POSITIVE_INFINITY), q, n, held: true, pos: n % M, back: -1, step: { prev: -1, tap: j, beats: n, held: true } });
@@ -459,22 +518,49 @@ export function tapPath(x: readonly number[], from: number, P: number, delta: nu
           if (q < MIN_GAP) break;
           const common = s.cost + skip + inside(t0, t1, n, s.pos, level);
           const back = a;
-          put(j, { cost: common + change(qref, nref, noiseRef, q, n, pair) + attract(q, j), q, n, held: false, pos: (s.pos + n) % M, back, step: { prev: i, tap: j, beats: n, held: false } });
+          put(j, { cost: common + change(qref, nref, noiseRef, q, n, pair) + attract(q, n, pair, j), q, n, held: false, pos: (s.pos + n) % M, back, step: { prev: i, tap: j, beats: n, held: false } });
           if (nt === 1 && q >= o.heldRatio * qref) {
             // A held beat: no change cost into it; the next step compares with the local tapped tempo.
             put(j, { cost: common + heldCost(q, qref, t0, t1), q, n, held: true, pos: (s.pos + n) % M, back, step: { prev: i, tap: j, beats: n, held: true } });
+          }
+          // A held beat and forgotten taps around it (a hesitation at the fermata): the other beats at the beat before.
+          const hl = d - (nt - 1) * qref;
+          if (level === 1 && nt >= 2 && hl >= o.heldRatio * qref) {
+            for (let at = 1; at <= nt; at++) {
+              const times: number[] = [];
+              let t = t0;
+              for (let k = 1; k <= nt; k++) times.push((t += k === at ? hl : qref));
+              const c = s.cost + skip + heldCost(hl, qref, t0 + (at - 1) * qref, t0 + (at - 1) * qref + hl) + insideAt(times, s.pos);
+              put(j, { cost: c, q: qref, n: nt - 1, held: true, pos: (s.pos + n) % M, back, step: { prev: i, tap: j, beats: n, held: true, heldAt: at, regular: qref } });
+            }
           }
         }
       }
     }
   }
+  // The bar phase the count leaves, against the network's downbeats after the passage.
+  const phaseScore = new Map<number, number>();
+  const endReward = (pos: number) => {
+    if (!(trust > 0) || after.length < 2 * m || M < 2) return 0;
+    let hit = phaseScore.get(pos);
+    if (hit === undefined) {
+      const on: number[] = [];
+      const off: number[] = [];
+      after.forEach((t, k) => ((pos + k) % M === 0 ? on : off).push(clip(ev.downAt(t), -4, 4)));
+      hit = on.length && off.length ? clip((median(on) - median(off)) / 4, -1, 1) : 0;
+      phaseScore.set(pos, hit);
+    }
+    return o.endEvidence * trust * hit;
+  };
   // The last tap ends the passage; it may be dropped too (a doubled last tap).
   let bj = -1;
   let ba = -1;
   let bc = Infinity;
   for (let j = N - 1; j >= Math.max(0, N - 1 - o.maxSkip); j--) {
     nodes[j]!.forEach((n, a) => {
-      const c = n.cost + (N - 1 - j) * o.extra;
+      // The beats after the passage are counted from the last tap: a dropped last tap shifts them by the beats it is away.
+      const shift = j === N - 1 ? 0 : Math.round((x[N - 1]! - x[j]!) / r[N - 1]!);
+      const c = n.cost + (N - 1 - j) * o.extra - endReward((n.pos + shift) % M);
       if (c < bc) {
         bc = c;
         bj = j;
@@ -513,6 +599,13 @@ export function pathBeats(x: readonly number[], from: number, delta: number, ste
     const t1 = x[s.tap]! - delta;
     if (s.beats === 0) {
       out[0]!.tap = s.tap;
+      continue;
+    }
+    if (s.heldAt !== undefined && s.regular !== undefined) {
+      // The held beat takes what the other beats leave (they are at the beat before).
+      const hl = t1 - t0 - (s.beats - 1) * s.regular;
+      let t = t0;
+      for (let k = 1; k <= s.beats; k++) out.push({ t: (t += k === s.heldAt ? hl : s.regular), tap: k === s.beats ? s.tap : null, heldBefore: k === s.heldAt });
       continue;
     }
     for (let k = 1; k <= s.beats; k++) out.push({ t: t0 + ((t1 - t0) * k) / s.beats, tap: k === s.beats ? s.tap : null, heldBefore: s.held });
@@ -821,7 +914,11 @@ export function applyTappedFix(act: BeatActivations | null, req: TappedFixReques
   const delta0 = offsetGuess(x, countIn, ev, t0, P, m, o);
   const trust = downbeatTrust(ev, grid, fromIdx);
   const sigma = tapSpread(x);
-  const steps = tapPath(x, t0, P, delta0, level, m, trust, ev, sigma, o);
+  // The beats right after the passage, followed at the tapped tempo there, for the bar phase the count leaves.
+  const lastTap = x[x.length - 1]! - delta0;
+  const qLast = (localPeriods(x)[x.length - 1] ?? P) / level;
+  const after = act && Number.isFinite(qLast) ? followBeats(act, lastTap, Math.min(ev.last, lastTap + o.afterBars * m * qLast), qLast) : [];
+  const steps = tapPath(x, t0, P, delta0, level, m, trust, ev, sigma, o, after);
   if (!steps.length) return none(true);
   const first = pathBeats(x, t0, delta0, steps);
   const placed = placeBeats(x, first, grid.times.slice(Math.max(0, fromIdx - 2), fromIdx), countIn, delta0, ev, o);
