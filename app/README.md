@@ -37,6 +37,7 @@ le stockage.
 | `npm run test:export-audio` | après `build` : « Exporter le son » avec les vrais encodeurs MP3 et FLAC (WAV, MP3, FLAC relus et comparés, archive, boucle, annulation, encodeur qui ne se charge pas, export à une autre tonalité et un autre tempo par le rendu), vitesses, captures du dialogue |
 | `npm run test:export-ableton` | après `build` : « Projet Ableton Live… » (C15.5) dans les deux formes sur le morceau de démonstration à +2 demi-tons et 90 % : l'entrée après « Dossier pour Logic Pro… », la fenêtre « à l'essai » (aucun texte coupé), le pourcentage, « Annuler », l'archive relue (dossier « … Project », pistes dans `Samples/Imported`, les deux `.als` décompressés et lus par l'analyseur XML de Python, leurs clips nommant des fichiers présents, chaque temps à moins d'une milliseconde sur la courbe de tempo de Live, le MIDI relu par `midi-file`, `Lisez-moi.txt`). Captures dans `FABTICE_CAPTURES` (par défaut `/tmp/fabtice-captures-D`), le dossier décompressé dans `FABTICE_ESSAIS` (par défaut `/tmp/fabtice-essais-D`) |
 | `npm run test:export-logic` | après `build` : « Dossier pour Logic Pro… » (C15.4) dans les deux formes (1280 × 800 à la souris, 390 × 844 au toucher) sur le morceau de démonstration à +2 demi-tons et 90 % : l'entrée du menu après « PDF… », la fenêtre, le pourcentage qui monte, « Annuler », l'archive .zip relue (un dossier, les Wave 48 kHz 16 bits de même longueur, le fichier MIDI relu par `midi-file` : chaque temps à moins d'une milliseconde, signatures, armure, marqueurs ; `Lisez-moi.txt`). Captures et archives dans `FABTICE_CAPTURES` (par défaut `/tmp/fabtice-captures-C`) |
+| `npm run essais -- <dossier>` | construit puis fabrique les **fichiers d'essai** des exports pour le propriétaire (vrai rendu) : dossier pour Logic Pro, chaque format audio, projet Ableton s'il existe, et un `LISEZ-MOI.txt` ; voir « Étape 3 de la 1.0.0 : exports » |
 | `npm run test:export-memory` | après `build`, au premier plan : la mémoire de l'export de sept pistes de cinq minutes (archive de WAV, de MP3, mélange en WAV, FLAC et MP3), chiffres affichés |
 | `npm run test:metronome` | après `build` (lot 4) : le panneau du métronome (volume, décompte, mesure et regroupement, temps forts et faibles, accélération), ce qui arrive au moteur factice (piste de clics, volume, plan, décompte au moment de Lecture), le palier et le décompte affichés, le panneau dans la fenêtre à 1280 × 800, 960 × 640 et 390 × 844, puis les réglages retrouvés après rechargement (profil persistant). `FABTICE_METRONOME_OUT` pour les captures |
 | `npm run test:markers` | après `build` (lot 4) : boucles gardées (garder, rappeler, renommer, ordonner, supprimer), sections (les lettres de la grille : listées, bouclées, ajoutées, renommées, supprimées, les mêmes dans la grille d'accords), la rangée « Repères » de la règle (clic), le clavier, le téléphone, puis tout retrouvé après rechargement (profil persistant). `FABTICE_MARKERS_OUT` pour les captures |
@@ -1415,7 +1416,28 @@ ferait doublon.
 
 ## Contrats pour la suite
 
-### Étape 3 de la 1.0.0 : « Dossier pour Logic Pro… » (C15.4)
+### Étape 3 de la 1.0.0 : exports
+
+**Fichiers d'essai pour le propriétaire.** `npm run essais -- /un/dossier/hors/du/depot`
+(construit l'interface puis lance `tests/essais.mjs`, Chromium, **vrai** moteur de
+rendu Rubber Band et vrais encodeurs ; une dizaine de minutes ; le dossier doit
+être hors du dépôt). Le morceau de démonstration (quatre instruments, tempo qui
+varie de 107 à 113, accords, sections A B A) reçoit une mesure en 3/4 (mesure 12,
+`setMeterForBar`) et une modulation (section B en Mi♭ majeur, retour en La♭).
+Deux variantes, « 1 - Tonalité et tempo d'origine » et « 2 - Plus 2 demi-tons,
+tempo 90 % », avec chacune :
+- `Logic Pro/` : le « Dossier pour Logic Pro » décompressé (comme l'app Mac l'écrit) et son `.zip` ;
+- `Audio/` : depuis la fenêtre « Audio… », le mélange en Wave 48 kHz 16 bits,
+  Wave 96 kHz 24 bits, Flac, MP3 320 et MP3 128, et l'archive des pistes (décompressée à côté) ;
+- `Ableton Live/` : « Projet Ableton Live… » si le menu a cette entrée (première
+  fenêtre ouverte, son bouton principal, puis le lien de téléchargement) ; sinon
+  sauté, et dit dans la sortie et dans `LISEZ-MOI.txt`.
+
+À la racine, `LISEZ-MOI.txt` dit au propriétaire quoi ouvrir dans Logic 13 et
+quoi regarder en premier. Chaque fichier audio est relu par `ffprobe` quand il
+est installé (format, fréquence, quantification, débit, durée, affichés).
+
+#### « Dossier pour Logic Pro… » (C15.4)
 
 La recherche sur ce que Logic lit d'un fichier MIDI, le mode d'emploi en trois
 gestes et les choix du fichier sont dans `src/export/midi/LOGIC.md`.

@@ -47,6 +47,7 @@ import * as actions from '../store/actions';
 import * as gridMetronome from '../grid/metronome';
 import { barStartTime, beatToTime, constantTempoMap, variableTempoMap } from '../grid/tempoMap';
 import * as markerActions from '../store/markerActions';
+import * as keyActions from '../store/keyActions';
 import * as meterActions from '../store/meterActions';
 import * as metronomeActions from '../store/metronomeActions';
 import * as analysisActions from '../store/analysisActions';
@@ -83,7 +84,7 @@ declare global {
   }
 }
 
-export const lot2Actions = { analysis: analysisActions, grid: gridActions, harmony: harmonyActions, meter: meterActions };
+export const lot2Actions = { analysis: analysisActions, grid: gridActions, harmony: harmonyActions, meter: meterActions, key: keyActions };
 
 /** Lot 4 handles for the browser checks (`?demo`, `?debug`). */
 export const lot4Handle = {
