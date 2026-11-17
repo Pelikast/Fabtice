@@ -18,6 +18,8 @@ import {
 } from './geometry';
 import { columnPeaks, type PeakPyramid } from './peaks';
 import { RULER_ROW_HEIGHT } from './layout';
+import { layoutMeterMarks, numberLeftAfter, SIGNATURE_FONT, type MeterMarkSet } from './meterMarks';
+import type { MeterChangeView } from '../store/meterActions';
 
 export interface Colors {
   papier: string;
@@ -215,6 +217,10 @@ export interface RulerParams extends ViewFrame {
   mesuresTop: number;
   /** Source times where a manual tempo action starts: a small brass mark on the bar line. */
   tempoFixes?: readonly Seconds[];
+  /** The signatures of the piece (`selectMeterChanges`), written where they change once there is more than one. */
+  meters?: readonly MeterChangeView[];
+  /** Receives what was written (`meters`, for the browser checks); reused from frame to frame. */
+  meterMarks?: MeterMarkSet;
 }
 
 export function drawRuler(ctx: CanvasRenderingContext2D, p: RulerParams): void {
@@ -404,6 +410,25 @@ function drawBarsRow(ctx: CanvasRenderingContext2D, p: RulerParams): void {
   const inLoop = (bar: number) => covered !== null && bar >= covered.first && bar <= covered.last;
   const lineInLoop = (bar: number) => covered !== null && bar <= covered.last && (bar > covered.first || (bar === covered.first && covered.from === 0));
 
+  // The signatures first (their figures need their own font), so that the bar numbers can make room for them.
+  const marks = p.meterMarks && p.meters && p.meters.length > 1 ? p.meterMarks : null;
+  if (p.meterMarks && !marks) p.meterMarks.count = 0;
+  if (marks) {
+    ctx.font = SIGNATURE_FONT;
+    layoutMeterMarks(marks, map, p.meters!, t0, pps, w, (text) => ctx.measureText(text).width);
+    ctx.fillStyle = p.colors.encre;
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'center';
+    for (let i = 0; i < marks.count; i++) {
+      const m = marks.items[i]!;
+      const cx = m.x + m.width / 2;
+      ctx.fillText(String(m.numerator), cx, top + 7);
+      ctx.fillText(String(m.denominator), cx, top + h - 7);
+    }
+    ctx.textAlign = 'left';
+  }
+  let mark = 0;
+
   ctx.font = RULER_FONT;
   ctx.textBaseline = 'middle';
   for (const { bar, time } of bars) {
@@ -418,7 +443,14 @@ function drawBarsRow(ctx: CanvasRenderingContext2D, p: RulerParams): void {
     const text = String(barNumber(bar));
     const width = ctx.measureText(text).width;
     let tx = x + 9;
-    if (tx < 4) {
+    while (marks && mark < marks.count && marks.items[mark]!.bar < bar) mark++;
+    if (marks && mark < marks.count && marks.items[mark]!.bar === bar) {
+      // A signature is written in this bar: the number goes after it, or is left out when there is no room.
+      const m = marks.items[mark]!;
+      tx = numberLeftAfter(m);
+      const room = (barStartTime(map, bar + labelStride) - t0) * pps;
+      if (room - tx < width + 8) continue;
+    } else if (tx < 4) {
       // The bar started off to the left: its number stays in view while the bar does.
       const end = (barStartTime(map, bar + labelStride) - t0) * pps;
       tx = 4;
