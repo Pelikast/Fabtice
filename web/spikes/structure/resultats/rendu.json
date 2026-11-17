@@ -4,91 +4,91 @@
   "cases": 35,
   "counts": {
    "chorusLength": [
-    0,
+    24,
     29
    ],
    "chorusP": [
-    0,
-    0
+    138,
+    156
    ],
    "chorusR": [
-    0,
+    138,
     145
    ],
    "sectionP": [
-    0,
-    0
+    419,
+    432
    ],
    "sectionR": [
-    0,
+    419,
     452
    ],
    "sectionF": [
-    0,
+    31.635416666666664,
     35
    ],
    "sectionPairs": [
-    0,
+    31.082086983938265,
     35
    ],
    "formExact": [
-    0,
+    23,
     29
    ],
    "introExact": [
-    0,
+    27,
     35
    ],
    "outroExact": [
-    0,
+    30,
     35
    ],
    "mode": [
-    0,
+    35,
     35
    ],
    "partP": [
-    0,
-    0
+    200,
+    239
    ],
    "partR": [
-    0,
+    200,
     223
    ],
    "partF": [
-    0,
+    30.78369296607283,
     35
    ],
    "partType": [
-    0,
+    175,
     188
    ],
    "partNumber": [
-    0,
+    141,
     188
    ],
    "longSolo": [
-    0,
+    11,
     18
    ],
    "soloSplit": [
-    0,
+    35,
     45
    ],
    "instStem": [
-    0,
+    65,
     77
    ],
    "instWindExact": [
-    0,
+    50,
     89
    ],
    "instWindUnsure": [
-    0,
+    12,
     89
    ],
    "instWrong": [
-    0,
+    11,
     166
    ],
    "instNamedNoStems": [
@@ -124,31 +124,31 @@
     1
    ],
    "simpChord": [
-    0,
+    2174,
     2804
    ],
    "simpSections": [
-    0,
+    33,
     34
    ],
    "simpTimes": [
-    0,
+    91,
     95
    ],
    "simpPlaces": [
-    0,
+    3924,
     3959
    ],
    "chainChord": [
-    0,
+    1670,
     2804
    ],
    "chainSections": [
-    0,
+    25,
     34
    ],
    "chainPlaces": [
-    0,
+    2996,
     3959
    ],
    "autumnChart": [
@@ -166,91 +166,91 @@
   "cases": 35,
   "counts": {
    "chorusLength": [
-    0,
+    27,
     29
    ],
    "chorusP": [
-    0,
-    0
+    128,
+    138
    ],
    "chorusR": [
-    0,
+    128,
     145
    ],
    "sectionP": [
-    0,
-    0
+    403,
+    422
    ],
    "sectionR": [
-    0,
+    403,
     452
    ],
    "sectionF": [
-    0,
+    30.24702380952381,
     35
    ],
    "sectionPairs": [
-    0,
+    30.704603151040633,
     35
    ],
    "formExact": [
-    0,
+    27,
     29
    ],
    "introExact": [
-    0,
+    26,
     35
    ],
    "outroExact": [
-    0,
+    25,
     35
    ],
    "mode": [
-    0,
+    35,
     35
    ],
    "partP": [
-    0,
-    0
+    196,
+    237
    ],
    "partR": [
-    0,
+    196,
     223
    ],
    "partF": [
-    0,
+    30.21104339342326,
     35
    ],
    "partType": [
-    0,
+    164,
     188
    ],
    "partNumber": [
-    0,
+    135,
     188
    ],
    "longSolo": [
-    0,
+    11,
     18
    ],
    "soloSplit": [
-    0,
+    34,
     45
    ],
    "instStem": [
-    0,
+    64,
     77
    ],
    "instWindExact": [
-    0,
+    47,
     89
    ],
    "instWindUnsure": [
-    0,
+    10,
     89
    ],
    "instWrong": [
-    0,
+    10,
     166
    ],
    "instNamedNoStems": [
@@ -286,31 +286,31 @@
     1
    ],
    "simpChord": [
-    0,
+    2275,
     2804
    ],
    "simpSections": [
-    0,
+    33,
     34
    ],
    "simpTimes": [
-    0,
+    91,
     95
    ],
    "simpPlaces": [
-    0,
+    3924,
     3959
    ],
    "chainChord": [
-    0,
+    1669,
     2804
    ],
    "chainSections": [
-    0,
+    27,
     34
    ],
    "chainPlaces": [
-    0,
+    2616,
     3959
    ],
    "autumnChart": [
@@ -328,75 +328,75 @@
   "cases": 35,
   "counts": {
    "chorusLength": [
-    0,
+    24,
     29
    ],
    "chorusP": [
-    0,
-    0
+    129,
+    157
    ],
    "chorusR": [
-    0,
+    129,
     145
    ],
    "sectionP": [
-    0,
-    0
+    400,
+    433
    ],
    "sectionR": [
-    0,
+    400,
     452
    ],
    "sectionF": [
-    0,
+    29.635416666666668,
     35
    ],
    "sectionPairs": [
-    0,
+    30.861030027152424,
     35
    ],
    "formExact": [
-    0,
+    23,
     29
    ],
    "introExact": [
-    0,
+    24,
     35
    ],
    "outroExact": [
-    0,
+    29,
     35
    ],
    "mode": [
-    0,
+    35,
     35
    ],
    "partP": [
-    0,
-    0
+    147,
+    174
    ],
    "partR": [
-    0,
+    147,
     223
    ],
    "partF": [
-    0,
+    25.50751633986928,
     35
    ],
    "partType": [
-    0,
+    154,
     188
    ],
    "partNumber": [
-    0,
+    115,
     188
    ],
    "longSolo": [
-    0,
+    16,
     18
    ],
    "soloSplit": [
-    0,
+    8,
     45
    ],
    "instStem": [
@@ -417,7 +417,7 @@
    ],
    "instNamedNoStems": [
     0,
-    0
+    139
    ],
    "modP": [
     0,
@@ -448,31 +448,31 @@
     1
    ],
    "simpChord": [
-    0,
+    2174,
     2804
    ],
    "simpSections": [
-    0,
+    33,
     34
    ],
    "simpTimes": [
-    0,
+    91,
     95
    ],
    "simpPlaces": [
-    0,
+    3924,
     3959
    ],
    "chainChord": [
-    0,
+    1548,
     2804
    ],
    "chainSections": [
-    0,
+    24,
     34
    ],
    "chainPlaces": [
-    0,
+    2478,
     3959
    ],
    "autumnChart": [
@@ -490,75 +490,75 @@
   "cases": 35,
   "counts": {
    "chorusLength": [
-    0,
+    27,
     29
    ],
    "chorusP": [
-    0,
-    0
+    128,
+    138
    ],
    "chorusR": [
-    0,
+    128,
     145
    ],
    "sectionP": [
-    0,
-    0
+    403,
+    422
    ],
    "sectionR": [
-    0,
+    403,
     452
    ],
    "sectionF": [
-    0,
+    30.24702380952381,
     35
    ],
    "sectionPairs": [
-    0,
+    30.6120087899667,
     35
    ],
    "formExact": [
-    0,
+    27,
     29
    ],
    "introExact": [
-    0,
+    27,
     35
    ],
    "outroExact": [
-    0,
+    25,
     35
    ],
    "mode": [
-    0,
+    35,
     35
    ],
    "partP": [
-    0,
-    0
+    156,
+    179
    ],
    "partR": [
-    0,
+    156,
     223
    ],
    "partF": [
-    0,
+    26.96942110177404,
     35
    ],
    "partType": [
-    0,
+    150,
     188
    ],
    "partNumber": [
-    0,
+    113,
     188
    ],
    "longSolo": [
-    0,
+    15,
     18
    ],
    "soloSplit": [
-    0,
+    10,
     45
    ],
    "instStem": [
@@ -579,7 +579,7 @@
    ],
    "instNamedNoStems": [
     0,
-    0
+    144
    ],
    "modP": [
     0,
@@ -610,31 +610,31 @@
     1
    ],
    "simpChord": [
-    0,
+    2275,
     2804
    ],
    "simpSections": [
-    0,
+    33,
     34
    ],
    "simpTimes": [
-    0,
+    91,
     95
    ],
    "simpPlaces": [
-    0,
+    3924,
     3959
    ],
    "chainChord": [
-    0,
+    1673,
     2804
    ],
    "chainSections": [
-    0,
+    27,
     34
    ],
    "chainPlaces": [
-    0,
+    2459,
     3959
    ],
    "autumnChart": [
@@ -652,91 +652,91 @@
   "cases": 9,
   "counts": {
    "chorusLength": [
-    0,
+    6,
     8
    ],
    "chorusP": [
-    0,
-    0
+    25,
+    46
    ],
    "chorusR": [
-    0,
+    25,
     39
    ],
    "sectionP": [
-    0,
-    0
+    98,
+    120
    ],
    "sectionR": [
-    0,
+    98,
     134
    ],
    "sectionF": [
-    0,
+    6.78628389154705,
     9
    ],
    "sectionPairs": [
-    0,
+    7.686980940604844,
     9
    ],
    "formExact": [
-    0,
+    5,
     8
    ],
    "introExact": [
-    0,
+    5,
     9
    ],
    "outroExact": [
-    0,
+    5,
     9
    ],
    "mode": [
-    0,
+    9,
     9
    ],
    "partP": [
-    0,
-    0
+    44,
+    77
    ],
    "partR": [
-    0,
+    44,
     59
    ],
    "partF": [
-    0,
+    6.436787621226982,
     9
    ],
    "partType": [
-    0,
+    40,
     50
    ],
    "partNumber": [
-    0,
+    31,
     50
    ],
    "longSolo": [
-    0,
+    2,
     4
    ],
    "soloSplit": [
-    0,
+    9,
     11
    ],
    "instStem": [
-    0,
+    19,
     20
    ],
    "instWindExact": [
-    0,
+    11,
     22
    ],
    "instWindUnsure": [
-    0,
+    7,
     22
    ],
    "instWrong": [
-    0,
+    2,
     42
    ],
    "instNamedNoStems": [
@@ -772,31 +772,31 @@
     0
    ],
    "simpChord": [
-    0,
+    572,
     912
    ],
    "simpSections": [
-    0,
+    7,
     9
    ],
    "simpTimes": [
-    0,
+    24,
     31
    ],
    "simpPlaces": [
-    0,
+    1108,
     1170
    ],
    "chainChord": [
-    0,
+    346,
     912
    ],
    "chainSections": [
-    0,
+    5,
     9
    ],
    "chainPlaces": [
-    0,
+    618,
     1170
    ],
    "autumnChart": [
@@ -814,91 +814,91 @@
   "cases": 9,
   "counts": {
    "chorusLength": [
-    0,
+    6,
     8
    ],
    "chorusP": [
-    0,
-    0
+    26,
+    46
    ],
    "chorusR": [
-    0,
+    26,
     39
    ],
    "sectionP": [
-    0,
-    0
+    100,
+    120
    ],
    "sectionR": [
-    0,
+    100,
     134
    ],
    "sectionF": [
-    0,
+    6.952950558213716,
     9
    ],
    "sectionPairs": [
-    0,
+    8.018932468145087,
     9
    ],
    "formExact": [
-    0,
+    6,
     8
    ],
    "introExact": [
-    0,
+    5,
     9
    ],
    "outroExact": [
-    0,
+    5,
     9
    ],
    "mode": [
-    0,
+    9,
     9
    ],
    "partP": [
-    0,
-    0
+    44,
+    76
    ],
    "partR": [
-    0,
+    44,
     59
    ],
    "partF": [
-    0,
+    6.491732676172036,
     9
    ],
    "partType": [
-    0,
+    41,
     50
    ],
    "partNumber": [
-    0,
+    32,
     50
    ],
    "longSolo": [
-    0,
+    2,
     4
    ],
    "soloSplit": [
-    0,
+    9,
     11
    ],
    "instStem": [
-    0,
+    19,
     20
    ],
    "instWindExact": [
-    0,
+    11,
     22
    ],
    "instWindUnsure": [
-    0,
+    7,
     22
    ],
    "instWrong": [
-    0,
+    2,
     42
    ],
    "instNamedNoStems": [
@@ -934,31 +934,31 @@
     0
    ],
    "simpChord": [
-    0,
+    594,
     912
    ],
    "simpSections": [
-    0,
+    7,
     9
    ],
    "simpTimes": [
-    0,
+    24,
     31
    ],
    "simpPlaces": [
-    0,
+    1108,
     1170
    ],
    "chainChord": [
-    0,
+    428,
     912
    ],
    "chainSections": [
-    0,
+    6,
     9
    ],
    "chainPlaces": [
-    0,
+    746,
     1170
    ],
    "autumnChart": [
@@ -976,75 +976,75 @@
   "cases": 9,
   "counts": {
    "chorusLength": [
-    0,
+    6,
     8
    ],
    "chorusP": [
-    0,
-    0
+    21,
+    46
    ],
    "chorusR": [
-    0,
+    21,
     39
    ],
    "sectionP": [
-    0,
-    0
+    85,
+    120
    ],
    "sectionR": [
-    0,
+    85,
     134
    ],
    "sectionF": [
-    0,
+    5.686283891547049,
     9
    ],
    "sectionPairs": [
-    0,
+    7.448530749183803,
     9
    ],
    "formExact": [
-    0,
+    5,
     8
    ],
    "introExact": [
-    0,
+    3,
     9
    ],
    "outroExact": [
-    0,
+    5,
     9
    ],
    "mode": [
-    0,
+    9,
     9
    ],
    "partP": [
-    0,
-    0
+    28,
+    50
    ],
    "partR": [
-    0,
+    28,
     59
    ],
    "partF": [
-    0,
+    4.907248307248308,
     9
    ],
    "partType": [
-    0,
+    40,
     50
    ],
    "partNumber": [
-    0,
+    29,
     50
    ],
    "longSolo": [
-    0,
+    3,
     4
    ],
    "soloSplit": [
-    0,
+    1,
     11
    ],
    "instStem": [
@@ -1065,7 +1065,7 @@
    ],
    "instNamedNoStems": [
     0,
-    0
+    41
    ],
    "modP": [
     0,
@@ -1096,31 +1096,31 @@
     0
    ],
    "simpChord": [
-    0,
+    572,
     912
    ],
    "simpSections": [
-    0,
+    7,
     9
    ],
    "simpTimes": [
-    0,
+    24,
     31
    ],
    "simpPlaces": [
-    0,
+    1108,
     1170
    ],
    "chainChord": [
-    0,
+    272,
     912
    ],
    "chainSections": [
-    0,
+    4,
     9
    ],
    "chainPlaces": [
-    0,
+    372,
     1170
    ],
    "autumnChart": [
@@ -1138,75 +1138,75 @@
   "cases": 9,
   "counts": {
    "chorusLength": [
-    0,
+    6,
     8
    ],
    "chorusP": [
-    0,
-    0
+    26,
+    46
    ],
    "chorusR": [
-    0,
+    26,
     39
    ],
    "sectionP": [
-    0,
-    0
+    100,
+    120
    ],
    "sectionR": [
-    0,
+    100,
     134
    ],
    "sectionF": [
-    0,
+    6.952950558213716,
     9
    ],
    "sectionPairs": [
-    0,
+    7.9620029558305685,
     9
    ],
    "formExact": [
-    0,
+    6,
     8
    ],
    "introExact": [
-    0,
+    5,
     9
    ],
    "outroExact": [
-    0,
+    5,
     9
    ],
    "mode": [
-    0,
+    9,
     9
    ],
    "partP": [
-    0,
-    0
+    34,
+    50
    ],
    "partR": [
-    0,
+    34,
     59
    ],
    "partF": [
-    0,
+    5.921167721167721,
     9
    ],
    "partType": [
-    0,
+    41,
     50
    ],
    "partNumber": [
-    0,
+    31,
     50
    ],
    "longSolo": [
-    0,
+    3,
     4
    ],
    "soloSplit": [
-    0,
+    3,
     11
    ],
    "instStem": [
@@ -1227,7 +1227,7 @@
    ],
    "instNamedNoStems": [
     0,
-    0
+    41
    ],
    "modP": [
     0,
@@ -1258,31 +1258,31 @@
     0
    ],
    "simpChord": [
-    0,
+    594,
     912
    ],
    "simpSections": [
-    0,
+    7,
     9
    ],
    "simpTimes": [
-    0,
+    24,
     31
    ],
    "simpPlaces": [
-    0,
+    1108,
     1170
    ],
    "chainChord": [
-    0,
+    398,
     912
    ],
    "chainSections": [
-    0,
+    6,
     9
    ],
    "chainPlaces": [
-    0,
+    671,
     1170
    ],
    "autumnChart": [
