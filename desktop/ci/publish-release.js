@@ -26,7 +26,9 @@
 //            files uploaded to it, checked (names, sizes, and the two zips and the version file downloaded
 //            back: their SHA-256 equal to the version file's);
 //         5. the draft published: not a prerelease, marked latest; GitHub creates the tag vV on the commit
-//            at that moment. Then checked: the latest release is vV, the tag is on the commit.
+//            at that moment. Then checked: the latest release is vV, the tag is on the commit, and the real
+//            update chain (ci/update-chain.js, the app's own code and host list): the address the installed
+//            apps read gives vV, and each chip's .zip is reached through allowed hosts only.
 //       Anything that fails in 4 deletes the draft (only while it is still a draft) and exits 1: no tag was
 //       created, nothing is visible. A check that fails after 5 exits 1 and leaves the published version.
 //       --dry-run does 1 to 3 for real (they only read, and write in a temporary folder) and prints the
@@ -44,6 +46,8 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { parseVersion, compareVersions } = require('../src/update-version');
+const { ALLOWED_HOSTS, VERSION_FILE_URL } = require('../src/update-net');
+const { checkUpdateChain } = require('./update-chain');
 
 const ROOT = process.env.FABTICE_RELEASE_ROOT ? path.resolve(process.env.FABTICE_RELEASE_ROOT) : path.join(__dirname, '..', '..');
 const DESKTOP = path.join(ROOT, 'desktop');
@@ -230,7 +234,7 @@ function check() {
   return result;
 }
 
-function publish({ assetsDir, dryRun, outDir }) {
+async function publish({ assetsDir, dryRun, outDir }) {
   const gh = process.env.FABTICE_GH || 'gh';
   const remote = process.env.FABTICE_RELEASE_REMOTE || 'origin';
   const repo = process.env.GITHUB_REPOSITORY || 'pelikast/fabtice';
@@ -317,6 +321,7 @@ function publish({ assetsDir, dryRun, outDir }) {
       ['git', 'ls-remote', '--tags', remote, `refs/tags/${tag}`],
     ];
     for (const s of steps) log(`  ${s.map(quote).join(' ')}`);
+    log(`  puis la chaîne de mise à jour, avec le code de l’app : ${VERSION_FILE_URL} doit donner ${version}, et les deux .zip doivent se joindre par les hôtes permis (${ALLOWED_HOSTS.join(', ')})`);
     log('  (en cas d’échec avant la publication : ' + `${gh} api -X DELETE repos/${repo}/releases/<id>, seulement tant que c’est un brouillon)`);
     if (preparation) log(preparation.message);
     log(`ESSAI À BLANC TERMINÉ : la version ${tag} serait publiée${preparation ? ' (sauf les notes « En préparation », voir ci-dessus)' : ''}.`);
@@ -377,12 +382,25 @@ function publish({ assetsDir, dryRun, outDir }) {
   const tagNow = run('git', ['ls-remote', '--tags', remote, `refs/tags/${tag}`], { allowFail: true }).stdout.trim().split(/\s+/)[0];
   if (tagNow !== sha) problems.push(`l’étiquette ${tag} est sur ${tagNow || 'rien'}, pas sur ${sha}`);
   for (const p of problems) log(`ATTENTION après publication : ${p}`);
-  if (problems.length) return 1;
-  log(`Vérifié : ${tag} est la dernière version, son étiquette est sur ${sha}.`);
-  return 0;
+  if (!problems.length) log(`Vérifié : ${tag} est la dernière version, son étiquette est sur ${sha}.`);
+
+  // The real chain of the update, as an installed app walks it (same code, same host list).
+  log(`Chaîne de mise à jour (code de l’app, hôtes permis : ${ALLOWED_HOSTS.join(', ')}) :`);
+  const chain = await checkUpdateChain({ version, log });
+  if (chain.ok) {
+    log(`Vérifié : ${VERSION_FILE_URL} donne ${version} ; les .zip se joignent par ${Object.entries(chain.hosts).map(([arch, host]) => `${host} (${arch})`).join(', ')}.`);
+  } else if (chain.host) {
+    log(`ERREUR après publication : HÔTE HORS LISTE. ${chain.message}.`);
+    log(`La version ${tag} reste publiée (ne pas la supprimer), mais les apps installées ne pourront pas se mettre à jour d’elles-mêmes vers elle.`);
+    log(`À faire : ajouter « ${chain.host} » à ALLOWED_HOSTS dans desktop/src/update-net.js (et à la liste de desktop/README.md), puis publier un correctif : nouveau numéro dans app/package.json et desktop/package.json, sa section en tête de CHANGELOG.md, push sur main. Les apps déjà installées avec l’ancienne liste devront être mises à jour à la main (page de la version).`);
+  } else {
+    log(`ERREUR après publication : la chaîne de mise à jour ne répond pas comme prévu : ${chain.message}.`);
+    log(`La version ${tag} reste publiée (ne pas la supprimer). À faire : dans quelques minutes, ouvrir ${VERSION_FILE_URL} dans un navigateur : il doit donner « "version": "${version}" ». Si oui, GitHub était seulement lent : rien d’autre à faire. Sinon, regarder la page des versions (${tag} doit être « Latest ») et ce journal.`);
+  }
+  return problems.length || !chain.ok ? 1 : 0;
 }
 
-function main(argv) {
+async function main(argv) {
   const [command, ...rest] = argv;
   const opt = (name) => {
     const i = rest.indexOf(name);
@@ -391,7 +409,7 @@ function main(argv) {
   try {
     if (command === 'check') return check().version ? 0 : 1;
     if (command === 'publish' && opt('--assets')) {
-      return publish({
+      return await publish({
         assetsDir: path.resolve(opt('--assets')),
         dryRun: rest.includes('--dry-run'),
         outDir: path.resolve(opt('--out') || fs.mkdtempSync(path.join(process.env.RUNNER_TEMP || os.tmpdir(), 'fabtice-release-'))),
@@ -405,6 +423,10 @@ function main(argv) {
   }
 }
 
-if (require.main === module) process.exitCode = main(process.argv.slice(2));
+if (require.main === module) {
+  main(process.argv.slice(2)).then((code) => {
+    process.exitCode = code;
+  });
+}
 
 module.exports = { checkVersion, preparationVerdict, newestPublished, publishedState, releaseNotes, assetList, checkUploaded, main, ASSETS };

@@ -16,6 +16,7 @@ const { checkVersion, preparationVerdict, newestPublished, publishedState, relea
 const DESKTOP = path.join(__dirname, '..', '..');
 const ROOT = path.join(DESKTOP, '..');
 const SCRIPT = path.join(DESKTOP, 'ci', 'publish-release.js');
+const FAKE_FETCH = path.join(__dirname, 'fake-fetch.js'); // the network of the script: GitHub as the fake gh left it
 const VERSION = JSON.parse(fs.readFileSync(path.join(DESKTOP, 'package.json'), 'utf8')).version;
 const TAG = `v${VERSION}`;
 
@@ -160,8 +161,10 @@ function setup({ releases = [], tagged = false, corrupt, failUpload, changelog }
     delete env.FABTICE_RELEASE_ROOT;
     delete env.GITHUB_REF; // the unit tests also run in GitHub Actions, on any branch
     if (root) env.FABTICE_RELEASE_ROOT = root;
+    delete env.FAKE_FETCH_HOST;
+    delete env.FAKE_FETCH_ZIP_HOST;
     Object.assign(env, more);
-    const r = spawnSync(process.execPath, [SCRIPT, 'publish', '--assets', assets, '--out', path.join(dir, 'out'), ...extra], { env, encoding: 'utf8' });
+    const r = spawnSync(process.execPath, ['--require', FAKE_FETCH, SCRIPT, 'publish', '--assets', assets, '--out', path.join(dir, 'out'), ...extra], { env, encoding: 'utf8' });
     return { code: r.status, out: r.stdout + r.stderr };
   };
   const runScript = Object.assign(runScriptWith({}), { withEnv: runScriptWith });
@@ -279,6 +282,16 @@ test('publication: draft, five files, read back, then published and latest, with
   assert.equal(s.tagOf(), `${s.sha}\trefs/tags/${TAG}`);
   assert.match(r.out, /PUBLIÉE/);
   assert.match(r.out, /est la dernière version/);
+  // The real chain of the update, walked with the app's code: the version file of « latest », then both zips.
+  assert.match(r.out, new RegExp(`Vérifié : https://github\\.com/pelikast/fabtice/releases/latest/download/fabtice-version\\.json donne ${VERSION.replace(/\./g, '\\.')}`));
+  assert.deepEqual(st.fetched, [
+    'GET https://github.com/pelikast/fabtice/releases/latest/download/fabtice-version.json',
+    'GET https://objects.githubusercontent.com/store/pelikast/fabtice/releases/latest/download/fabtice-version.json',
+    `GET https://github.com/pelikast/fabtice/releases/download/${TAG}/Fabtice-mac-apple-silicon.zip`,
+    `GET https://objects.githubusercontent.com/store/pelikast/fabtice/releases/download/${TAG}/Fabtice-mac-apple-silicon.zip`,
+    `GET https://github.com/pelikast/fabtice/releases/download/${TAG}/Fabtice-mac-intel.zip`,
+    `GET https://objects.githubusercontent.com/store/pelikast/fabtice/releases/download/${TAG}/Fabtice-mac-intel.zip`,
+  ]);
   // The prerelease of before is not touched.
   assert.deepEqual(st.releases.find((x) => x.tag_name === 'desktop-dev'), { id: 1, tag_name: 'desktop-dev', draft: false, prerelease: true, assets: [] });
 
@@ -287,6 +300,25 @@ test('publication: draft, five files, read back, then published and latest, with
   assert.equal(again.code, 0, again.out);
   assert.match(again.out, /RIEN À PUBLIER/);
   assert.equal(writes(s.state().calls).length, 3);
+});
+
+test('after the publication, a redirect to a host outside the app’s list: failure that says what to do; the version stays published', (t) => {
+  for (const more of [{ FAKE_FETCH_ZIP_HOST: 'evil.example.com' }, { FAKE_FETCH_HOST: 'storage.example.net' }]) {
+    const s = setup();
+    t.after(s.cleanup);
+    const r = s.runScript.withEnv(more)();
+    assert.equal(r.code, 1, r.out);
+    assert.match(r.out, /PUBLIÉE/);
+    const host = Object.values(more)[0];
+    assert.match(r.out, new RegExp(`HÔTE HORS LISTE\\. .*« ${host.replace(/\./g, '\\.')} »`));
+    assert.match(r.out, new RegExp(`La version ${TAG.replace(/\./g, '\\.')} reste publiée`));
+    assert.match(r.out, new RegExp(`ajouter « ${host.replace(/\./g, '\\.')} » à ALLOWED_HOSTS dans desktop/src/update-net\\.js`));
+    assert.equal((r.out.match(/essai \d\/\d/g) || []).length, 1, 'a host outside the list is not tried again');
+    const st = s.state();
+    assert.ok(!st.calls.some((c) => c.includes('DELETE')), 'never deleted');
+    assert.equal(st.releases.find((x) => x.tag_name === TAG).draft, false);
+    assert.ok(!st.fetched.some((u) => new URL(u.split(' ')[1]).hostname === host), 'the refused host is never asked');
+  }
 });
 
 test('a file read back different, or an upload that fails: the draft is deleted, no tag, failure', (t) => {

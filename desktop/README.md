@@ -232,8 +232,11 @@ première adresse est toujours là), et les hôtes où GitHub range les fichiers
 des versions : `objects.githubusercontent.com` (relevé le 17 novembre 2026)
 et `release-assets.githubusercontent.com` (utilisé par GitHub en 2025). Rien
 d’autre. La fabrication relève à chaque passage l’hôte de la redirection du
-jour (étape « GitHub release redirect host », `ci/release-host.js`) : si
-GitHub en change, l’ajouter à `ALLOWED_HOSTS` avant une version.
+jour (étape « GitHub release redirect host », `ci/release-host.js`, qui écrit
+« HÔTE HORS LISTE » et un avertissement quand un saut est refusé, sans
+bloquer) : si GitHub en change, l’ajouter à `ALLOWED_HOSTS` avant une
+version. Après chaque publication, `ci/publish-release.js` refait le chemin
+réel de la nouvelle version et finit en rouge si un hôte est refusé.
 
 ### Le remplacement, pas à pas
 
@@ -782,7 +785,17 @@ fabrique rien), et à la main (« Run workflow ») sur n’importe quelle branch
    6. le brouillon est **publié** : pas une préversion, marqué « dernière
       version » (`latest`). C’est à ce moment que GitHub crée l’étiquette
       `vV` sur le commit. Le script vérifie ensuite que la dernière version
-      selon GitHub est bien `vV` et que l’étiquette est sur le commit.
+      selon GitHub est bien `vV` et que l’étiquette est sur le commit, puis
+      la **vraie chaîne de mise à jour**, avec le code même de l’app
+      (`ci/update-chain.js` : `src/update-net.js` et `src/update-version.js`) :
+      l’adresse que lisent les apps installées
+      (`…/releases/latest/download/fabtice-version.json`) doit donner `V`, et
+      l’adresse du `.zip` de chaque puce doit se joindre par les hôtes permis
+      seulement (redirections suivies, le fichier n’est pas téléchargé).
+      Quelques essais espacés de 10 s (GitHub peut tarder) ; un hôte hors
+      liste arrête tout de suite, en rouge, avec « HÔTE HORS LISTE » et quoi
+      faire (la version reste publiée : ajouter l’hôte à `ALLOWED_HOSTS`, puis
+      publier un correctif).
 
    Un échec aux étapes 4 et 5 supprime le brouillon (seulement s’il est
    encore brouillon) et met la tâche en rouge : rien ne s’est vu, aucune
@@ -835,8 +848,11 @@ node ci/publish-release.js publish --dry-run --assets <dossier des quatre fichie
 
 (`gh` absent ou non connecté : seule l’étiquette est vérifiée.) Les tests
 unitaires essaient le script entier avec un faux `gh` (`test/unit/fake-gh.js`)
-et un dépôt local à la place de GitHub : déjà publié, brouillon resté,
-publication complète, fichier relu différent, envoi qui échoue.
+et un dépôt local à la place de GitHub (`fetch` remplacé par
+`test/unit/fake-fetch.js`) : déjà publié, brouillon resté, étiquette sans
+version, numéro plus petit, notes « En préparation », publication complète,
+fichier relu différent, envoi qui échoue, redirection vers un hôte hors
+liste après publication.
 
 ### Listes distantes : rester lisible par les versions installées
 

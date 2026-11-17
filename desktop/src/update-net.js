@@ -64,6 +64,7 @@ class NetError extends Error {
   constructor(code, detail) {
     super(detail ? `${code}: ${detail}` : code);
     this.code = code;
+    this.detail = detail;
     this.status = undefined;
   }
 }
@@ -266,8 +267,10 @@ module.exports = {
   ALLOWED_HOSTS,
   MAX_REDIRECTS,
   TEST_ORIGIN_ENV,
+  NetError,
   checkUrl,
   testOrigin,
+  getFollowing,
   fetchVersionFile,
   downloadArchive,
   sha256File,
