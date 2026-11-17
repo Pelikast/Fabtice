@@ -243,7 +243,7 @@ describe('the commands of the column, and undo', () => {
   });
 });
 
-describe('the simplified chart, until its renderer lands', () => {
+describe('the simplified chart', () => {
   it('builds what the function reads from the state in force', () => {
     const input = selectSimplifyInput(get());
     expect(input.bars.length).toBe(selectChartBars(get()).length);
@@ -259,9 +259,12 @@ describe('the simplified chart, until its renderer lands', () => {
     expect(selectSimplifyInput(get())).toBe(input);
   });
 
-  it('is null while the function finds nothing, and the same answer is kept', () => {
-    expect(selectSimplifiedChart(get())).toBeNull();
-    expect(selectSimplifiedChart(get())).toBeNull();
+  it('writes every played bar once, and the same answer is kept', () => {
+    const chart = selectSimplifiedChart(get());
+    expect(chart).not.toBeNull();
+    expect(chart!.bars.length).toBeGreaterThan(0);
+    for (const bar of chart!.bars) expect(bar.played.length).toBeGreaterThan(0);
+    expect(selectSimplifiedChart(get())).toBe(chart);
   });
 
   it('reads the parts and letters in force: hand corrections come through', () => {
