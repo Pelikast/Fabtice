@@ -110,7 +110,7 @@ test('the Mac app downloads the chart collections itself: bridge rules, then the
     const result = (await page.locator('[data-testid="grilles-bilan"]').innerText()).replace(/\s+/g, ' ');
     // Jazz 21 + Latin 20 + Blues 20 (official page) + Brazilian 20 (attached file) = 81 in 4 collections of the 15 of the list;
     // Dixieland: a login page, and the others are on no page of the fake internet: they can be tried again in the settings.
-    assert.equal(result, '4 recueils sur 15 téléchargés : 81 grilles gardées sur cet appareil. Les autres se retentent dans Réglages → Avancé.', result);
+    assert.equal(result, '4 recueils sur 15 téléchargés : 81 grilles gardées sur cet appareil. Les autres peuvent être réessayés dans Réglages → Avancé.', result);
 
     // The shared official page was fetched once for the three collections it holds.
     const officialHits = net.seen.filter((s) => s.url === OFFICIAL).length;

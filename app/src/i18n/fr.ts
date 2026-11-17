@@ -552,7 +552,7 @@ export const fr = {
   'print.emptyHint': 'Laissez l’analyse se terminer, ou écrivez des accords, puis revenez ici.',
   'print.print': 'Imprimer',
   'print.savePdf': 'Enregistrer en PDF',
-  'print.browserPdf': 'Dans la fenêtre d’impression de votre navigateur, choisissez « Enregistrer au format PDF » à la place de l’imprimante.',
+  'print.browserPdf': 'Dans la fenêtre d’impression de votre navigateur, choisissez « Enregistrer au format PDF » à la place de l’imprimante.',
   'print.saved': 'Le PDF est enregistré.',
   'print.failed': 'La grille n’a pas pu être imprimée. Vous pouvez réessayer.',
 
@@ -886,7 +886,7 @@ export const fr = {
   'standards.report.kept.one': '{n} recueil sur {total} téléchargé : {tunes} grilles gardées sur cet appareil.',
   'standards.report.kept.other': '{n} recueils sur {total} téléchargés : {tunes} grilles gardées sur cet appareil.',
   'standards.report.others': 'Les autres',
-  'standards.report.retry': 'se retentent dans Réglages → Avancé',
+  'standards.report.retry': 'peuvent être réessayés dans Réglages → Avancé',
   'standards.report.fileOrMac': 'se téléchargent dans l’app Mac ou s’importent par fichier',
   'standards.report.or': ' ; ',
   'standards.report.none': 'Aucune grille n’a pu être téléchargée. Vous pourrez réessayer dans Réglages → Avancé.',

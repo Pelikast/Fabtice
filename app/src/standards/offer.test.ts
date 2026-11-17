@@ -219,7 +219,7 @@ describe('« Tout télécharger »', () => {
     expect(Math.max(...seen)).toBe(100);
     expect((await standardsStatus(store)).collections.map((c) => c.id).sort()).toEqual(['jazz', 'trad']);
     expect(run.report).toMatchObject({ failed: 2, added: 2, keptListed: 2, listed: 4, fileOnly: 0 });
-    expect(reportText(run.report)).toBe('2 recueils sur 4 téléchargés : 15 grilles gardées sur cet appareil. Les autres se retentent dans Réglages → Avancé.');
+    expect(reportText(run.report)).toBe('2 recueils sur 4 téléchargés : 15 grilles gardées sur cet appareil. Les autres peuvent être réessayés dans Réglages → Avancé.');
   });
 
   it('web: says honestly that the others come with the Mac app or a file', async () => {

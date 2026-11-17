@@ -197,7 +197,7 @@ async function screens(viewport, tag) {
     await waitOpen(page);
     await sleep(300);
     const sentence = await page.locator('[data-testid="lien-app-mac"]').innerText();
-    check(`${tag}: from a link, on the web: only the sentence that sends to the Mac app`, sentence.includes('app Mac') && (await page.getByRole('button', { name: 'Choisir un fichier audio' }).count()) === 0 && (await page.locator(BOX).count()) === 0 && (await page.locator('.champ').count()) === 0);
+    check(`${tag}: from a link, on the web: the sentence that sends to the Mac app, and the file it tells to choose (no link field)`, sentence.includes('app Mac') && (await page.getByRole('button', { name: 'Choisir un fichier audio' }).count()) === 1 && (await page.locator(BOX).count()) === 1 && (await page.locator('.champ').count()) === 0);
     await shot(page, `4-menu-lien-web-${tag}`);
     check(`${tag}: no page errors (menu)`, errors.length === 0, errors.join(' | '));
     await context.close();

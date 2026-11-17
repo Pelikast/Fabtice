@@ -479,7 +479,7 @@ try {
     if (form.touch) await openDialog(page);
     else await page.click('[data-testid="imprimer-grille"]');
     await page.waitForSelector(DIALOG);
-    check(`${tag}: in a browser, the window says that « Enregistrer au format PDF » is in its print window`, (await page.locator(DIALOG).innerText()).includes('choisissez « Enregistrer au format PDF »'));
+    check(`${tag}: in a browser, the window says that « Enregistrer au format PDF » is in its print window`, (await page.locator(DIALOG).innerText()).replace(/\s+/g, ' ').includes('choisissez « Enregistrer au format PDF »'));
     await page.evaluate(() => (window.__printed.length = 0));
     await press(page, form, '[data-testid="impression-pdf"]');
     await page.waitForFunction(() => window.__printed.length === 1, null, { timeout: 5000 });

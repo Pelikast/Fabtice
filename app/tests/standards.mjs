@@ -216,7 +216,7 @@ async function messagePaths(viewport, tag) {
     const result = await text(page.locator('[data-testid="grilles-bilan"]'));
     note(`${tag} result: ${result}`);
     // Jazz 21 + Blues 20 + Pop 20 + Country 20; Latin: a login page. The others: not readable from a web page.
-    check(`${tag}: one simple sentence: how many collections out of how many, how many charts, what to do with the others`, result === `4 recueils sur ${LISTED} téléchargés : 81 grilles gardées sur cet appareil. Les autres se retentent dans Réglages → Avancé ; se téléchargent dans l’app Mac ou s’importent par fichier.`, result);
+    check(`${tag}: one simple sentence: how many collections out of how many, how many charts, what to do with the others`, result === `4 recueils sur ${LISTED} téléchargés : 81 grilles gardées sur cet appareil. Les autres peuvent être réessayés dans Réglages → Avancé ; se téléchargent dans l’app Mac ou s’importent par fichier.`, result);
     check(`${tag}: no page of an irealpro.com site was requested from the web app`, !seen.some((s) => /irealpro|irealb/.test(s)), seen.join(', '));
     await shot(page, `3-bilan-${tag}`);
     await press(page, page.getByRole('button', { name: 'Terminer' }));
@@ -361,7 +361,7 @@ try {
     await press(page, page.locator('[data-testid="standards-tout"]'));
     await page.waitForSelector('[data-testid="standards-resultat"]', { timeout: 20000 });
     const all = await text(page.locator('[data-testid="standards-resultat"]'));
-    check(`${tag}: « Tout télécharger » says what was kept, what failed and what needs the Mac app or a file`, all.startsWith(`4 recueils sur ${LISTED} téléchargés`) && all.includes('se retentent dans Réglages → Avancé'), all);
+    check(`${tag}: « Tout télécharger » says what was kept, what failed and what needs the Mac app or a file`, all.startsWith(`4 recueils sur ${LISTED} téléchargés`) && all.includes('peuvent être réessayés dans Réglages → Avancé'), all);
     await press(page, page.locator('[data-testid="standards-resultat-ok"]'));
     check(`${tag}: the list shows what is kept, with the date`, (await page.locator('[data-garde="oui"]').count()) === 4 && (await text(page.locator('[data-id="jazz-1460"]'))).includes('21 grilles') && /gardé le/.test(await text(page.locator('[data-id="jazz-1460"]'))));
 

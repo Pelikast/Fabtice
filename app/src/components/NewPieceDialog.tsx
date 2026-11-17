@@ -224,6 +224,10 @@ function Choices({ open, desktop }: { open: boolean; desktop: boolean }) {
           <p className="accueil-avis" role="status" data-testid="lien-app-mac">
             {t('menu.linkOnMac')}
           </p>
+          {fileButton}
+          {fileInput}
+          <ImportStems />
+          {formatsLine}
         </>
       );
     }
