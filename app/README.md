@@ -1498,6 +1498,14 @@ en cœurs ; « relative » = contre la même chose décochée) :
 | 75 % | 2,15 (0,77, ×1,07) | 2,26 (0,76, ×1,23, 2 fils) |
 | 50 % | 1,42 (0,51, ×1,40) | 1,68 (0,56, ×1,60, 2 fils) |
 
+Avec le **modèle d'accords détaillé** (« Automatique » le choisit sur un ordinateur
+d'au moins 8 Go ; `FABTICE_EASE_CHORDS=fine`, `FABTICE_EASE_ONLY=analysis`,
+`FABTICE_EASE_SECONDS=90`), la même machine donne pour l'analyse : décochée 3,59
+cœurs (110,5 s pour 90 s de musique), 75 % : 2,78 (relative 0,77, durée ×1,09),
+50 % : 1,69 (relative 0,47, durée ×1,79). Le premier usage reste clair : le
+panneau de l'analyse montre « n sur 85 Mo », Hugging Face et la licence de chaque
+outil, Tsumugi-Chords compris (CC BY-NC 4.0, usage non commercial).
+
 Avec la première règle (fils réduits, pause calculée en croyant la charge
 proportionnelle aux fils), l'analyse donnait 0,86 à 75 % et 0,73 à 50 %
 (la réduction de 4 à 3 fils ne retirait que 14 % de la charge) et la séparation
