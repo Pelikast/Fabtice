@@ -58,3 +58,6 @@
 @media (max-width: 760px) {
   :root { --tete: 92px; }
 }
+
+/* Selected text (a number picked on opening a small window, a title being edited): brass, never the system blue. */
+::selection { background: rgba(184, 135, 58, 0.38); color: var(--encre); }

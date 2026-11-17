@@ -46,6 +46,7 @@
 .metro-tete .lien { min-height: 32px; font-size: 13.5px; }
 .metro-ligne { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 40px; }
 .metro-ligne > span { font-size: 14px; font-weight: 500; color: var(--encre); }
+.metro-ligne + .metro-ligne { margin-top: 6px; }
 .metro-ligne input[type="range"] { flex: 1; max-width: 170px; height: 32px; }
 .metro-ligne select {
   height: 36px;
