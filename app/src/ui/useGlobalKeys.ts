@@ -13,9 +13,35 @@ function keepsSpace(target: EventTarget | null): boolean {
   return false;
 }
 
+/** What puts a window in front of the piece, whatever it is: an open dialog or alert, a menu. Panels and notices are not modal: `windowOpen` asks where the key is pressed for them. */
+const WINDOWS = '[role="dialog"][aria-modal="true"], [role="alertdialog"], [role="menu"]';
+
+/** A control that does something on Space: a button, a box, a switch. */
+const ACTIVATED_BY_SPACE = 'button, summary, input[type="checkbox"], input[type="radio"], input[type="button"], input[type="submit"], input[type="reset"], [role="button"], [role="switch"], [role="checkbox"], [role="radio"], [role="tab"], [role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"]';
+
+/** Windows that are in the page but not on screen (the opening window while it is closed keeps its place). */
+function shown(el: Element): boolean {
+  return !el.closest('[aria-hidden="true"], [hidden]');
+}
+
 /**
- * Space toggles playback (also when a button has the focus: the button is not
- * pressed), Escape closes the open panel, then the dialog. The shortcuts of the
+ * « A window is open »: the one notion every Space shortcut asks. True when a dialog, an alert or a menu is on
+ * screen (the windows of the app, its menus, the bar menu, the sheet of the menu on a phone), or when `target`
+ * is a button or a box in a panel or a notice (the small panels of the tool bars, the storage notice), which
+ * are not modal. Read from the page, so a window added tomorrow is counted without being listed here.
+ */
+export function windowOpen(target: EventTarget | null = null): boolean {
+  if (typeof document === 'undefined') return false;
+  for (const el of document.querySelectorAll(WINDOWS)) if (shown(el)) return true;
+  if (!(target instanceof Element)) return false;
+  return target.closest('[role="dialog"], .avis-stockage') !== null && target.closest(ACTIVATED_BY_SPACE) !== null;
+}
+
+/**
+ * Space toggles playback (also when a toolbar button has the focus: the button is not
+ * pressed) unless a window is open (`windowOpen`): then it does what the focused control normally
+ * does (presses the button, ticks the box) and never starts the playback behind the window.
+ * Escape closes the open panel, then the dialog. The shortcuts of the
  * commands (cmd + Z, S, O, P, « , »; Ctrl elsewhere) are `ui/commandKeys.ts`.
  */
 export function useGlobalKeys(): void {
@@ -29,7 +55,7 @@ export function useGlobalKeys(): void {
         return;
       }
       if (e.code !== 'Space' && e.key !== ' ') return;
-      if (e.altKey || e.ctrlKey || e.metaKey || keepsSpace(e.target)) return;
+      if (e.altKey || e.ctrlKey || e.metaKey || keepsSpace(e.target) || windowOpen(e.target)) return;
       const s = appStore.getState();
       if (s.ui.newPieceOpen || !s.project) return;
       e.preventDefault();
@@ -37,7 +63,7 @@ export function useGlobalKeys(): void {
     };
     // A focused button would also "click" on keyup: swallow that.
     const onKeyUp = (e: KeyboardEvent) => {
-      if ((e.code === 'Space' || e.key === ' ') && !keepsSpace(e.target) && e.target instanceof HTMLButtonElement) {
+      if ((e.code === 'Space' || e.key === ' ') && !keepsSpace(e.target) && !windowOpen(e.target) && e.target instanceof HTMLButtonElement) {
         const s = appStore.getState();
         if (!s.ui.newPieceOpen && s.project) e.preventDefault();
       }

@@ -144,11 +144,11 @@ try {
     // The menu from the ruler.
     await menuAt(page, BAR);
     const entries = await page.locator('[data-testid="menu-tempo"] [role="menuitem"] > span').allInnerTexts();
-    check('right click on bar 5 of the ruler: the menu with exactly the two entries', entries.join(' | ') === 'Corriger un changement de tempo indésirable | Réanalyser le tempo à partir de cette mesure', entries.join(' | '));
+    check('right click on bar 5 of the ruler: the menu with exactly the four entries', entries.join(' | ') === 'Corriger un changement de tempo indésirable | Réanalyser le tempo à partir de cette mesure | Correction de la courbe en tapant le tempo | Changer la signature rythmique', entries.join(' | '));
     const label = await page.locator('[data-testid="menu-tempo"] .libelle').innerText();
     check('the menu is for bar 5', label.includes('5'), label);
     const hints = await page.locator('[data-testid="menu-tempo"] .option small').allInnerTexts();
-    check('one line of explanation under each entry', hints.length === 2 && hints.every((h) => h.length > 20));
+    check('one line of explanation under each entry', hints.length === 4 && hints.every((h) => h.length > 20));
     const inWindow = await page.evaluate(() => {
       const r = document.querySelector('[data-testid="menu-tempo"]').getBoundingClientRect();
       return r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight;
