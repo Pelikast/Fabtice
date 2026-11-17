@@ -139,18 +139,34 @@ Ce que la version 6 ajoute au document, tout à l'intérieur de `analysis` et de
 
 | Champ | Contenu | Valeur d'un document plus ancien |
 |---|---|---|
-| `analysis.keyChanges` | les modulations trouvées par l'analyse (position en secondes de l'enregistrement, tonalité) ; la tonalité avant la première reste `analysis.key` | `[]` |
-| `analysis.structure` | la structure trouvée : mode (`jazz`, `pop`), forme globale (« AABC »), lettres de section, parties (`model/structure.ts`) | `null` |
+| `analysis.keyChanges` | les modulations trouvées par l'analyse (position en secondes de l'enregistrement, tonalité, confiance), croissantes et toutes après la position 0 ; la tonalité avant la première reste `analysis.key`. Remplie par la passe d'harmonie (`structure/refresh.ts`) | `[]` |
+| `analysis.structure` | la structure trouvée : mode (`jazz`, `pop`), forme globale (« AABC », `''` si inconnue), lettres de section (position, lettre), parties (`id`, type, numéro, instrument, début, fin ; croissantes, sans chevauchement). Remplie par la passe d'harmonie ; `null` tant qu'elle n'a rien dit (ou si « Structure automatique du morceau » est décoché) | `null` |
 | `analysis.version` | le résultat d'analyse passe à sa version 2 ; un résultat de version 1 est **gardé** (accords compris) et reçoit les deux champs ci-dessus | `1` → `2` |
-| `corrections.keyChanges` | les modulations voulues par l'utilisateur, ou `null` pour suivre l'analyse ; la tonalité principale reste `corrections.key` | `null` |
-| `corrections.structure` | la structure corrigée à la main : mode (`auto`, `jazz`, `pop`), parties, passages réécrits, lettres éditées à la main | mode `auto`, rien d'autre |
+| `corrections.keyChanges` | les modulations voulues par l'utilisateur, ou `null` pour suivre l'analyse ; dès qu'il en touche une, c'est **toute** la liste qui devient la sienne (même vide) ; la tonalité principale reste `corrections.key` | `null` |
+| `corrections.structure` | la structure corrigée à la main : `mode` (`auto`, `jazz`, `pop`), `parts` (parties écrites ou corrigées à la main), `spans` (étendues dont les parties sont celles de l'utilisateur : les parties détectées qui y commencent sont cachées ; une étendue sans partie veut dire « pas de partie ici »), `lettersByHand` (les lettres de `corrections.sections` sont alors la liste entière en vigueur, même vide) | mode `auto`, `parts` et `spans` vides, `lettersByHand` faux |
 | `corrections.tempoFixes[].kind` | une troisième sorte, `tapped` (« Correction de la courbe en tapant le tempo »), avec les tapes (`taps`, en secondes) et la fin du passage tapé (`end`) | — |
 | `tempoMap.meters[].meter` | signature de 1 à 64 temps, sur 4, 8, 16 ou 32 (`model/tempoMap.ts#isValidMeter`) | ce qu'une version plus ancienne pouvait porter y est déjà |
 
 Les lettres de section restent `corrections.sections`, comme avant. Ce qui est
-fait à la main est relu exactement, ou le fichier est déclaré abîmé ; ce que
-l'analyse a produit et qui serait abîmé est simplement oublié (l'analyse se
-refait).
+fait à la main est relu exactement, ou le fichier est déclaré abîmé (parties et
+étendues croissantes et sans chevauchement, identifiants de parties uniques) ;
+ce que l'analyse a produit et qui serait abîmé est simplement oublié (l'analyse
+se refait). Un document de version 5 s'ouvre avec `corrections.keyChanges` à
+`null` et une structure à la main vide (`storage/documentFormat.ts`).
+
+**Identifiants des parties détectées.** Un `id` de partie détectée est stable
+d'un recalcul à l'autre (la passe d'harmonie se relance seule quand les accords
+ou les mesures changent) : une partie retrouvée garde le sien, et c'est par cet
+`id` que `corrections.structure` la désigne. Un identifiant qui ne désigne plus
+aucune partie est simplement sans effet.
+
+**Ce qui n'est pas enregistré.** La grille complète simplifiée (le dessin
+écrit, ses places, la ligne de forme), l'affichage choisi dans la colonne
+(complet, simplifié, une partie), la boucle d'une partie et les mesures de
+l'audio qui servent à reconnaître la structure ne sont **jamais** dans le
+fichier : tout cela se recalcule à partir de ce qui l'est (accords, lettres,
+parties, modulations en vigueur). Rien de nouveau n'est donc à relire pour la
+grille simplifiée, et le format reste à la version 6.
 
 **Signatures mesure par mesure : « la noire reste la noire ».** Les changements
 de signature sont `tempoMap.meters` (le premier à la mesure 0 ; les suivants

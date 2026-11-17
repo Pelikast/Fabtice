@@ -396,6 +396,16 @@ téléchargement (l’app demande où l’enregistrer ; `test/e2e/ireal-export.t
 le range dans un dossier jetable et remplace `shell.openExternal` par un
 enregistreur, rien n’est lancé pour de bon).
 
+**Étape 5 de la 1.0.0 (structure, modulations, grille simplifiée).** Rien à
+changer côté Mac. Le petit modèle qui reconnaît les instruments à vent est
+téléchargé au premier usage depuis Hugging Face, déjà autorisé par
+`src/protocol.js` (même règle que les autres outils : somme SHA-256 vérifiée
+par l'interface). « Ouvrir dans iReal Pro » est inchangé (il ouvre le lien que
+l'interface lui donne, grille complète ou grille simplifiée, par
+`openInIRealPro`), et le PDF de la grille simplifiée passe par le même chemin
+que celui de la grille complète (`printChart`, `saveChartPdf`) : la feuille est
+dessinée par l'interface.
+
 `standardsFetchText(url)` sert à l'offre de télécharger les grilles des standards
 (`app/src/standards/library.ts` ; une page ne peut pas lire un autre site, c'est
 donc le processus principal qui fait la requête, `src/standards-fetch.js`).

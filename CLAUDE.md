@@ -149,6 +149,12 @@ aucune technique de contournement des protections de YouTube.
      le transport restant identiques : *Pistes* (formes d'onde) et *Grille
      d'accords* (façon iReal Pro). Boucle, tempo et tonalité se règlent de la
      même façon dans les deux.
+   - **Colonne des sections et trois affichages de la grille** : dans
+     *Grille d'accords*, une colonne à gauche porte la forme, le mode Jazz /
+     Pop et la liste des parties (« Boucle », modification à la main) ; elle
+     choisit entre *Affichage complet*, *Grille complète simplifiée* (sections
+     écrites une fois, reprises, « % », suivie à la lecture) et une partie
+     seule. Les accords ne se corrigent que dans l'affichage complet.
 6. **Métronome** : activable, volume, métriques composées (5/4, 7/8…), réglage
    avancé des temps forts et faibles par métrique ; décompte avant la boucle ;
    accélération progressive de la boucle.
@@ -200,19 +206,34 @@ rapport au périmètre ci-dessus :
   suffisantes). S'ajoutent, au clic droit sur une mesure, la correction de la
   courbe en tapant le tempo et le changement de signature rythmique (1 à 64
   sur 4, 8, 16 ou 32 ; à partir de la mesure ou pour elle seule).
-- **Modulations** détectées et montrées dans l'app et sur la grille.
-- **Structure du morceau** : forme (AABA…), parties (Intro, Thème, Solo,
-  Pont, Spécial, Outro ; Couplet, Refrain en mode Pop), colonne de sections à
-  gauche de la grille, « Grille complète simplifiée » avec reprises. **Pas de
-  gros modèle d'IA généraliste** : reprises de la grille, grille connue du
-  standard, pistes séparées, et un petit modèle de reconnaissance
-  d'instruments ; « Solo (Vents) » quand l'instrument n'est pas sûr.
+- **Modulations** : détectées (un changement de tonalité qui dure) et
+  montrées par une pastille « Ton : … » au-dessus de la mesure, sur la grille,
+  sur la règle de « Pistes » et sur le papier ; les accords qui suivent
+  s'écrivent dans la tonalité du passage, et la tonalité du transport suit la
+  lecture. Corrigeables à la main (clic sur la pastille ou menu de la mesure :
+  changer, déplacer, supprimer, tout annulable). Réglage « Détecter les
+  modulations ».
+- **Structure du morceau** : forme (AABA…), lettres de section, parties
+  (Intro, Thème, Solo, Pont, Spécial, Outro ; Couplet, Refrain en mode Pop),
+  proposées par l'app, recalculées seules quand les accords ou les mesures
+  changent, sans jamais toucher ce qui est corrigé à la main (réglage
+  « Structure automatique du morceau », mode Jazz / Pop / Auto). Colonne de
+  sections à gauche de la grille (feuille depuis une barre sous le titre sur
+  téléphone) ; « Grille complète simplifiée » : chaque section écrite une
+  fois, « % », reprises et « ×2 », suivie à la lecture avec le numéro de la
+  reprise. **Pas de gros modèle d'IA généraliste** : reprises de la grille,
+  grille connue du standard, pistes séparées, et un petit modèle de
+  reconnaissance d'instruments (quelques Mo, téléchargé au premier usage) ;
+  « Solo (Vents) » quand l'instrument n'est pas sûr, « Solo 1, Solo 2 » sans
+  séparation.
 - **Exports** : audio (Wave réglable, Flac, MP3 de 96 à 320 kbit/s, pistes au
   choix), iReal Pro, PDF, **« Dossier pour Logic Pro »** (pistes audio et
   fichier MIDI avec tempo, signatures et accords en marqueurs : le format des
   projets Logic est fermé ; doit marcher de Logic Pro 10 à 13), **« Projet
   Ableton Live »** (que personne ne peut essayer : annoncé « à l'essai »).
-- **Impression** : cmd + P, fenêtre avec aperçu et options.
+- **Impression** : cmd + P, fenêtre avec aperçu et options ; « Ce qu'on
+  imprime » : la grille complète, la grille simplifiée ou une section, avec la
+  ligne « Forme ».
 - **Mise à jour automatique** de l'app Mac par un système maison, sans
   signature Apple (le propriétaire a un compte développeur mais ne veut pas
   des démarches de vérification pour l'instant).

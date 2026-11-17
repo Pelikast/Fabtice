@@ -131,6 +131,69 @@ en français simple.
   plus la lecture ; elle actionne le bouton ou la case en cours.
 - Téléphone : le tempo affiché en haut à gauche n'est plus coupé.
 
+### Structure du morceau, modulations, grille simplifiée
+- **Fabtice cherche la structure du morceau** : la forme (par exemple AABC),
+  les sections A, B, C, et les parties : Intro, Thème, Solo, Pont, Outro (en
+  mode Pop : Couplet, Refrain). Quand vous avez séparé les instruments, le
+  soliste est nommé : « Solo (Piano) », « Solo (Trompette) ». Quand l'app n'est
+  pas sûre, elle écrit « Solo (Vents) ». Sans séparation, les solos s'appellent
+  « Solo 1 », « Solo 2 ».
+- **Ce sont des propositions, à vérifier et à corriger.** La structure et les
+  modulations peuvent se tromper, surtout sur les vieux enregistrements.
+  Tout se corrige à la main, et ce que vous avez corrigé n'est jamais effacé
+  par la suite.
+- **Une colonne à gauche de la grille** (« Sections ») : la forme du morceau,
+  le mode **Jazz** ou **Pop** (ou « Auto »), les deux affichages
+  (« Affichage complet » et « Grille complète simplifiée »), puis la liste des
+  parties, chacune avec ses lettres. Un clic sur une partie montre ses mesures
+  et place la tête de lecture à son début ; « Boucle » la joue en boucle ; le
+  crayon la modifie (type, numéro, instrument, mesures) ; « Ajouter une
+  partie » en ajoute une ; « Revenir à la structure de l'analyse » annule vos
+  corrections. Sur téléphone, la colonne devient une barre sous le titre, qui
+  ouvre une feuille avec la même liste.
+- **Grille complète simplifiée** : le morceau écrit sur une page, comme dans
+  un Real Book. Chaque section n'est écrite qu'une fois, avec l'accord qui
+  revient le plus dans ses reprises (les variantes disparaissent), « % » quand
+  la mesure continue, une double barre de reprise et « ×2 » quand un passage
+  se joue deux fois de suite, une double barre à la fin. La ligne « Forme : »
+  dit l'ordre des parties ; un clic sur une partie va à son début.
+- **La grille simplifiée suit la lecture** : la mesure qu'on entend est
+  surlignée, et un petit texte dit quelle fois c'est (« 2ᵉ fois », « reprise
+  3/6 »). Un clic sur une mesure va à sa prochaine occurrence ; en glissant sur
+  plusieurs mesures, on boucle leurs prochaines occurrences. Pour corriger un
+  accord, on passe par « Affichage complet ».
+- **Modulations** : un changement de tonalité qui dure est repéré. Il est
+  marqué sur la grille (« Ton : La♭ » au-dessus de la mesure), sur la règle des
+  mesures de « Pistes » et sur le papier. Les accords qui suivent s'écrivent
+  dans la tonalité du passage, y compris un accord qui descend d'un demi-ton,
+  écrit avec un bémol comme sur une grille de jazz. La tonalité affichée dans
+  le transport suit la lecture. La tonalité du titre reste celle du début.
+- **Corriger une modulation à la main** : un clic sur la marque ouvre une petite
+  fenêtre (nouvelle tonalité, mesure de départ, « Supprimer la modulation ») ;
+  le menu d'une mesure (clic droit, appui long) propose « Changer de tonalité à
+  partir de cette mesure… », « Modifier la modulation… » et « Supprimer la
+  modulation ». « Revenir aux modulations de l'analyse » annule vos
+  corrections. Tout s'annule avec cmd + Z.
+- **Tout se recalcule tout seul** quand les accords ou les mesures changent
+  (une correction de tempo, un accord écrit à la main…), sans jamais toucher à
+  ce que vous avez corrigé.
+- **Imprimer** : la fenêtre propose « Ce qu'on imprime » : la grille complète,
+  la grille complète simplifiée (sur une page quand elle tient), ou une
+  section. La ligne « Forme » s'ajoute sous le titre (case « Forme » dans
+  l'en-tête). L'aperçu est la page.
+- **iReal Pro** : « Ouvrir dans iReal Pro » existe aussi dans l'app web (un
+  avis calme s'affiche si rien ne s'ouvre, avec « Enregistrer le fichier… »).
+  Quand l'affichage est la grille simplifiée, c'est elle qui est exportée, avec
+  de vraies reprises ; les modulations sont écrites en note sur leur mesure,
+  iReal Pro n'ayant qu'une tonalité par grille.
+- **Un petit outil pour reconnaître les instruments à vent** : quelques
+  mégaoctets, licence libre, téléchargé la première fois qu'on en a besoin
+  (la source et la licence sont affichées), uniquement pour distinguer
+  trompette, saxophone, trombone, clarinette et flûte dans un solo.
+- **Réglages → Détection des accords** : « Détecter les modulations » et
+  « Structure automatique du morceau » se décochent pour tout garder à la main ;
+  « Mode » (Auto, Jazz, Pop) est le même réglage que dans la colonne.
+
 ## Version du 16 novembre 2026
 
 Depuis la version du 15 novembre (8 h 54).

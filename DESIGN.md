@@ -248,12 +248,15 @@ dont les choix s'empilent (« Grille complète », « Grille complète simplifi�
 simplifiée » n'est proposée que lorsque la grille simplifiée existe, « Une
 section » est grisée (à 50 %) quand le morceau n'a aucune partie. « Une section »
 déplie sous elle la liste des parties, avec leurs lettres (« Thème 1 · AABC »).
-La fenêtre s'ouvre sur ce que l'écran montre : la grille entière, ou la partie
-affichée. Imprimer une section ne met que ses mesures, avec leurs numéros ; une
+La fenêtre s'ouvre sur ce que l'écran montre : la grille entière, la grille
+simplifiée ou la partie affichée. Imprimer une section ne met que ses mesures, avec leurs numéros ; une
 ligne discrète le dit sous le titre (« Thème 1 · mesures 3–10 », 10 pt, encre).
 Quand la forme du morceau est connue, une ligne « Forme : AABC » (même corps)
-vient sous la ligne de la tonalité et du tempo ; la case « Forme » du groupe
-« En-tête » la retire.
+vient sous la ligne de la tonalité et du tempo ; pour la grille simplifiée,
+c'est la forme en entier (« Forme : Intro, Thème 1 (AABC), Solo (Piano)
+(AABC)… »), sur autant de lignes qu'il en faut ; la case « Forme » du groupe
+« En-tête » la retire. La grille simplifiée se dessine sur le papier comme à
+l'écran (voir « Grille complète simplifiée »).
 
 L'aperçu est exactement ce qui sort : mêmes feuilles, même pagination, une
 feuille par page. Sur le papier, les règles de la grille restent vraies
@@ -303,6 +306,17 @@ texte de chargement, à « la braise reste à ce qui joue », et elle est réser
 bas, une colonne, boutons sur toute la largeur.
 
 ## Fenêtres du menu de la mesure
+
+**Le menu lui-même** (clic droit sur une mesure, appui long au doigt, ou la
+touche de menu au clavier) : une petite fenêtre de la famille, titrée en
+capitales « À PARTIR DE LA MESURE 9 » (il porte aussi la signature et la
+tonalité), puis ses entrées, chacune avec une ligne d'explication en italique :
+les deux corrections du tempo, « Correction de la courbe en tapant le tempo »,
+« Changer la signature rythmique », et, pour la tonalité, « Changer de tonalité à
+partir de cette mesure… » (grisée sur la première mesure) ou, sur une mesure
+qui porte une modulation, « Modifier la modulation… » et « Supprimer la
+modulation » (voir « Modulations »). Sur téléphone il défile si la liste est
+plus haute que l'écran. Il n'existe pas sur la grille simplifiée.
 
 **« Correction du tempo en tapant »** : une petite fenêtre de la famille
 (papier clair, titre en Fraunces, bouton principal à l'encre), **posée

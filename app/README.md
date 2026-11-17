@@ -1416,187 +1416,30 @@ ferait doublon.
 
 ## Contrats pour la suite
 
-### Étape 5 de la 1.0.0 : colonne de la structure (première moitié des écrans)
+### Étape 5 de la 1.0.0 : harmonie (modulations, structure, grille simplifiée)
 
-**Lecteurs des lettres.** Tout ce qui affiche ou exporte les lettres de
-section lit `sectionsInForce(s)` (lettres de l'analyse tant que l'utilisateur
-n'a pas touché aux lettres) : `chartSelectors.ts` (`selectHasMarkers`,
-`selectChartBars`, `selectSectionAt`), `markerActions.ts`, `MarkersPanel.tsx`,
-`timeline/controller.ts` (invalidation : la référence de `sectionsInForce`
-change avec l'analyse ou les corrections), `export/chartExport.ts`. Les
-écritures n'ont pas changé.
+Tout ce qui trouve, montre et corrige la structure du morceau, les
+modulations et la grille simplifiée. Cinq parties, chacune avec ce qu'il faut
+pour la retrouver et la vérifier (`npm run build` avant les essais dans
+Chromium ; tous les essais existent dans les deux formes, ordinateur et
+téléphone) :
 
-**Noms des parties.** `model/structureLabels.ts` : `partName(part, t)`,
-`instrumentName`, clés `structure.part.*` et `structure.instrument.*` ; la
-colonne, la fenêtre et les marqueurs des exports (`export/session/build.ts#partLabel`)
-écrivent la même chose.
+| Partie | Fichiers d'entrée | Vérification |
+|---|---|---|
+| 1. La passe d'harmonie : modulations, structure, grille simplifiée écrite | `src/structure/` (`index.ts`, `refresh.ts`, `types.ts`), `store/simplifiedSelectors.ts` | `npm test` (`src/structure/*.test.ts`, le banc), `npm run test:harmony`, `FABTICE_STRUCTURE_FULL=1 npx vitest run src/structure/bench.test.ts` |
+| 2. La colonne de la structure et les affichages | `chart/StructureColumn.tsx`, `store/chartDisplay.ts`, `components/PartDialog.tsx`, `model/structureLabels.ts` | `npm run test:structure` |
+| 3. Les modulations à l'écran | `chart/ChartGrid.tsx`, `components/ModulationDialog.tsx`, `store/modulationActions.ts`, `timeline/keyMarks.ts` | `npm run test:harmony` |
+| 4. « Grille complète simplifiée » (écran, suivi) | `chart/SimplifiedGrid.tsx`, `chart/simplifiedLayout.ts`, `chart/useWrittenPlayhead.ts` | `npm run test:simplified` |
+| 5. Imprimer et iReal Pro | `chart/printChart.ts`, `chart/PrintSheets.tsx`, `export/simplifiedExport.ts`, `export/irealOpen.ts` | `npm run test:print`, `npm run test:simplified`, `npm run test:export` |
 
-**Affichage.** `ui.chartDisplay` (`{kind:'full'} | {kind:'simplified'} |
-{kind:'part', id}`, ni enregistré ni annulable) ; `store/chartDisplay.ts` :
-`selectChartDisplay` (retombe sur « complet » quand la partie disparaît),
-`selectShownPart`, `selectShownBars`, `showFullChart`, `showSimplifiedChart`,
-`showPart(id)` (affiche et `seek(part.start)`), `loopPart(id)`
-(`setLoopRegion` puis `enterLoop`), `changePart`, `deletePart`. Pur :
-`chart/structureDisplay.ts` (`partBars`, `limitsFromNumbers`,
-`defaultNewLimits`…). `store/simplifiedSelectors.ts` :
-`selectSimplifyInput`, `selectSimplifiedChart` (appelle `simplifyChart` ; nul
-quand le morceau n'a pas de forme à replier : la grille complète s'affiche avec
-la phrase « Ce morceau n'a pas de forme à replier… »).
+Captures : `FABTICE_CAPTURES_ONLY=structure,modulations,simplifi npm run
+captures -- /dossier` (`tests/captures-harmonie.mjs` : `harmonyCaptures`,
+`modulationCaptures`, `simplifiedCaptures`). Pièces inventées pour les essais :
+`?demo&structure=demo` (le morceau de démonstration avec une structure
+inventée, `demo/demoStructure.ts`) et `?demo&piece=feuilles[&modulation=oui]`
+(l'exemple du propriétaire, 97 mesures, `demo/demoAutumn.ts`).
 
-**Écran.** `chart/StructureColumn.tsx` (colonne de 20 % à l'ordinateur ;
-barre `StructureBar` et feuille au téléphone), `chart/usePlayingPart.ts` (la
-partie entendue, `data-jouee` posé dans le DOM par la boucle d'images),
-`components/PartDialog.tsx` + `ui/partDialog.ts` + `ui/partForm.ts` (fenêtre
-« Modifier la partie » / « Ajouter une partie »), `styles/structure.css`,
-`styles/partDialog.css`. `ChartSheet` : `.vue-structure` contient la colonne et
-`.vue-grille` (le défilement de la grille, inchangé pour `useFollowLine` et
-l'éditeur d'accord).
-
-**Démo et essais.** `?demo&structure=demo` (ou `pop`) : structure inventée
-(`demo/demoStructure.ts`), lettres à la main retirées ; poignée
-`window.__fabtice.structure` (`setDetected`, `demo`, `actions`, `display`,
-`dialog`, `selectors`). `setDetected` tient lieu de la détection (comme une
-nouvelle analyse, il efface l'historique). Vérification : `npm run
-test:structure` (deux formes) ; captures : `FABTICE_CAPTURES_ONLY=structure
-npm run captures -- /dossier` (`tests/captures-harmonie.mjs`).
-
-**Impression de la structure (étape 5, suite).** `PrintOptions.what`
-(`'full' | 'simplified' | 'part'`, gardé ; la partie choisie ne l'est pas) et
-`PrintHeader.form` (« Forme », par défaut oui) dans `chart/printLayout.ts`
-(`normalizePrintOptions` accepte les anciennes options) ; `HEADER_ROWS_MM` a deux
-lignes de plus (`part`, `form`) et `headerHeightMm({ title, info, part?, form? })`.
-`chart/printChart.ts` : `usePrintChart(instrument, what: ChartDisplay)` rend
-`PrintChart` avec `form`, `partLabel` (« Thème 1 · mesures 3–10 »), `simplified`
-(les lignes écrites de la grille simplifiée sont dans `rows`, voir plus bas),
-`lines` ;
-`printLines(bars, range?)`, `partCaption`, `headerForm`, `headerPart`. La
-fenêtre (`components/PrintDialog.tsx`) s'ouvre sur `ui.chartDisplay` et propose
-« Grille complète simplifiée » seulement si `selectSimplifiedChart` rend une
-grille. La grille simplifiée écrite est imprimée (quatrième lot, plus bas).
-Vérification : `tests/print.mjs` (bloc « Ce qu'on imprime », deux formes, PDF
-identique à l'aperçu pour une section).
-
-**« Ouvrir dans iReal Pro » dans l'app web.** `export/irealOpen.ts` (pur :
-`planIRealOpen`, `needsIRealNotice` ; navigateur : `browserHost`,
-`openIRealLink`, 1,6 s de surveillance), `ui/irealNotice.ts`,
-`components/IRealNotice.tsx` (`data-testid="avis-ireal"`), commande `irealOpen`
-(`ui/commands.ts` : `canOpenIReal` est vrai dans l'app web). Le lien est suivi
-par un `<a data-export="ireal-open">` caché cliqué au geste (jamais d'onglet
-vide) : les essais l'interceptent. Vérification : `tests/export.mjs`,
-`tests/menu.mjs`.
-
-**Corrections vues dans les captures.** Une mesure à lettre et à deux rangs
-d'accords garde le coin de la lettre (`.case.lettree[data-rangs="2"]`,
-`--haut: 26px`) ; `.voile.voile-signature` / `.accueil.fenetre-signature` (la
-feuille du téléphone de « Changer la signature ») ont deux classes pour passer
-devant `.voile` et `.accueil` de `dialog.css`, qui viennent après dans la feuille.
-
-### Étape 5 de la 1.0.0 : « Grille complète simplifiée » à l'écran, au suivi, sur le papier et dans les exports (C14, quatrième lot)
-
-**Le dessin écrit.** `chart/simplifiedLayout.ts` (pur, testé) : `writtenBlocks(chart)`
-(un bloc par section : titre, `times`, lignes de quatre mesures), `printRows`,
-`formItems` / `formLineText` (la ligne « Forme : … »), `placeOf`, `repeatTag`
-(« 2ᵉ fois » jusqu'à quatre passages, « reprise n/total » au delà), `nextOccurrence`,
-`seekTarget`, `loopRange` (la boucle d'un glissement : les mesures jouées de la
-prochaine occurrence où les mesures écrites se suivent, sinon `null`).
-Écran : `chart/SimplifiedGrid.tsx` (branché dans `ChartSheet` quand
-`ui.chartDisplay.kind === 'simplified'` et que `selectSimplifiedChart` rend une
-grille ; sinon `ShownNote` écrit la phrase calme et la grille complète s'affiche) ;
-les cases sont celles de la grille (`.case`, `.accord-case`, `ChordSymbol`,
-`useFitChords`), marquées `data-ecrite` ; `styles/simplified.css` (blocs, signes de
-reprise dessinés en dégradés, « ×2 »).
-
-**Le suivi.** `chart/useWrittenPlayhead.ts` (même approche que `usePlayheadBar` :
-`.jouee` et `--avance` écrits dans le DOM par la boucle d'images ; la mesure
-jouée → `places` ; le texte de la fois dans `.bloc-fois`, `data-fois`) ;
-`useFollowLine(scroller, grid, target?)` : le troisième paramètre dit quelle case
-suit la mesure jouée (la grille complète par défaut). **Les gestes** :
-`useChartGestures({ written })` : en mode « écrit » les cases sont `data-ecrite`,
-seuls le clic (prochaine occurrence) et le glissement (boucle) existent ; le clic
-droit, l'appui long et les accords n'ouvrent rien.
-
-**Le papier.** `PrintChart.rows` (`PrintRow` : titre du bloc sur sa première
-ligne, `times`, la ligne) ; `PrintSheets.tsx` (`PrintWrittenRow`,
-`PrintWrittenBar`, `RepeatSign` : les signes de reprise sont faits de bordures
-car un navigateur n'imprime pas les fonds) ; `printLayout.ts` : `HEADING_MM`,
-`paginate(lines, options, headerMm, extras?)` (les lignes ont des hauteurs
-différentes : `breakRows`), `formRowsFor` (la ligne de forme passe sur plusieurs
-rangs), `printBarGeometry(layout, signed, { opens, closes, final })`.
-
-**iReal Pro.** `export/simplifiedExport.ts#buildSimplifiedExportChart` (les
-sections une fois, `{ … }` autour d'un passage joué deux fois de suite, `x` pour
-un « % », `*A`/`*i`, `Z`, une note `<3x>` au delà de deux) ; `ExportBar` gagne
-`repeatStart`, `repeatEnd`, `note` ; `chartExport.ts#chartForExportShown` choisit
-la grille simplifiée quand c'est l'affichage ; « Ouvrir dans iReal Pro » et
-« Fichier iReal Pro… » (`ui/commands.ts`) l'utilisent. Le lecteur des standards
-(`standards/irealRead.ts`) relit le lien aux mêmes mesures (test
-`simplifiedExport.test.ts`). MIDI, Logic et Ableton restent la ligne du temps
-complète (ils suivent l'audio).
-
-**La pièce de l'exemple.** `?demo&piece=feuilles` (`demo/demoAutumn.ts`, aussi
-lue par les tests) : Intro, Thème (AABC), Solo Piano (AABC), Solo Trompette (AA),
-Thème 2 (BC), 97 mesures en si mineur, des variantes entre les reprises, silence ;
-structure détectée donnée par l'état (les passes automatiques sont suspendues).
-
-Vérification : `npm run test:simplified` (`tests/simplified.mjs`, deux formes :
-les blocs et leurs textes, les signes, la ligne de forme, la lecture à plusieurs
-positions et la fois, le défilement, les clics, la boucle, ce qui ne s'ouvre pas,
-l'impression, le PDF, le téléphone), `tests/print.mjs`, `tests/structure.mjs` ;
-captures : `FABTICE_CAPTURES_ONLY=simplifi node tests/captures.mjs <dossier>`
-(`tests/captures-harmonie.mjs#simplifiedCaptures`, `<forme>-simplifiee-…`).
-
-### Étape 5 de la 1.0.0 : modulations à l'écran (C10, troisième lot)
-
-**Ce qui est affiché.** `chart/layout.ts` : `ChartBar.keyChange` (la tonalité
-qui commence à cette mesure, ou `null`), rempli depuis `keyChangesInForce`
-(liste de l'utilisateur dès qu'il y a touché, sinon celle de l'analyse). Pastille
-au-dessus de la mesure : `chart/ChartGrid.tsx` (`.case-tete` partage la ligne
-du haut avec la lettre ; `.modulation`, `data-cle`, `data-origine`
-`analysis`|`manual`), même texte au papier (`chart/PrintSheets.tsx`,
-`.pp-modulation`, `styles/print.css`) ; le nom est celui de l'affichage
-(`keyLabel` avec le contexte de la mesure : transposition, instrument, « m »/« – »).
-Frise de « Pistes » : `timeline/keyMarks.ts` (pur : `layoutKeyMark`,
-`describeKeyMarks`), tracé dans `timeline/drawing.ts` (`drawKeyPills`, barre de
-2 px), invalidation dans `timeline/controller.ts` (`watchKeys`, `analysis` et
-`corrections.keyChanges`) ; `data-modulations` sur `.frise` (« 9:E 17:A♭ »).
-
-**Ce qui se corrige.** `store/modulationActions.ts#saveModulation(from, to,
-key)` : ajout, changement de tonalité, déplacement, en un seul pas
-d'historique (« Annuler : tonalité ») ; rien d'enregistré quand rien ne change.
-`ui/modulationForm.ts` (pur : `keyBefore`, `modulationBarRange`,
-`checkModulation` → `bar` | `taken` | `same`) ; fenêtre
-`components/ModulationDialog.tsx` (`ui/keyDialog.ts` : `openKeyDialog(bar)`,
-`data-testid="modulation-…"`). Points d'entrée : la pastille (cible `key` de
-`chart/gesture.ts`, `useChartGestures.ts`) et le menu de la mesure
-(`components/TempoFixMenu.tsx`, `data-action="key" | "key-edit" | "key-remove"`).
-`resetKeyChanges` est offert par la fenêtre et par `chart/KeyEditor.tsx`
-(`cle-modulations-revenir`), seulement quand la liste est celle de
-l'utilisateur. La première mesure ne reçoit pas de modulation (c'est la
-tonalité principale).
-
-**Deux garde-fous du toucher** (vus dans les essais) : le clic qui suit un
-toucher ne doit rien choisir sous le doigt. `ModulationDialog` ignore le
-pointeur 350 ms ; `ui/tempoMenu.ts#whenPointerReleased` fait ignorer les clics
-au menu d'une mesure jusqu'à 400 ms après la fin d'un appui long (les essais
-de téléphone attendent 450 ms après l'appui). La lettre garde sa zone de
-toucher élargie (`::after`) : sa pastille voisine passe devant (`z-index: 1`).
-
-**Réglages.** Onglet « Détection des accords » relu dans les deux formes :
-« Détecter les modulations », « Structure automatique du morceau » et « Mode »
-(le même réglage que le sélecteur de la colonne : `setStructureMode`) se lisent
-bien, sans changement de texte.
-
-Vérification : `tests/harmony.mjs` (blocs « modulations à l'écran » et
-« règle », deux formes : pastille à la bonne mesure, transposition, Si♭/Mi♭,
-« m »/« – », fenêtre, même tonalité, ajout/changement/déplacement/suppression/
-retour avec défaire et refaire, accords de la suite réécrits, règle, papier,
-partie affichée, « Mode » synchronisé), `tests/print.mjs` (pastille sur le
-papier et dans le PDF), `tests/tempo-fix.mjs`, `tests/tap-fix.mjs`,
-`tests/meter.mjs` (cinq entrées au menu), captures :
-`FABTICE_CAPTURES_ONLY=modulations node tests/captures.mjs <dossier>`
-(`tests/captures-harmonie.mjs#modulationCaptures`, fichiers
-`<forme>-modulations-…`).
-### Étape 5 de la 1.0.0 : la passe d'harmonie (modulations, structure, grille simplifiée)
+#### 1. La passe d'harmonie
 
 Ce qui trouve, à partir des accords et de la grille en vigueur, les
 modulations, la structure du morceau (forme, lettres, parties, instrument qui
@@ -1686,11 +1529,185 @@ Vérifications : `src/structure/*.test.ts`, `gather.test.ts` (la jonction, sur
 un morceau inventé en mémoire), et dans Chromium `tests/harmony.mjs` (les deux
 formes ; `npm run build` d'abord).
 
+#### 2. La colonne de la structure et les affichages
+
+**Lecteurs des lettres.** Tout ce qui affiche ou exporte les lettres de
+section lit `sectionsInForce(s)` (lettres de l'analyse tant que l'utilisateur
+n'a pas touché aux lettres) : `chartSelectors.ts` (`selectHasMarkers`,
+`selectChartBars`, `selectSectionAt`), `markerActions.ts`, `MarkersPanel.tsx`,
+`timeline/controller.ts` (invalidation : la référence de `sectionsInForce`
+change avec l'analyse ou les corrections), `export/chartExport.ts`. Les
+écritures n'ont pas changé.
+
+**Noms des parties.** `model/structureLabels.ts` : `partName(part, t)`,
+`instrumentName`, clés `structure.part.*` et `structure.instrument.*` ; la
+colonne, la fenêtre et les marqueurs des exports (`export/session/build.ts#partLabel`)
+écrivent la même chose.
+
+**Affichage.** `ui.chartDisplay` (`{kind:'full'} | {kind:'simplified'} |
+{kind:'part', id}`, ni enregistré ni annulable) ; `store/chartDisplay.ts` :
+`selectChartDisplay` (retombe sur « complet » quand la partie disparaît),
+`selectShownPart`, `selectShownBars`, `showFullChart`, `showSimplifiedChart`,
+`showPart(id)` (affiche et `seek(part.start)`), `loopPart(id)`
+(`setLoopRegion` puis `enterLoop`), `changePart`, `deletePart`. Pur :
+`chart/structureDisplay.ts` (`partBars`, `limitsFromNumbers`,
+`defaultNewLimits`…). `store/simplifiedSelectors.ts` :
+`selectSimplifyInput`, `selectSimplifiedChart` (appelle `simplifyChart` ; nul
+quand le morceau n'a pas de forme à replier : la grille complète s'affiche avec
+la phrase « Ce morceau n'a pas de forme à replier… »).
+
+**Écran.** `chart/StructureColumn.tsx` (colonne de 20 % à l'ordinateur ;
+barre `StructureBar` et feuille au téléphone), `chart/usePlayingPart.ts` (la
+partie entendue, `data-jouee` posé dans le DOM par la boucle d'images),
+`components/PartDialog.tsx` + `ui/partDialog.ts` + `ui/partForm.ts` (fenêtre
+« Modifier la partie » / « Ajouter une partie »), `styles/structure.css`,
+`styles/partDialog.css`. `ChartSheet` : `.vue-structure` contient la colonne et
+`.vue-grille` (le défilement de la grille, inchangé pour `useFollowLine` et
+l'éditeur d'accord).
+
+**Démo et essais.** `?demo&structure=demo` (ou `pop`) : structure inventée
+(`demo/demoStructure.ts`), lettres à la main retirées ; poignée
+`window.__fabtice.structure` (`setDetected`, `demo`, `actions`, `display`,
+`dialog`, `selectors`). `setDetected` tient lieu de la détection (comme une
+nouvelle analyse, il efface l'historique). Vérification : `npm run
+test:structure` (deux formes) ; captures : `FABTICE_CAPTURES_ONLY=structure
+npm run captures -- /dossier` (`tests/captures-harmonie.mjs`).
+
+**Corrections vues dans les captures.** Une mesure à lettre et à deux rangs
+d'accords garde le coin de la lettre (`.case.lettree[data-rangs="2"]`,
+`--haut: 26px`) ; `.voile.voile-signature` / `.accueil.fenetre-signature` (la
+feuille du téléphone de « Changer la signature ») ont deux classes pour passer
+devant `.voile` et `.accueil` de `dialog.css`, qui viennent après dans la feuille.
+
+#### 3. Les modulations à l'écran
+
+**Ce qui est affiché.** `chart/layout.ts` : `ChartBar.keyChange` (la tonalité
+qui commence à cette mesure, ou `null`), rempli depuis `keyChangesInForce`
+(liste de l'utilisateur dès qu'il y a touché, sinon celle de l'analyse). Pastille
+au-dessus de la mesure : `chart/ChartGrid.tsx` (`.case-tete` partage la ligne
+du haut avec la lettre ; `.modulation`, `data-cle`, `data-origine`
+`analysis`|`manual`), même texte au papier (`chart/PrintSheets.tsx`,
+`.pp-modulation`, `styles/print.css`) ; le nom est celui de l'affichage
+(`keyLabel` avec le contexte de la mesure : transposition, instrument, « m »/« – »).
+Frise de « Pistes » : `timeline/keyMarks.ts` (pur : `layoutKeyMark`,
+`describeKeyMarks`), tracé dans `timeline/drawing.ts` (`drawKeyPills`, barre de
+2 px), invalidation dans `timeline/controller.ts` (`watchKeys`, `analysis` et
+`corrections.keyChanges`) ; `data-modulations` sur `.frise` (« 9:E 17:A♭ »).
+
+**Ce qui se corrige.** `store/modulationActions.ts#saveModulation(from, to,
+key)` : ajout, changement de tonalité, déplacement, en un seul pas
+d'historique (« Annuler : tonalité ») ; rien d'enregistré quand rien ne change.
+`ui/modulationForm.ts` (pur : `keyBefore`, `modulationBarRange`,
+`checkModulation` → `bar` | `taken` | `same`) ; fenêtre
+`components/ModulationDialog.tsx` (`ui/keyDialog.ts` : `openKeyDialog(bar)`,
+`data-testid="modulation-…"`). Points d'entrée : la pastille (cible `key` de
+`chart/gesture.ts`, `useChartGestures.ts`) et le menu de la mesure
+(`components/TempoFixMenu.tsx`, `data-action="key" | "key-edit" | "key-remove"`).
+`resetKeyChanges` est offert par la fenêtre et par `chart/KeyEditor.tsx`
+(`cle-modulations-revenir`), seulement quand la liste est celle de
+l'utilisateur. La première mesure ne reçoit pas de modulation (c'est la
+tonalité principale).
+
+**Deux garde-fous du toucher** (vus dans les essais) : le clic qui suit un
+toucher ne doit rien choisir sous le doigt. `ModulationDialog` ignore le
+pointeur 350 ms ; `ui/tempoMenu.ts#whenPointerReleased` fait ignorer les clics
+au menu d'une mesure jusqu'à 400 ms après la fin d'un appui long (les essais
+de téléphone attendent 450 ms après l'appui). La lettre garde sa zone de
+toucher élargie (`::after`) : sa pastille voisine passe devant (`z-index: 1`).
+
+**Réglages.** Onglet « Détection des accords » relu dans les deux formes :
+« Détecter les modulations », « Structure automatique du morceau » et « Mode »
+(le même réglage que le sélecteur de la colonne : `setStructureMode`) se lisent
+bien, sans changement de texte.
+
+Vérification : `tests/harmony.mjs` (blocs « modulations à l'écran » et
+« règle », deux formes : pastille à la bonne mesure, transposition, Si♭/Mi♭,
+« m »/« – », fenêtre, même tonalité, ajout/changement/déplacement/suppression/
+retour avec défaire et refaire, accords de la suite réécrits, règle, papier,
+partie affichée, « Mode » synchronisé), `tests/print.mjs` (pastille sur le
+papier et dans le PDF), `tests/tempo-fix.mjs`, `tests/tap-fix.mjs`,
+`tests/meter.mjs` (cinq entrées au menu), captures :
+`FABTICE_CAPTURES_ONLY=modulations node tests/captures.mjs <dossier>`
+(`tests/captures-harmonie.mjs#modulationCaptures`, fichiers
+`<forme>-modulations-…`).
+
+#### 4. « Grille complète simplifiée » : l'écran et le suivi
+
+**Le dessin écrit.** `chart/simplifiedLayout.ts` (pur, testé) : `writtenBlocks(chart)`
+(un bloc par section : titre, `times`, lignes de quatre mesures), `printRows`,
+`formItems` / `formLineText` (la ligne « Forme : … »), `placeOf`, `repeatTag`
+(« 2ᵉ fois » jusqu'à quatre passages, « reprise n/total » au delà), `nextOccurrence`,
+`seekTarget`, `loopRange` (la boucle d'un glissement : les mesures jouées de la
+prochaine occurrence où les mesures écrites se suivent, sinon `null`).
+Écran : `chart/SimplifiedGrid.tsx` (branché dans `ChartSheet` quand
+`ui.chartDisplay.kind === 'simplified'` et que `selectSimplifiedChart` rend une
+grille ; sinon `ShownNote` écrit la phrase calme et la grille complète s'affiche) ;
+les cases sont celles de la grille (`.case`, `.accord-case`, `ChordSymbol`,
+`useFitChords`), marquées `data-ecrite` ; `styles/simplified.css` (blocs, signes de
+reprise dessinés en dégradés, « ×2 »).
+
+**Le suivi.** `chart/useWrittenPlayhead.ts` (même approche que `usePlayheadBar` :
+`.jouee` et `--avance` écrits dans le DOM par la boucle d'images ; la mesure
+jouée → `places` ; le texte de la fois dans `.bloc-fois`, `data-fois`) ;
+`useFollowLine(scroller, grid, target?)` : le troisième paramètre dit quelle case
+suit la mesure jouée (la grille complète par défaut). **Les gestes** :
+`useChartGestures({ written })` : en mode « écrit » les cases sont `data-ecrite`,
+seuls le clic (prochaine occurrence) et le glissement (boucle) existent ; le clic
+droit, l'appui long et les accords n'ouvrent rien.
+
+**La pièce de l'exemple.** `?demo&piece=feuilles` (`demo/demoAutumn.ts`, aussi
+lue par les tests) : Intro, Thème (AABC), Solo Piano (AABC), Solo Trompette (AA),
+Thème 2 (BC), 97 mesures en si mineur, des variantes entre les reprises, silence ;
+structure détectée donnée par l'état (les passes automatiques sont suspendues).
+
+#### 5. Imprimer et iReal Pro
+
+**Ce qu'on imprime.** `PrintOptions.what`
+(`'full' | 'simplified' | 'part'`, gardé ; la partie choisie ne l'est pas) et
+`PrintHeader.form` (« Forme », par défaut oui) dans `chart/printLayout.ts`
+(`normalizePrintOptions` accepte les anciennes options) ; `HEADER_ROWS_MM` a deux
+lignes de plus (`part`, `form`) et `headerHeightMm({ title, info, part?, form? })`.
+`chart/printChart.ts` : `usePrintChart(instrument, what: ChartDisplay)` rend
+`PrintChart` avec `form`, `partLabel` (« Thème 1 · mesures 3–10 »), `simplified` et
+`rows` (les lignes écrites de la grille simplifiée), `lines` ;
+`printLines(bars, range?)`, `partCaption`, `headerForm`, `headerPart`. La
+fenêtre (`components/PrintDialog.tsx`) s'ouvre sur `ui.chartDisplay` et propose
+« Grille complète simplifiée » seulement si `selectSimplifiedChart` rend une
+grille ; la grille simplifiée est dessinée par `PrintSheets` (voir « Le papier »).
+**Le papier.** `PrintChart.rows` (`PrintRow` : titre du bloc sur sa première
+ligne, `times`, la ligne) ; `PrintSheets.tsx` (`PrintWrittenRow`,
+`PrintWrittenBar`, `RepeatSign` : les signes de reprise sont faits de bordures
+car un navigateur n'imprime pas les fonds) ; `printLayout.ts` : `HEADING_MM`,
+`paginate(lines, options, headerMm, extras?)` (les lignes ont des hauteurs
+différentes : `breakRows`), `formRowsFor` (la ligne de forme passe sur plusieurs
+rangs), `printBarGeometry(layout, signed, { opens, closes, final })`.
+
+**« Ouvrir dans iReal Pro » dans l'app web.** `export/irealOpen.ts` (pur :
+`planIRealOpen`, `needsIRealNotice` ; navigateur : `browserHost`,
+`openIRealLink`, 1,6 s de surveillance), `ui/irealNotice.ts`,
+`components/IRealNotice.tsx` (`data-testid="avis-ireal"`), commande `irealOpen`
+(`ui/commands.ts` : `canOpenIReal` est vrai dans l'app web). Le lien est suivi
+par un `<a data-export="ireal-open">` caché cliqué au geste (jamais d'onglet
+vide) : les essais l'interceptent.
+
+**iReal Pro : la grille simplifiée.** `export/simplifiedExport.ts#buildSimplifiedExportChart` (les
+sections une fois, `{ … }` autour d'un passage joué deux fois de suite, `x` pour
+un « % », `*A`/`*i`, `Z`, une note `<3x>` au delà de deux) ; `ExportBar` gagne
+`repeatStart`, `repeatEnd`, `note` ; `chartExport.ts#chartForExportShown` choisit
+la grille simplifiée quand c'est l'affichage ; « Ouvrir dans iReal Pro » et
+« Fichier iReal Pro… » (`ui/commands.ts`) l'utilisent. Le lecteur des standards
+(`standards/irealRead.ts`) relit le lien aux mêmes mesures (test
+`simplifiedExport.test.ts`). MIDI, Logic et Ableton restent la ligne du temps
+complète (ils suivent l'audio).
+
+Vérification : `npm run test:simplified` (`tests/simplified.mjs` : les blocs et leurs textes, les signes, la ligne de forme, la lecture et la fois, le défilement, les clics, la boucle, ce qui ne s'ouvre pas, l'impression, le PDF, le téléphone), `tests/print.mjs` (bloc « Ce qu'on imprime », PDF identique à l'aperçu), `tests/export.mjs` et `tests/menu.mjs` (« Ouvrir dans iReal Pro »).
+
 ### Étape 4 de la 1.0.0 : tempo à la main
 
-**Menu de la mesure** (`components/TempoFixMenu.tsx`) : quatre entrées. Les
-deux dernières ouvrent une petite fenêtre (`ui/barDialogs.ts` : `openTapFix`,
-`openMeterDialog`).
+**Menu de la mesure** (`components/TempoFixMenu.tsx`) : quatre entrées de tempo
+et de signature, puis, depuis l'étape 5, celle des modulations (voir
+« Les modulations à l'écran »). Les deux dernières du tempo ouvrent une petite
+fenêtre (`ui/barDialogs.ts` : `openTapFix`, `openMeterDialog`).
 
 **Correction de la courbe en tapant le tempo (C12).**
 - Contrat entre l'écran et le calcul : `analysis/tapFix.ts` : `tapNow(at?)`
