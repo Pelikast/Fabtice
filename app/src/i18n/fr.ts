@@ -1354,7 +1354,7 @@ export const fr = {
   'update.busy.export': 'Un export est en cours : il s’arrêtera et sera à refaire.',
   'update.busy.anyway': 'Continuer quand même',
   'update.busy.wait': 'Attendre',
-  'update.web.text': 'Elle s’est installée en arrière-plan. Rechargez la page pour l’utiliser : votre morceau reste gardé sur cet appareil.',
+  'update.web.text': 'Elle s’est installée en arrière-plan. Rechargez la page pour l’utiliser\u00a0: votre morceau reste gardé sur cet appareil.',
   'update.web.reload': 'Recharger',
   'update.web.reloading': 'Rechargement…',
   'update.web.ready': 'Une nouvelle version est prête.',
