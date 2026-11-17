@@ -3,7 +3,7 @@
 
 import { resolveChords, sectionBar } from '../../chart/layout';
 import { barBeatToBeat, barStartTime, barToBeat, beatToBar, beatToTime, bpmAt, meterAtBar, sameMeter, timeToBar, timeToBeat } from '../../grid/tempoMap';
-import { chordParts, chordText, NO_CHORD_TEXT, transposeChord } from '../../harmony/chord';
+import { approachTargets, chordParts, chordText, NO_CHORD_TEXT, transposeChord } from '../../harmony/chord';
 import { keyNameFr, keyTonicName, NEUTRAL_KEY, transposeKey } from '../../harmony/key';
 import type { NoteName } from '../../harmony/pitch';
 import { t } from '../../i18n';
@@ -78,10 +78,13 @@ const ASCII_QUALITY: Record<ChordQuality, string> = {
   aug7: '+7',
 };
 
-/** A chord in plain ASCII, spelled in `key` (already transposed): « Bbmaj7 », « G7(b9,#11)/F », « N.C. ». */
-export function asciiChord(c: ChordSymbol | null, key: Key | null): string {
+/**
+ * A chord in plain ASCII, spelled in `key` (already transposed): « Bbmaj7 », « G7(b9,#11)/F », « N.C. ».
+ * `next`: the chord it goes to, transposed like it (`harmony/chord.ts#approachTargets`): « Bb7 » before Am7.
+ */
+export function asciiChord(c: ChordSymbol | null, key: Key | null, next: ChordSymbol | null = null): string {
   if (c === null) return NO_CHORD_TEXT;
-  const p = chordParts(c, { key: key ?? NEUTRAL_KEY });
+  const p = chordParts(c, { key: key ?? NEUTRAL_KEY, next });
   const ext = c.extensions.length ? `(${c.extensions.join(',')})` : '';
   return `${asciiNote(p.root)}${ASCII_QUALITY[c.quality]}${ext}${p.bass ? `/${asciiNote(p.bass)}` : ''}`;
 }
@@ -258,11 +261,15 @@ export function buildSession(s: AppState, options: SessionOptions = {}): Session
 
   // Chords, transposed, at the beat the chart writes them on.
   const chords: SessionChord[] = [];
-  for (const c of resolveChords(map, s.analysis?.chords ?? null, s.corrections)) {
+  const resolved = resolveChords(map, s.analysis?.chords ?? null, s.corrections);
+  const targets = approachTargets(resolved.map((c) => c.chord));
+  for (const [i, c] of resolved.entries()) {
     const time = out(beatToTime(map, c.beat));
     if (time >= duration) continue;
     const pos = beatToBar(map, c.beat);
     const chord = c.chord ? transposeChord(c.chord, semitones) : null;
+    const target = targets[i];
+    const next = target ? transposeChord(target, semitones) : null;
     const key = keyAtOutput(time);
     chords.push({
       time: clampTime(time),
@@ -270,8 +277,8 @@ export function buildSession(s: AppState, options: SessionOptions = {}): Session
       bar: pos.bar,
       beatInBar: Math.round(pos.beatInBar),
       chord,
-      text: asciiChord(chord, key),
-      display: chordText(chord, { key: key ?? NEUTRAL_KEY }),
+      text: asciiChord(chord, key, next),
+      display: chordText(chord, { key: key ?? NEUTRAL_KEY, next }),
       doubtful: c.doubtful,
     });
   }

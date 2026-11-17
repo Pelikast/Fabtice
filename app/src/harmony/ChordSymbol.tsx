@@ -78,11 +78,13 @@ export interface ChordSymbolProps {
   chord: Chord | null;
   /** Transposition, instrument, key and minor notation (`harmony/display.ts#displayContext`). */
   ctx: DisplayContext;
+  /** The stored chord it goes to (`chord.ts#approachTargets`): spells a chord that slides down a half step to it. */
+  next?: Chord | null;
   /** Shown quietly as uncertain. */
   doubtful?: boolean;
 }
 
-export function ChordSymbol({ chord, ctx, doubtful = false }: ChordSymbolProps) {
+export function ChordSymbol({ chord, ctx, doubtful = false, next = null }: ChordSymbolProps) {
   if (chord === null) {
     return (
       <span className="ch sans-accord">
@@ -90,7 +92,7 @@ export function ChordSymbol({ chord, ctx, doubtful = false }: ChordSymbolProps) 
       </span>
     );
   }
-  const { parts } = displayChord(chord, ctx);
-  const title = doubtful ? t('chord.doubtful', { chord: displayChordText(chord, ctx) }) : undefined;
+  const { parts } = displayChord(chord, ctx, next);
+  const title = doubtful ? t('chord.doubtful', { chord: displayChordText(chord, ctx, next) }) : undefined;
   return <ChordPartsView parts={parts} className={doubtful ? 'douteux' : undefined} title={title} />;
 }

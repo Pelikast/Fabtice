@@ -17,30 +17,30 @@ Sans analyse ni rendu (ignorés) : aaba-chant-vibes.propre, aaba-cinq-solistes.p
 |---|---:|---:|---:|---:|
 | **Forme** | | | | |
 | Longueur du chorus exacte | 75.0 % (9/12) | 91.7 % (11/12) | 83.3 % (10/12) | 91.7 % (11/12) |
-| Limites de chorus ±1 : précision | 91.5 % (54/59) | 86.0 % (43/50) | 93.2 % (55/59) | 86.0 % (43/50) |
-| Limites de chorus ±1 : rappel | 87.1 % (54/62) | 69.4 % (43/62) | 88.7 % (55/62) | 69.4 % (43/62) |
-| Limites de sections ±1 : précision | 94.9 % (130/137) | 82.4 % (108/131) | 95.6 % (131/137) | 82.4 % (108/131) |
-| Limites de sections ±1 : rappel | 85.0 % (130/153) | 70.6 % (108/153) | 85.6 % (131/153) | 70.6 % (108/153) |
-| Limites de sections ±1 : mesure F | 84.8 % (12/14) | 70.9 % (10/14) | 85.7 % (12/14) | 70.9 % (10/14) |
-| Lettres : mesure F par paires de mesures | 83.8 % (12/14) | 75.9 % (11/14) | 83.6 % (12/14) | 75.9 % (11/14) |
+| Limites de chorus ±1 : précision | 91.5 % (54/59) | 100.0 % (54/54) | 93.2 % (55/59) | 100.0 % (54/54) |
+| Limites de chorus ±1 : rappel | 87.1 % (54/62) | 87.1 % (54/62) | 88.7 % (55/62) | 87.1 % (54/62) |
+| Limites de sections ±1 : précision | 94.9 % (130/137) | 95.0 % (134/141) | 95.6 % (131/137) | 95.0 % (134/141) |
+| Limites de sections ±1 : rappel | 85.0 % (130/153) | 87.6 % (134/153) | 85.6 % (131/153) | 87.6 % (134/153) |
+| Limites de sections ±1 : mesure F | 84.8 % (12/14) | 86.2 % (12/14) | 85.7 % (12/14) | 86.2 % (12/14) |
+| Lettres : mesure F par paires de mesures | 83.8 % (12/14) | 83.8 % (12/14) | 83.6 % (12/14) | 83.8 % (12/14) |
 | Forme (AABA…) exacte | 83.3 % (10/12) | 91.7 % (11/12) | 83.3 % (10/12) | 91.7 % (11/12) |
-| Mesures d’intro exactes | 71.4 % (10/14) | 57.1 % (8/14) | 78.6 % (11/14) | 57.1 % (8/14) |
-| Mesures d’outro exactes | 85.7 % (12/14) | 57.1 % (8/14) | 92.9 % (13/14) | 57.1 % (8/14) |
+| Mesures d’intro exactes | 71.4 % (10/14) | 71.4 % (10/14) | 78.6 % (11/14) | 71.4 % (10/14) |
+| Mesures d’outro exactes | 85.7 % (12/14) | 78.6 % (11/14) | 92.9 % (13/14) | 78.6 % (11/14) |
 | Mode Jazz / Pop juste | 100.0 % (14/14) | 100.0 % (14/14) | 100.0 % (14/14) | 100.0 % (14/14) |
 | **Parties** | | | | |
-| Limites de parties ±1 : précision | 83.3 % (75/90) | 81.2 % (69/85) | 93.3 % (56/60) | 86.2 % (56/65) |
-| Limites de parties ±1 : rappel | 90.4 % (75/83) | 83.1 % (69/83) | 67.5 % (56/83) | 67.5 % (56/83) |
-| Limites de parties ±1 : mesure F | 88.7 % (12/14) | 83.0 % (12/14) | 78.2 % (11/14) | 75.8 % (11/14) |
-| Type de partie juste (thème, solo, intro…) | 94.2 % (65/69) | 84.1 % (58/69) | 81.2 % (56/69) | 71.0 % (49/69) |
-| Numéro juste (vide lu comme 1 ; vide juste pour un soliste nommé qui ne revient pas) | 73.9 % (51/69) | 66.7 % (46/69) | 52.2 % (36/69) | 42.0 % (29/69) |
-| Long solo d’un seul instrument non coupé | 66.7 % (6/9) | 66.7 % (6/9) | 100.0 % (9/9) | 77.8 % (7/9) |
-| Solos voisins d’instruments différents séparés | 61.9 % (13/21) | 57.1 % (12/21) | 23.8 % (5/21) | 33.3 % (7/21) |
+| Limites de parties ±1 : précision | 83.3 % (75/90) | 83.1 % (74/89) | 93.3 % (56/60) | 95.0 % (57/60) |
+| Limites de parties ±1 : rappel | 90.4 % (75/83) | 89.2 % (74/83) | 67.5 % (56/83) | 68.7 % (57/83) |
+| Limites de parties ±1 : mesure F | 88.7 % (12/14) | 88.1 % (12/14) | 78.2 % (11/14) | 80.1 % (11/14) |
+| Type de partie juste (thème, solo, intro…) | 94.2 % (65/69) | 94.2 % (65/69) | 81.2 % (56/69) | 76.8 % (53/69) |
+| Numéro juste (vide lu comme 1 ; vide juste pour un soliste nommé qui ne revient pas) | 73.9 % (51/69) | 75.4 % (52/69) | 52.2 % (36/69) | 47.8 % (33/69) |
+| Long solo d’un seul instrument non coupé | 66.7 % (6/9) | 66.7 % (6/9) | 100.0 % (9/9) | 100.0 % (9/9) |
+| Solos voisins d’instruments différents séparés | 61.9 % (13/21) | 61.9 % (13/21) | 23.8 % (5/21) | 28.6 % (6/21) |
 | **Instruments** | | | | |
 | Instrument juste : piano, guitare, basse, batterie, voix | 73.3 % (22/30) | 73.3 % (22/30) | – | – |
-| Vents et vibraphone : instrument exact | 64.7 % (22/34) | 47.1 % (16/34) | – | – |
+| Vents et vibraphone : instrument exact | 64.7 % (22/34) | 61.8 % (21/34) | – | – |
 | Vents et vibraphone : « Vents » | 5.9 % (2/34) | 5.9 % (2/34) | – | – |
 | Instrument nommé FAUX (toutes parties) ↓ | 4.7 % (3/64) | 4.7 % (3/64) | – | – |
-| Instrument nommé sans séparation (doit être 0) ↓ | – | – | 0.0 % (0/46) | 0.0 % (0/51) |
+| Instrument nommé sans séparation (doit être 0) ↓ | – | – | 0.0 % (0/46) | 0.0 % (0/46) |
 | **Modulations** | | | | |
 | Modulations : précision | 100.0 % (2/2) | 100.0 % (2/2) | 100.0 % (2/2) | 100.0 % (2/2) |
 | Modulations : rappel | 100.0 % (2/2) | 100.0 % (2/2) | 100.0 % (2/2) | 100.0 % (2/2) |
@@ -55,14 +55,14 @@ Sans analyse ni rendu (ignorés) : aaba-chant-vibes.propre, aaba-cinq-solistes.p
 | Reprises `xN` exactes | 96.8 % (30/31) | 96.8 % (30/31) | 96.8 % (30/31) | 96.8 % (30/31) |
 | Mesure jouée → mesure écrite juste | 98.7 % (1333/1350) | 98.7 % (1333/1350) | 98.7 % (1333/1350) | 98.7 % (1333/1350) |
 | **Grille simplifiée (chaîne complète)** | | | | |
-| Accords écrits justes (famille, par temps) | 71.4 % (694/972) | 63.5 % (617/972) | 76.1 % (740/972) | 63.5 % (617/972) |
-| Nombre de sections exact | 76.9 % (10/13) | 61.5 % (8/13) | 76.9 % (10/13) | 61.5 % (8/13) |
-| Mesure jouée → mesure écrite juste | 71.4 % (964/1350) | 52.5 % (709/1350) | 67.9 % (917/1350) | 52.5 % (709/1350) |
+| Accords écrits justes (famille, par temps) | 71.4 % (694/972) | 76.2 % (741/972) | 76.1 % (740/972) | 76.2 % (741/972) |
+| Nombre de sections exact | 76.9 % (10/13) | 76.9 % (10/13) | 76.9 % (10/13) | 76.9 % (10/13) |
+| Mesure jouée → mesure écrite juste | 71.4 % (964/1350) | 71.5 % (965/1350) | 67.9 % (917/1350) | 71.5 % (965/1350) |
 | **Autumn Leaves (cahier)** | | | | |
 | Grille écrite attendue (structure vraie) | 0.0 % (0/1) | 100.0 % (1/1) | 0.0 % (0/1) | 100.0 % (1/1) |
 | Forme et grille attendues (chaîne complète) | 0.0 % (0/1) | 100.0 % (1/1) | 0.0 % (0/1) | 0.0 % (0/1) |
 | Cas | 14 | 14 | 14 | 14 |
-| Temps de calcul (ms) | 250 | 251 | 152 | 179 |
+| Temps de calcul (ms) | 302 | 270 | 177 | 233 |
 
 ### Tier R — erreurs d’analyse : disque
 
@@ -115,7 +115,7 @@ Sans analyse ni rendu (ignorés) : aaba-chant-vibes.propre, aaba-cinq-solistes.p
 | Grille écrite attendue (structure vraie) | 0.0 % (0/1) | 100.0 % (1/1) | 0.0 % (0/1) | 100.0 % (1/1) |
 | Forme et grille attendues (chaîne complète) | 0.0 % (0/1) | 100.0 % (1/1) | 0.0 % (0/1) | 0.0 % (0/1) |
 | Cas | 2 | 2 | 2 | 2 |
-| Temps de calcul (ms) | 27 | 32 | 28 | 27 |
+| Temps de calcul (ms) | 42 | 37 | 26 | 31 |
 
 ### Autumn Leaves (exemple du cahier, C14)
 

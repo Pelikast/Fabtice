@@ -16,30 +16,30 @@ reconnaissance des vents simulée (taux « realiste » du Tier S).
 |---|---:|---:|---:|---:|
 | **Forme** | | | | |
 | Longueur du chorus exacte | 82.8 % (24/29) | 93.1 % (27/29) | 82.8 % (24/29) | 93.1 % (27/29) |
-| Limites de chorus ±1 : précision | 88.5 % (138/156) | 92.8 % (129/139) | 82.2 % (129/157) | 92.8 % (129/139) |
-| Limites de chorus ±1 : rappel | 95.2 % (138/145) | 89.0 % (129/145) | 89.0 % (129/145) | 89.0 % (129/145) |
-| Limites de sections ±1 : précision | 97.0 % (419/432) | 95.5 % (407/426) | 92.4 % (400/433) | 95.5 % (407/426) |
-| Limites de sections ±1 : rappel | 92.7 % (419/452) | 90.0 % (407/452) | 88.5 % (400/452) | 90.0 % (407/452) |
-| Limites de sections ±1 : mesure F | 90.4 % (32/35) | 86.8 % (30/35) | 84.7 % (30/35) | 86.8 % (30/35) |
-| Lettres : mesure F par paires de mesures | 88.8 % (31/35) | 88.0 % (31/35) | 88.2 % (31/35) | 87.7 % (31/35) |
+| Limites de chorus ±1 : précision | 88.5 % (138/156) | 95.7 % (135/141) | 82.2 % (129/157) | 95.7 % (135/141) |
+| Limites de chorus ±1 : rappel | 95.2 % (138/145) | 93.1 % (135/145) | 89.0 % (129/145) | 93.1 % (135/145) |
+| Limites de sections ±1 : précision | 97.0 % (419/432) | 96.5 % (413/428) | 92.4 % (400/433) | 96.5 % (413/428) |
+| Limites de sections ±1 : rappel | 92.7 % (419/452) | 91.4 % (413/452) | 88.5 % (400/452) | 91.4 % (413/452) |
+| Limites de sections ±1 : mesure F | 90.4 % (32/35) | 89.7 % (31/35) | 84.7 % (30/35) | 89.7 % (31/35) |
+| Lettres : mesure F par paires de mesures | 88.8 % (31/35) | 88.8 % (31/35) | 88.2 % (31/35) | 88.5 % (31/35) |
 | Forme (AABA…) exacte | 79.3 % (23/29) | 93.1 % (27/29) | 79.3 % (23/29) | 93.1 % (27/29) |
-| Mesures d’intro exactes | 77.1 % (27/35) | 74.3 % (26/35) | 68.6 % (24/35) | 77.1 % (27/35) |
-| Mesures d’outro exactes | 85.7 % (30/35) | 74.3 % (26/35) | 82.9 % (29/35) | 74.3 % (26/35) |
+| Mesures d’intro exactes | 77.1 % (27/35) | 77.1 % (27/35) | 68.6 % (24/35) | 80.0 % (28/35) |
+| Mesures d’outro exactes | 85.7 % (30/35) | 77.1 % (27/35) | 82.9 % (29/35) | 77.1 % (27/35) |
 | Mode Jazz / Pop juste | 100.0 % (35/35) | 100.0 % (35/35) | 100.0 % (35/35) | 100.0 % (35/35) |
 | **Parties** | | | | |
-| Limites de parties ±1 : précision | 83.7 % (200/239) | 82.7 % (196/237) | 84.5 % (147/174) | 87.1 % (155/178) |
-| Limites de parties ±1 : rappel | 89.7 % (200/223) | 87.9 % (196/223) | 65.9 % (147/223) | 69.5 % (155/223) |
-| Limites de parties ±1 : mesure F | 88.0 % (31/35) | 86.3 % (30/35) | 72.9 % (26/35) | 76.7 % (27/35) |
-| Type de partie juste (thème, solo, intro…) | 93.1 % (175/188) | 87.8 % (165/188) | 81.9 % (154/188) | 79.8 % (150/188) |
-| Numéro juste (vide lu comme 1 ; vide juste pour un soliste nommé qui ne revient pas) | 79.8 % (150/188) | 77.1 % (145/188) | 61.2 % (115/188) | 60.1 % (113/188) |
-| Long solo d’un seul instrument non coupé | 61.1 % (11/18) | 61.1 % (11/18) | 88.9 % (16/18) | 83.3 % (15/18) |
-| Solos voisins d’instruments différents séparés | 77.8 % (35/45) | 75.6 % (34/45) | 17.8 % (8/45) | 22.2 % (10/45) |
+| Limites de parties ±1 : précision | 83.7 % (200/239) | 84.0 % (199/237) | 84.5 % (147/174) | 88.6 % (156/176) |
+| Limites de parties ±1 : rappel | 89.7 % (200/223) | 89.2 % (199/223) | 65.9 % (147/223) | 70.0 % (156/223) |
+| Limites de parties ±1 : mesure F | 88.0 % (31/35) | 87.7 % (31/35) | 72.9 % (26/35) | 77.7 % (27/35) |
+| Type de partie juste (thème, solo, intro…) | 93.1 % (175/188) | 89.4 % (168/188) | 81.9 % (154/188) | 80.3 % (151/188) |
+| Numéro juste (vide lu comme 1 ; vide juste pour un soliste nommé qui ne revient pas) | 79.8 % (150/188) | 78.2 % (147/188) | 61.2 % (115/188) | 60.6 % (114/188) |
+| Long solo d’un seul instrument non coupé | 61.1 % (11/18) | 61.1 % (11/18) | 88.9 % (16/18) | 88.9 % (16/18) |
+| Solos voisins d’instruments différents séparés | 77.8 % (35/45) | 77.8 % (35/45) | 17.8 % (8/45) | 22.2 % (10/45) |
 | **Instruments** | | | | |
 | Instrument juste : piano, guitare, basse, batterie, voix | 84.4 % (65/77) | 84.4 % (65/77) | – | – |
-| Vents et vibraphone : instrument exact | 56.2 % (50/89) | 52.8 % (47/89) | – | – |
-| Vents et vibraphone : « Vents » | 13.5 % (12/89) | 11.2 % (10/89) | – | – |
+| Vents et vibraphone : instrument exact | 56.2 % (50/89) | 55.1 % (49/89) | – | – |
+| Vents et vibraphone : « Vents » | 13.5 % (12/89) | 10.1 % (9/89) | – | – |
 | Instrument nommé FAUX (toutes parties) ↓ | 6.6 % (11/166) | 6.0 % (10/166) | – | – |
-| Instrument nommé sans séparation (doit être 0) ↓ | – | – | 0.0 % (0/139) | 0.0 % (0/143) |
+| Instrument nommé sans séparation (doit être 0) ↓ | – | – | 0.0 % (0/139) | 0.0 % (0/141) |
 | **Modulations** | | | | |
 | Modulations : précision | 100.0 % (14/14) | 100.0 % (16/16) | 100.0 % (14/14) | 100.0 % (16/16) |
 | Modulations : rappel | 58.3 % (14/24) | 66.7 % (16/24) | 58.3 % (14/24) | 66.7 % (16/24) |
@@ -49,19 +49,19 @@ reconnaissance des vents simulée (taux « realiste » du Tier S).
 | Morceaux sans modulation qui en reçoivent une ↓ | 0.0 % (0/30) | 0.0 % (0/30) | 0.0 % (0/30) | 0.0 % (0/30) |
 | **Grille simplifiée (structure vraie)** | | | | |
 | Rien à replier : pas de grille simplifiée | 100.0 % (1/1) | 100.0 % (1/1) | 100.0 % (1/1) | 100.0 % (1/1) |
-| Accords écrits justes (famille, par temps) | 77.6 % (2176/2804) | 93.4 % (2619/2804) | 77.6 % (2176/2804) | 93.4 % (2619/2804) |
+| Accords écrits justes (famille, par temps) | 77.7 % (2180/2804) | 94.0 % (2637/2804) | 77.7 % (2180/2804) | 94.0 % (2637/2804) |
 | Nombre de sections exact | 97.1 % (33/34) | 97.1 % (33/34) | 97.1 % (33/34) | 97.1 % (33/34) |
 | Reprises `xN` exactes | 95.8 % (91/95) | 95.8 % (91/95) | 95.8 % (91/95) | 95.8 % (91/95) |
 | Mesure jouée → mesure écrite juste | 99.1 % (3924/3959) | 99.1 % (3924/3959) | 99.1 % (3924/3959) | 99.1 % (3924/3959) |
 | **Grille simplifiée (chaîne complète)** | | | | |
-| Accords écrits justes (famille, par temps) | 61.6 % (1726/2804) | 70.5 % (1978/2804) | 57.3 % (1608/2804) | 70.4 % (1975/2804) |
-| Nombre de sections exact | 73.5 % (25/34) | 85.3 % (29/34) | 70.6 % (24/34) | 85.3 % (29/34) |
-| Mesure jouée → mesure écrite juste | 75.7 % (2996/3959) | 66.9 % (2648/3959) | 62.6 % (2478/3959) | 62.9 % (2491/3959) |
+| Accords écrits justes (famille, par temps) | 61.6 % (1726/2804) | 73.5 % (2060/2804) | 57.3 % (1608/2804) | 73.5 % (2061/2804) |
+| Nombre de sections exact | 76.5 % (26/34) | 88.2 % (30/34) | 73.5 % (25/34) | 88.2 % (30/34) |
+| Mesure jouée → mesure écrite juste | 75.7 % (2996/3959) | 69.3 % (2744/3959) | 62.6 % (2478/3959) | 65.3 % (2587/3959) |
 | **Autumn Leaves (cahier)** | | | | |
 | Grille écrite attendue (structure vraie) | 0.0 % (0/1) | 100.0 % (1/1) | 0.0 % (0/1) | 100.0 % (1/1) |
 | Forme et grille attendues (chaîne complète) | 0.0 % (0/1) | 100.0 % (1/1) | 0.0 % (0/1) | 0.0 % (0/1) |
 | Cas | 35 | 35 | 35 | 35 |
-| Temps de calcul (ms) | 679 | 699 | 504 | 588 |
+| Temps de calcul (ms) | 693 | 745 | 530 | 628 |
 
 ### Tier R — erreurs d’analyse : disque
 
@@ -114,7 +114,7 @@ reconnaissance des vents simulée (taux « realiste » du Tier S).
 | Grille écrite attendue (structure vraie) | 0.0 % (0/1) | 100.0 % (1/1) | 0.0 % (0/1) | 100.0 % (1/1) |
 | Forme et grille attendues (chaîne complète) | 0.0 % (0/1) | 100.0 % (1/1) | 0.0 % (0/1) | 0.0 % (0/1) |
 | Cas | 9 | 9 | 9 | 9 |
-| Temps de calcul (ms) | 182 | 212 | 145 | 181 |
+| Temps de calcul (ms) | 167 | 198 | 149 | 174 |
 
 ### Autumn Leaves (exemple du cahier, C14)
 

@@ -252,13 +252,13 @@ function BarCell({
           {...stopProps(i)}
           className={`accord-case${c.origin === 'manual' ? ' main' : ''}${editing === i ? ' edite' : ''}`}
           data-origine={c.origin}
-          aria-label={t('chart.chordAria', { chord: displayChordText(c.chord, ctx), n: label })}
+          aria-label={t('chart.chordAria', { chord: displayChordText(c.chord, ctx, c.next ?? null), n: label })}
           // Every chord sits where its beat is: beat 3 of 4 in the middle of the bar, as in a Real Book.
           data-debut={c.beatInBar}
           data-rang={i % 2}
           style={{ '--debut': c.beatInBar / bar.beats } as CSSProperties}
         >
-          <ChordSymbol chord={c.chord} ctx={ctx} doubtful={c.doubtful} />
+          <ChordSymbol chord={c.chord} ctx={ctx} doubtful={c.doubtful} next={c.next ?? null} />
         </button>
       ))}
       {n === 0 && (

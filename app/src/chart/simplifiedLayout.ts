@@ -11,9 +11,29 @@
 //     occurrence after the playhead; a loop dragged over written bars is the played bars of
 //     the next occurrence where they follow one another in the playing.
 
+import { approachTargets } from '../harmony/chord';
+import type { ChordSymbol } from '../model/harmony';
 import type { PartType, StructurePart } from '../model/structure';
 import { BARS_PER_LINE } from './layout';
-import type { FormEntry, SimplifiedChart, WrittenBar, WrittenPlace, WrittenSection } from '../structure';
+import type { FormEntry, SimplifiedChart, WrittenBar, WrittenChord, WrittenPlace, WrittenSection } from '../structure';
+
+const targetsOf = new WeakMap<SimplifiedChart, Map<WrittenChord, ChordSymbol | null>>();
+
+/**
+ * The chord a written chord goes to, in the written order (a « % » bar adds nothing; across the end of a
+ * section into the next one; none at the end or before « N.C. »): what spells a chord that slides down a
+ * half step to it, as on the full chart (`harmony/chord.ts#approachTargets`).
+ */
+export function writtenNext(chart: SimplifiedChart, c: WrittenChord): ChordSymbol | null {
+  let map = targetsOf.get(chart);
+  if (!map) {
+    const seq = chart.bars.flatMap((b) => (b.simile ? [] : b.chords));
+    const targets = approachTargets(seq.map((x) => x.chord));
+    map = new Map(seq.map((x, i) => [x, targets[i] ?? null]));
+    targetsOf.set(chart, map);
+  }
+  return map.get(c) ?? null;
+}
 
 /** What a block is headed with: a section letter (« A », « A2 » for a variant), or the kind of part outside the letters. */
 export type WrittenHeading = { kind: 'letter'; letter: string; variant: number | null } | { kind: 'part'; part: PartType };

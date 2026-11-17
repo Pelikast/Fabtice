@@ -30,6 +30,8 @@ export interface ExportChord {
   text: string;
   /** The analysis was unsure (iReal has no such notion; kept for a future « ? » option). */
   doubtful: boolean;
+  /** The written chord it goes to (transposed like it; `harmony/chord.ts#approachTargets`): its spelling. */
+  next?: ChordSymbol | null;
 }
 
 export interface ExportBar {
@@ -110,7 +112,8 @@ export function buildExportChart({ title, bars, key, semitones, tempo }: ExportC
       timeSignature: changed ? m : null,
       chords: b.chords.map((c) => {
         const chord = c.chord ? transposeChord(c.chord, semitones) : null;
-        return { beat: c.beatInBar, chord, text: chordText(chord, { key: spelling }), doubtful: c.doubtful };
+        const next = c.next ? transposeChord(c.next, semitones) : null;
+        return { beat: c.beatInBar, chord, text: chordText(chord, { key: spelling, next }), doubtful: c.doubtful, next };
       }),
       repeat: b.repeat,
       final: i === bars.length - 1,

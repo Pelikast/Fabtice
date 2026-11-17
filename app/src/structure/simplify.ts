@@ -515,10 +515,13 @@ function simplify(input: SimplifyInput): SimplifiedChart | null {
   // ---- 1. occurrences
   const keyChanges = [...input.keyChanges].sort((a, b) => a.bar - b.bar).map((k) => ({ i: at(k.bar), key: k.key }));
   const keys: Key[] = [];
+  const main = input.key ?? null;
   const keyIndexAt = (i: number): number => {
     let key: Key | null = null;
     for (const k of keyChanges) if (k.i <= i) key = k.key;
     if (!key) return -1;
+    // back in the main key: the main key's own passage
+    if (main && key.tonic === main.tonic && key.mode === main.mode) return -1;
     const found = keys.findIndex((x) => x.tonic === key!.tonic && x.mode === key!.mode);
     if (found >= 0) return found;
     keys.push(key);
@@ -562,6 +565,23 @@ function simplify(input: SimplifyInput): SimplifiedChart | null {
       o.rank = letterOcc.slice(o.chorus * period, k).filter((x) => labelKey(x.label) === label).length;
     });
   } else letterOcc.forEach((o) => (o.chorus = 0));
+  // A modulation inside an occurrence cuts it: the rest of the section is a passage of its own in the new
+  // key (written as its own block with its mark), not folded into the old key's (after the ranks: the
+  // sequence of letters is unchanged).
+  // A change one bar from a section line belongs to that line (a bar late: the whole section is in the new
+  // key; a bar early: the next section is).
+  for (const k of keyChanges) {
+    const o = occ.find((x) => k.i > x.first && k.i < x.end);
+    if (!o || keyIndexAt(k.i) === o.key) continue;
+    if (k.i - o.first < 2) {
+      o.key = keyIndexAt(k.i);
+      continue;
+    }
+    if (o.end - k.i < 2) continue;
+    const tail: Occurrence = { ...o, first: k.i, key: keyIndexAt(k.i) };
+    o.end = k.i;
+    occ.splice(occ.indexOf(o) + 1, 0, tail);
+  }
   // ---- 2. groups: letter × key, the same chords in two keys being one group
   const tonic: number | null = null; // the minor tonic is written after the consensus (`writeMinorTonic`)
   const known = knownLookup(input, bars, letterOcc, keys);
@@ -582,9 +602,10 @@ function simplify(input: SimplifyInput): SimplifiedChart | null {
   }
   for (const [o, g] of groupOf) g.occ.push(o);
   for (const g of groups) g.occ.sort((a, b) => a.first - b.first);
-  // the same letter in two keys with the same chords: one group
+  // the same letter in two keys with the same chords: one group, when the main key is not known (a return
+  // to it may then read as another key); with it, a modulation in force is always written
   for (const g of [...groups]) {
-    if (!isLetter(g.label)) continue;
+    if (!isLetter(g.label) || main) continue;
     const twin = groups.find((x) => x !== g && isLetter(x.label) && x.label.letter === (g.label as { letter: string }).letter && groups.indexOf(x) < groups.indexOf(g) && sameChords(bars, x.occ, g.occ));
     if (!twin) continue;
     twin.occ.push(...g.occ);
@@ -726,7 +747,8 @@ function simplify(input: SimplifyInput): SimplifiedChart | null {
       prevMeter = meter;
       // a modulation written above the first bar where the key differs from the bar written before
       const occKey = g.key;
-      const keyChange = !first && pos === 0 && occKey !== prevKey && occKey >= 0 ? { ...keys[occKey]! } : null;
+      const keyOf = (k: number): Key | null => (k >= 0 ? keys[k]! : main);
+      const keyChange = !first && pos === 0 && occKey !== prevKey && keyOf(occKey) ? { ...keyOf(occKey)! } : null;
       if (pos === 0) {
         prevKey = occKey;
         first = false;

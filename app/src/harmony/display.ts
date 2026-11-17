@@ -39,13 +39,18 @@ export function spellingKey(ctx: DisplayContext): Key {
   return ctx.key ?? transposeKey(NEUTRAL_KEY, ctx.shift);
 }
 
-/** The chord as written: transposed by the context's shift, spelled in its key. */
-export function displayChord(c: ChordSymbol, ctx: DisplayContext): { chord: ChordSymbol; parts: ChordParts } {
+/**
+ * The chord as written: transposed by the context's shift, spelled in its key. `next`: the stored
+ * chord it goes to (`approachTargets`), for the spelling of a chord that slides down a half step to it.
+ */
+export function displayChord(c: ChordSymbol, ctx: DisplayContext, next: ChordSymbol | null = null): { chord: ChordSymbol; parts: ChordParts } {
   const written = transposeChord(c, ctx.shift);
-  return { chord: written, parts: chordParts(written, { key: spellingKey(ctx), minor: ctx.minor }) };
+  return { chord: written, parts: chordParts(written, { key: spellingKey(ctx), minor: ctx.minor, next: next && transposeChord(next, ctx.shift) }) };
 }
 
-/** One-line text of a stored chord as written in this context (« B♭7(♭9) », « N.C. »). */
-export function displayChordText(c: ChordSymbol | null, ctx: DisplayContext): string {
-  return c === null ? chordText(null) : chordText(transposeChord(c, ctx.shift), { key: spellingKey(ctx), minor: ctx.minor });
+/** One-line text of a stored chord as written in this context (« B♭7(♭9) », « N.C. »); `next` as for `displayChord`. */
+export function displayChordText(c: ChordSymbol | null, ctx: DisplayContext, next: ChordSymbol | null = null): string {
+  return c === null
+    ? chordText(null)
+    : chordText(transposeChord(c, ctx.shift), { key: spellingKey(ctx), minor: ctx.minor, next: next && transposeChord(next, ctx.shift) });
 }

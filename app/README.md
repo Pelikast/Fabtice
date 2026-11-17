@@ -1501,7 +1501,9 @@ extrait change (autre découpage des solos) ; une réponse vide est redemandée
 après 10 min. La structure et les modulations : à chaque changement des
 accords, des tonalités, du mode, des réglages, du titre, des pistes ou de la
 bibliothèque des grilles. Un changement de projet annule tout ce qui est en
-cours. Sur un morceau de 10 minutes : indices du son quelques secondes en
+cours. La passe ne lit pas plus de 256 mesures après le dernier accord
+(`BARS_AFTER_LAST_CHORD`) : un morceau étiré bien au-delà de ses accords ne
+bloque plus la page. Sur un morceau de 10 minutes : indices du son quelques secondes en
 tâche de fond (jamais plus de quelques millisecondes d'affilée), forme et
 parties environ 60 ms, grille simplifiée environ 5 ms ; mémoire : aucune piste
 copiée, un extrait de chorus à 16 kHz (environ 4 Mo par minute).

@@ -27,7 +27,7 @@ import { appStore, useApp } from '../store/store';
 import { structureInForce } from '../store/structureSelectors';
 import type { SimplifiedChart, WrittenBar } from '../structure';
 import { barProgress, loopBars, loopedPart, loopFromKey, loopKey } from './layout';
-import { formItems, headingLetterText, lastWrittenIndex, loopRange, placeOf, playedInside, seekTarget, writtenBlocks, type WrittenBlock, type WrittenLine } from './simplifiedLayout';
+import { formItems, headingLetterText, lastWrittenIndex, loopRange, placeOf, playedInside, seekTarget, writtenBlocks, writtenNext, type WrittenBlock, type WrittenLine } from './simplifiedLayout';
 import { useChartGestures, type WrittenGestures } from './useChartGestures';
 import { useFitChords } from './useFitChords';
 import { useFollowLine } from './useFollowLine';
@@ -155,6 +155,7 @@ function Line({ line, times, chart, contexts, fallback, loop, last }: { line: Wr
     <div className="ligne ligne-ecrite">
       {line.bars.map((bar, k) => (
         <WrittenCell
+          chart={chart}
           key={bar.index}
           bar={bar}
           ctx={contexts.get(bar.played[0] ?? -1) ?? fallback}
@@ -170,7 +171,7 @@ function Line({ line, times, chart, contexts, fallback, loop, last }: { line: Wr
   );
 }
 
-function WrittenCell({ bar, ctx, loop, opens, closes, times, final, passes }: { bar: WrittenBar; ctx: ReturnType<typeof selectDisplayContext>; loop: ReturnType<typeof loopFromKey>; opens: boolean; closes: boolean; times: number; final: boolean; passes: number }) {
+function WrittenCell({ chart, bar, ctx, loop, opens, closes, times, final, passes }: { chart: SimplifiedChart; bar: WrittenBar; ctx: ReturnType<typeof selectDisplayContext>; loop: ReturnType<typeof loopFromKey>; opens: boolean; closes: boolean; times: number; final: boolean; passes: number }) {
   const n = bar.chords.length;
   // The loop veil: the bar is veiled when one of the played bars it stands for is inside the loop.
   const inside = loop ? playedInside(bar.played, loop.first, loop.last) : null;
@@ -212,10 +213,10 @@ function WrittenCell({ bar, ctx, loop, opens, closes, times, final, passes }: { 
           className="accord-case lue"
           data-debut={c.beat}
           data-rang={i % 2}
-          aria-label={displayChordText(c.chord, ctx)}
+          aria-label={displayChordText(c.chord, ctx, writtenNext(chart, c))}
           style={{ '--debut': c.beat / bar.beats } as CSSProperties}
         >
-          <ChordSymbol chord={c.chord} ctx={ctx} />
+          <ChordSymbol chord={c.chord} ctx={ctx} next={writtenNext(chart, c)} />
         </span>
       ))}
       {n === 0 && bar.simile && (

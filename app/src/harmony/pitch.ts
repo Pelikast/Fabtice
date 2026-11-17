@@ -105,6 +105,20 @@ export function spellInKey(p: PitchClass, tonic: NoteName, opts: SpellOptions = 
   return awkward(name) ? plainName(p, preferSharp) : name;
 }
 
+/**
+ * The name of `p` as the upper neighbour of `target` (the letter above the target's): B♭ above A, D
+ * above C♯, F above E. Null when that would need a double accidental or an awkward name (C♭ above B♭,
+ * B♯…): the caller then keeps the key's spelling.
+ */
+export function upperNeighbour(p: PitchClass, target: NoteName): NoteName | null {
+  const letter = LETTERS[(LETTERS.indexOf(target.letter) + 1) % 7]!;
+  let acc = pc(p - LETTER_PC[letter]);
+  if (acc > 6) acc -= 12;
+  if (acc < -1 || acc > 1) return null;
+  const name: NoteName = { letter, accidental: acc as Accidental };
+  return awkward(name) ? null : name;
+}
+
 /** « B♭ », « F♯ », « C ». */
 export function noteText(n: NoteName): string {
   return n.letter + (n.accidental === -1 ? FLAT : n.accidental === 1 ? SHARP : '');

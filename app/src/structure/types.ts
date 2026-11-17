@@ -221,4 +221,10 @@ export interface SimplifyInput {
   /** Modulations in force as chart bar numbers, ascending (the main key is not in the list). */
   keyChanges: { bar: number; key: Key }[];
   known: KnownStandard[];
+  /**
+   * The main key in force (optional): a passage in it after a modulation is the main key again (its
+   * sections are the main key's, its return is marked), and two passages of one letter in two keys are
+   * never written as one. Without it, the same letter with the same chords in two keys is one section.
+   */
+  key?: Key | null;
 }

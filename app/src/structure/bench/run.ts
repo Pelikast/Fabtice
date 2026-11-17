@@ -63,7 +63,8 @@ export function truthSimplifyInput(piece: TruthPiece, input: HarmonyInput): Simp
     letters: piece.sections.filter((m) => m.bar >= p.firstBar && m.bar < p.endBar).map((m) => m.label),
   }));
   const keyChanges = piece.keyChanges.map((k) => ({ bar: at(k.bar), key: { tonic: k.key.tonic, mode: k.key.mode } }));
-  return { bars: input.bars, sections, parts, keyChanges, known: input.known };
+  // the main key, as the app's selector gives it (`store/simplifiedSelectors.ts`)
+  return { bars: input.bars, sections, parts, keyChanges, known: input.known, key: input.key };
 }
 
 /** `SimplifyInput` from a DETECTED structure (what `refresh.ts` will do: the detection is the structure in force). */
@@ -75,7 +76,7 @@ export function detectedSimplifyInput(input: HarmonyInput, s: DetectedStructure,
     const endBar = at(p.end);
     return { id: p.id, type: p.type, firstBar, endBar, letters: sections.filter((m) => m.bar >= firstBar && m.bar < endBar).map((m) => m.label) };
   });
-  return { bars: input.bars, sections, parts, keyChanges: keyChanges.map((k) => ({ bar: at(k.time), key: k.key })), known };
+  return { bars: input.bars, sections, parts, keyChanges: keyChanges.map((k) => ({ bar: at(k.time), key: k.key })), known, key: input.key };
 }
 
 // ---------------------------------------------------------------- running

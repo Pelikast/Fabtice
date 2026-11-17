@@ -1132,8 +1132,11 @@ export function analyseForm(bars: readonly HarmonyBar[], o: FormOptions): FormAn
       // the recording's own consensus on the chart's positions (the chart where nothing was heard)
       const own = consensus(toks, choruses, L).map((b, i) => (b.slots.every((x) => x < 0) ? T[i]! : b));
       const layout = chorusLayout(toks, L, choruses, own, body.sections, 'known');
-      // the known chart wins unless the repeats explain the piece clearly better
-      if (!chorus || layout.agreement >= chorus.agreement - 0.1 || choruses.length >= chorus.choruses.length) {
+      // the known chart wins unless the repeats explain the piece clearly better: they agree much better, or
+      // they find more choruses of the same length where the chart's reading begins with an « intro » of half a
+      // chorus or more (the chart aligned a chorus late: the first chorus read as an intro)
+      const lateByAChorus = !!chorus && chorus.chorusLength === L && chorus.choruses.length > choruses.length && layout.introEnd >= L / 2 && chorus.introEnd < layout.introEnd - L / 2;
+      if (!chorus || choruses.length >= chorus.choruses.length || (layout.agreement >= chorus.agreement - 0.1 && !lateByAChorus)) {
         chorus = layout;
         knownFits = true;
       }

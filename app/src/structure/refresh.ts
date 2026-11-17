@@ -135,12 +135,27 @@ function audioKey(s: AppState): string {
   return ids.join('|');
 }
 
-/** The bars of the chart in force, on the grid in force (never a tapped preview), as the pass reads them. */
+/**
+ * Bars read after the last bar where a chord starts: far more than any ending or silence of a real piece
+ * (the detectors' work grows faster than the bars: a piece stretched to tens of thousands of empty bars
+ * would block the page for minutes).
+ */
+export const BARS_AFTER_LAST_CHORD = 256;
+
+/**
+ * The bars of the chart in force, on the grid in force (never a tapped preview), as the pass reads them: up
+ * to `BARS_AFTER_LAST_CHORD` bars after the last chord that starts.
+ */
 export function harmonyBarsOf(s: AppState): HarmonyBar[] {
   if (!s.project) return [];
   const map = gridInForce(s);
   const chords = resolveChords(map, s.analysis?.chords ?? null, s.corrections);
-  return harmonyBars(chartBars({ map, chords, sections: [], duration: s.project.duration }));
+  const bars = harmonyBars(chartBars({ map, chords, sections: [], duration: s.project.duration }));
+  let last = -1;
+  bars.forEach((b, i) => {
+    if (b.chords.length) last = i;
+  });
+  return last >= 0 && bars.length > last + 1 + BARS_AFTER_LAST_CHORD ? bars.slice(0, last + 1 + BARS_AFTER_LAST_CHORD) : bars;
 }
 
 /** Same content (small data: the modulations, the structure). */
