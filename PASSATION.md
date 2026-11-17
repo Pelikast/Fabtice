@@ -1,12 +1,82 @@
-# Passation — état du projet au 15 novembre 2026 : lots 1 à 3 publiés, retours du lot 3 et programme « accords » en cours
+# Passation — état du projet
 
-> **Depuis le 16 novembre 2026, le travail en cours est la version 1.0.0.**
-> Son cahier des charges, son plan en sept étapes et les bilans d'étape sont
-> dans le dossier `v1/` (`v1/PLAN.md` d'abord). Tout se fait sur la branche
-> `v1` ; rien ne va sur `main` avant la publication de la 1.0.0. Le présent
-> document reste la référence pour ce qui existait à la version du 16 novembre
-> (lots 1 à 4) et pour les pièges de l'environnement de travail.
+## État des lieux : version 1.0.0 (17 novembre 2026)
 
+À lire d'abord ; le reste du document décrit ce qui existait avant (lots 1 à
+4, version du 16 novembre) et garde les pièges de l'environnement de travail.
+
+**Ce qui existe.** La version 1.0.0 est écrite, vérifiée et prête sur la
+branche `v1` ; elle se publie par un push de `v1` sur `main`, avec l'accord
+du propriétaire. Par rapport à la version du 16 novembre, elle apporte : le
+menu Fabtice et la barre de menus du Mac, les Réglages à sept onglets,
+Annuler / Rétablir, « Enregistrer » qui écrase le `.fab` et l'alerte avant de
+perdre son travail, la fenêtre « Nouveau projet », le message des grilles des
+standards, l'impression avec aperçu, les exports (audio, iReal Pro, PDF,
+dossier pour Logic Pro, projet Ableton Live « à l'essai »), la correction du
+tempo en tapant, les signatures par mesure, les modulations, la structure du
+morceau et la grille complète simplifiée, « Alléger le travail pour
+l'appareil », la mise à jour automatique de l'app Mac et les numéros de
+version. Le document du projet est en version 6 ; un projet ou un `.fab` de
+la version précédente s'ouvre sans rien perdre (testé sur un vrai fichier).
+
+**Où sont les documents.**
+- `CLAUDE.md` : cahier des charges général, décisions du propriétaire, mesures.
+- `v1/CAHIER.md` : contenu demandé de la 1.0.0 (points C1 à C17, textes exacts
+  de l'interface) ; `v1/PLAN.md` : organisation, règles, pièges ;
+  `v1/bilan-etape-1.md` à `-7.md` : ce que chaque étape a livré, où c'est dans
+  le code, ce qui reste fragile. **`v1/bilan-etape-7.md` donne l'état final** :
+  conformité au cahier, défauts laissés, ce que le propriétaire doit essayer.
+- `DESIGN.md` : le dessin validé ; `CHANGELOG.md` : les nouveautés par version.
+- `app/README.md` (interface, contrats, tests ; près de 4 000 lignes : chercher
+  par titres), `desktop/README.md` (app Mac, mise à jour, fabrication,
+  publication), `app/src/project/FORMAT.md` (format `.fab`).
+
+**Vérifier.** Dans `app/` : `npm run typecheck`, `npm test`, puis après
+`npm run build` les suites Chromium `npm run test:<nom>` (liste dans
+`app/package.json`), une à la fois. Dans `desktop/` : `npm test`, puis après
+`npm run build:desktop` dans `app/` : `FABTICE_NO_POPPLER=1 xvfb-run -a npm run
+test:e2e`. Captures de tous les écrans : `npm run captures -- <dossier hors du
+dépôt>` ; dossiers d'essai des exports : `npm run essais -- <dossier>`.
+Fabrication sur les Mac de GitHub : lancer à la main le workflow
+`desktop-mac.yml` sur une branche (elle fabrique, teste sur les deux puces,
+essaie la mise à jour et fait un essai à blanc de la publication, sans rien
+publier) ; résultat sur la branche `ci-logs` (`STATUS.md`, journaux numérotés,
+`release/notes.txt`).
+
+**Publier une version.** Un push sur `main` fabrique, teste sur les deux
+puces, puis publie la version du numéro de `desktop/package.json` (étiquette
+`v<numéro>`, vraie version, dernière version), une seule fois par numéro.
+Pour la version suivante : changer le numéro dans `app/package.json` et
+`desktop/package.json`, ajouter sa section en tête de `CHANGELOG.md`
+(« ## Version 1.0.1 — <date> », en français simple, sans les mots « En
+préparation », qui arrêtent la publication), pousser sur `main`. Après la
+publication, le travail `publish` relit la vraie chaîne de mise à jour
+(`releases/latest/download/fabtice-version.json`, hôtes des archives) et
+passe au rouge si une app installée ne pourrait pas la suivre. Détail :
+`desktop/README.md` et « Ce que fera le push sur `main` » dans
+`v1/bilan-etape-6.md`. Netlify ne se déploie que sur le clic du propriétaire.
+
+**Points ouverts.**
+- Rien de la 1.0.0 n'a encore été vu sur un vrai Mac, un vrai téléphone, ni
+  entendu : tout a été vérifié par tests, captures et sur les Mac de GitHub.
+  La liste de ce que le propriétaire doit essayer est dans
+  `v1/bilan-etape-7.md`.
+- La publication réelle n'a jamais tourné (seul son essai à blanc), et la mise
+  à jour automatique ne se verra chez le propriétaire qu'avec la version qui
+  suivra la 1.0.0.
+- Jamais ouverts dans le vrai logiciel : le dossier pour Logic Pro (à essayer
+  par le propriétaire dans Logic 13) et le projet Ableton Live (personne ne
+  peut l'essayer : annoncé « à l'essai »).
+- Structure, modulations et reconnaissance des vents : mesurées sur des
+  rendus de synthèse seulement ; ce sont des propositions à corriger à la
+  main.
+- Après la publication : retitrer l'ancienne page `desktop-dev` (« Ancienne
+  version de test, remplacée par Fabtice 1.0.0 ») et demander au propriétaire
+  le déploiement Netlify.
+- Reporté : affichage « Partition » (v2) ; séparation à distance par clé
+  secrète (version future) ; apps Windows, Android, iOS.
+
+## Avant la 1.0.0 : état au 15 novembre 2026 (lots 1 à 3 publiés, retours du lot 3, programme « accords »)
 
 Ce document sert à reprendre le projet dans une nouvelle session sans relire
 l'historique. `CLAUDE.md` (cahier des charges, décisions, mesures) et
