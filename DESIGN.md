@@ -318,6 +318,63 @@ de la signature réglée est une rangée de boutons de la famille « duo »,
 au-dessus du groupement ; les temps d'une longue mesure sont de petits boutons
 séparés, en grille.
 
+## Colonne de la structure
+
+Dans l'affichage **Grille d'accords**, la grille (quatre mesures par ligne) occupe
+80 % de la largeur, à droite ; une **colonne de 20 %** à gauche porte la
+liste interactive du morceau. Elle est posée sur le même papier que la
+grille, sans carte ni fond propre : un simple filet de 1 px (`--trait-fin`)
+la sépare de la feuille, et son haut s'aligne sur le titre du morceau. Elle
+défile seule quand la liste est longue ; la grille garde son propre
+défilement.
+
+De haut en bas : **« Forme globale : AABC »** en Fraunces 19 px, un titre
+qu'on ne modifie pas (« Forme globale : — » quand elle est inconnue) ;
+**« Mode : »** en libellé, puis deux boutons de la famille « duo » (Jazz,
+Pop ; le mode en vigueur est plein à l'encre) et un petit « Auto » encadré
+d'un filet d'encre tant que c'est Fabtice qui choisit ; les deux
+affichages, **« Affichage complet »** et **« Grille complète simplifiée »**,
+en Instrument Sans 15 px ; **« Sections : »** en libellé, puis les parties,
+chacune une ligne séparée par un filet fin : son nom, ses lettres en texte
+discret (12,5 px, encre douce) sous le nom, un petit bouton **« Boucle »**
+(filet `--trait`, texte encre douce) et un crayon. En bas, des liens
+discrets : « Ajouter une partie », et seulement quand il y a quelque chose
+à défaire, « Revenir à la structure de l'analyse » et « Revenir aux lettres
+de l'analyse ».
+
+**Ce qui est choisi, ce qui joue, ce qui boucle.** L'affichage montré (ou la
+partie montrée) est cerné d'un filet d'encre, jamais de braise. La partie
+qu'on entend est marquée par une petite barre d'encre dans la marge et un nom
+plus gras, posés directement dans le DOM par la boucle d'images (comme la
+mesure en cours de la grille). Le bouton « Boucle » d'une partie dont la
+boucle est active prend le laiton (filet `--laiton`, voile `--laiton-voile`,
+texte à l'encre). Une partie corrigée à la main le dit en une ligne en
+italique (« Corrigée à la main ») ; celles de l'analyse ne disent rien.
+
+**Au-dessus des mesures**, quand elles ne sont pas toute la grille, une ligne
+discrète (13,5 px, encre douce) : « Thème 1 · mesures 3–10 », ou, pour la
+grille simplifiée tant qu'elle n'est pas écrite, « La grille simplifiée
+arrive avec la structure du morceau. ».
+
+**Fenêtre « Modifier la partie » / « Ajouter une partie ».** Une fenêtre de
+la famille (papier clair, titre en Fraunces, bouton principal **à l'encre**),
+large de 480 px au plus : le **type** en puces (celles du mode d'abord, un
+petit écart, puis les autres), le **numéro** et l'**instrument** en listes,
+les **limites** en deux cases (de la mesure… à la mesure…, comptées comme on
+les lit, la première mesure étant la 1), une phrase calme en cas d'erreur
+(cases cernées de laiton, aucun rouge), le lien « Supprimer cette partie »,
+« Annuler » et « Valider » (« Ajouter » pour une nouvelle partie).
+
+**Téléphone.** Pas de colonne : une **barre discrète** sous le titre de la
+grille, sur toute la largeur, filets en haut et en bas, collée en haut de la
+feuille quand on la fait défiler : « **Forme globale : AABC** · Thème 1 »
+(la forme, puis l'affichage en cours) et un chevron. Un toucher ouvre une
+**feuille posée en bas** (82 % de la hauteur au plus, angles hauts arrondis,
+voile habituel) avec la même liste ; choisir un affichage ou une partie, ou
+toucher « Boucle » ou le crayon, la referme. Cibles d'au moins 40 px
+(boutons de 42 à 46 px). La fenêtre d'une partie est, elle aussi, une feuille
+posée en bas, boutons sur toute la largeur.
+
 ## Téléphone
 
 Sous 760 px de large : la colonne des pistes se réduit à 92 px (nom, M, S), la

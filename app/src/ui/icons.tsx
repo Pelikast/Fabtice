@@ -126,3 +126,12 @@ export function PrinterIcon() {
     </svg>
   );
 }
+
+/** A pencil, in the same line: the quiet « Modifier » beside a part of the structure. */
+export function PencilIcon() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12.6 4.4l3 3L7.2 15.8l-3.7.8.8-3.7zM11 6l3 3" />
+    </svg>
+  );
+}

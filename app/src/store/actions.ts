@@ -123,7 +123,7 @@ export async function openProject(input: NewProjectInput): Promise<void> {
     loop: { region, enabled: region !== null },
     playback: { ...DEFAULT_PLAYBACK },
     view: { ...s.view, mode: 'pistes' },
-    ui: { ...s.ui, newPieceOpen: false, panel: 'none', import: { kind: 'idle' }, notice: null, reopenOffer: null, separationNotice: null },
+    ui: { ...s.ui, newPieceOpen: false, panel: 'none', import: { kind: 'idle' }, notice: null, reopenOffer: null, separationNotice: null, chartDisplay: { kind: 'full' } },
   }));
   const mixes = Object.fromEntries(tracks.map((tr) => [tr.id, { mute: tr.mute, solo: tr.solo, volume: tr.volume }]));
   await engine.loadTracks(tracks.map((tr) => engineTrack(tr.id, tr.audio.id)), mixes);
@@ -177,7 +177,7 @@ export async function restoreProject(
   await engine.loadTracks(tracks.map((tr) => engineTrack(tr.id, tr.audio.id)), mixes);
   if (!isCurrent()) return;
   // The « Ouverture… » state of the dialog stays until the piece can play.
-  set((s) => ({ ui: { ...s.ui, newPieceOpen: false, panel: 'none', import: { kind: 'idle' }, notice: null, reopenOffer: null } }));
+  set((s) => ({ ui: { ...s.ui, newPieceOpen: false, panel: 'none', import: { kind: 'idle' }, notice: null, reopenOffer: null, chartDisplay: { kind: 'full' } } }));
 }
 
 /** Back to « no piece open »: for an opening that failed half way (the engine refused, or it took too long). */

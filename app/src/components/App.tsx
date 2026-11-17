@@ -28,6 +28,7 @@ import { StandardsMessage, useMessageStep } from './StandardsMessage';
 import { StorageNotice } from './StorageNotice';
 import { TopBar } from './TopBar';
 import { MeterDialog } from './MeterDialog';
+import { PartDialog } from './PartDialog';
 import { TapFixDialog } from './TapFixDialog';
 import { TempoFixMenu } from './TempoFixMenu';
 import { TracksView } from './TracksView';
@@ -78,6 +79,7 @@ export function App() {
       <TempoFixMenu />
       <TapFixDialog />
       <MeterDialog />
+      <PartDialog />
       {dragging && (
         <div className="depot" aria-hidden="true">
           <div>

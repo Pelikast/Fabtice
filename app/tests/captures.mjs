@@ -13,7 +13,8 @@
 //   grilles-* (the start-up message of the chord charts: question, progression, resultat, dernier-message),
 //   impression-* (the print window: une-page, plusieurs-pages),
 //   export-audio-* (« Exporter » ▸ « Audio… »: wave, wave-96-khz, flac, mp3, des-pistes, des-pistes-un-seul-fichier),
-//   chargement-* (the ember text of the top bar: separation, analyse).
+//   chargement-* (the ember text of the top bar: separation, analyse),
+//   structure-* (the structure column of « Grille d'accords »: complet, partie, fenetre, corrigee, pop, simplifiee, vide; on a phone also feuille).
 //
 // Each screen is reached the way the browser checks reach it (`lib/menu.mjs`, `lib/settings.mjs`; the states of
 // `new-project.mjs`, `standards.mjs`, `print.mjs`). Playwright and Chromium are expected preinstalled
@@ -27,6 +28,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { closeMenu, menuCommand, menuOpenTo, openMenu } from './lib/menu.mjs';
 import { SETTINGS_TABS, openSettings, openSettingsTab } from './lib/settings.mjs';
+import { harmonyCaptures } from './captures-harmonie.mjs';
 import { meterCaptures } from './captures-meter.mjs';
 import { tapFixCaptures } from './captures-tap.mjs';
 import { startServer } from './serve.mjs';
@@ -424,7 +426,10 @@ try {
       // Stage 4: the tap correction of the tempo, the time signature window and what follows from it.
       ['correction en tapant', (form) => tapFixCaptures(form, { browser, contextOptions, openPage, snap, press, sleep })],
       ['signature rythmique', (form) => meterCaptures(form, { browser, openPage, snap, contextOptions, press })],
+      ['structure du morceau', (form) => harmonyCaptures(form, { browser, openPage, snap, contextOptions, press })],
     ]) {
+      // FABTICE_CAPTURES_ONLY=structure: only the sections whose name contains that text.
+      if (process.env.FABTICE_CAPTURES_ONLY && !label.includes(process.env.FABTICE_CAPTURES_ONLY)) continue;
       try {
         console.log(`${form.name} : ${label}…`);
         await run(form);

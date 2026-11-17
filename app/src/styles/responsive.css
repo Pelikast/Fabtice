@@ -52,7 +52,9 @@
   .feuille-tete h1 { font-size: 24px; }
   .grille-vide span { height: 76px; }
   .feuille-infos { width: 100%; justify-content: space-between; gap: 8px; }
-  .feuille-infos p { white-space: normal; }
+  .feuille-infos p { flex: 1 1 0; min-width: 0; white-space: normal; }
+  /* The instrument choice (Ut, Si♭, Mi♭) and « Imprimer » keep their width: the line of the key gives way. */
+  .feuille-infos .duo, .feuille-infos .imprimer-bouton { flex: none; }
   .case { --pg: 8px; --pd: 2px; --haut: 12px; --corps: 21px; height: 76px; gap: 8px; }
   .case .section { left: 5px; top: 4px; }
   /* The chord editor is a sheet from the bottom of the screen. */
