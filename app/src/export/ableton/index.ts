@@ -12,6 +12,9 @@ export * from './types';
 export { buildLiveSet, DIALECTS, LIVE_SCHEMA } from './liveSet';
 export { liveFileCrc, LIVE_CRC_BYTES } from './crc';
 export { LIVE_TEMPO_MAX, LIVE_TEMPO_MIN, liveTempoSteps, quartersToSeconds, secondsToQuarters, timeSignatureCode } from './tempo';
+export { quartersMap, SAMPLES_FOLDER, sessionToAbleton, type AbletonFileFacts, type AbletonNote, type SessionToAbletonOptions } from './fromSession';
+export { ABLETON_README_NAME, abletonSetFiles, abletonTextFiles, fileFacts, LIVE_TEMPO_RANGE, planAbletonFolder, runAbletonExport, type AbletonFolderPlan } from './folder';
+export { abletonFallbackSteps, abletonMissingSteps, abletonNoteLines, abletonReadme } from './readme';
 
 /** The `.als` file: the document of `buildLiveSet()`, gzipped the way Live writes it. */
 export async function writeAbletonSet(input: AbletonSetInput): Promise<AbletonSetResult & { bytes: Uint8Array }> {
