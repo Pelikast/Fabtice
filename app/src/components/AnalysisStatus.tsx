@@ -32,7 +32,7 @@ function windowPercentOf(w: ChordWindowProgress | null | undefined): number {
 function statusText(run: AnalysisRun, fraction: number, window: (ChordWindowProgress & { percent: number }) | null, fallback: string | null): string | null {
   if (run.status === 'running') {
     if (run.step === 'download') return t('analysis.statusDownload', { n: percent(fraction) });
-    if (run.step === 'chords' && window && window.total > 0) return t('analysis.statusFine', { n: window.percent });
+    if (run.step === 'chords' && window && window.total > 0) return t('analysis.statusFine', { n: percent(fraction) });
     if (run.tempoBar !== undefined) return t('analysis.statusTempo', { bar: formatBarNumber(run.tempoBar), n: percent(fraction) });
     return t('analysis.statusRunning', { n: percent(fraction) });
   }
@@ -109,7 +109,6 @@ export function AnalysisProgressNote() {
   const download = useAnalysisProgress((p) => p.download);
   const windowDone = useAnalysisProgress((p) => p.chordWindow?.done ?? -1);
   const windowTotal = useAnalysisProgress((p) => p.chordWindow?.total ?? 0);
-  const windowPercent = useAnalysisProgress((p) => windowPercentOf(p.chordWindow));
   const models = useModels();
   const instruments = useInstrumentModel();
   if (run.status !== 'running') return null;
@@ -121,7 +120,7 @@ export function AnalysisProgressNote() {
         <span style={{ transform: `scaleX(${Math.min(1, Math.max(0, fraction))})` }} />
       </div>
       <p className="analyse-etape" data-testid="analyse-etape">
-        {run.step === 'chords' && windowDone >= 0 && windowTotal > 0 ? t('analysis.stepFine', { n: windowPercent, done: windowDone, total: windowTotal }) : t(`analysis.step.${run.step}`)}
+        {run.step === 'chords' && windowDone >= 0 && windowTotal > 0 ? t('analysis.stepFine', { n: percent(fraction), done: windowDone, total: windowTotal }) : t(`analysis.step.${run.step}`)}
         {run.step === 'download' && download && ` · ${t('analysis.downloaded', { loaded: megabytes(download.loaded), total: megabytes(download.total) })}`}
       </p>
       {showSources && models.length > 0 && <ModelSources models={models} />}

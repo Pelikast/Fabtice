@@ -390,7 +390,7 @@ export const fr = {
   'chart.keyChoose': 'Choisir la tonalité',
   'chart.print': 'Imprimer',
   'chart.printHint': 'Imprimer la grille, ou l’enregistrer en PDF',
-  'chart.touchHint': 'Touchez une mesure pour y aller. Restez appuyé puis glissez pour la mettre en boucle.',
+  'chart.touchHint': 'Touchez une mesure pour y aller. Restez appuyé puis glissez pour la mettre en boucle ; restez appuyé une seconde sans bouger pour ouvrir son menu (tempo, signature, tonalité).',
 
   // Key correction (chart title line)
   'key.edit.title': 'Tonalité du morceau',
