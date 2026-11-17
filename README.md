@@ -29,3 +29,7 @@ Licence : GPL-3.0-or-later.
   interface construite dans `desktop/ui/`.
 - `CLAUDE.md` — le cahier des charges et les conventions du projet.
 - `DESIGN.md` — le design validé, qui fait référence pour l'interface.
+- `CHANGELOG.md` — les nouveautés de chaque version publiée, en français
+  simple (recopiées sur la page de la version).
+- `PASSATION.md` — l'état des lieux pour reprendre le projet ; `v1/` — le
+  cahier des charges, le plan et les bilans d'étape de la version 1.0.0.
