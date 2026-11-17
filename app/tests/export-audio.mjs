@@ -1,4 +1,4 @@
-// « Exporter le son » in Chromium, with the REAL encoders (LAME and libFLAC as
+// « Exporter » → « Audio… » in Chromium, with the REAL encoders (LAME and libFLAC as
 // WebAssembly, in a worker) and a piece of known samples:
 //   - the mix as heard (mute, solo, volumes) against the tracks at full level;
 //   - the loop only, exact in frames;
@@ -6,8 +6,12 @@
 //     browser (`decodeAudioData`) and compared sample for sample, with its
 //     STREAMINFO (length, MD5 of the samples) and title read from the file; MP3
 //     decoded and compared within a stated error, allowing for the codec delay,
-//     with its frame header (MPEG-1 layer III, 48 kHz, 256 kbit/s, joint stereo),
-//     its title tag and its duration;
+//     with its frame header (MPEG-1 layer III, 48 kHz, 320 kbit/s by default, joint stereo),
+//     its title tag and its duration; every constant bit rate of the window (96 to 320);
+//   - Wave at every rate (44.1, 48, 88.2, 96 kHz) and quantization (16, 24, 32 bits float): read back
+//     (header, length, rate, bits; ffprobe agrees), 24 and 32 bits equal to the 16-bit codes, the tone
+//     where it was, and a tone above the new Nyquist frequency not folded back into the band;
+//   - several tracks ticked: one file each (archive) or one file mixing them at their volumes;
 //   - the archive: UTF-8 names, CRCs, checked here and by `unzip -t` when present;
 //   - cancel in the middle leaves nothing behind (no worker, no file link);
 //   - an encoder that cannot load: a calm message, and WAV and FLAC still work;
@@ -85,6 +89,60 @@ function readWav(buf) {
   const samples = new Int16Array(bytes / 2);
   for (let i = 0; i < samples.length; i++) samples[i] = buf.readInt16LE(44 + 2 * i);
   return { channels, rate, bits, frames: bytes / (2 * channels), samples, declared: buf.readUInt32LE(4) + 8 === buf.length };
+}
+
+/** Any WAV (16, 24 bits integer or 32 bits float), read chunk by chunk: header fields and a sample reader (full scale = 1). */
+function readWavAny(buf) {
+  if (buf.toString('ascii', 0, 4) !== 'RIFF' || buf.toString('ascii', 8, 12) !== 'WAVE') throw new Error('not a WAV');
+  let at = 12;
+  let fmt = null;
+  let fact = null;
+  while (at + 8 <= buf.length) {
+    const id = buf.toString('ascii', at, at + 4);
+    const size = buf.readUInt32LE(at + 4);
+    if (id === 'fmt ') fmt = { tag: buf.readUInt16LE(at + 8), channels: buf.readUInt16LE(at + 10), rate: buf.readUInt32LE(at + 12), byteRate: buf.readUInt32LE(at + 16), align: buf.readUInt16LE(at + 20), bits: buf.readUInt16LE(at + 22), size };
+    else if (id === 'fact') fact = buf.readUInt32LE(at + 8);
+    else if (id === 'data') {
+      const frames = size / fmt.align;
+      const bytes = fmt.bits / 8;
+      const read = (i, ch) => {
+        const o = at + 8 + i * fmt.align + ch * bytes;
+        if (fmt.bits === 32) return buf.readFloatLE(o);
+        if (fmt.bits === 24) return buf.readIntLE(o, 3) / 8388608;
+        return buf.readInt16LE(o) / 32768;
+      };
+      const code16 = (i, ch) => buf.readInt16LE(at + 8 + i * fmt.align + ch * bytes + (fmt.bits === 24 ? 1 : 0));
+      return { ...fmt, frames, fact, read, code16, declared: buf.readUInt32LE(4) + 8 === buf.length && at + 8 + size === buf.length };
+    }
+    at += 8 + size + (size % 2);
+  }
+  throw new Error('no data chunk');
+}
+
+/** Amplitude of the component at `hz` of a signal given as a function of the frame (a single-bin Fourier sum over [from, to)). */
+function amplitudeAt(get, rate, hz, from, to) {
+  let re = 0;
+  let im = 0;
+  for (let i = from; i < to; i++) {
+    const v = get(i);
+    re += v * Math.cos((2 * Math.PI * hz * i) / rate);
+    im += v * Math.sin((2 * Math.PI * hz * i) / rate);
+  }
+  return (2 * Math.hypot(re, im)) / (to - from);
+}
+
+/** What ffprobe says of a file (null when it is not installed). */
+function ffprobe(buf, ext) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fabtice-probe-'));
+  const file = path.join(dir, `a.${ext}`);
+  fs.writeFileSync(file, buf);
+  try {
+    const raw = execFileSync('ffprobe', ['-v', 'error', '-select_streams', 'a:0', '-show_entries', 'stream=codec_name,sample_rate,channels,bits_per_sample,bit_rate,duration', '-show_entries', 'format=bit_rate,duration', '-of', 'json', file], { encoding: 'utf8' });
+    return JSON.parse(raw);
+  } catch (e) {
+    if (/ENOENT/.test(String(e))) return null;
+    throw e;
+  }
 }
 
 /** STREAMINFO and the Vorbis comments of a FLAC file. */
@@ -281,7 +339,9 @@ async function openPiece(page) {
 }
 
 const fromB64 = (r) => ({ ...r, buf: Buffer.from(r.b64, 'base64') });
-const exp = async (page, prefs, chosen = null) => fromB64(await page.evaluate(([p, c]) => window.__bytes(p, c), [prefs, chosen]));
+// The choices not named are the defaults of the window (they are kept with the piece, so they would otherwise carry over from one call to the next).
+const DEFAULTS = { waveRate: 48000, waveBits: 16, mp3Kbps: 320, separate: true };
+const exp = async (page, prefs, chosen = null) => fromB64(await page.evaluate(([p, c]) => window.__bytes(p, c), [{ ...DEFAULTS, ...prefs }, chosen]));
 /** Source samples (16-bit codes) of track `k` interleaved, from frame `from`, `n` frames. */
 async function source(page, k, from, n) {
   const [l, r] = await page.evaluate(([k, from, n]) => window.__samples(k, from, n), [k, from, n]);
@@ -378,6 +438,105 @@ try {
     check('tracks: only the ticked ones go in', readZip(two.buf).length === 2);
   }
 
+  // ------------------------------------------------------------ several tracks ticked: one file each, or one file mixing them
+  // (track 0 is at half volume, track 2 is muted: the mute is ignored, the volume is kept in the one file)
+  {
+    const together = await exp(page, { what: 'tracks', range: 'whole', format: 'wav', separate: false }, [ids[0], ids[2]]);
+    const w = readWav(together.buf);
+    const [s0, s2] = [await source(page, 0, 0, TOTAL), await source(page, 2, 0, TOTAL)];
+    let worst = 0;
+    for (let i = 0; i < w.samples.length; i++) worst = Math.max(worst, Math.abs(w.samples[i] - (0.5 * s0[i] + s2[i])));
+    check('one file for the ticked tracks: a single WAV, not an archive, named after the tracks', together.plan.archiveName === null && together.plan.files.length === 1 && together.name === `${TITLE} – Basse + Voix.wav`, together.name);
+    check('one file for the ticked tracks: their sum at their volumes, the muted one heard (mute and solo ignored)', w.frames === TOTAL && worst <= 1.5, `worst ${worst}`);
+    const apart = await exp(page, { what: 'tracks', range: 'whole', format: 'wav', separate: true }, [ids[0], ids[2]]);
+    check('one file per track: the archive of the two ticked, each at full level', apart.plan.archiveName !== null && readZip(apart.buf).length === 2);
+    const alone = await exp(page, { what: 'tracks', range: 'whole', format: 'wav', separate: false }, [ids[1]]);
+    const one = readWav(alone.buf);
+    const s1 = await source(page, 1, 0, TOTAL);
+    let same = one.samples.length === s1.length;
+    for (let i = 0; i < s1.length && same; i++) if (one.samples[i] !== s1[i]) same = false;
+    check('one track ticked: always one file, at its full level, whatever the box says', alone.plan.archiveName === null && same);
+  }
+
+  // ------------------------------------------------------------ Wave: sampling rate and quantization
+  {
+    // Track 1 alone (full level), left channel; its component at 220 Hz·2^0.5 is the one we follow.
+    const hz = 110 * 2 ** 0.5;
+    const src = await source(page, 1, 0, TOTAL);
+    const srcAmp = amplitudeAt((i) => src[2 * i] / 32768, SR, hz, 0, TOTAL);
+    const pick = (waveRate, waveBits) => exp(page, { what: 'tracks', range: 'whole', format: 'wav', waveRate, waveBits, separate: false }, [ids[1]]);
+    // At 48 kHz: 24 bits and 32 bits float are the 16-bit codes, widened (nothing is rounded).
+    for (const bits of [24, 32]) {
+      const r = await pick(48000, bits);
+      const w = readWavAny(r.buf);
+      let exactly = w.frames === TOTAL && w.declared;
+      for (let i = 0; i < TOTAL && exactly; i++) for (let ch = 0; ch < 2 && exactly; ch++) if (Math.round(w.read(i, ch) * 32768) !== src[2 * i + ch] || w.read(i, ch) * 32768 !== src[2 * i + ch]) exactly = false;
+      check(`Wave 48 kHz ${bits === 32 ? '32-bit float' : '24 bits'}: header (${bits === 32 ? 'format 3, fact chunk' : 'PCM'}) and every sample the 16-bit code exactly`, exactly && w.rate === 48000 && w.bits === bits && w.tag === (bits === 32 ? 3 : 1) && (bits === 32 ? w.fact === TOTAL : w.fact === null), JSON.stringify({ rate: w.rate, bits: w.bits, tag: w.tag, frames: w.frames, fact: w.fact }));
+      const probe = ffprobe(r.buf, 'wav');
+      if (probe) check(`Wave 48 kHz ${bits}: ffprobe reads it (${bits === 32 ? 'pcm_f32le' : 'pcm_s24le'}, 48000 Hz, 2 channels, ${SECONDS} s)`, probe.streams[0].codec_name === (bits === 32 ? 'pcm_f32le' : 'pcm_s24le') && probe.streams[0].sample_rate === '48000' && probe.streams[0].channels === 2 && Math.abs(Number(probe.format.duration) - SECONDS) < 0.001, JSON.stringify(probe.streams[0]));
+    }
+    for (const rate of [44100, 88200, 96000]) {
+      for (const bits of [16, 24, 32]) {
+        const r = await pick(rate, bits);
+        const w = readWavAny(r.buf);
+        const frames = Math.round((TOTAL * rate) / 48000);
+        const amp = amplitudeAt((i) => w.read(i, 0), rate, hz, 0, w.frames);
+        const gain = 20 * Math.log10(amp / srcAmp);
+        check(`Wave ${rate / 1000} kHz ${bits === 32 ? '32-bit float' : `${bits} bits`}: header, exact length (${frames} frames), the tone where it was (${gain.toFixed(3)} dB)`, w.rate === rate && w.bits === bits && w.channels === 2 && w.frames === frames && w.declared && Math.abs(gain) < 0.02, JSON.stringify({ rate: w.rate, bits: w.bits, frames: w.frames, gain }));
+        if (bits === 24 && rate === 96000) {
+          const probe = ffprobe(r.buf, 'wav');
+          if (probe) check('Wave 96 kHz 24 bits: ffprobe reads 96000 Hz, pcm_s24le, the duration of the piece', probe.streams[0].sample_rate === '96000' && probe.streams[0].codec_name === 'pcm_s24le' && Math.abs(Number(probe.format.duration) - SECONDS) < 0.001, JSON.stringify(probe.streams[0]));
+        }
+        if (bits === 16 && rate === 96000) {
+          // Twice the rate keeps the original samples on the even frames.
+          let worst = 0;
+          for (let i = 100; i < TOTAL - 100; i += 5) worst = Math.max(worst, Math.abs(w.code16(2 * i, 0) - src[2 * i]));
+          check('Wave 96 kHz: the original samples are still there on the even frames (within one 16-bit step)', worst <= 1, `worst ${worst}`);
+        }
+      }
+    }
+    // A tone above the new Nyquist frequency does not fold back into the band (measured in the page, on the real encoder).
+    const folds = await page.evaluate(async () => {
+      const f = window.__fabtice;
+      const sr = 48000;
+      const n = sr * 2;
+      const result = {};
+      for (const hz of [23000, 22500]) {
+        const tone = Float32Array.from({ length: n }, (_, i) => 0.5 * Math.sin((2 * Math.PI * hz * i) / sr));
+        const pcm = f.lot3.pcm.pcmFromChannels([tone], sr);
+        const blob = await f.lot3.exportAudio.getEncoder('wav').encode(pcm, { sampleRate: 44100, bits: 16 });
+        const dv = new DataView(await blob.arrayBuffer());
+        const frames = (dv.byteLength - 44) / 2;
+        const at = (alias) => {
+          let re = 0;
+          let im = 0;
+          for (let i = 3000; i < frames - 3000; i++) {
+            const v = dv.getInt16(44 + 2 * i, true) / 32768;
+            re += v * Math.cos((2 * Math.PI * alias * i) / 44100);
+            im += v * Math.sin((2 * Math.PI * alias * i) / 44100);
+          }
+          return (2 * Math.hypot(re, im)) / (frames - 6000);
+        };
+        result[hz] = 20 * Math.log10(Math.max(at(44100 - hz), 1e-9) / 0.5);
+      }
+      return result;
+    });
+    check('44.1 kHz: 23 kHz and 22.5 kHz (above 22.05) do not fold back to 21.1 and 21.6 kHz (below -75 dB; 16-bit rounding is the floor)', folds[23000] < -75 && folds[22500] < -75, JSON.stringify(folds));
+  }
+
+  // ------------------------------------------------------------ MP3: every constant bit rate of the window
+  {
+    for (const kbps of [96, 128, 160, 192, 256, 320]) {
+      const r = await exp(page, { what: 'mix', range: 'whole', format: 'mp3', mp3Kbps: kbps });
+      const h = readMp3Header(r.buf);
+      const ok = h.sync && h.kbps === kbps && h.rate === 48000 && h.info && h.info.frames === h.frames && h.frames * 1152 - h.info.delay - h.info.padding === TOTAL && h.trailing === 0;
+      const expected = (kbps * 1000 * SECONDS) / 8;
+      check(`MP3 ${kbps} kbit/s: header says ${kbps}, Info frame and length exact, the size is that of a constant rate (${(r.buf.length / expected).toFixed(3)} of ${expected} bytes)`, ok && Math.abs(r.buf.length / expected - 1) < 0.02, JSON.stringify({ kbps: h.kbps, frames: h.frames }));
+      const probe = ffprobe(r.buf, 'mp3');
+      if (probe) check(`MP3 ${kbps} kbit/s: ffprobe reads ${kbps} kbit/s, 48000 Hz, ${SECONDS} s`, Math.abs(Number(probe.format.bit_rate) / 1000 - kbps) < kbps * 0.02 && probe.streams[0].sample_rate === '48000' && Math.abs(Number(probe.format.duration) - SECONDS) < 0.03, JSON.stringify(probe.format));
+    }
+  }
+
   // ------------------------------------------------------------ the loop only
   await page.evaluate((ids) => {
     const a = window.__fabtice.actions;
@@ -459,7 +618,7 @@ try {
   {
     const r = await mix('mp3');
     const h = readMp3Header(r.buf);
-    check('MP3: MPEG-1 layer III, 48 kHz, 256 kbit/s constant, joint stereo', h.sync && h.version === 3 && h.layer === 1 && h.rate === 48000 && h.kbps === 256 && h.mode === 1, JSON.stringify(h));
+    check('MP3: MPEG-1 layer III, 48 kHz, 320 kbit/s constant by default, joint stereo', h.sync && h.version === 3 && h.layer === 1 && h.rate === 48000 && h.kbps === 320 && h.mode === 1, JSON.stringify(h));
     check('MP3: Info frame first: frame count, byte count, delay 576 and the padding that makes the length exact', h.info && h.info.frames === h.frames && h.info.bytes === h.frameBytes * (h.frames + 1) && h.info.delay === 576 && h.frames * 1152 - h.info.delay - h.info.padding === TOTAL, JSON.stringify(h.info));
     check('MP3: title tag (UTF-16, accents kept)', h.title === `${TITLE} – mélange`, String(h.title));
     check('MP3: no stray bytes after the last frame', h.trailing === 0, `${h.trailing} bytes`);
@@ -665,11 +824,26 @@ try {
   ]) {
     const { page, errors } = await open('?demo&moteur=factice&separation=faite&export=ouvert', { width: w, height: h });
     await page.waitForSelector('[data-testid="export-son"]');
-    const formats = await page.$$eval('.formats-export button', (bs) => bs.map((b) => ({ text: b.textContent, disabled: b.disabled })));
-    check(`${tag}: the dialog offers WAV, MP3 and FLAC, none disabled, no « bientôt »`, formats.length === 3 && formats.every((f) => !f.disabled && !/bientôt/.test(f.text)), JSON.stringify(formats));
-    // The loop line of the dialog: whole bars as before, any other loop with its two points.
-    const note = () => page.locator('.choix-export .choix:has-text("La boucle seulement")').innerText();
-    check(`${tag}: the dialog says « mesures 5–8 » for the demo's loop of whole bars`, (await note()).includes('mesures 5–8'), await note());
+    const formats = await page.$$eval('.exp-formats button', (bs) => bs.map((b) => ({ text: b.textContent, disabled: b.disabled, on: b.getAttribute('aria-checked') })));
+    check(`${tag}: the window offers Wave, Flac and MP3 in that order, none disabled, no « bientôt », Wave chosen`, formats.map((f) => f.text).join() === 'Wave,Flac,MP3' && formats.every((f) => !f.disabled && !/bientôt/.test(f.text)) && formats[0].on === 'true', JSON.stringify(formats));
+    const win = page.locator('[data-testid="export-son"]');
+    const prefs = () => page.evaluate(() => window.__fabtice.store.getState().exportPrefs);
+    check(`${tag}: Wave opens at 48 kHz and 16 bits, with no remark about the rate`, (await page.inputValue('[data-testid="export-frequence"]')) === '48000' && (await page.getAttribute('.exp-duo [data-bits="16"]', 'aria-checked')) === 'true' && (await page.locator('[data-testid="export-note-frequence"]').count()) === 0);
+    const rates = await page.$$eval('[data-testid="export-frequence"] option', (os) => os.map((o) => o.textContent));
+    check(`${tag}: the rates offered are 44,1 / 48 / 88,2 / 96 kHz, the quantizations 16 / 24 / 32 bits flottant`, rates.join('|') === '44,1 kHz|48 kHz|88,2 kHz|96 kHz' && (await page.$$eval('.exp-duo [data-bits]', (bs) => bs.map((b) => b.textContent.trim()).join('|'))) === '16 bits|24 bits|32 bits flottant', rates.join('|'));
+    await page.selectOption('[data-testid="export-frequence"]', '96000');
+    await page.click('.exp-duo [data-bits="24"]');
+    const remark = await page.locator('[data-testid="export-note-frequence"]').innerText();
+    check(`${tag}: above 48 kHz the window says in one line that Fabtice works at 48 kHz and that more adds no quality`, /48 kHz/.test(remark) && /n’ajoute pas de qualité/.test(remark), remark);
+    check(`${tag}: the choices are kept with the piece (96 kHz, 24 bits)`, (await prefs()).waveRate === 96000 && (await prefs()).waveBits === 24, JSON.stringify(await prefs()));
+    await page.selectOption('[data-testid="export-frequence"]', '88200');
+    check(`${tag}: 88,2 kHz carries the same remark; 44,1 kHz does not`, (await page.locator('[data-testid="export-note-frequence"]').count()) === 1 && (await (async () => (await page.selectOption('[data-testid="export-frequence"]', '44100'), await page.locator('[data-testid="export-note-frequence"]').count()))()) === 0);
+    await page.screenshot({ path: path.join(out, `dialogue-wave-${tag}.png`) });
+    await page.selectOption('[data-testid="export-frequence"]', '48000');
+    await page.click('.exp-duo [data-bits="16"]');
+    // The sound of the loop line: whole bars as before, any other loop with its two points.
+    const note = () => page.locator('.exp-carte[data-choix="loop"]').innerText();
+    check(`${tag}: the window says « mesures 5–8 » for the demo's loop of whole bars`, (await note()).includes('mesures 5–8'), await note());
     await page.evaluate(() => {
       const f = window.__fabtice;
       const segs = f.store.getState().tempoMap.segments;
@@ -679,21 +853,54 @@ try {
       };
       f.actions.setLoopRegion({ start: at(5), end: at(14.75) }); // beat 2 of bar 2, the 4th sixteenth of beat 3 of bar 4
     });
-    await page.waitForFunction(() => document.querySelector('.choix-export')?.textContent.includes('de 2.2 à 4.3 (4e double)'), null, { timeout: 3000 }).catch(() => {});
+    await page.waitForFunction(() => document.querySelector('.exp-carte[data-choix="loop"]')?.textContent.includes('de 2.2 à 4.3 (4e double)'), null, { timeout: 3000 }).catch(() => {});
     check(`${tag}: … and « de 2.2 à 4.3 (4e double) » for a loop between beats`, (await note()).includes('de 2.2 à 4.3 (4e double)'), await note());
+    // The format's own settings: Flac a line, MP3 its constant rate (320 by default, six choices from 96 to 320).
+    await page.click('.exp-formats button[data-format="flac"]');
+    check(`${tag}: Flac: no choice of rate or quantization, one line saying it is lossless`, (await page.locator('[data-testid="export-frequence"]').count()) === 0 && /Sans perte/.test(await page.locator('[data-testid="export-reglages-format"]').innerText()));
+    await page.click('.exp-formats button[data-format="mp3"]');
+    const kbps = await page.$$eval('[data-testid="export-debit"] option', (os) => os.map((o) => o.value));
+    check(`${tag}: MP3: constant rate 320 chosen by default, among 96, 128, 160, 192, 256, 320`, (await page.inputValue('[data-testid="export-debit"]')) === '320' && kbps.join() === '96,128,160,192,256,320', kbps.join());
+    await page.selectOption('[data-testid="export-debit"]', '192');
+    check(`${tag}: the MP3 rate is kept with the piece`, (await prefs()).mp3Kbps === 192, JSON.stringify(await prefs()));
+    await page.selectOption('[data-testid="export-debit"]', '320');
+    await page.click('.exp-formats button[data-format="wav"]');
+    // What leaves: the mix, or the tracks ticked; the box « Un fichier par piste » follows the number ticked.
+    const sortie = () => page.locator('[data-testid="export-sortie"]').innerText();
+    const box = page.locator('[data-testid="export-separes"]');
+    check(`${tag}: the mix: one file, the box and the track list asleep`, (await box.isDisabled()) && (await page.locator('.exp-pistes input').first().isDisabled()) && /^Un fichier\s: Blues du dimanche – mélange\.wav$/.test(await sortie()), await sortie());
+    await page.click('[data-testid="export-son"] [data-choix="tracks"]');
+    const trackCount = await page.locator('.exp-pistes input').count();
+    check(`${tag}: « Des pistes »: every track ticked, the box on and awake, the line says the archive`, trackCount >= 2 && (await page.locator('.exp-pistes input:checked').count()) === trackCount && (await box.isEnabled()) && (await box.isChecked()) && new RegExp(`^${trackCount} fichiers réunis dans Blues du dimanche – pistes\\.zip$`).test(await sortie()), await sortie());
+    await page.screenshot({ path: path.join(out, `dialogue-pistes-${tag}.png`) });
+    await box.uncheck();
+    check(`${tag}: box off: one file mixing the ticked tracks, at their volumes (the line and the note say so)`, /^Un fichier\s: Blues du dimanche – mélange de \d+ pistes\.wav$/.test(await sortie()) && /un seul fichier/i.test(await page.locator('[data-testid="export-separes-note"]').innerText()) && (await prefs()).separate === false, await sortie());
+    await page.screenshot({ path: path.join(out, `dialogue-pistes-un-fichier-${tag}.png`) });
+    await box.check();
+    // Down to one track: the box is of no concern (asleep), one file; none: nothing to export, the button asleep.
+    const inputs = page.locator('.exp-pistes input');
+    for (let i = 1; i < trackCount; i++) await inputs.nth(i).uncheck();
+    check(`${tag}: one track ticked: the box asleep, one file named after the track, no archive`, (await box.isDisabled()) && /^Un fichier\s: Blues du dimanche – Voix\.wav$/.test(await sortie()) && /Une seule piste/.test(await page.locator('[data-testid="export-separes-note"]').innerText()), await sortie());
+    await inputs.nth(0).uncheck();
+    check(`${tag}: no track ticked: « Rien à exporter » and the button asleep`, (await page.locator('[data-testid="exporter-son"]').isDisabled()) && /Rien à exporter/.test(await sortie()), await sortie());
+    await page.click('[data-testid="export-tout"]');
+    check(`${tag}: « Tout cocher » ticks them all again`, (await page.locator('.exp-pistes input:checked').count()) === trackCount && (await page.locator('[data-testid="exporter-son"]').isEnabled()));
+    check(`${tag}: the choices are kept with the piece (tracks, one file each)`, (await prefs()).what === 'tracks' && (await prefs()).separate === true, JSON.stringify(await prefs()));
+    await page.click('[data-testid="export-son"] [data-choix="mix"]');
+    check(`${tag}: no remark about the one-file box left over in the mix`, await box.isDisabled());
     await page.screenshot({ path: path.join(out, `dialogue-formats-${tag}.png`) });
     // An mp3 encoder whose wasm cannot be fetched: a calm sentence, a way back, and the other formats still work.
     await page.route(/mp3-.*\.wasm/, (route) => route.abort());
-    await page.click('.formats-export button[data-format="mp3"]');
+    await page.click('.exp-formats button[data-format="mp3"]');
     await page.click('[data-testid="exporter-son"]');
     await page.waitForSelector('.import-erreur', { timeout: 30000 });
     const msg = await page.locator('.import-erreur').innerText();
-    check(`${tag}: encoder that cannot load: a calm message that names the way out`, /n’a pas pu être préparé/.test(msg) && /WAV/.test(msg), msg);
+    check(`${tag}: encoder that cannot load: a calm message that names the way out`, /n’a pas pu être préparé/.test(msg) && /Wave/.test(msg), msg);
     await page.screenshot({ path: path.join(out, `dialogue-erreur-encodeur-${tag}.png`) });
     check(`${tag}: after the failure no worker is left`, await page.evaluate(() => window.__workers.made === window.__workers.ended), await page.evaluate(() => JSON.stringify(window.__workers)));
     await page.unroute(/mp3-.*\.wasm/);
     await page.click('.import-erreur ~ .import-actions button');
-    await page.click('.formats-export button[data-format="flac"]');
+    await page.click('.exp-formats button[data-format="flac"]');
     await page.click('[data-testid="exporter-son"]');
     await page.waitForSelector('[data-testid="fichier-son"]', { timeout: 60000 });
     const link = await page.getAttribute('[data-testid="fichier-son"]', 'download');
@@ -701,7 +908,7 @@ try {
     await page.screenshot({ path: path.join(out, `dialogue-pret-flac-${tag}.png`) });
     // A real download of the mp3 through the link (the browser's own path).
     await page.click('button:has-text("Exporter autre chose")');
-    await page.click('.formats-export button[data-format="mp3"]');
+    await page.click('.exp-formats button[data-format="mp3"]');
     await page.click('[data-testid="exporter-son"]');
     await page.waitForSelector('[data-testid="fichier-son"]', { timeout: 60000 });
     const [download] = await Promise.all([page.waitForEvent('download'), page.click('[data-testid="fichier-son"]')]);
@@ -710,6 +917,20 @@ try {
     const bytes = fs.readFileSync(file);
     check(`${tag}: the mp3 downloads with its accented name and is a real mp3`, download.suggestedFilename() === 'Blues du dimanche – mélange.mp3' && readMp3Header(bytes).sync, download.suggestedFilename());
     await page.screenshot({ path: path.join(out, `dialogue-pret-mp3-${tag}.png`) });
+    // A Wave at 96 kHz and 24 bits through the window, downloaded, read back.
+    await page.click('button:has-text("Exporter autre chose")');
+    await page.click('.exp-formats button[data-format="wav"]');
+    await page.selectOption('[data-testid="export-frequence"]', '96000');
+    await page.click('.exp-duo [data-bits="24"]');
+    await page.click('[data-testid="exporter-son"]');
+    await page.waitForSelector('[data-testid="fichier-son"]', { timeout: 60000 });
+    const [dl96] = await Promise.all([page.waitForEvent('download'), page.click('[data-testid="fichier-son"]')]);
+    const file96 = path.join(out, `telecharge-${tag}-96k.wav`);
+    await dl96.saveAs(file96);
+    const w96 = readWavAny(fs.readFileSync(file96));
+    const projectFrames = await page.evaluate(() => Math.round(window.__fabtice.store.getState().project.duration * 96000));
+    check(`${tag}: the Wave downloads at 96 kHz, 24 bits, the whole length`, dl96.suggestedFilename() === 'Blues du dimanche – mélange.wav' && w96.rate === 96000 && w96.bits === 24 && Math.abs(w96.frames - projectFrames) <= 2 && w96.declared, `${w96.rate} Hz ${w96.bits} bits ${w96.frames} frames vs ${projectFrames}`);
+    await page.screenshot({ path: path.join(out, `dialogue-pret-wave-${tag}.png`) });
     // The working state (mid-export), on a slow render.
     await page.click('button:has-text("Exporter autre chose")');
     await page.evaluate(() => {
