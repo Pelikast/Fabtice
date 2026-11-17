@@ -18,6 +18,7 @@ import {
 } from './geometry';
 import { columnPeaks, type PeakPyramid } from './peaks';
 import { RULER_ROW_HEIGHT } from './layout';
+import { KEY_MARK_FONT, KEY_MARK_GAP, KEY_MARK_PAD_X, layoutKeyMark, type KeyMarkView } from './keyMarks';
 import { layoutMeterMarks, numberFitsAfter, numberLeftAfter, SIGNATURE_FONT, type MeterMarkSet } from './meterMarks';
 import type { MeterChangeView } from '../store/meterActions';
 
@@ -221,6 +222,10 @@ export interface RulerParams extends ViewFrame {
   meters?: readonly MeterChangeView[];
   /** Receives what was written (`meters`, for the browser checks); reused from frame to frame. */
   meterMarks?: MeterMarkSet;
+  /** C10: the modulations by bar index: a stronger bar line, and the new key in a pill when there is room. */
+  keyMarks?: ReadonlyMap<number, KeyMarkView>;
+  /** Receives the pills that were written (`bar`, `text`), for the browser checks; emptied at each drawing. */
+  keyWritten?: { bar: number; text: string }[];
 }
 
 export function drawRuler(ctx: CanvasRenderingContext2D, p: RulerParams): void {
@@ -428,6 +433,9 @@ function drawBarsRow(ctx: CanvasRenderingContext2D, p: RulerParams): void {
     ctx.textAlign = 'left';
   }
   let mark = 0;
+  /** Where each modulation pill may start: after the number when it was written. */
+  const afterNumber = new Map<number, number>();
+  if (p.keyWritten) p.keyWritten.length = 0;
 
   ctx.font = RULER_FONT;
   ctx.textBaseline = 'middle';
@@ -438,6 +446,11 @@ function drawBarsRow(ctx: CanvasRenderingContext2D, p: RulerParams): void {
     if (time >= ta) {
       ctx.fillStyle = lineInLoop(bar) ? p.colors.barreBoucle : p.colors.trait;
       vline(ctx, x, top, top + h, dpr);
+      // A modulation: the bar line is a little stronger (2 px, ink-soft).
+      if (p.keyMarks?.has(bar)) {
+        ctx.fillStyle = p.colors.encreDouce;
+        ctx.fillRect(Math.round(x * dpr) / dpr - 0.5, top, 2, h);
+      }
     }
     if (!barKept(bar, labelStride)) continue;
     const text = String(barNumber(bar));
@@ -458,5 +471,41 @@ function drawBarsRow(ctx: CanvasRenderingContext2D, p: RulerParams): void {
     }
     ctx.fillStyle = inLoop(bar) ? p.colors.encre : p.colors.encreDouce;
     ctx.fillText(text, tx, top + h / 2 + 0.5);
+    if (p.keyMarks?.has(bar)) afterNumber.set(bar, tx + width + KEY_MARK_GAP);
+  }
+  if (p.keyMarks?.size) drawKeyPills(ctx, p, bars, marks, afterNumber);
+}
+
+/** The new key of each modulation in view, in a pill after the bar number (or the signature) when it fits before the next bar line. */
+function drawKeyPills(ctx: CanvasRenderingContext2D, p: RulerParams, bars: readonly BarMark[], marks: MeterMarkSet | null, afterNumber: ReadonlyMap<number, number>): void {
+  const { t0, pps, map } = p;
+  const h = RULER_ROW_HEIGHT.mesures;
+  const top = p.mesuresTop;
+  ctx.font = KEY_MARK_FONT;
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'left';
+  for (const { bar, time } of bars) {
+    const km = p.keyMarks!.get(bar);
+    if (!km) continue;
+    const x = (time - t0) * pps;
+    const end = (barStartTime(map, bar + 1) - t0) * pps;
+    if (end < 0 || x > p.w) continue;
+    let left = afterNumber.get(bar);
+    if (left === undefined) {
+      let sig: ReturnType<typeof numberLeftAfter> | null = null;
+      if (marks) for (let i = 0; i < marks.count; i++) if (marks.items[i]!.bar === bar) sig = numberLeftAfter(marks.items[i]!);
+      left = sig ?? Math.max(x + 9, 4);
+    }
+    const fit = layoutKeyMark(left, end, ctx.measureText(km.text).width);
+    if (!fit) continue;
+    const y = top + (h - 18) / 2;
+    ctx.strokeStyle = km.byHand ? p.colors.encreDouce : p.colors.trait;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(Math.round(fit.x) + 0.5, y + 0.5, fit.width, 17, 8.5);
+    ctx.stroke();
+    ctx.fillStyle = km.byHand ? p.colors.encre : p.colors.encreDouce;
+    ctx.fillText(km.text, fit.x + KEY_MARK_PAD_X, top + h / 2 + 0.5);
+    p.keyWritten?.push({ bar, text: km.text });
   }
 }

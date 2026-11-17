@@ -1491,6 +1491,58 @@ d'accords garde le coin de la lettre (`.case.lettree[data-rangs="2"]`,
 feuille du téléphone de « Changer la signature ») ont deux classes pour passer
 devant `.voile` et `.accueil` de `dialog.css`, qui viennent après dans la feuille.
 
+### Étape 5 de la 1.0.0 : modulations à l'écran (C10, troisième lot)
+
+**Ce qui est affiché.** `chart/layout.ts` : `ChartBar.keyChange` (la tonalité
+qui commence à cette mesure, ou `null`), rempli depuis `keyChangesInForce`
+(liste de l'utilisateur dès qu'il y a touché, sinon celle de l'analyse). Pastille
+au-dessus de la mesure : `chart/ChartGrid.tsx` (`.case-tete` partage la ligne
+du haut avec la lettre ; `.modulation`, `data-cle`, `data-origine`
+`analysis`|`manual`), même texte au papier (`chart/PrintSheets.tsx`,
+`.pp-modulation`, `styles/print.css`) ; le nom est celui de l'affichage
+(`keyLabel` avec le contexte de la mesure : transposition, instrument, « m »/« – »).
+Frise de « Pistes » : `timeline/keyMarks.ts` (pur : `layoutKeyMark`,
+`describeKeyMarks`), tracé dans `timeline/drawing.ts` (`drawKeyPills`, barre de
+2 px), invalidation dans `timeline/controller.ts` (`watchKeys`, `analysis` et
+`corrections.keyChanges`) ; `data-modulations` sur `.frise` (« 9:E 17:A♭ »).
+
+**Ce qui se corrige.** `store/modulationActions.ts#saveModulation(from, to,
+key)` : ajout, changement de tonalité, déplacement, en un seul pas
+d'historique (« Annuler : tonalité ») ; rien d'enregistré quand rien ne change.
+`ui/modulationForm.ts` (pur : `keyBefore`, `modulationBarRange`,
+`checkModulation` → `bar` | `taken` | `same`) ; fenêtre
+`components/ModulationDialog.tsx` (`ui/keyDialog.ts` : `openKeyDialog(bar)`,
+`data-testid="modulation-…"`). Points d'entrée : la pastille (cible `key` de
+`chart/gesture.ts`, `useChartGestures.ts`) et le menu de la mesure
+(`components/TempoFixMenu.tsx`, `data-action="key" | "key-edit" | "key-remove"`).
+`resetKeyChanges` est offert par la fenêtre et par `chart/KeyEditor.tsx`
+(`cle-modulations-revenir`), seulement quand la liste est celle de
+l'utilisateur. La première mesure ne reçoit pas de modulation (c'est la
+tonalité principale).
+
+**Deux garde-fous du toucher** (vus dans les essais) : le clic qui suit un
+toucher ne doit rien choisir sous le doigt. `ModulationDialog` ignore le
+pointeur 350 ms ; `ui/tempoMenu.ts#whenPointerReleased` fait ignorer les clics
+au menu d'une mesure jusqu'à 400 ms après la fin d'un appui long (les essais
+de téléphone attendent 450 ms après l'appui). La lettre garde sa zone de
+toucher élargie (`::after`) : sa pastille voisine passe devant (`z-index: 1`).
+
+**Réglages.** Onglet « Détection des accords » relu dans les deux formes :
+« Détecter les modulations », « Structure automatique du morceau » et « Mode »
+(le même réglage que le sélecteur de la colonne : `setStructureMode`) se lisent
+bien, sans changement de texte.
+
+Vérification : `tests/harmony.mjs` (blocs « modulations à l'écran » et
+« règle », deux formes : pastille à la bonne mesure, transposition, Si♭/Mi♭,
+« m »/« – », fenêtre, même tonalité, ajout/changement/déplacement/suppression/
+retour avec défaire et refaire, accords de la suite réécrits, règle, papier,
+partie affichée, « Mode » synchronisé), `tests/print.mjs` (pastille sur le
+papier et dans le PDF), `tests/tempo-fix.mjs`, `tests/tap-fix.mjs`,
+`tests/meter.mjs` (cinq entrées au menu), captures :
+`FABTICE_CAPTURES_ONLY=modulations node tests/captures.mjs <dossier>`
+(`tests/captures-harmonie.mjs#modulationCaptures`, fichiers
+`<forme>-modulations-…`).
+
 ### Étape 4 de la 1.0.0 : tempo à la main
 
 **Menu de la mesure** (`components/TempoFixMenu.tsx`) : quatre entrées. Les

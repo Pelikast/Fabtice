@@ -1,0 +1,42 @@
+/* « Changer de tonalité » / « Modifier la modulation » (C10): a small window on the usual veil and paper; the
+   main button is ink. On a phone it is a sheet at the bottom of the screen. The key is chosen with the pieces of
+   the key window of the chart title (`.cle-mode`, `.cle-notes`, `.choix-accord`). */
+.accueil.fenetre-modulation { width: min(440px, 100%); padding: 26px 30px 22px; }
+.fenetre-modulation h2 { font-size: 26px; }
+.fenetre-modulation p { margin: 0; }
+.fenetre-modulation .modulation-avant { margin: 0 0 12px; font-size: 14px; color: var(--encre-douce); }
+.modulation-groupe { margin: 12px 0 0; }
+.modulation-groupe > .libelle { display: block; margin-bottom: 7px; }
+.fenetre-modulation .cle-mode { display: inline-flex; margin-bottom: 10px; }
+.fenetre-modulation .cle-notes { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+.modulation-barre { display: flex; flex-direction: column; gap: 7px; width: max-content; min-width: 150px; }
+.modulation-barre .libelle { white-space: nowrap; }
+.modulation-barre input {
+  width: 100%;
+  height: 42px;
+  padding: 0 10px;
+  border: 1px solid var(--trait);
+  border-radius: var(--rayon);
+  background: #fff;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  color: var(--encre);
+}
+.modulation-barre input[aria-invalid="true"] { border-color: var(--laiton); background: var(--laiton-voile); }
+.fenetre-modulation .modulation-erreur { min-height: 20px; margin: 8px 0 2px; font-size: 13.5px; color: var(--encre-douce); }
+.fenetre-modulation .modulation-origine { margin: 0 0 4px; font-size: 13px; font-style: italic; color: var(--encre-douce); }
+.modulation-liens { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; margin-top: 4px; }
+.modulation-liens .lien-encre { min-height: 36px; font-size: 13.5px; text-align: left; }
+.fenetre-modulation .import-actions { margin-top: 16px; }
+.fenetre-modulation .import-actions .plein:disabled { opacity: 0.5; cursor: default; }
+.fenetre-modulation .import-actions .plein:disabled:hover { background: var(--encre); }
+
+@media (max-width: 760px) {
+  .voile.voile-modulation { padding: 0; place-items: end stretch; }
+  .accueil.fenetre-modulation { width: 100%; max-height: 100dvh; padding: 22px 18px calc(18px + env(safe-area-inset-bottom)); border-width: 1px 0 0; border-radius: var(--rayon-fenetre) var(--rayon-fenetre) 0 0; }
+  .fenetre-modulation .cle-mode button { min-height: 44px; }
+  .fenetre-modulation .choix-accord { min-height: 44px; }
+  .modulation-barre input { height: 46px; }
+  .modulation-liens .lien-encre { min-height: 44px; }
+  .fenetre-modulation .import-actions .bouton-cadre, .fenetre-modulation .import-actions .plein { flex: 1; min-height: 46px; }
+}

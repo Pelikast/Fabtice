@@ -390,6 +390,61 @@ toucher « Boucle » ou le crayon, la referme. Cibles d'au moins 40 px
 (boutons de 42 à 46 px). La fenêtre d'une partie est, elle aussi, une feuille
 posée en bas, boutons sur toute la largeur.
 
+## Modulations
+
+Quand la tonalité change en cours de morceau, la grille le dit **au-dessus de
+la mesure où le passage commence**, pas ailleurs : une petite **pastille**
+(filet `--trait` de 1 px, coins arrondis, 18 px de haut, Instrument Sans
+11,5 px à 600, ♭ et ♯ en Noto Music comme les accords) qui écrit
+**« Ton : E »** (la nouvelle tonalité, dans l'écriture de la grille : elle suit
+la transposition, l'instrument Si♭ ou Mi♭ et le choix « m » ou « – » du
+mineur). Ni braise, ni laiton : la modulation n'est ni la lecture ni la boucle.
+Elle partage la ligne du haut de la mesure avec la lettre de section (à sa
+droite, 5 px d'écart), le numéro de mesure reste dans l'angle droit et la
+signature rythmique sous la ligne ; si la place manque, la pastille passe à
+la ligne de la rangée et disparaît plutôt que de recouvrir quoi que ce soit.
+Sur téléphone, seule la tonalité est écrite (« E », « A♭ »).
+Une mesure à deux rangs d'accords démarre ses rangs 29 px plus bas (26 px pour
+une lettre seule), pour que les exposants des accords ne touchent pas la
+pastille.
+
+**Analyse ou main, dit sans bruit.** Texte en encre douce et filet clair tant
+que les modulations sont celles de l'analyse ; dès que l'utilisateur en a
+touché une, toute la liste est la sienne et les pastilles passent à l'encre
+(filet `--encre-pale`). Le survol d'une pastille donne le papier clair. Le
+titre « Tonalité de A♭ » au-dessus de la grille reste la tonalité principale.
+
+**Sur le papier**, la même pastille, en encre sur blanc, avec la lettre de la
+mesure à sa gauche ; l'aperçu est le papier (le PDF a le même texte).
+
+**Sur la frise de « Pistes »**, la barre de mesure où la tonalité change est
+tracée un peu plus forte (2 px) et la tonalité s'écrit dans une petite pastille
+après le numéro de mesure (ou la signature) ; elle est omise, jamais serrée ni
+posée sur autre chose, quand il n'y a pas la place avant la barre suivante.
+
+**Fenêtre « Modifier la modulation » / « Changer de tonalité ».** Un clic ou un
+toucher sur la pastille l'ouvre (sans déplacer la tête de lecture ni choisir de
+boucle) ; le menu de la mesure (clic droit, appui long) aussi, avec
+« Changer de tonalité à partir de cette mesure… » sur une mesure sans
+modulation, « Modifier la modulation… » et « Supprimer la modulation » sur une
+mesure qui en porte une. Même famille que la fenêtre de la tonalité : papier
+clair, titre en Fraunces, « Tonalité d'avant : A♭ » en encre douce, le choix
+Majeur / Mineur, les douze notes en grille de six, la case « À partir de la
+mesure » (le numéro qu'on lit sur la grille) ; en dessous une phrase calme en
+cas de souci (« C'est déjà la tonalité de ce passage. », « Il y a déjà une
+modulation à cette mesure. », « Une mesure de 2 à 25. », jamais de rouge,
+la case est alors cernée de laiton), une ligne en italique qui dit d'où vient
+la modulation (« Trouvée par l'analyse. » / « Écrite à la main. »), les liens
+« Supprimer la modulation » et, seulement quand la liste est celle de
+l'utilisateur, « Revenir aux modulations de l'analyse » (aussi dans la fenêtre
+de la tonalité principale), puis « Annuler » et le bouton principal **à
+l'encre** (« Valider », ou « Changer de tonalité » pour une nouvelle). Sur
+téléphone : feuille posée en bas, boutons sur toute la largeur, cibles d'au
+moins 40 px. La fenêtre ignore le pointeur 350 ms après son ouverture, et le
+menu d'une mesure ouvert par un appui long ignore les clics jusqu'à 400 ms
+après que le doigt s'est levé : le clic que le navigateur peut envoyer à ce
+moment-là ne doit rien choisir.
+
 ## « Ouvrir dans iReal Pro » dans l'app web
 
 Le navigateur suit le lien `irealb://` au geste de l'utilisateur, puis surveille

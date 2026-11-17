@@ -9,12 +9,14 @@
 
 import { useCallback, useMemo, useReducer, useRef, useState, type CSSProperties, type KeyboardEvent, type RefObject } from 'react';
 import { formatBarNumber } from '../grid/format';
-import { ChordSymbol } from '../harmony/ChordSymbol';
+import { ChordSymbol, withAccidentals } from '../harmony/ChordSymbol';
 import { tempoFixBars } from '../components/TempoFixMenu';
 import { isMenuKey, openTempoMenu } from '../ui/tempoMenu';
 import { displayChordText, type DisplayContext } from '../harmony/display';
 import { t } from '../i18n';
 import { selectBarContexts, selectDisplayContext } from '../store/chartSelectors';
+import { openKeyDialog } from '../ui/keyDialog';
+import { keyLabel } from '../harmony/key';
 import { useApp } from '../store/store';
 import { ChordEditor } from './ChordEditor';
 import { CLOSED, reduceEditor, startsChordSymbol, type EditorFocus, type OpenedBy } from './editor';
@@ -60,6 +62,10 @@ export function ChartGrid({ bars, scroller }: { bars: ChartBar[]; scroller: RefO
     grid: root,
     scroller,
     onEdit: (bar, index, focus, by) => open({ bar, index }, by, focus === 'section' ? 'section' : 'panel'),
+    onKey: (bar) => {
+      dispatch({ type: 'close' });
+      openKeyDialog(bar);
+    },
     onSeek: follow.resume,
     onSelect: () => dispatch({ type: 'close' }),
     onMenu: (bar, x, y) => {
@@ -68,6 +74,8 @@ export function ChartGrid({ bars, scroller }: { bars: ChartBar[]; scroller: RefO
     },
   });
   // Bars where a manual tempo action starts: a discreet mark by their number (as one string: no re-render loop).
+  // C10: the modulations are the user's (the whole list) or the analysis'; the mark says which, quietly.
+  const modulationsByHand = useApp((s) => s.corrections.keyChanges !== null);
   const fixed = new Set(useApp((s) => tempoFixBars(s).join(',')).split(',').filter(Boolean).map(Number));
 
   const closeEditor = useCallback(
@@ -134,6 +142,7 @@ export function ChartGrid({ bars, scroller }: { bars: ChartBar[]; scroller: RefO
               looped={loopedPart(loop, b.bar)}
               final={b.bar === last}
               tempoFixed={fixed.has(b.bar)}
+              modulationByHand={modulationsByHand}
               tabStop={tabStop}
               editing={editor.target?.bar === b.bar ? editor.target.index : null}
               onFocusStop={setActive}
@@ -157,8 +166,11 @@ function BarCell({
   onFocusStop,
   onKeyboardOpen,
   tempoFixed,
+  modulationByHand,
 }: {
   bar: ChartBar;
+  /** The modulation written above this bar (if any) is the user's, not the analysis'. */
+  modulationByHand: boolean;
   /** A manual tempo action starts at this bar. */
   tempoFixed: boolean;
   ctx: DisplayContext;
@@ -172,7 +184,7 @@ function BarCell({
   onKeyboardOpen: (stop: Stop) => void;
 }) {
   const n = bar.chords.length;
-  const cls = ['case', bar.doubleBar ? 'double' : '', bar.signature ? 'signee' : '', bar.section ? 'lettree' : '', looped ? (looped.from === 0 && looped.to === 1 ? 'dans-boucle' : 'dans-boucle partielle') : '', final ? 'finale' : ''].filter(Boolean).join(' ');
+  const cls = ['case', bar.doubleBar ? 'double' : '', bar.signature ? 'signee' : '', bar.section ? 'lettree' : '', bar.keyChange ? 'modulee' : '', looped ? (looped.from === 0 && looped.to === 1 ? 'dans-boucle' : 'dans-boucle partielle') : '', final ? 'finale' : ''].filter(Boolean).join(' ');
   const label = formatBarNumber(bar.bar);
   const stopProps = (index: number) => {
     const stop = { bar: bar.bar, index };
@@ -200,7 +212,25 @@ function BarCell({
       // A loop that starts or ends inside the bar veils that part only (styles/chart.css).
       style={looped && looped.to - looped.from < 1 ? ({ '--boucle-de': looped.from, '--boucle-a': looped.to } as CSSProperties) : undefined}
     >
-      {bar.section && <span className="section">{bar.section}</span>}
+      {bar.keyChange ? (
+        // C10: the letter and the mark of the modulation share the top row, side by side (never over each other).
+        <div className="case-tete">
+          {bar.section && <span className="section">{bar.section}</span>}
+          <button
+            type="button"
+            className="modulation"
+            tabIndex={-1}
+            data-origine={modulationByHand ? 'manual' : 'analysis'}
+            data-cle={keyLabel(ctx.key ?? bar.keyChange, ctx.minor)}
+            title={t(modulationByHand ? 'modulation.markHand' : 'modulation.markAnalysis', { key: keyLabel(ctx.key ?? bar.keyChange, ctx.minor) })}
+          >
+            <span className="modulation-mot">{t('modulation.label')}</span>{' '}
+            <span className="modulation-cle">{withAccidentals(keyLabel(ctx.key ?? bar.keyChange, ctx.minor))}</span>
+          </button>
+        </div>
+      ) : (
+        bar.section && <span className="section">{bar.section}</span>
+      )}
       {/* The signature, written as on paper where it changes (C13). */}
       {bar.signature && (
         <span

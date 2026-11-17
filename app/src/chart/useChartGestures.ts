@@ -25,6 +25,8 @@ export interface GestureOptions {
   scroller: RefObject<HTMLElement | null>;
   /** A click or tap on a chord or a section letter. */
   onEdit: (bar: number, index: number, focus: 'chord' | 'section', by: OpenedBy) => void;
+  /** A click or tap on the mark of a modulation. */
+  onKey?: (bar: number) => void;
   /** The playhead was moved by a click on the chart (the sheet may follow it again). */
   onSeek?: () => void;
   /** A selection starts: nothing to do with the editor, so it closes. */
@@ -41,6 +43,7 @@ function hitOf(grid: HTMLElement, target: EventTarget | null): Hit | null {
   const bar = Number(cell.dataset.mesure);
   const chord = target.closest<HTMLElement>('.accord-case');
   if (chord && cell.contains(chord)) return { target: 'chord', bar, index: Number(chord.dataset.accord) };
+  if (target.closest('.modulation')) return { target: 'key', bar };
   if (target.closest('.section')) {
     const first = cell.querySelector<HTMLElement>('.accord-case');
     return { target: 'section', bar, index: first ? Number(first.dataset.accord) : -1 };
@@ -80,7 +83,7 @@ export function useChartGestures(opts: GestureOptions): void {
     };
 
     const run = (effects: Effect[]) => {
-      const { onEdit, onSeek, onSelect, onMenu } = latest.current;
+      const { onEdit, onKey, onSeek, onSelect, onMenu } = latest.current;
       for (const e of effects) {
         const { tempoMap } = appStore.getState();
         switch (e.type) {
@@ -90,6 +93,9 @@ export function useChartGestures(opts: GestureOptions): void {
             break;
           case 'edit':
             onEdit(e.bar, e.index, e.focus, by);
+            break;
+          case 'key':
+            onKey?.(e.bar);
             break;
           case 'select':
             onSelect?.();

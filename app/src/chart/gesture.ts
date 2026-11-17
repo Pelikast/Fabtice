@@ -27,6 +27,8 @@ export type Hit =
   | { target: 'chord'; bar: number; index: number }
   /** The section letter of a bar; `index` is the chord the editor opens on. */
   | { target: 'section'; bar: number; index: number }
+  /** The mark of a modulation (C10) written above a bar: a tap opens its window, it never moves the playhead. */
+  | { target: 'key'; bar: number }
   /** Anywhere else in a bar. */
   | { target: 'bar'; bar: number };
 
@@ -49,6 +51,8 @@ export type GestureEvent =
 export type Effect =
   | { type: 'seek'; bar: number }
   | { type: 'edit'; bar: number; index: number; focus: 'chord' | 'section' }
+  /** The window of the modulation at this bar. */
+  | { type: 'key'; bar: number }
   | { type: 'select'; first: number; last: number }
   /** A selection is finished: the playhead goes into the loop. */
   | { type: 'commit' }
@@ -112,7 +116,9 @@ export function stepGesture(state: GestureState, e: GestureEvent): Step {
           ? { type: 'edit', bar: hit.bar, index: hit.index, focus: 'chord' }
           : hit.target === 'section'
             ? { type: 'edit', bar: hit.bar, index: hit.index, focus: 'section' }
-            : { type: 'seek', bar: hit.bar };
+            : hit.target === 'key'
+              ? { type: 'key', bar: hit.bar }
+              : { type: 'seek', bar: hit.bar };
       return { state: IDLE, effects: [effect] };
     }
     case 'cancel':

@@ -32,4 +32,6 @@ export async function openBarMenu(page, bar, cdp = null) {
     await page.mouse.click(p.x, p.y, { button: 'right' });
   }
   await page.waitForSelector('[data-testid="menu-tempo"]', { timeout: 5000 });
+  // A menu opened by a finger ignores clicks for a moment after the finger lifts (the click that follows a long press).
+  if (cdp) await sleep(450);
 }

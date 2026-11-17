@@ -4,7 +4,7 @@
 //
 // Uses the demo piece (analysed, a loop on) and the silent engine (`?moteur=factice`: a clock, no sound; the
 // clicks it was given are readable in its snapshot). The taps are made at the beat times while the clock runs.
-// Checked, in each form: the bar menu (four entries, a hint under each) → the window, step by step (the exact
+// Checked, in each form: the bar menu (five entries, a hint under each) → the window, step by step (the exact
 // texts, one bar of count-in by default, none allowed); the passage that plays (metronome forced on whatever
 // the user's switch says and the loop put aside, the click following the grid and stopping at the chosen bar,
 // everything given back after); the space bar (or a touch on the zone) tapping without starting nor stopping
@@ -47,7 +47,7 @@ const FORMS = [
 
 // The owner's texts, to the letter (typographic apostrophes, as everywhere in the interface).
 const TEXT = {
-  menu: ['Corriger un changement de tempo indésirable', 'Réanalyser le tempo à partir de cette mesure', 'Correction de la courbe en tapant le tempo', 'Changer la signature rythmique'],
+  menu: ['Corriger un changement de tempo indésirable', 'Réanalyser le tempo à partir de cette mesure', 'Correction de la courbe en tapant le tempo', 'Changer la signature rythmique', 'Changer de tonalité à partir de cette mesure…'],
   title: (bar) => `Correction du tempo à partir de la mesure ${bar}`,
   countIn: 'Mesures de décompte',
   key: 'Tapez sur la touche espace à peu près sur chaque temps pendant le passage que l’algorithme a eu du mal à détecter, la suite du morceau sera ré-analysée automatiquement',
@@ -103,6 +103,7 @@ async function longPress(context, page, x, y) {
   await sleep(900);
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   await cdp.detach();
+  await sleep(450); // the menu ignores clicks for a moment after the finger lifts (the click that follows a long press)
 }
 
 /** The viewport point of the bars of the ruler, for the bars whose line is on screen. */
@@ -279,9 +280,9 @@ async function suite(form) {
     else await page.mouse.click(at.x, at.y, { button: 'right' });
     await page.waitForSelector('[data-testid="menu-tempo"]');
     const entries = await page.locator('[data-testid="menu-tempo"] [role="menuitem"] > span').allInnerTexts();
-    check(`${tag0}: the bar menu has the four entries`, entries.join(' | ') === TEXT.menu.join(' | '), entries.join(' | '));
+    check(`${tag0}: the bar menu has the five entries`, entries.join(' | ') === TEXT.menu.join(' | '), entries.join(' | '));
     const hints = await page.locator('[data-testid="menu-tempo"] [role="menuitem"] > small').allInnerTexts();
-    check(`${tag0}: a line of explanation under each`, hints.length === 4 && hints.every((h) => h.length > 20));
+    check(`${tag0}: a line of explanation under each`, hints.length === 5 && hints.every((h) => h.length > 20));
     await page.evaluate(() => document.querySelector('[data-testid="menu-tempo"]').getAnimations().forEach((a) => a.finish()));
     await shot('menu');
     await page.locator('[data-action="continuity"]').focus();

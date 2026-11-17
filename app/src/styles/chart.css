@@ -97,6 +97,8 @@
 /* A lettered bar whose chords are on two rows: the boxed letter keeps its corner and the rows start under it
    (as a signature makes room: `.signee`), so the letter never covers a chord. */
 .case.lettree[data-rangs="2"] { --haut: 26px; }
+/* A bar with a mark: its two rows start a little lower still, so the pill never touches a chord. */
+.case.modulee[data-rangs="2"] { --haut: 29px; }
 .case.dans-boucle { background: var(--laiton-voile); }
 /* A loop that starts or ends inside a bar veils that part of the bar only (--boucle-de / --boucle-a, fractions of its width). */
 .case.dans-boucle.partielle { background: none; }
@@ -109,6 +111,52 @@
   right: calc((1 - var(--boucle-a, 1)) * 100%);
   background: var(--laiton-voile);
   pointer-events: none;
+}
+/* C10, a modulation: its mark (« Ton : A♭ ») is written in the top row of the bar, after the section letter when
+   there is one, so that it never covers the letter nor the bar number. A mark with no room is left out (the row
+   does not wrap), never drawn over something. Quiet: small ink-soft text in a thin box, ink when the user wrote it. */
+.case .case-tete {
+  position: absolute;
+  top: 6px;
+  left: 8px;
+  right: 30px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  height: 21px;
+  overflow: hidden;
+  pointer-events: none;
+}
+/* The letter's own hit area (::after, 6 px around it) stays around the letter, and the mark lies over it. */
+.case .case-tete .section { position: relative; top: auto; left: auto; flex: none; pointer-events: auto; }
+.case .modulation {
+  position: relative;
+  z-index: 1;
+  flex: 0 1 auto;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.32em;
+  height: 18px;
+  padding: 0 7px;
+  border: 1px solid var(--trait);
+  border-radius: 9px;
+  font-family: var(--texte);
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 16px;
+  white-space: nowrap;
+  color: var(--encre-douce);
+  background: none;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: background var(--vite) var(--courbe), color var(--vite) var(--courbe);
+}
+.case .modulation[data-origine="manual"] { color: var(--encre); border-color: var(--encre-pale); }
+.case .modulation-cle { white-space: nowrap; }
+.case .modulation .alt { font-size: 1.18em; }
+@media (hover: hover) {
+  .case .modulation:hover { background: var(--papier-clair); color: var(--encre); }
 }
 /* Section change: a double bar line. */
 .case.double { border-left-width: 6px; border-left-style: double; }
@@ -238,6 +286,7 @@
 .cle-notes { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
 .cle-editeur .panneau-note { margin: 10px 2px 12px; }
 .cle-editeur .bouton-cadre { margin-bottom: 0; }
+.cle-editeur .cle-modulations { display: block; min-height: 34px; margin-top: 8px; font-size: 13.5px; text-align: left; }
 /* Only on a touch screen: pressing and holding is not something one guesses. */
 .aide-doigt { display: none; }
 @media (pointer: coarse) {

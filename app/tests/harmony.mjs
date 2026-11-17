@@ -5,7 +5,9 @@
 //     the passage are spelled in E on the chart, the transport says the key of the place being played, before and after
 //     the playhead crosses the change;
 //   - a modulation by hand (`window.__fabtice.lot2.key`) respells the chords after it and moves the transport's key;
-//   - « Détecter les modulations » and « Structure automatique du morceau » switch the detection off and on.
+//   - « Détecter les modulations » and « Structure automatique du morceau » switch the detection off and on;
+//   - C10, the modulations on screen: the mark above the bar (follows transposition, instrument and minor sign), its
+//     window (change, move, delete, the key before, « Revenir… »), the bar menu, the ruler of « Pistes », the paper.
 //   npm run build && npm run test:harmony
 // Screenshots go to $FABTICE_HARMONY_OUT (default: a temporary folder). Uses the silent engine.
 
@@ -14,6 +16,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { startServer } from './serve.mjs';
+import { closeSettings, openSettingsTab } from './lib/settings.mjs';
 
 const require = createRequire(process.env.PLAYWRIGHT_MODULE_DIR || '/opt/node-tools/');
 const { chromium } = require('playwright');
@@ -213,9 +216,376 @@ async function suite(form) {
   await h.context.close();
 }
 
+// ---------------------------------------------------------------- C10 on screen: the mark, its window, the bar menu, the ruler, the paper
+
+/** The demo piece with the harmony pass suspended (the checks make the state themselves). */
+async function openMade(form, query = '?demo&moteur=factice&vue=grille&harmonie=non') {
+  const phone = form === 'phone';
+  const context = await browser.newContext({ viewport: phone ? { width: 390, height: 844 } : { width: 1280, height: 800 }, hasTouch: phone, isMobile: phone, deviceScaleFactor: phone ? 2 : 1 });
+  const page = await context.newPage();
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
+  await page.goto(`${url}/${query}`);
+  await page.waitForFunction(() => window.__fabtice && window.__fabtice.store.getState().transport.engine === 'ready', null, { timeout: 15000 });
+  await page.evaluate(() => window.__fabtice.ready);
+  await page.evaluate(() => document.fonts.ready);
+  await page.waitForSelector(query.includes('vue=grille') ? '[data-testid="grille"] [data-mesure="14"]' : '.frise', { timeout: 15000 });
+  await sleep(300);
+  return { page, context, errors, phone, cdp: phone ? await context.newCDPSession(page) : null };
+}
+
+/** The detection stood in for: E major from bar 9, back to the main key at bar 17 (as the analysis would write them). */
+const detect = (page, bars = [[8, 4], [16, 8]]) =>
+  page.evaluate((list) => {
+    const f = window.__fabtice;
+    const s = f.store.getState();
+    const map = s.tempoMap;
+    f.store.setState({ analysis: { ...s.analysis, keyChanges: list.map(([bar, tonic]) => ({ time: f.lot4.tempoMap.barStartTime(map, bar), key: { tonic, mode: 'major', confidence: 0.7, alternatives: [] } })) } });
+  }, bars);
+
+const markOf = (page, bar) => page.locator(`[data-testid="grille"] [data-mesure="${bar}"] .modulation`);
+const marks = (page) => page.$$eval('[data-testid="grille"] .modulation', (els) => els.map((e) => `${e.closest('[data-mesure]').dataset.mesure}:${e.dataset.cle}:${e.dataset.origine}`));
+const press = (h, locator) => (h.phone ? locator.tap() : locator.click());
+const DIALOG = '[data-testid="modulation-dialogue"]';
+const undoLabel = (page) => page.evaluate(() => window.__fabtice.history.undoLabel());
+
+/** Nothing of the top row of a bar covers anything else in it: the letter, the mark, the number, the signature, the chords. */
+const topRowProblems = (page) =>
+  page.evaluate(() => {
+    const out = [];
+    for (const cell of document.querySelectorAll('[data-testid="grille"] .case')) {
+      const items = [...cell.querySelectorAll('.section, .modulation, .numero, .signature, .accord-case .ch')]
+        .filter((e) => !e.parentElement.closest('.ch'))
+        .map((e) => ({ k: e.className.toString().split(' ')[0], r: e.getBoundingClientRect() }))
+        .filter((x) => x.r.width > 0);
+      for (let i = 0; i < items.length; i++)
+        for (let j = i + 1; j < items.length; j++) {
+          // Chords of two rows interleave by design; a chord's line box may touch the head by a few pixels (its glyphs do not).
+          if (items[i].k === 'ch' && items[j].k === 'ch') continue;
+          const slack = items[i].k === 'ch' || items[j].k === 'ch' ? 4 : 0.5;
+          const a = items[i].r;
+          const b = items[j].r;
+          const w = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+          const h = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+          if (w > 0.5 && h > slack) out.push(`bar ${cell.dataset.mesure}: ${items[i].k} over ${items[j].k} (${Math.round(w)} x ${Math.round(h)})`);
+        }
+    }
+    return out;
+  });
+
+async function modulationScreens(form) {
+  const tag = form;
+  const h = await openMade(form);
+  const { page } = h;
+  await detect(page);
+  await sleep(300);
+
+  // ---------------------------------------------------- the mark on the chart
+  check(`${tag}: a mark above bar 9 (E) and bar 17 (A♭), from the analysis`, (await marks(page)).join(' ') === '8:E:analysis 16:A♭:analysis', (await marks(page)).join(' '));
+  const text9 = await markOf(page, 8).textContent();
+  check(`${tag}: it reads « Ton : E »${h.phone ? ' (on a phone, just the key is shown)' : ''}`, text9.replace(/\s+/g, ' ').trim() === 'Ton : E', text9);
+  const shown = await markOf(page, 8).evaluate((e) => ({ word: getComputedStyle(e.querySelector('.modulation-mot')).display, font: getComputedStyle(e).fontFamily, color: getComputedStyle(e).color }));
+  check(`${tag}: ${h.phone ? 'the word « Ton : » is left out on a phone' : 'the word « Ton : » is shown'}, in ink-soft, never ember or brass`, (h.phone ? shown.word === 'none' : shown.word !== 'none') && shown.color === 'rgb(106, 86, 70)', JSON.stringify(shown));
+  check(`${tag}: the chords of the passage are spelled in E (bar 10: G♯7, not A♭7), and after it in A♭ (bar 18: Fm7, no sharp)`, (await barText(page, 9)).includes('G♯') && !(await barText(page, 17)).includes('♯'), `${await barText(page, 9)} / ${await barText(page, 17)}`);
+  check(`${tag}: bar 9 carries a letter (B) and the mark side by side, bar 17 too (A); nothing covers anything`, (await topRowProblems(page)).length === 0 && (await page.locator('[data-mesure="8"] .case-tete .section').count()) === 1, (await topRowProblems(page)).join(' ; '));
+  // A signature too: a bar with a letter, a signature AND a modulation.
+  await page.evaluate(() => window.__fabtice.lot2.meter.setMeterFrom(8, { numerator: 3, denominator: 4 }));
+  await sleep(300);
+  check(`${tag}: a letter, a signature and a modulation in one bar: nothing covers anything`, (await topRowProblems(page)).length === 0 && (await page.locator('[data-mesure="8"] .signature').count()) === 1 && (await markOf(page, 8).count()) === 1, (await topRowProblems(page)).join(' ; '));
+  await page.evaluate(() => window.__fabtice.history.undo());
+  await sleep(300);
+  // Two rows of chords on a bar with a letter and a mark.
+  await page.evaluate(() => {
+    const c = (root, quality, extensions = []) => ({ root, quality, extensions, bass: null });
+    window.__fabtice.lot2.harmony.setBarChords(8, [{ beatInBar: 0, chord: c(4, 'min7', ['b5', '9']) }, { beatInBar: 1, chord: c(9, '7', ['#9', 'b13']) }, { beatInBar: 2, chord: c(2, 'min7', ['9', '11']) }, { beatInBar: 3, chord: c(7, '7', ['b9', 'b13']) }]);
+  });
+  await sleep(300);
+  await page.screenshot({ path: path.join(out, `${tag}-deux-rangs.png`) });
+  check(`${tag}: crowded chords (two rows) under a letter and a mark: the top row stays clear`, (await topRowProblems(page)).length === 0, (await topRowProblems(page)).join(' ; '));
+  await page.evaluate(() => window.__fabtice.history.undo());
+  await sleep(200);
+
+  // Transposition, instrument, minor sign.
+  await page.evaluate(() => window.__fabtice.actions.stepSemitones(1));
+  await sleep(250);
+  check(`${tag}: transposed by a semitone the marks say F and A`, (await marks(page)).map((m) => m.split(':')[1]).join(' ') === 'F A', (await marks(page)).join(' '));
+  await page.evaluate(() => window.__fabtice.actions.resetTransposition());
+  await page.evaluate(() => window.__fabtice.lot2.harmony.setInstrument('sib'));
+  await sleep(250);
+  check(`${tag}: written for a B♭ instrument: G♭ and B♭ (the app's spelling of the key a tone above)`, (await marks(page)).map((m) => m.split(':')[1]).join(' ') === 'G♭ B♭', (await marks(page)).join(' '));
+  await page.evaluate(() => window.__fabtice.lot2.harmony.setInstrument('mib'));
+  await sleep(250);
+  check(`${tag}: written for an E♭ instrument: D♭ and F`, (await marks(page)).map((m) => m.split(':')[1]).join(' ') === 'D♭ F', (await marks(page)).join(' '));
+  await page.evaluate(() => window.__fabtice.lot2.harmony.setInstrument('ut'));
+  await detect(page, [[8, 4]]);
+  await page.evaluate(() => {
+    const s = window.__fabtice.store.getState();
+    window.__fabtice.store.setState({ analysis: { ...s.analysis, keyChanges: s.analysis.keyChanges.map((c) => ({ ...c, key: { ...c.key, mode: 'minor' } })) } });
+  });
+  await sleep(250);
+  check(`${tag}: a minor key is written « Em » (setting « m »), « E– » with the other sign`, (await marks(page))[0]?.includes(':Em:'), (await marks(page)).join(' '));
+  await page.evaluate(() => window.__fabtice.actions.setMinorNotation('–'));
+  await sleep(250);
+  check(`${tag}: … « E– » with the dash`, (await marks(page))[0]?.includes(':E–:'), (await marks(page)).join(' '));
+  await page.evaluate(() => window.__fabtice.actions.setMinorNotation('m'));
+  await detect(page);
+  await sleep(300);
+  await page.screenshot({ path: path.join(out, `${tag}-marque.png`) });
+
+  // ---------------------------------------------------- a click on the mark opens its window
+  const posBefore = await page.evaluate(() => window.__fabtice.engine.getPosition());
+  const loopBefore = await page.evaluate(() => JSON.stringify(window.__fabtice.store.getState().loop));
+  await page.evaluate(() => (document.querySelector('.vue-grille').scrollTop = 0));
+  await markOf(page, 8).scrollIntoViewIfNeeded();
+  await press(h, markOf(page, 8));
+  await page.waitForSelector(DIALOG, { timeout: 4000 });
+  await sleep(350);
+  check(`${tag}: a click on the mark opens « Modifier la modulation »`, (await page.locator('#modulation-titre').textContent()) === 'Modifier la modulation');
+  check(`${tag}: it neither moves the playhead nor selects a loop`, (await page.evaluate(() => window.__fabtice.engine.getPosition())) === posBefore && (await page.evaluate(() => JSON.stringify(window.__fabtice.store.getState().loop))) === loopBefore);
+  check(`${tag}: it starts from the modulation: E major, bar 9, the key before said`, (await page.locator('[data-testid="modulation-note-4"]').getAttribute('aria-checked')) === 'true' && (await page.locator('[data-testid="modulation-mode-major"]').getAttribute('aria-pressed')) === 'true' && (await page.locator('[data-testid="modulation-mesure"]').inputValue()) === '9' && (await page.locator('[data-testid="modulation-avant"]').textContent()).trim() === 'Tonalité d’avant : A♭');
+  check(`${tag}: found by the analysis, no « Revenir… » link yet (the list is the analysis')`, (await page.locator('.modulation-origine').textContent()) === 'Trouvée par l’analyse.' && (await page.locator('[data-testid="modulation-revenir"]').count()) === 0);
+  check(`${tag}: « Supprimer la modulation », « Annuler », « Valider »`, (await page.locator('[data-testid="modulation-supprimer"]').innerText()) === 'Supprimer la modulation' && (await page.locator('[data-testid="modulation-annuler"]').innerText()) === 'Annuler' && (await page.locator('[data-testid="modulation-valider"]').innerText()) === 'Valider');
+  const primary = await page.$eval('[data-testid="modulation-valider"]', (e) => getComputedStyle(e).backgroundColor);
+  check(`${tag}: the primary button is ink, not ember`, primary === 'rgb(43, 31, 23)', primary);
+  const twelve = await page.$$eval('.fenetre-modulation .cle-notes button', (els) => els.map((e) => e.textContent));
+  check(`${tag}: the twelve notes`, twelve.join(' ') === 'C D♭ D E♭ E F G♭ G A♭ A B♭ B', twelve.join(' '));
+  if (h.phone) {
+    const box = await page.locator('.fenetre-modulation').boundingBox();
+    const sizes = await page.$$eval('.fenetre-modulation button, .fenetre-modulation input', (els) => els.filter((e) => e.getBoundingClientRect().width > 0).map((e) => Math.round(e.getBoundingClientRect().height)));
+    check(`${tag}: a sheet at the bottom of the screen, the full width, targets of 40 px or more`, box.x === 0 && Math.round(box.width) === 390 && Math.abs(box.y + box.height - 844) <= 1 && Math.min(...sizes) >= 40, `${JSON.stringify(box)} ${Math.min(...sizes)}`);
+  }
+  await page.screenshot({ path: path.join(out, `${tag}-fenetre.png`) });
+
+  // The key before: a calm sentence, nothing created.
+  await press(h, page.locator('[data-testid="modulation-note-8"]'));
+  check(`${tag}: choosing the key of the passage before: « C'est déjà la tonalité de ce passage. », « Valider » waits`, (await page.locator('[data-testid="modulation-erreur"]').textContent()) === 'C’est déjà la tonalité de ce passage.' && (await page.locator('[data-testid="modulation-valider"]').isDisabled()));
+  await page.screenshot({ path: path.join(out, `${tag}-fenetre-meme.png`) });
+  await page.locator('[data-testid="modulation-mesure"]').fill('40');
+  await press(h, page.locator('[data-testid="modulation-note-9"]'));
+  const range = await page.locator('[data-testid="modulation-erreur"]').textContent();
+  check(`${tag}: a bar that does not exist: the bars possible are said`, /^Une mesure de 2 à \d+\.$/.test(range) && (await page.locator('[data-testid="modulation-valider"]').isDisabled()), range);
+  await page.locator('[data-testid="modulation-mesure"]').fill('17');
+  await sleep(100);
+  check(`${tag}: a bar that already has a modulation: said`, (await page.locator('[data-testid="modulation-erreur"]').textContent()) === 'Il y a déjà une modulation à cette mesure.');
+  await page.locator('[data-testid="modulation-mesure"]').fill('9');
+
+  // Change the key (F♯ minor): one step, now the user's.
+  await press(h, page.locator('[data-testid="modulation-mode-minor"]'));
+  await press(h, page.locator('[data-testid="modulation-note-6"]'));
+  await press(h, page.locator('[data-testid="modulation-valider"]'));
+  await sleep(300);
+  check(`${tag}: Valider closes the window; the mark says F♯m, written by hand (the list is the user's)`, (await page.locator(DIALOG).count()) === 0 && (await marks(page)).join(' ') === '8:F♯m:manual 16:A♭:manual', (await marks(page)).join(' '));
+  check(`${tag}: one undo step, « Annuler : tonalité »`, (await undoLabel(page)) === 'Annuler : tonalité');
+  check(`${tag}: the chords of the passage are spelled in F♯ minor now (bar 10 has sharps)`, (await barText(page, 9)).includes('♯'), await barText(page, 9));
+  await page.evaluate(() => window.__fabtice.history.undo());
+  await sleep(250);
+  check(`${tag}: undo gives back the analysis' E, the list is the analysis' again`, (await marks(page)).join(' ') === '8:E:analysis 16:A♭:analysis', (await marks(page)).join(' '));
+  await page.evaluate(() => window.__fabtice.history.redo());
+  await sleep(250);
+  check(`${tag}: redo does it again`, (await marks(page))[0] === '8:F♯m:manual');
+
+  // Move it to another bar.
+  await press(h, markOf(page, 8));
+  await page.waitForSelector(DIALOG);
+  await sleep(300);
+  check(`${tag}: written by hand: « Écrite à la main. » and « Revenir aux modulations de l’analyse »`, (await page.locator('.modulation-origine').textContent()) === 'Écrite à la main.' && (await page.locator('[data-testid="modulation-revenir"]').innerText()) === 'Revenir aux modulations de l’analyse');
+  await page.locator('[data-testid="modulation-mesure"]').fill('11');
+  await sleep(150);
+  await page.screenshot({ path: path.join(out, `${tag}-fenetre-main.png`) });
+  const picked = await page.$$eval('.fenetre-modulation [aria-checked="true"], .fenetre-modulation [aria-pressed="true"]', (els) => els.map((e) => e.dataset.testid).join(' '));
+  check(`${tag}: before Valider the window still holds F♯ minor (the move only changes the bar)`, picked === 'modulation-mode-minor modulation-note-6', picked);
+  await press(h, page.locator('[data-testid="modulation-valider"]'));
+  await sleep(300);
+  check(`${tag}: moved to bar 11: the mark is above bar 11 and gone from bar 9`, (await marks(page)).join(' ') === '10:F♯m:manual 16:A♭:manual', (await marks(page)).join(' '));
+  await page.evaluate(() => window.__fabtice.history.undo());
+  await sleep(250);
+  check(`${tag}: undone: back at bar 9`, (await marks(page))[0] === '8:F♯m:manual');
+  await page.evaluate(() => window.__fabtice.history.redo());
+  await sleep(250);
+  await page.evaluate(() => window.__fabtice.history.undo());
+  await sleep(250);
+
+  // « Revenir aux modulations de l'analyse » from the window and from the key of the title.
+  await press(h, markOf(page, 8));
+  await page.waitForSelector(DIALOG);
+  await sleep(250);
+  await press(h, page.locator('[data-testid="modulation-revenir"]'));
+  await sleep(300);
+  check(`${tag}: « Revenir aux modulations de l’analyse » gives E and A♭ back, as the analysis'`, (await marks(page)).join(' ') === '8:E:analysis 16:A♭:analysis' && (await page.evaluate(() => window.__fabtice.store.getState().corrections.keyChanges)) === null, (await marks(page)).join(' '));
+  check(`${tag}: it is one undo step`, (await undoLabel(page)) === 'Annuler : tonalité');
+  await page.evaluate(() => window.__fabtice.history.undo());
+  await sleep(250);
+  // The key of the title: the main key stays the piece's (A♭), with the link only when the list is the user's.
+  await page.evaluate(() => (document.querySelector('.vue-grille').scrollTop = 0));
+  await page.locator('[data-testid="cle-bouton"]').scrollIntoViewIfNeeded();
+  check(`${tag}: the title still says the MAIN key (A♭), not the key of a passage`, (await page.locator('[data-testid="grille-ton"]').textContent()).startsWith('Tonalité de A♭'), await page.locator('[data-testid="grille-ton"]').textContent());
+  await press(h, page.locator('[data-testid="cle-bouton"]'));
+  await page.waitForSelector('[data-testid="cle-editeur"]');
+  check(`${tag}: the key window of the title offers « Revenir aux modulations de l’analyse » when the list is the user's`, (await page.locator('[data-testid="cle-modulations-revenir"]').innerText()) === 'Revenir aux modulations de l’analyse');
+  await press(h, page.locator('[data-testid="cle-modulations-revenir"]'));
+  await sleep(300);
+  check(`${tag}: …and it gives them back`, (await marks(page)).join(' ') === '8:E:analysis 16:A♭:analysis');
+  await press(h, page.locator('[data-testid="cle-bouton"]'));
+  await page.waitForSelector('[data-testid="cle-editeur"]');
+  check(`${tag}: with the analysis' list, the link is not offered`, (await page.locator('[data-testid="cle-modulations-revenir"]').count()) === 0);
+  await page.keyboard.press('Escape');
+
+  // ---------------------------------------------------- the bar menu
+  const openMenu = async (bar) => {
+    const cell = page.locator(`[data-testid="grille"] [data-mesure="${bar}"]`);
+    await cell.evaluate((e) => e.scrollIntoView({ block: 'center' }));
+    await sleep(200);
+    // A point of the bar that is none of its parts (a chord, the letter, the mark, the number would be other targets).
+    const { x, y } = await cell.evaluate((el) => {
+      const b = el.getBoundingClientRect();
+      for (const fy of [0.55, 0.4, 0.7, 0.85]) for (let fx = 0.95; fx > 0.05; fx -= 0.05) {
+        const px = b.left + b.width * fx;
+        const py = b.top + b.height * fy;
+        const hit = document.elementFromPoint(px, py);
+        if (hit && el.contains(hit) && !hit.closest('.accord-case, .section, .modulation, .numero, .signature')) return { x: px, y: py };
+      }
+      throw new Error('no free point in the bar');
+    });
+    if (h.phone) {
+      await h.cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y, id: 1 }] });
+      await sleep(1100);
+      if (process.env.FABTICE_DEBUG_MENU) await page.screenshot({ path: path.join(out, `${tag}-menu-tenu-${bar}.png`) });
+      await h.cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+      await sleep(450); // the menu ignores clicks for a moment after the finger lifts
+    } else await page.mouse.click(x, y, { button: 'right' });
+    try {
+      await page.waitForSelector('[data-testid="menu-tempo"]', { timeout: 4000 });
+    } catch (e) {
+      await page.screenshot({ path: path.join(out, `${tag}-menu-echec-${bar}.png`) });
+      throw new Error(`no bar menu at bar ${bar}, pressed at ${Math.round(x)},${Math.round(y)}`);
+    }
+    await sleep(200);
+  };
+  const menuActions = () => page.$$eval('[data-testid="menu-tempo"] [role="menuitem"]', (els) => els.map((e) => `${e.dataset.action}${e.disabled ? ':off' : ''}`));
+  await openMenu(4);
+  check(`${tag}: the bar menu of a bar with no modulation: four tempo entries, then « Changer de tonalité à partir de cette mesure… »`, (await menuActions()).join(' ') === 'continuity fresh tap meter key' && (await page.locator('[data-action="key"] span').textContent()) === 'Changer de tonalité à partir de cette mesure…', (await menuActions()).join(' '));
+  await page.screenshot({ path: path.join(out, `${tag}-menu-mesure.png`) });
+  await press(h, page.locator('[data-testid="menu-tempo"] [data-action="key"]'));
+  await page.waitForSelector(DIALOG);
+  await sleep(300);
+  check(`${tag}: it opens « Changer de tonalité » on that bar (5), no key chosen, « Valider » waits`, (await page.locator('#modulation-titre').textContent()) === 'Changer de tonalité' && (await page.locator('[data-testid="modulation-mesure"]').inputValue()) === '5' && (await page.locator('[data-testid="modulation-valider"]').isDisabled()) && (await page.locator('.fenetre-modulation [aria-checked="true"]').count()) === 0 && (await page.locator('[data-testid="modulation-supprimer"]').count()) === 0 && (await page.locator('[data-testid="modulation-valider"]').innerText()) === 'Changer de tonalité');
+  await press(h, page.locator('[data-testid="modulation-note-0"]'));
+  await press(h, page.locator('[data-testid="modulation-valider"]'));
+  await sleep(300);
+  check(`${tag}: a modulation to C at bar 5: the mark is there, written by hand, the list is the user's (the analysed ones kept)`, (await marks(page)).join(' ') === '4:C:manual 8:E:manual 16:A♭:manual', (await marks(page)).join(' '));
+  check(`${tag}: the chords after it are spelled in C (bar 6, no flats), a step « Annuler : tonalité »`, !(await barText(page, 5)).includes('♭') && (await undoLabel(page)) === 'Annuler : tonalité', await barText(page, 5));
+  await page.evaluate(() => window.__fabtice.history.undo());
+  await sleep(250);
+  check(`${tag}: undone`, (await marks(page)).join(' ') === '8:E:analysis 16:A♭:analysis');
+  await page.evaluate(() => window.__fabtice.history.redo());
+  await sleep(250);
+  // On a bar with a modulation: change it, delete it. On the first bar: greyed.
+  await openMenu(8);
+  check(`${tag}: the bar menu of a bar that carries a modulation: « Modifier la modulation… » and « Supprimer la modulation »`, (await menuActions()).join(' ') === 'continuity fresh tap meter key-edit key-remove' && (await page.locator('[data-action="key-edit"] span').textContent()) === 'Modifier la modulation…' && (await page.locator('[data-action="key-remove"] span').textContent()) === 'Supprimer la modulation', (await menuActions()).join(' '));
+  await press(h, page.locator('[data-testid="menu-tempo"] [data-action="key-edit"]'));
+  await page.waitForSelector(DIALOG);
+  check(`${tag}: « Modifier la modulation… » opens the window on it`, (await page.locator('#modulation-titre').textContent()) === 'Modifier la modulation' && (await page.locator('[data-testid="modulation-mesure"]').inputValue()) === '9');
+  await press(h, page.locator('[data-testid="modulation-annuler"]'));
+  await sleep(200);
+  check(`${tag}: « Annuler » changes nothing`, (await marks(page)).join(' ') === '4:C:manual 8:E:manual 16:A♭:manual' && (await page.locator(DIALOG).count()) === 0);
+  await openMenu(8);
+  await press(h, page.locator('[data-testid="menu-tempo"] [data-action="key-remove"]'));
+  await sleep(300);
+  check(`${tag}: « Supprimer la modulation » removes it; the chords after it are spelled in C then (bar 10: no sharps)`, (await marks(page)).join(' ') === '4:C:manual 16:A♭:manual' && !(await barText(page, 9)).includes('♯'), `${(await marks(page)).join(' ')} / ${await barText(page, 9)}`);
+  await page.evaluate(() => window.__fabtice.history.undo());
+  await sleep(250);
+  check(`${tag}: undone: it is back`, (await marks(page)).join(' ') === '4:C:manual 8:E:manual 16:A♭:manual');
+  await openMenu(0);
+  check(`${tag}: on the first bar the entry is greyed, with the reason`, (await menuActions()).includes('key:off') && (await page.locator('[data-action="key"] small').textContent()) === 'La tonalité du début se change au titre de la grille.');
+  await page.keyboard.press('Escape');
+  await sleep(150);
+  await page.evaluate(() => window.__fabtice.history.undo());
+  await sleep(200);
+
+  // ---------------------------------------------------- the paper
+  await page.evaluate(() => window.__fabtice.store.setState((s) => ({ ui: { ...s.ui, printOpen: true, panel: 'none' } })));
+  await page.waitForSelector('[data-testid="impression"]');
+  await sleep(500);
+  const paper = await page.$$eval('.pp-case .pp-modulation', (els) => els.map((e) => `${e.closest('.pp-case').dataset.mesure}:${e.dataset.cle}`));
+  check(`${tag}: the paper writes the marks too: above bars 9 and 17`, paper.join(' ') === '8:E 16:A♭', paper.join(' '));
+  const paperText = await page.$eval('.pp-case[data-mesure="8"] .pp-modulation', (e) => e.textContent.replace(/\s+/g, ' ').trim());
+  check(`${tag}: … « Ton : E », with the letter beside it, nothing over anything`, paperText === 'Ton : E' && (await page.$$eval('.pp-case', (cells) => cells.every((c) => {
+    const items = [...c.querySelectorAll('.pp-section, .pp-modulation, .pp-numero')].map((e) => e.getBoundingClientRect()).filter((r) => r.width > 0);
+    return items.every((a, i) => items.every((b, j) => j <= i || !(a.left < b.right - 0.3 && b.left < a.right - 0.3 && a.top < b.bottom - 0.3 && b.top < a.bottom - 0.3)));
+  }))));
+  const ink = await page.$eval('.pp-case[data-mesure="8"] .pp-modulation', (e) => getComputedStyle(e).color);
+  check(`${tag}: ink on white`, ink === 'rgb(43, 31, 23)', ink);
+  await page.screenshot({ path: path.join(out, `${tag}-papier.png`) });
+  await page.keyboard.press('Escape');
+  await sleep(200);
+
+  // ---------------------------------------------------- the part shown has its marks too
+  const shownPart = await page.evaluate(() => {
+    const f = window.__fabtice;
+    const st = f.structure.demo('jazz');
+    f.structure.setDetected(st);
+    const map = f.store.getState().tempoMap;
+    const t = f.lot4.tempoMap.barStartTime(map, 8);
+    const p = st.parts.find((x) => x.start <= t && t < x.end);
+    return p ? f.structure.display.showPart(p.id) : false;
+  });
+  await sleep(400);
+  check(`${tag}: the display of a part that holds bar 9 keeps its mark`, shownPart && (await marks(page)).join(' ') === '8:E:analysis', `${shownPart} ${(await marks(page)).join(' ')}`);
+  await page.evaluate(() => window.__fabtice.structure.display.showFullChart());
+
+  // « Réglages » → « Détection des accords » → « Mode » and the column's selector are one setting.
+  await page.evaluate(() => window.__fabtice.structure.actions.setStructureMode('pop'));
+  await openSettingsTab(page, 'chords');
+  await sleep(300);
+  check(`${tag}: « Mode » in the settings follows the column (Pop chosen there)`, (await page.locator('[data-testid="mode-structure-pop"]').getAttribute('aria-checked')) === 'true');
+  check(`${tag}: the three rows are there: « Détecter les modulations », « Structure automatique du morceau », « Mode »`, (await page.locator('[data-testid="reglages"]').innerText()).includes('Détecter les modulations') && (await page.locator('[data-testid="reglages"]').innerText()).includes('Structure automatique du morceau') && (await page.locator('[data-testid="reglages"]').innerText()).includes('Mode'));
+  await press(h, page.locator('[data-testid="mode-structure-jazz"]'));
+  await closeSettings(page);
+  await sleep(300);
+  if (!h.phone) check(`${tag}: and the column follows the settings (Jazz chosen there)`, (await page.locator('[data-testid="structure-mode-jazz"]').getAttribute('aria-pressed')) === 'true');
+  check(`${tag}: no console error (the marks)`, h.errors.length === 0, h.errors.join(' | '));
+  await h.context.close();
+}
+
+/** The ruler of « Pistes »: the stronger bar line and the key in a small box, when there is room. */
+async function modulationRuler(form) {
+  const tag = form;
+  const h = await openMade(form, '?demo&moteur=factice&harmonie=non');
+  const { page } = h;
+  await page.waitForSelector('.frise');
+  await page.evaluate((pps) => window.__fabtice.actions.setZoom(pps), h.phone ? 90 : 130);
+  await detect(page, [[1, 4], [3, 8]]);
+  await page.mouse.move(h.phone ? 250 : 700, 400);
+  await page.mouse.wheel(-8000, 0);
+  await sleep(600);
+  const data = () => page.evaluate(() => document.querySelector('.frise')?.dataset.modulations ?? '');
+  const d = await data();
+  check(`${tag}: the ruler writes the key at the bar line where it changes (data-modulations)`, d.startsWith('2:E'), d);
+  await page.screenshot({ path: path.join(out, `${tag}-regle.png`) });
+  await page.evaluate(() => window.__fabtice.actions.stepSemitones(1));
+  await sleep(500);
+  check(`${tag}: it follows the transposition`, (await data()).startsWith('2:F'), await data());
+  await page.evaluate(() => window.__fabtice.actions.resetTransposition());
+  await page.evaluate(() => window.__fabtice.actions.setAuto(true));
+  await sleep(500);
+  const crowded = await data();
+  check(`${tag}: zoomed out until the box does not fit, the name is left out, never drawn over something`, crowded.split(' ').filter(Boolean).length <= 2, crowded);
+  await page.evaluate(() => window.__fabtice.actions.setZoom(130));
+  await detect(page, []);
+  await sleep(500);
+  check(`${tag}: no modulation: nothing written (no data-modulations)`, (await data()) === '');
+  check(`${tag}: no console error (the ruler)`, h.errors.length === 0, h.errors.join(' | '));
+  await h.context.close();
+}
+
 try {
   await suite('computer');
   await suite('phone');
+  await modulationScreens('computer');
+  await modulationScreens('phone');
+  await modulationRuler('computer');
+  await modulationRuler('phone');
 } finally {
   await browser.close();
   srv.close();

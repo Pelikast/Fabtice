@@ -9,18 +9,23 @@
 // What they compute: `analysis/engine/tempoFix.ts`; how they are kept:
 // `store/tempoFixActions.ts`.
 
-import { useCallback, useEffect, useLayoutEffect, useRef, type KeyboardEvent } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { useStore } from 'zustand';
 import { runTempoFix } from '../analysis/runner';
 import { formatBarNumber } from '../grid/format';
 import { barStartTime, timeToBar } from '../grid/tempoMap';
 import { t } from '../i18n';
-import { useApp, type AppState } from '../store/store';
+import { useApp, appStore, type AppState } from '../store/store';
+import { selectChartBars } from '../store/chartSelectors';
+import { removeKeyChange } from '../store/keyActions';
+import { keyChangesInForce } from '../store/keySelectors';
+import { sectionBar } from '../chart/layout';
+import { openKeyDialog } from '../ui/keyDialog';
 import { canChangeMeterAt } from '../store/meterActions';
 import { tempoFixAt, undoTempoFix } from '../store/tempoFixActions';
 import { openMeterDialog, openTapFix } from '../ui/barDialogs';
 import { useOutsideClose } from '../ui/useOutsideClose';
-import { closeTempoMenu, tempoMenuStore } from '../ui/tempoMenu';
+import { closeTempoMenu, tempoMenuStore, whenPointerReleased } from '../ui/tempoMenu';
 import '../styles/tempoMenu.css';
 
 const MARGIN = 8;
@@ -30,6 +35,14 @@ export function TempoFixMenu() {
   const hasAnalysis = useApp((s) => s.analysis !== null);
   const busy = useApp((s) => s.analysisRun.status === 'running');
   const fix = useApp((s) => (at ? tempoFixAt(s.corrections.tempoFixes, barStartTime(s.tempoMap, at.bar)) : null));
+  // C10: what the bar can do about the key: nothing at the first bar of the chart, a modulation to add, or one to change or delete.
+  const keyState = useApp((s) => {
+    if (!at) return 'free';
+    const bars = selectChartBars(s);
+    const found = bars.find((b) => b.bar === at.bar);
+    if (!found || !bars[0] || found.bar <= bars[0].bar) return 'first';
+    return found.keyChange ? 'has' : 'free';
+  });
   const ref = useRef<HTMLDivElement>(null);
   const refs = useRef([ref]).current;
   useOutsideClose(at !== null, refs, useCallback(() => closeTempoMenu(), []));
@@ -45,6 +58,13 @@ export function TempoFixMenu() {
     el.style.left = `${x}px`;
     el.style.top = `${y}px`;
     el.querySelector<HTMLElement>('[role="menuitem"]:not(:disabled)')?.focus({ preventScroll: true });
+  }, [at]);
+
+  // Held by a finger: the click that follows its release must not choose the entry that lies under it.
+  const [armed, setArmed] = useState(true);
+  useEffect(() => {
+    setArmed(false);
+    return at ? whenPointerReleased(() => setArmed(true)) : undefined;
   }, [at]);
 
   useEffect(() => {
@@ -80,6 +100,12 @@ export function TempoFixMenu() {
       role="menu"
       aria-label={t('tempoMenu.label', { bar: formatBarNumber(at.bar) })}
       data-testid="menu-tempo"
+      onClickCapture={(e) => {
+        if (!armed) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      }}
       onKeyDown={onKeyDown}
       onContextMenu={(e) => e.preventDefault()}
     >
@@ -120,6 +146,52 @@ export function TempoFixMenu() {
         <span>{t('tempoMenu.meter')}</span>
         <small>{t('tempoMenu.meterHint')}</small>
       </button>
+      {keyState === 'has' ? (
+        <>
+          <button
+            className="option"
+            role="menuitem"
+            data-action="key-edit"
+            onClick={() => {
+              const bar = at.bar;
+              closeTempoMenu();
+              openKeyDialog(bar);
+            }}
+          >
+            <span>{t('tempoMenu.keyEdit')}</span>
+            <small>{t('tempoMenu.keyEditHint')}</small>
+          </button>
+          <button
+            className="option"
+            role="menuitem"
+            data-action="key-remove"
+            onClick={() => {
+              const s = appStore.getState();
+              const found = keyChangesInForce(s).find((c) => sectionBar(s.tempoMap, c.time) === at.bar);
+              closeTempoMenu();
+              if (found) removeKeyChange(found.time);
+            }}
+          >
+            <span>{t('tempoMenu.keyRemove')}</span>
+            <small>{t('tempoMenu.keyRemoveHint')}</small>
+          </button>
+        </>
+      ) : (
+        <button
+          className="option"
+          role="menuitem"
+          data-action="key"
+          disabled={keyState === 'first'}
+          onClick={() => {
+            const bar = at.bar;
+            closeTempoMenu();
+            openKeyDialog(bar);
+          }}
+        >
+          <span>{t('tempoMenu.keyChange')}</span>
+          <small>{t(keyState === 'first' ? 'tempoMenu.keyFirst' : 'tempoMenu.keyChangeHint')}</small>
+        </button>
+      )}
       {fix && (
         <button
           className="option retour"

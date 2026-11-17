@@ -14,6 +14,7 @@
 import { memo, useLayoutEffect, useRef, type CSSProperties } from 'react';
 import { formatBarNumber } from '../grid/format';
 import { ChordSymbol, withAccidentals } from '../harmony/ChordSymbol';
+import { keyLabel } from '../harmony/key';
 import { t } from '../i18n';
 import type { Instrument } from '../model/harmony';
 import { fitChart, type BarFit, type ChartBar as FitBar, type FitChord } from './fit';
@@ -114,10 +115,21 @@ function PrintLine({ line, chart, last }: { line: ChartLine; chart: PrintChart; 
 
 function PrintBar({ bar, chart, final }: { bar: ChartBar; chart: PrintChart; final: boolean }) {
   const n = bar.chords.length;
-  const cls = ['pp-case', bar.doubleBar ? 'pp-double' : '', bar.signature ? 'pp-signee' : '', final ? 'pp-finale' : ''].filter(Boolean).join(' ');
+  const modulationText = bar.keyChange ? keyLabel(modulationKey(bar, chart).key, modulationKey(bar, chart).minor) : '';
+  const cls = ['pp-case', bar.doubleBar ? 'pp-double' : '', bar.signature ? 'pp-signee' : '', bar.keyChange ? 'pp-modulee' : bar.section ? 'pp-lettree' : '', final ? 'pp-finale' : ''].filter(Boolean).join(' ');
   return (
     <div className={cls} data-mesure={bar.bar} data-temps={n > 0 ? bar.beats : undefined} data-accords={n}>
-      {bar.section && <span className="pp-section">{bar.section}</span>}
+      {bar.keyChange ? (
+        // C10: the letter and the key of a modulation share the top row, side by side.
+        <div className="pp-entete-case">
+          {bar.section && <span className="pp-section">{bar.section}</span>}
+          <span className="pp-modulation" data-cle={modulationText}>
+            <span className="pp-modulation-mot">{t('modulation.label')}</span> {withAccidentals(modulationText)}
+          </span>
+        </div>
+      ) : (
+        bar.section && <span className="pp-section">{bar.section}</span>
+      )}
       {bar.signature && (
         <span className="pp-signature" data-signature={`${bar.signature.numerator}/${bar.signature.denominator}`}>
           <span>{bar.signature.numerator}</span>
@@ -137,6 +149,12 @@ function PrintBar({ bar, chart, final }: { bar: ChartBar; chart: PrintChart; fin
       )}
     </div>
   );
+}
+
+/** The key written above a bar where a modulation starts, as displayed (the bar's own context). */
+function modulationKey(bar: ChartBar, chart: PrintChart) {
+  const ctx = chart.contexts.get(bar.bar) ?? chart.ctx;
+  return { key: ctx.key ?? bar.keyChange!, minor: ctx.minor };
 }
 
 const px = (value: string) => {
