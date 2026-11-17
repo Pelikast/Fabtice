@@ -241,11 +241,22 @@ function commandScript(id, accelerator) {
 }
 
 /**
+ * « À propos de Fabtice » (C17): the name, the number of the version (package.json, « 1.0.0 »), the licence.
+ * `version` is macOS's build number, shown in brackets after the number (CFBundleVersion, the same number
+ * again by electron-builder): empty, so nothing is shown in brackets.
+ * @param {string} version
+ */
+function aboutPanelOptions(version) {
+  return { applicationName: 'Fabtice', applicationVersion: version, version: '', copyright: 'Fabtice — GPL-3.0-or-later' };
+}
+
+/**
  * Builds the bar and keeps it in step with the page.
  * @param {{ openDiagnostic: () => void, checkForUpdate?: () => void, window: () => any }} options
  */
 function buildMenu({ openDiagnostic, checkForUpdate, window }) {
-  const { Menu } = require('electron');
+  const { Menu, app } = require('electron');
+  app.setAboutPanelOptions(aboutPanelOptions(app.getVersion()));
   const apply = (template) => Menu.setApplicationMenu(Menu.buildFromTemplate(template));
   const bar = createMenuBar({
     openDiagnostic,
@@ -262,4 +273,4 @@ function buildMenu({ openDiagnostic, checkForUpdate, window }) {
   return bar;
 }
 
-module.exports = { buildMenu, createMenuBar, parseMenuState, commandScript, MENU_COMMANDS, LABELS, ACCELERATORS, CHECK_UPDATE_LABEL };
+module.exports = { buildMenu, createMenuBar, aboutPanelOptions, parseMenuState, commandScript, MENU_COMMANDS, LABELS, ACCELERATORS, CHECK_UPDATE_LABEL };
