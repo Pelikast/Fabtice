@@ -5,7 +5,11 @@
 //     the passage are spelled in E on the chart, the transport says the key of the place being played, before and after
 //     the playhead crosses the change;
 //   - a modulation by hand (`window.__fabtice.lot2.key`) respells the chords after it and moves the transport's key;
-//   - « Détecter les modulations » and « Structure automatique du morceau » switch the detection off and on.
+//   - « Détecter les modulations » and « Structure automatique du morceau » switch the detection off and on;
+//   - the audio evidence (`structure/gather.ts`): a made-up piece (AABA four times: the voice, a horn on « Autres »,
+//     the piano, the voice) separated into made-up tracks, a stand-in instrument recogniser that says « trumpet »
+//     (`window.__fabtice.harmony.setRecognizer`): the structure column names the soloists, « Solo (Trompette) » then
+//     « Solo (Piano) »; the same piece without separation: « Solo 1 », « Solo 2 », no instrument.
 //   npm run build && npm run test:harmony
 // Screenshots go to $FABTICE_HARMONY_OUT (default: a temporary folder). Uses the silent engine.
 
@@ -209,8 +213,124 @@ async function suite(form) {
   await settled(page);
   check(`${tag}: undone: the chords are in A♭ again`, (await barText(page, 14)).includes('B♭'), await barText(page, 14));
 
+  // ---------------------------------------------------- the audio evidence: soloists named with a separation
+  await page.evaluate(() => window.__fabtice.harmony.setRecognizer({ recognise: async () => ({ instrument: 'trumpet', confidence: 0.9 }) }));
+  await openMadeUpPiece(page, true);
+  await settled(page);
+  let parts = await partNames(h);
+  check(`${tag}: separated: the structure column names the soloists (the horn by the recogniser, the piano by its track)`, parts.includes('Solo (Trompette)') && parts.includes('Solo (Piano)') && parts.indexOf('Solo (Trompette)') < parts.indexOf('Solo (Piano)'), parts.join(' | '));
+  r = await page.evaluate(() => {
+    const s = window.__fabtice.store.getState();
+    const solos = s.analysis.structure.parts.filter((p) => p.type === 'solo');
+    return { form: s.analysis.structure.form, solos: solos.map((p) => [p.instrument, p.number]), canUndo: window.__fabtice.history.canUndo(), stems: !!window.__fabtice.harmony.lastInput()?.evidence?.stems };
+  });
+  check(`${tag}: separated: form AABA, two named solos without numbers, measured on the separated tracks, no undo step`, r.form === 'AABA' && JSON.stringify(r.solos) === JSON.stringify([['trumpet', null], ['piano', null]]) && r.stems && !r.canUndo, JSON.stringify(r));
+  await page.screenshot({ path: path.join(out, `${tag}-structure-separated.png`) });
+  await closeSheet(h);
+  // the same piece, not separated
+  await openMadeUpPiece(page, false);
+  await settled(page);
+  parts = await partNames(h);
+  check(`${tag}: not separated: « Solo 1 », « Solo 2 », no instrument named`, parts.includes('Solo 1') && parts.includes('Solo 2') && !parts.some((p) => p.includes('(')), parts.join(' | '));
+  await page.screenshot({ path: path.join(out, `${tag}-structure-whole.png`) });
+  await closeSheet(h);
+  await page.evaluate(() => window.__fabtice.harmony.setRecognizer(null));
+
   check(`${tag}: no console error`, h.errors.length === 0, h.errors.join(' | '));
   await h.context.close();
+}
+
+/** The names of the parts in the structure column (on the phone, in its sheet, opened first). */
+async function partNames(h) {
+  if (h.phone) {
+    await h.page.locator('[data-testid="structure-barre"]').first().tap();
+    await h.page.waitForSelector('[data-testid="structure-feuille"]');
+  }
+  await h.page.waitForSelector('[data-testid="structure-partie"]', { timeout: 10000 }).catch(() => {});
+  return (await h.page.locator('[data-testid="structure-partie"] .structure-nom-texte').allInnerTexts()).map((x) => x.trim());
+}
+
+async function closeSheet(h) {
+  if (h.phone && (await h.page.locator('[data-testid="structure-feuille"]').count()) === 1) {
+    await h.page.locator('[data-testid="structure-fermer"]').first().tap();
+    await sleep(200);
+  }
+}
+
+/**
+ * A made-up piece opened in the page: AABA four times at 240 BPM (one second a bar), led by the voice, a horn (the
+ * « Autres » track, bright), the piano (stepping up), the voice; its chords as an analysis. `separated`: its four
+ * separated tracks registered and put in place as a finished separation (the whole piece aside).
+ */
+async function openMadeUpPiece(page, separated) {
+  await page.evaluate(async (separated) => {
+    const f = window.__fabtice;
+    const SR = 48000;
+    const plan = ['voice', 'other', 'piano', 'voice'];
+    const n = plan.length * 32;
+    const lead = (b) => plan[Math.floor(b / 32)];
+    const hz = (m) => 440 * 2 ** ((m - 69) / 12);
+    const tone = (amp, pitch, harmonics = 1) => {
+      const out = new Float32Array(n * SR);
+      let phase = 0;
+      for (let i = 0; i < out.length; i++) {
+        const t = i / SR;
+        const bar = Math.floor(t);
+        const slot = Math.floor((t % 1) * 8);
+        phase += (2 * Math.PI * pitch(bar, slot)) / SR;
+        const a = amp(bar);
+        if (!a) continue;
+        let x = 0;
+        for (let k = 1; k <= harmonics; k++) x += Math.sin(k * phase) / k;
+        out[i] = a * x;
+      }
+      return out;
+    };
+    const tune = (b, k) => hz(67 + (((b % 8) * 3 + k * 5) % 12));
+    const improvised = (b, k) => hz(60 + (((b * 37 + k * 11) * 7919) % 17));
+    const stems = {
+      vocals: tone((b) => (lead(b) === 'voice' ? 0.25 : 0), tune),
+      other: tone((b) => (lead(b) === 'other' ? 0.22 : 0.003), improvised, 6),
+      piano: tone((b) => (lead(b) === 'piano' ? 0.3 : 0.06), (b, k) => (lead(b) === 'piano' ? hz(72 + ((b * 29 + k * 7) % 13)) : hz(55)), 3),
+      bass: tone(() => 0.08, () => hz(40)),
+    };
+    const mix = new Float32Array(n * SR);
+    for (const x of Object.values(stems)) for (let i = 0; i < mix.length; i++) mix[i] += x[i];
+    // AABA in C: the chords of each bar, one a bar
+    const c = (root, quality) => ({ root, quality, extensions: [], bass: null });
+    const A = [c(0, 'maj7'), c(9, 'min7'), c(2, 'min7'), c(7, '7'), c(0, 'maj7'), c(9, 'min7'), c(2, 'min7'), c(7, '7')];
+    const B = [c(4, 'min7'), c(9, '7'), c(2, 'min7'), c(7, '7'), c(5, 'maj7'), c(5, 'min7'), c(2, 'min7'), c(7, '7')];
+    const form = [...A, ...A, ...B, ...A];
+    const chords = Array.from({ length: n }, (_, b) => ({ time: b, chord: form[b % 32], confidence: 0.8, doubtful: false, alternatives: [] }));
+    const map = f.lot4.tempoMap.constantTempoMap({ bpm: 240, firstDownbeat: 0, meter: { numerator: 4, denominator: 4 }, origin: 'manual' });
+    await f.actions.openProject({
+      title: separated ? 'Essai séparé' : 'Essai entier',
+      source: { kind: 'file', fileName: 'essai.wav' },
+      tracks: [{ role: 'morceau', audio: { channels: [mix], sampleRate: SR } }],
+      tempoMap: map,
+      analysis: {
+        version: 2,
+        analyser: { id: 'mock', version: 'test', models: [] },
+        analysedAt: '2026-11-17T09:00:00.000Z',
+        duration: n,
+        beats: { times: Array.from({ length: n * 4 + 1 }, (_, i) => i / 4), downbeat: 0, meter: { numerator: 4, denominator: 4 }, meterConfidence: 0.9 },
+        key: { tonic: 0, mode: 'major', confidence: 0.8, alternatives: [] },
+        keyChanges: [],
+        tuning: null,
+        chords,
+        structure: null,
+      },
+    });
+    if (!separated) return;
+    const id = `essai-${Date.now()}`;
+    const parts = Object.entries(stems).map(([stem, x]) => {
+      const audioId = `${id}-${stem}`;
+      f.lot3.registry.registerAudio(audioId, f.lot3.pcm.pcmFromChannels([x], SR));
+      return { stem, audioId, channels: 1, frames: x.length, sampleRate: SR };
+    });
+    const summary = { id, modelId: 'essai', modelName: 'Essai', modelSha256: '0', backend: 'cpu', fellBack: false, stems: Object.keys(stems), kept: Object.keys(stems), startedAt: '2026-11-17T09:00:00.000Z', finishedAt: '2026-11-17T09:01:00.000Z', computeSeconds: 60, pieceSeconds: n };
+    await f.lot3.separation.applySeparation(summary, parts);
+  }, separated);
 }
 
 try {

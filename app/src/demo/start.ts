@@ -23,7 +23,7 @@ import { MockAnalyzer, getAnalyzer, replaceAnalyzer } from '../analysis';
 import { knownChartsFor, setKnownChartsProvider } from '../analysis/knownCharts';
 import { getEngine } from '../audio';
 import { pcmFromChannels, readPcm } from '../audio/pcm';
-import { audioSeconds, getAudio, registryBytes, type DecodedAudio } from '../audio/registry';
+import { audioSeconds, getAudio, registerAudio, registryBytes, type DecodedAudio } from '../audio/registry';
 import { exportWithApp, getEncoder, planAudioExport } from '../export/audio';
 import { planLogicFolder } from '../export/logic';
 import { planAbletonFolder, quartersMap, sessionToAbleton } from '../export/ableton';
@@ -139,7 +139,7 @@ export const lot3Handle = {
    * and Ableton Live (`test:export-ableton`), the session as an Ableton set's input and its quarters on Live's timeline.
    */
   sequencer: { buildSession, sessionToMidi, planLogicFolder, planAbletonFolder, sessionToAbleton, quartersMap },
-  registry: { getAudio, registryBytes },
+  registry: { getAudio, registryBytes, registerAudio },
   pcm: { pcmFromChannels, readPcm },
   storage: getProjectStorage,
   /** The analyser in use and the known charts it would be given for a title (browser checks of the chord analysis). */

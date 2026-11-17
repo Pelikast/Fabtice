@@ -24,21 +24,25 @@ import type { InstrumentGuess, InstrumentRecognizer } from './types';
 
 const SR = 48000;
 const BAR = 1; // seconds (4 beats at 240 BPM)
-const BARS = chartBars(repeat(AABA, 3), { secondsPerBar: BAR });
-const N = BARS.length;
-const DURATION = N * BAR;
 const get = () => appStore.getState();
 
-/** A track of `f(bar)` amplitude, a sine whose pitch follows `pitch(bar, slot)` (8 slots a bar). */
-function tone(amp: (bar: number) => number, pitch: (bar: number, slot: number) => number): Float32Array {
-  const out = new Float32Array(DURATION * SR);
+/** Who leads each chorus of the made-up piece (AABA, 32 bars a chorus). */
+type Lead = 'voice' | 'other' | 'piano';
+
+/** A track of `amp(bar)` amplitude whose pitch follows `pitch(bar, slot)` (8 slots a bar), with `harmonics` overtones. */
+function tone(seconds: number, amp: (bar: number) => number, pitch: (bar: number, slot: number) => number, harmonics = 1): Float32Array {
+  const out = new Float32Array(seconds * SR);
   let phase = 0;
   for (let i = 0; i < out.length; i++) {
     const t = i / SR;
     const bar = Math.floor(t / BAR);
     const slot = Math.floor(((t / BAR) % 1) * 8);
     phase += (2 * Math.PI * pitch(bar, slot)) / SR;
-    out[i] = amp(bar) * Math.sin(phase);
+    const a = amp(bar);
+    if (!a) continue;
+    let x = 0;
+    for (let h = 1; h <= harmonics; h++) x += Math.sin(h * phase) / h;
+    out[i] = a * x;
   }
   return out;
 }
@@ -47,14 +51,34 @@ const hz = (midi: number) => 440 * 2 ** ((midi - 69) / 12);
 // the theme: the same tune at each A; a solo: notes that do not come back
 const tune = (bar: number, slot: number) => hz(67 + ((bar % 8) * 3 + slot * 5) % 12);
 const improvised = (bar: number, slot: number) => hz(60 + ((bar * 37 + slot * 11) * 7919) % 17);
-const chorus = (bar: number) => Math.floor(bar / 32);
 
-const STEMS: Partial<Record<StemId, Float32Array>> = {
-  vocals: tone((b) => (chorus(b) === 1 ? 0 : 0.25), tune),
-  other: tone((b) => (chorus(b) === 1 ? 0.25 : 0.003), improvised),
-  piano: tone(() => 0.06, () => hz(55)),
-  bass: tone(() => 0.08, () => hz(40)),
-};
+/** The piece: its bars, its separated tracks (a bright horn on « Autres », a piano that steps up for its solo). */
+function piece(plan: readonly Lead[]) {
+  const bars = chartBars(repeat(AABA, plan.length), { secondsPerBar: BAR });
+  const duration = bars.length * BAR;
+  const lead = (b: number) => plan[Math.floor(b / 32)];
+  const stems: Partial<Record<StemId, Float32Array>> = {
+    vocals: tone(duration, (b) => (lead(b) === 'voice' ? 0.25 : 0), tune),
+    other: tone(duration, (b) => (lead(b) === 'other' ? 0.22 : 0.003), improvised, 6),
+    piano: tone(duration, (b) => (lead(b) === 'piano' ? 0.3 : 0.06), (b, k) => (lead(b) === 'piano' ? hz(72 + ((b * 29 + k * 7) % 13)) : hz(55)), 3),
+    bass: tone(duration, () => 0.08, () => hz(40)),
+  };
+  return { bars, duration, stems, n: bars.length };
+}
+
+let P = piece(['voice', 'other', 'voice']);
+let BARS = P.bars;
+let N = P.n;
+let DURATION = P.duration;
+let STEMS = P.stems;
+
+function usePiece(plan: readonly Lead[]) {
+  P = piece(plan);
+  BARS = P.bars;
+  N = P.n;
+  DURATION = P.duration;
+  STEMS = P.stems;
+}
 
 function mixOf(): Float32Array {
   const out = new Float32Array(DURATION * SR);
@@ -120,9 +144,11 @@ const fakeSummary = {
   fellBack: false,
   stems: [],
   kept: [],
-  separatedAt: '2026-11-17T09:00:00.000Z',
-  seconds: 1,
-} as unknown as NonNullable<AppState['separation']['result']>;
+  startedAt: '2026-11-17T09:00:00.000Z',
+  finishedAt: '2026-11-17T09:01:00.000Z',
+  computeSeconds: 60,
+  pieceSeconds: 1,
+} as NonNullable<AppState['separation']['result']>;
 
 /** A recogniser that answers `answer` after `release()` (or at once when `wait` is false). */
 function fakeRecognizer(answer: () => InstrumentGuess | null | Promise<InstrumentGuess | null>, wait = false) {
@@ -151,6 +177,7 @@ const solos = (s: DetectedStructure | null) => (s?.parts ?? []).filter((p) => p.
 let runner: HarmonyRefresh | null = null;
 
 beforeEach(() => {
+  usePiece(['voice', 'other', 'voice']);
   replaceEngine(new MockEngine());
   connectEngine(appStore, new MockEngine());
   appStore.setState(initialState());
@@ -296,4 +323,29 @@ describe('the two steps in the runner', () => {
     await runner!.settled();
     expect(get().analysis!.structure?.parts.every((p) => p.instrument === null) ?? true).toBe(true);
   });
+
+  it('two solos in a row: named with separation (trumpet, then piano), « Solo 1, Solo 2 » without', async () => {
+    usePiece(['voice', 'other', 'piano', 'voice']);
+    await openPiece(true);
+    const fake = fakeRecognizer(() => ({ instrument: 'trumpet', confidence: 0.9 }));
+    start(fake.recognizer);
+    await runner!.refreshNow();
+    await runner!.settled();
+    const named = solos(get().analysis!.structure);
+    expect(named.map((p) => [p.instrument, p.number])).toEqual([
+      ['trumpet', null],
+      ['piano', null],
+    ]);
+    runner!.stop();
+    clearEvidenceCache();
+    await openPiece(false);
+    start(fake.recognizer);
+    await runner!.refreshNow();
+    await runner!.settled();
+    expect(solos(get().analysis!.structure).map((p) => [p.instrument, p.number])).toEqual([
+      [null, 1],
+      [null, 2],
+    ]);
+  });
 });
+
