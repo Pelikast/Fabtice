@@ -246,7 +246,8 @@ GitHub en change, l’ajouter à `ALLOWED_HOSTS` avant une version.
    dépanner, ou une app d’un dossier `.Fabtice-maj-…`) : l’échange effacerait
    l’app en cours. L’app le dit comme pour une copie non empaquetée, avec
    « Télécharger à la main ».
-2. **Place sur le disque** : environ trois fois l’archive.
+2. **Place sur le disque** : quatre fois l’archive (l’archive, gardée jusqu’à
+   la fin, l’app déballée, environ 2,4 fois l’archive, et une marge).
 3. **Téléchargement** dans un dossier de travail neuf à côté de l’app
    (`.Fabtice-maj-<hasard>`, même volume), taille exacte exigée, SHA-256
    calculé en écrivant. Une empreinte fausse efface le téléchargement :

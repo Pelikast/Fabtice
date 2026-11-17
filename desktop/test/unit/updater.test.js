@@ -298,7 +298,7 @@ test('not enough room on the disk: said before downloading', async () => {
     updater.start();
     const s = await until(() => updater.state(), (x) => x.phase === 'available' && x.error);
     assert.equal(s.error.code, 'disk-space');
-    assert.equal(s.room.needed, s.available.size * 3);
+    assert.equal(s.room.needed, s.available.size * 4);
     assert.ok(!w.seen.some((u) => u.includes('zip')), 'nothing downloaded');
   } finally {
     await w.close();

@@ -5,7 +5,7 @@
 //   check    the version file (update-version.js) read from the project's latest release on GitHub
 //            (update-net.js); a version strictly newer than this one is « available ».
 //   start    where the app is (update-place.js: a protected place, a read-only volume, a folder that
-//            cannot be written are said, with the manual download); room on the disk (three times the
+//            cannot be written are said, with the manual download); room on the disk (four times the
 //            archive); the archive downloaded next to the app (same volume), its size and SHA-256
 //            checked against the version file; unpacked and inspected (update-install.js); then the page
 //            is asked whether the app may close (close-guard.js: changes not saved); then the swap and

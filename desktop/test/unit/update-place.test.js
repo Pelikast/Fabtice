@@ -105,8 +105,8 @@ test('the test seam stands for the bundle, on any system', () => {
   }
 });
 
-test('room on the disk: three times the archive, the free space as the system says', async () => {
-  assert.equal(place.roomNeeded(100), 300);
+test('room on the disk: four times the archive (the archive, its unpacked app, a margin), the free space as the system says', async () => {
+  assert.equal(place.roomNeeded(100), 400);
   const free = await place.freeBytes(os.tmpdir());
   assert.ok(Number.isFinite(free) && free > 0);
   assert.equal(await place.freeBytes('/does/not/exist'), null);

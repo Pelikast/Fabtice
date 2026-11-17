@@ -106,9 +106,12 @@ async function freeBytes(folder, fsp = fs.promises) {
   }
 }
 
-/** The room the update needs next to the app: the archive, what it unpacks to and a margin (three times the archive). */
+/**
+ * The room the update needs next to the app: the archive (kept until the end), what it unpacks to (about 2.4 times
+ * the archive, the estimate of update-install.js) and a margin: four times the archive.
+ */
 function roomNeeded(archiveBytes) {
-  return archiveBytes * 3;
+  return archiveBytes * 4;
 }
 
 module.exports = { BUNDLE_NAME, ASIDE_NAME, STAGING_PREFIX, bundleOf, isTranslocated, isUpdateCopy, probeWritable, locate, freeBytes, roomNeeded };
