@@ -155,6 +155,39 @@ jobs:
           FABTICE_E2E_APP="$RUNNER_TEMP/arm64/Fabtice.app/Contents/MacOS/Fabtice" \
           FABTICE_E2E_OUT="$RUNNER_TEMP/ci-logs/e2e-arm64" node --test test/e2e/separation.test.js
 
+      # The automatic update (C16): a fake newer version, a real second packaging of the same sources with a
+      # higher number (zip only), for each chip; the Intel one goes to the Intel job as an artifact.
+      - name: Fake newer version for the update trial (both chips)
+        id: fake-next
+        run: |
+          source "$GITHUB_WORKSPACE/desktop/ci/log-step.sh" 08d-fake-next
+          NEXT=$(node -p "const v = require('./package.json').version.split('.').map(Number); v[2] += 1; v.join('.')")
+          echo "fake newer version: $NEXT"
+          npx electron-builder --mac zip --arm64 --publish never -c.extraMetadata.version="$NEXT" -c.directories.output=dist-next/arm64 -c.mac.artifactName='Fabtice-mac-apple-silicon.${ext}'
+          npx electron-builder --mac zip --x64 --publish never -c.extraMetadata.version="$NEXT" -c.directories.output=dist-next/x64 -c.mac.artifactName='Fabtice-mac-intel.${ext}'
+          ls -la dist-next/arm64 dist-next/x64
+
+      # The complete trial of the update (desktop/test/trial/update-trial.js): the app as built updates itself
+      # to the fake newer version served locally and is relaunched on it; a tampered archive is refused; a
+      # folder that cannot be written and the protected place of App Translocation are said. Required.
+      - name: Update trial (arm64)
+        id: update-trial
+        run: |
+          source "$GITHUB_WORKSPACE/desktop/ci/log-step.sh" 08e-update-trial-arm64
+          FABTICE_TRIAL_APP_ZIP="$PWD/dist/Fabtice-mac-apple-silicon.zip" \
+          FABTICE_TRIAL_NEW_ZIP="$PWD/dist-next/arm64/Fabtice-mac-apple-silicon.zip" \
+          FABTICE_TRIAL_ARCH=arm64 \
+          FABTICE_TRIAL_OUT="$RUNNER_TEMP/ci-logs/trial-arm64" node test/trial/update-trial.js
+
+      # What GitHub answers today for a release asset (the host of its redirect must be in the update's list).
+      # Network: reported, not required.
+      - name: GitHub release redirect host (online)
+        id: release-host
+        continue-on-error: true
+        run: |
+          source "$GITHUB_WORKSPACE/desktop/ci/log-step.sh" 08f-release-host
+          node ci/release-host.js
+
       - name: yt-dlp with the app as JS runtime
         id: ytdlp
         continue-on-error: true
@@ -181,6 +214,14 @@ jobs:
           name: fabtice-mac-apple-silicon
           path: desktop/dist/Fabtice-mac-apple-silicon.zip
           retention-days: 7
+          compression-level: 0
+
+      # The fake newer Intel build, for the Intel job's update trial (never published).
+      - uses: actions/upload-artifact@v6
+        with:
+          name: fabtice-mac-intel-next
+          path: desktop/dist-next/x64/Fabtice-mac-intel.zip
+          retention-days: 1
           compression-level: 0
 
       - name: Publish prerelease
@@ -247,7 +288,7 @@ jobs:
   intel:
     needs: build
     runs-on: macos-15-intel
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v6
 
@@ -259,6 +300,11 @@ jobs:
         with:
           name: fabtice-mac-intel
           path: ${{ runner.temp }}/app
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: fabtice-mac-intel-next
+          path: ${{ runner.temp }}/next
 
       - name: Install test dependencies
         id: install
@@ -295,6 +341,15 @@ jobs:
           FABTICE_E2E_SEPARATION=1 \
           FABTICE_E2E_APP="$RUNNER_TEMP/app/Fabtice.app/Contents/MacOS/Fabtice" \
           FABTICE_E2E_OUT="$RUNNER_TEMP/ci-logs/e2e-x64" node --test test/e2e/separation.test.js
+
+      - name: Update trial (x64)
+        id: update-trial
+        run: |
+          source "$GITHUB_WORKSPACE/desktop/ci/log-step.sh" 13d-update-trial-x64
+          FABTICE_TRIAL_APP_ZIP="$RUNNER_TEMP/app/Fabtice-mac-intel.zip" \
+          FABTICE_TRIAL_NEW_ZIP="$RUNNER_TEMP/next/Fabtice-mac-intel.zip" \
+          FABTICE_TRIAL_ARCH=x64 \
+          FABTICE_TRIAL_OUT="$RUNNER_TEMP/ci-logs/trial-x64" node test/trial/update-trial.js
 
       - name: yt-dlp with the app as JS runtime (x64)
         id: ytdlp

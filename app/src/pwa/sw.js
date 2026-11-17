@@ -20,9 +20,14 @@
 //     without them the audio engine loses its shared memory;
 //   - a new version installs quietly and takes over at the next launch (when
 //     no page of the old one is open any more); the old one's copies are then
-//     dropped, except the big files the new version still names.
+//     dropped, except the big files the new version still names;
+//   - C16: a page may ask a waiting worker which build it is (`fabtice-build`,
+//     answered on the port given) and, when the person chooses « Recharger »,
+//     tell it to take over now (`fabtice-skip-waiting`); the page then reloads
+//     on the new version (`src/update/updates.ts`).
 
 const VERSION = '__VERSION__';
+const BUILD = '__BUILD__';
 const PRECACHE = __PRECACHE__;
 const ASSETS = __ASSETS__;
 
@@ -113,6 +118,14 @@ async function asset(request, path) {
   }
   return isolated(response);
 }
+
+self.addEventListener('message', (event) => {
+  const data = event.data;
+  if (!data || typeof data !== 'object') return;
+  if (data.type === 'fabtice-build' && event.ports && event.ports[0]) event.ports[0].postMessage({ build: BUILD, version: VERSION });
+  // Only on the person's « Recharger »: the version waiting takes over at once instead of at the next launch.
+  if (data.type === 'fabtice-skip-waiting') self.skipWaiting();
+});
 
 self.addEventListener('fetch', (event) => {
   const request = event.request;

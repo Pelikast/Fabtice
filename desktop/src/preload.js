@@ -90,6 +90,14 @@ contextBridge.exposeInMainWorld('fabtice', {
   // C6, the menu bar (menu.js): the page's commands, their labels and states; « Quitter » from the page's menu.
   reportMenuState: (state) => ipcRenderer.invoke('fabtice:menu-state', state),
   quitApp: () => ipcRenderer.invoke('fabtice:quit'),
+  // C16, the update of the app itself (updater.js): « check », « update », « cancel », « open the page »; the state
+  // comes back through `onUpdateState`. Nothing else goes from the page to the main process.
+  updateStatus: () => ipcRenderer.invoke('fabtice:update-status'),
+  checkForUpdate: (origin) => ipcRenderer.invoke('fabtice:update-check', origin === 'launch' ? 'launch' : 'page'),
+  startUpdate: () => ipcRenderer.invoke('fabtice:update-start'),
+  cancelUpdate: () => ipcRenderer.invoke('fabtice:update-cancel'),
+  openUpdatePage: () => ipcRenderer.invoke('fabtice:update-open-page'),
+  onUpdateState: (cb) => subscribe('fabtice:update-state', cb),
   onYtdlpProgress: (cb) => subscribe('fabtice:ytdlp-progress', cb),
   onExtractProgress: (cb) => subscribe('fabtice:extract-progress', cb),
 });

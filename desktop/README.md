@@ -156,6 +156,177 @@ L’app utilise yt-dlp tel quel, depuis la connexion de l’utilisateur, sans
 aucun moyen de contourner les protections de YouTube. Si YouTube refuse, le
 diagnostic montre simplement le message d’erreur.
 
+## Mise à jour automatique
+
+À partir de la 1.0.0, l’app se met à jour elle-même, par un système maison
+(sans signature Apple, sans outil tiers). La 1.0.0 est la première version à
+savoir le faire : le vrai parcours, chez le propriétaire, ne se verra qu’avec
+la version suivante. D’ici là, il est essayé en entier sur les Mac de GitHub
+(voir « L’essai complet » plus bas).
+
+### Ce que voit l’utilisateur
+
+- À l’ouverture (si « Vérifier à chaque ouverture » est coché, Réglages →
+  Général), quelques secondes après, l’app cherche en arrière-plan. À jour, ou
+  pas de réseau : rien ne s’affiche. Une version plus récente : le message
+  « Une mise à jour est disponible », avec le numéro actuel et le nouveau, les
+  nouveautés, un bouton « Mettre à jour Fabtice » et « Plus tard ».
+- « Rechercher une mise à jour… » dans le menu Fabtice de la barre des menus
+  (après « À propos de Fabtice ») et dans Réglages → Général répond toujours :
+  à jour, disponible, ou la raison claire (pas de réseau, fichier illisible).
+- Le bouton télécharge (pourcentage, « Annuler »), vérifie, demande s’il faut
+  enregistrer le projet (comme cmd + Q : un refus annule tout), remplace l’app
+  et la rouvre dans la nouvelle version. Un calcul en cours (séparation,
+  rendu, export…) fait d’abord poser la question.
+- Quand cela ne peut pas marcher, l’app le dit et propose « Télécharger à la
+  main » (la page de la version sur GitHub, dans le navigateur) : app ouverte
+  depuis Téléchargements ou l’image disque sans avoir été déplacée (macOS la
+  fait tourner depuis un emplacement protégé, « App Translocation »), image
+  disque (volume en lecture seule), dossier que le compte ne peut pas
+  modifier, macOS trop ancien pour la nouvelle version.
+
+### Le fichier de version
+
+Chaque version publiée porte un fichier `fabtice-version.json` parmi ses
+fichiers, lu à
+`https://github.com/pelikast/fabtice/releases/latest/download/fabtice-version.json` :
+
+```json
+{
+  "format": 1,
+  "version": "1.0.1",
+  "publishedAt": "2026-12-01T10:00:00Z",
+  "notes": "la première section de CHANGELOG.md (Markdown, en français)",
+  "page": "https://github.com/pelikast/fabtice/releases/tag/v1.0.1",
+  "minimumSystemVersion": "12.0",
+  "downloads": {
+    "arm64": { "name": "Fabtice-mac-apple-silicon.zip", "url": "https://github.com/pelikast/fabtice/releases/download/v1.0.1/Fabtice-mac-apple-silicon.zip", "sha256": "<64 hex>", "size": 123456789 },
+    "x64":   { "name": "Fabtice-mac-intel.zip", "url": "https://github.com/pelikast/fabtice/releases/download/v1.0.1/Fabtice-mac-intel.zip", "sha256": "<64 hex>", "size": 123456789 }
+  }
+}
+```
+
+- Il est fait par `ci/make-version-file.js` (sans dépendance) :
+  `node ci/make-version-file.js <version> v<version> <…apple-silicon.zip> <…intel.zip> ../CHANGELOG.md <sortie>` ;
+  le script calcule tailles et empreintes, prend les notes dans la première
+  section « ## » du changelog et relit le fichier avec le lecteur de l’app
+  avant de finir (un fichier que l’app ne saurait pas lire n’est jamais
+  publié).
+- Le lecteur (`src/update-version.js`) est strict : `format` inconnu, champ
+  absent, mal typé ou hors bornes, adresse hors des versions du projet sur
+  `github.com`, et tout le fichier est « illisible » (rien à l’ouverture, une
+  phrase claire pour une recherche à la main). Les numéros sont trois nombres
+  comparés comme des nombres ; seule une version **strictement plus récente**
+  est proposée : jamais la même, jamais une plus ancienne.
+- Un futur format : publié sous le même nom seulement si les versions déjà
+  installées savent encore le lire ; sinon sous un autre nom.
+
+### Réseau : hôtes permis
+
+Le processus principal fait tous les téléchargements (`src/update-net.js`),
+jamais la page, en `https` seulement, sans cookie ni identifiant, avec les
+redirections suivies à la main et chaque étape vérifiée : `github.com` (la
+première adresse est toujours là), et les hôtes où GitHub range les fichiers
+des versions : `objects.githubusercontent.com` (relevé le 17 novembre 2026)
+et `release-assets.githubusercontent.com` (utilisé par GitHub en 2025). Rien
+d’autre. La fabrication relève à chaque passage l’hôte de la redirection du
+jour (étape « GitHub release redirect host », `ci/release-host.js`) : si
+GitHub en change, l’ajouter à `ALLOWED_HOSTS` avant une version.
+
+### Le remplacement, pas à pas
+
+1. **Où est l’app** (`src/update-place.js`) : le paquet `.app` qui contient
+   l’exécutable, chemin réel. Refus si emplacement protégé
+   (`/private/var/folders/…/AppTranslocation/…`), volume en lecture seule
+   (`EROFS`), dossier non modifiable (un fichier d’essai y est créé puis
+   effacé), app non empaquetée.
+2. **Place sur le disque** : environ trois fois l’archive.
+3. **Téléchargement** dans un dossier de travail neuf à côté de l’app
+   (`.Fabtice-maj-<hasard>`, même volume), taille exacte exigée, SHA-256
+   calculé en écrivant. Une empreinte fausse efface le téléchargement :
+   « Le fichier téléchargé est incomplet ou abîmé. Rien n’a été changé. »
+   Un fichier écrit par l’app n’est pas mis en quarantaine par macOS (l’essai
+   le vérifie) ; si un réglage du système le faisait, la marque est retirée
+   de l’archive, jamais de l’app.
+4. **Déballage** avec `ditto -x -k` (garde la signature et les attributs),
+   puis **contrôle** (`src/update-install.js`) : un seul `Fabtice.app`, vrai
+   dossier ; `Info.plist` : `org.fabtice.desktop` et la version annoncée ;
+   exécutable présent, Mach-O de la bonne puce ; il **démarre**
+   (`ELECTRON_RUN_AS_NODE=1 <exe> -e …` : sur puce Apple, le système tue un
+   programme dont la signature ne tient pas) ; `codesign --verify --deep`
+   doit passer sur puce Apple (sur Intel, son résultat est seulement noté).
+5. **Question de fermeture** : la même que cmd + Q (`close-guard.js`) ; un
+   refus annule tout, rien n’a bougé.
+6. **Échange** : l’app installée renommée en `.Fabtice-ancienne.app` dans le
+   même dossier, la nouvelle renommée à sa place, puis relue. À toute erreur,
+   l’ancienne est remise à sa place (la nouvelle retourne dans le dossier de
+   travail, effacé). Rien n’est jamais modifié à l’intérieur d’un paquet.
+7. **Relance** : un petit `sh` détaché attend la fin du processus, puis
+   `open -n` du paquet (comme le Finder) ; les chemins passent en arguments,
+   jamais dans le script.
+8. **Au démarrage suivant**, la nouvelle app efface `.Fabtice-ancienne.app`
+   et les dossiers de travail restés (jamais l’app qui tourne, jamais un lien).
+
+Chaque étape est notée dans `update-log.txt` du dossier de données de l’app
+(300 lignes au plus, dossier personnel remplacé par « ~ ») : à demander au
+propriétaire si une mise à jour échoue chez lui.
+
+### Ce que cela garantit, et ce que cela ne garantit pas
+
+- L’empreinte et l’archive viennent du même endroit (la même version sur
+  GitHub) : la vérification garantit un fichier **complet et intact**, rien
+  de plus. Elle ne protège pas d’un compte GitHub compromis ; seule une
+  signature Apple le ferait, écartée par le propriétaire pour l’instant.
+- L’app installée reste intacte et utilisable à toute erreur avant la
+  relance. Après l’échange, si la nouvelle version ne démarrait pas du tout,
+  l’ancienne reste cachée à côté (`.Fabtice-ancienne.app`) jusqu’au démarrage
+  réussi de la nouvelle ; le contrôle « elle démarre » de l’étape 4 rend ce
+  cas très improbable.
+- Une app Intel lancée sous Rosetta sur une puce Apple se met à jour vers la
+  version Intel (la même puce que celle qui tourne).
+
+### Seuils pour les tests
+
+Trois variables, actives **seulement** avec `FABTICE_HOLD_WINDOW=1` (le
+réglage de tous les tests e2e, que personne n’utilise autrement) :
+`FABTICE_UPDATE_TEST_ORIGIN` (un serveur local `http://127.0.0.1:<port>`,
+`localhost` ou `[::1]` : boucle locale seulement, où le `http` simple est alors
+permis ; les hôtes sont vérifiés sur les vraies adresses, la requête part vers
+`<origine>/<hôte><chemin>`), `FABTICE_UPDATE_TEST_APP` (un dossier tient lieu
+de paquet installé, pour aller jusqu’au téléchargement sous Linux) et
+`FABTICE_UPDATE_TRIAL_REPORT` (l’app écrit au démarrage son numéro, sa place
+et ce qu’elle a nettoyé). Sous ce réglage, la recherche à l’ouverture ne
+contacte jamais GitHub.
+
+### L’essai complet
+
+`test/trial/update-trial.js`, étape obligatoire de la fabrication sur chaque
+puce (« Update trial (arm64) » dans `build`, « Update trial (x64) » dans
+`intel`), après une seconde fabrication des mêmes sources avec un numéro plus
+haut (`-c.extraMetadata.version`, archive zip seulement ; celle d’Intel passe
+au second job comme artefact, jamais publiée). L’essai :
+
+1. installe l’app fabriquée dans un dossier au nom avec espaces et accents ;
+2. sert la version factice et son fichier de version (fait par
+   `make-version-file.js`) depuis un serveur local, avec les redirections de
+   GitHub ;
+3. lance l’app, cherche, met à jour (question de fermeture réellement posée),
+   attend la relance par `open -n`, lit le numéro **dans l’app relancée**
+   (son rapport), vérifie que l’ancienne copie a disparu, que
+   `codesign --verify --deep --strict` passe et qu’il n’y a pas de
+   quarantaine, puis relance l’app une fois de plus ;
+4. archive altérée d’un octet : refusée, l’app installée inchangée et qui
+   démarre encore ;
+5. dossier non modifiable (`chmod 555`) et emplacement protégé (copie sous
+   `…/AppTranslocation/…/d/`, la règle de chemin) : dits, rien touché.
+
+Pour le lancer à la main sur un Mac :
+`FABTICE_TRIAL_APP_ZIP=… FABTICE_TRIAL_NEW_ZIP=… FABTICE_TRIAL_ARCH=arm64 node test/trial/update-trial.js`.
+Sous Linux, `test/e2e/update.test.js` couvre la recherche, le message, le
+menu, l’archive altérée et une archive qui n’est pas une vraie app ; les
+tests unitaires `test/unit/update-*.test.js` et `updater.test.js` couvrent le
+reste sur des arbres de fausses apps.
+
 ## Pour le développement
 
 Fonctionnement :

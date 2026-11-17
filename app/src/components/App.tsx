@@ -25,6 +25,8 @@ import { SaveProjectDialog } from './SaveProjectDialog';
 import { SettingsDialog } from './SettingsDialog';
 import { SeparationPanelHost } from './SeparationPanel';
 import { StandardsMessage, useMessageStep } from './StandardsMessage';
+import { UpdateMessage } from './UpdateMessage';
+import { updateStore } from '../update/updates';
 import { StorageNotice } from './StorageNotice';
 import { IRealNotice } from './IRealNotice';
 import { TopBar } from './TopBar';
@@ -48,7 +50,9 @@ export function App() {
   const exportingAbleton = useStore(abletonDialog, (s) => s.open);
   // « Correction de la courbe en tapant le tempo »: its window leaves the ruler and the playhead in view, and the rest of the app waits.
   const tapping = useStore(tapFixDialog, (s) => s.at !== null);
-  const inert = dialogOpen || messageOpen || leaving || saving || exportingLogic || exportingAbleton || tapping;
+  // C16, the message of the update (one window at a time, like the others).
+  const updating = useStore(updateStore, (s) => s.message !== null);
+  const inert = dialogOpen || messageOpen || leaving || saving || exportingLogic || exportingAbleton || tapping || updating;
   const dragging = useFileDrop();
   useGlobalKeys();
   // Each newly opened piece is analysed in the background once it can play (analysis/runner.ts).
@@ -70,6 +74,7 @@ export function App() {
       <IRealNotice />
       <NewPieceDialog />
       <StandardsMessage />
+      <UpdateMessage />
       <ExportAudioDialog />
       <ExportLogicDialog />
       <ExportAbletonDialog />

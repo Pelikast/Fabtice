@@ -25,6 +25,9 @@ import { setChordModelAutoAllowed } from './analysis/chordModel';
 import { standardsStore } from './standards/offer';
 import { harmonyHandle, startHarmonyRefresh, suspendHarmonyRefresh } from './structure/refresh';
 import { installStructureEvidence } from './structure/gather';
+import { initUpdates, updateHandle } from './update/updates';
+import { otherWindowOpen, subscribeWindows } from './ui/windows';
+import { standardsMessageOpen } from './standards/messageStep';
 import './styles/index.css';
 
 setLanguage('fr');
@@ -76,7 +79,21 @@ void initStandards({ remoteList: !testAddress || params.get('outils') === 'dista
 // The dialog stays closed from the first paint instead of flashing: it opens
 // once we know whether a piece is kept on the device (see storage/restore.ts).
 appStore.setState((s) => ({ ui: { ...s.ui, newPieceOpen: false } }));
+// C16, the update: in the Mac app, a search a few seconds after opening (« Vérifier à chaque ouverture »); on the
+// web, a new version of the site waiting is offered. Like the message of the charts, only on the real pages, or
+// when a test address asks for it (`?maj=message`).
+const startUpdates = () =>
+  initUpdates({
+    launch: appStore.getState().settings.checkUpdatesAtLaunch && (!testAddress || params.get('maj') === 'message'),
+    windowInTheWay: () => otherWindowOpen() || standardsMessageOpen(),
+    subscribeWindows: (listener) => {
+      const offs = [subscribeWindows(listener), standardsStore.subscribe(listener)];
+      return () => offs.forEach((off) => off());
+    },
+  });
+if (params.has('debug') || params.has('demo')) window.__fabticeUpdate = updateHandle;
 if (params.has('demo')) {
+  startUpdates();
   // Synthetic piece for development, tests and screenshots (see demo/demoProject.ts).
   // It is never kept on the device and never replaces the kept piece.
   void import('./demo/start').then((m) => m.startDemo(params));
@@ -97,7 +114,10 @@ if (params.has('demo')) {
   // The message of the chord charts waits for the start-up to be over (`markLaunched`).
   void startStorage()
     .then(() => import('./project/fromDesktop').then((m) => m.followOpenedProjects()))
-    .finally(markLaunched);
+    .finally(() => {
+      markLaunched();
+      startUpdates();
+    });
   // Mac app: is a newer version of the import tool available? (a discreet offer, never a prompt)
   void checkToolUpdate();
 }

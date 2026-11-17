@@ -3,7 +3,8 @@
 // The French menu bar (C6). It holds the same commands as the page's menu
 // Fabtice (`app/src/ui/commands.ts`), at the places macOS users expect:
 //
-//   Fabtice       À propos de Fabtice, Réglages… (cmd + ,), Services, Masquer…, Quitter Fabtice
+//   Fabtice       À propos de Fabtice, Rechercher une mise à jour…, Réglages… (cmd + ,), Services, Masquer…,
+//                 Quitter Fabtice
 //   Fichier       Nouveau projet ▸, Ouvrir… (cmd + O), Ouvrir un projet récent, Enregistrer (cmd + S),
 //                 Enregistrer sous… (Maj + cmd + S), Exporter ▸, Imprimer… (cmd + P)
 //   Édition       Annuler, Rétablir, Couper, Copier, Coller, Tout sélectionner
@@ -92,8 +93,11 @@ function parseMenuState(value) {
   return { commands };
 }
 
+/** The entry of the automatic update (C16): a command of the main process, not of the page (updater.js). */
+const CHECK_UPDATE_LABEL = 'Rechercher une mise à jour…';
+
 /**
- * @param {{ platform?: string, openDiagnostic: () => void, sendCommand: (id: string, accelerator: boolean) => void }} options
+ * @param {{ platform?: string, openDiagnostic: () => void, checkForUpdate?: () => void, sendCommand: (id: string, accelerator: boolean) => void }} options
  */
 function createMenuBar(options) {
   const platform = options.platform || process.platform;
@@ -141,11 +145,13 @@ function createMenuBar(options) {
   }
 
   function template() {
+    const checkUpdate = { id: 'checkUpdate', label: CHECK_UPDATE_LABEL, click: () => options.checkForUpdate && options.checkForUpdate() };
     const app = mac
       ? {
           label: 'Fabtice',
           submenu: [
             { role: 'about', label: 'À propos de Fabtice' },
+            checkUpdate,
             { type: 'separator' },
             command('settings'),
             { type: 'separator' },
@@ -160,7 +166,7 @@ function createMenuBar(options) {
           ],
         }
       : // Outside macOS the first menu has no app role: keep the same entries usable.
-        { label: 'Fabtice', submenu: [command('settings'), { type: 'separator' }, { role: 'quit', label: 'Quitter Fabtice' }] };
+        { label: 'Fabtice', submenu: [checkUpdate, command('settings'), { type: 'separator' }, { role: 'quit', label: 'Quitter Fabtice' }] };
     return [
       app,
       fileMenu(),
@@ -236,13 +242,14 @@ function commandScript(id, accelerator) {
 
 /**
  * Builds the bar and keeps it in step with the page.
- * @param {{ openDiagnostic: () => void, window: () => any }} options
+ * @param {{ openDiagnostic: () => void, checkForUpdate?: () => void, window: () => any }} options
  */
-function buildMenu({ openDiagnostic, window }) {
+function buildMenu({ openDiagnostic, checkForUpdate, window }) {
   const { Menu } = require('electron');
   const apply = (template) => Menu.setApplicationMenu(Menu.buildFromTemplate(template));
   const bar = createMenuBar({
     openDiagnostic,
+    checkForUpdate,
     apply,
     sendCommand: (id, accelerator) => {
       const w = window();
@@ -255,4 +262,4 @@ function buildMenu({ openDiagnostic, window }) {
   return bar;
 }
 
-module.exports = { buildMenu, createMenuBar, parseMenuState, commandScript, MENU_COMMANDS, LABELS, ACCELERATORS };
+module.exports = { buildMenu, createMenuBar, parseMenuState, commandScript, MENU_COMMANDS, LABELS, ACCELERATORS, CHECK_UPDATE_LABEL };
