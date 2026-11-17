@@ -153,6 +153,10 @@ async function suite(form) {
   check(`${tag}: nothing overflows the window`, lay.overflowX <= 0 && lay.innerOut === 0, JSON.stringify(lay));
   check(`${tag}: the window is inside the screen${P ? '' : ' with a 20 px margin'}`, lay.box[0] >= margin && lay.box[1] >= margin * (P ? 0 : 1) && lay.box[2] <= lay.vw - margin && lay.box[3] <= lay.vh - (P ? 0 : margin), JSON.stringify(lay.box));
   if (P) {
+    // A sheet from the bottom of the screen, edge to edge (the rules of `dialog.css` come later in the sheet: two classes win).
+    check('phone: the window is a sheet posted at the bottom, the full width of the screen', lay.box[0] === 0 && lay.box[2] === lay.vw && Math.abs(lay.box[3] - lay.vh) <= 1, JSON.stringify(lay.box));
+  }
+  if (P) {
     // (a radio is pressed through its label, the whole line)
     const sizes = await page.evaluate((s) => [...document.querySelectorAll(`${s} input[type="text"], ${s} select, ${s} button, ${s} label`)].map((e) => [e.dataset.testid || e.className || e.tagName, e.getBoundingClientRect().height, e.getBoundingClientRect().width]), DLG);
     const small = sizes.filter(([, hgt, w]) => w > 0 && hgt < 40);

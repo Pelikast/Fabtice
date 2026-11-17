@@ -432,6 +432,21 @@ async function chartStillWorks(form) {
     check(`${tag}: …and right next to its bar (placed from the offsets inside the chart's scroller)`, Math.max(gapX, gapY) >= 0 && Math.max(gapX, gapY) < 20, `gap ${gapX}, ${gapY}`);
     await page.keyboard.press('Escape');
   }
+  // The boxed letter of a section never covers a chord (a lettered bar whose chords are on two rows keeps its corner).
+  const covered = await page.evaluate(() => {
+    const out = [];
+    for (const cell of document.querySelectorAll('.grille .case')) {
+      const letter = cell.querySelector('.section');
+      if (!letter) continue;
+      const l = letter.getBoundingClientRect();
+      for (const ch of cell.querySelectorAll('.accord-case .ch')) {
+        const c = ch.getBoundingClientRect();
+        if (c.left < l.right && c.right > l.left && c.top < l.bottom && c.bottom > l.top) out.push(`bar ${cell.dataset.mesure}`);
+      }
+    }
+    return out;
+  });
+  check(`${tag}: no section letter covers a chord (two-chord bars included)`, covered.length === 0, covered.join(', '));
   // Following the playback in the chart's own scroller: play from the last bars, the sheet follows.
   await page.evaluate(() => {
     document.querySelector('.vue-grille').scrollTop = 0;
