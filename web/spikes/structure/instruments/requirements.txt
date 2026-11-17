@@ -1,0 +1,7 @@
+# Instrument-recognition bench (Python 3.11+): python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+numpy==2.5.4
+scipy==1.18.1
+mido==1.3.3
+soundfile==0.14.0
+pyarrow==26.0.1
+onnxruntime==1.32.0
