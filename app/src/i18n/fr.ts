@@ -119,7 +119,7 @@ export const fr = {
   'grid.tempoMenuHint': 'Tempo faux à partir d’une mesure ? Clic droit (ou appui long) sur cette mesure, dans la règle ou dans la grille.',
 
   // The bar menu: the two manual tempo actions
-  'tempoMenu.label': 'Tempo à partir de la mesure {bar}',
+  'tempoMenu.label': 'À partir de la mesure {bar}',
   'tempoMenu.continuity': 'Corriger un changement de tempo indésirable',
   'tempoMenu.continuityHint': 'Le tempo et la longueur des mesures d’avant continuent, avec de petits écarts progressifs. Un vrai changement de tempo après cette mesure serait effacé.',
   'tempoMenu.fresh': 'Réanalyser le tempo à partir de cette mesure',
