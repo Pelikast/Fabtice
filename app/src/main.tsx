@@ -21,6 +21,7 @@ import { installProjectWindow } from './project/windowState';
 import { installMenuBar } from './ui/menuBar';
 import * as projectModules from './project/debug';
 import * as tapFixModule from './analysis/tapFix';
+import { setChordModelAutoAllowed } from './analysis/chordModel';
 import { standardsStore } from './standards/offer';
 import { harmonyHandle, startHarmonyRefresh, suspendHarmonyRefresh } from './structure/refresh';
 import { installStructureEvidence } from './structure/gather';
@@ -70,6 +71,10 @@ const testAddress = params.has('debug') || params.has('demo') || params.get('mot
 if (!testAddress || params.get('outils') === 'distant') void refreshModelList();
 // The chord charts of standards: what is on the device, and the remote list of collections (same rule as above).
 // The message that offers them (C9) is for the real pages; a test address shows it only when `?grilles=message` asks.
+// The chord model « Automatique » takes the detailed model when the device allows it (68 MB downloaded the first time,
+// minutes per piece): on a test address it stays on the standard model, so that no check starts that download by
+// itself; `?modele-accords=auto` applies the real rule there. A choice made in the settings is always used.
+if (testAddress && params.get('modele-accords') !== 'auto') setChordModelAutoAllowed(false);
 void initStandards({ remoteList: !testAddress || params.get('outils') === 'distant', message: !testAddress || params.get('grilles') === 'message' });
 // The dialog stays closed from the first paint instead of flashing: it opens
 // once we know whether a piece is kept on the device (see storage/restore.ts).

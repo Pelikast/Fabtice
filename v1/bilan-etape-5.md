@@ -53,7 +53,7 @@
   cocher). La fenêtre s'ouvre sur ce que l'écran montre.
 - **Exports.** iReal Pro : la grille simplifiée s'exporte avec de vraies
   reprises quand c'est elle qui est affichée ; les modulations sont écrites
-  en note (« Ton : La♭ ») ; « Ouvrir dans iReal Pro » existe aussi dans
+  en note (« Ton : Ab ») ; « Ouvrir dans iReal Pro » existe aussi dans
   l'app web, avec un message si rien ne s'ouvre. Fichier MIDI des dossiers
   Logic et Ableton : armures par passage, parties et sections en
   marqueurs (déjà en place depuis l'étape 3, maintenant alimentés), avec
@@ -196,7 +196,8 @@ Architecture
 Modulations
 - Un changement modal qui change l'armure (type « So What ») compte.
 - La marque écrit la tonalité en lettres (« Ton : A♭ »), comme les accords
-  de la grille ; la note de l'export iReal Pro l'écrit en français.
+  de la grille (la note de l'export iReal Pro l'écrivait en français : voir
+  les décisions du propriétaire plus bas).
 - Dès que l'utilisateur touche une modulation, toute sa liste remplace
   celle de l'analyse. La première mesure ne reçoit pas de modulation (c'est
   la tonalité principale, qui se change au titre).
@@ -240,6 +241,29 @@ Modèle d'instruments
 - CED-Tiny plutôt que YAMNet (deux fois moins de vents bien nommés avec
   accompagnement). Piano, guitare et voix ne sont jamais nommés par lui
   (ils ont leur piste). Seuil réglé pour 10 % de noms faux au plus.
+
+## Décisions du propriétaire après ce bilan (17 novembre 2026)
+
+Il a répondu aux trois questions posées en fin d'étape ; elles sont
+appliquées (commit `548b544`) et inscrites dans `CLAUDE.md`.
+
+1. **Le modèle d'accords détaillé est choisi d'office** quand l'appareil le
+   permet. Réglage « Automatique (recommandé) », par défaut : modèle
+   détaillé sur un ordinateur dont la mémoire connue est d'au moins 8 Go
+   (`navigator.deviceMemory`), modèle rapide sinon (téléphone, tablette,
+   mémoire inconnue comme dans Safari et Firefox). Un choix déjà fait dans
+   les réglages est respecté. Si le modèle détaillé échoue (hors ligne,
+   mémoire), l'analyse garde le modèle rapide, comme avant. Une analyse déjà
+   faite n'est pas refaite toute seule. Sur les adresses de test,
+   « Automatique » donne le modèle rapide (`setChordModelAutoAllowed`,
+   `?modele-accords=auto` pour la vraie règle).
+2. **Tonalités en chiffrage américain partout** : « Ton : A♭ » sur la
+   grille (déjà le cas), « Ton : Ab » dans la note de l'export iReal Pro et
+   dans les marqueurs MIDI. Les noms français de tonalité ont disparu du
+   code (`keyNameFr`, `noteTextFr`). « Si♭ » et « Mi♭ » restent pour les
+   instruments transpositeurs, comme dans le cahier.
+3. **L'appui sur la grille du livre dans la grille simplifiée est
+   accepté** tel qu'il est décrit plus haut.
 
 ## Pas fait, ou fragile
 

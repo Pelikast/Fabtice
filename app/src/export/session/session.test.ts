@@ -185,8 +185,8 @@ describe('the session model of the sequencer exports', () => {
     const base = state(map, { analysis: demoAnalysis(map, 54), corrections: demoCorrections(map) }, 54);
     const plain = buildSession(base);
     const up = buildSession({ ...base, ...playback(base, { semitones: 2, cents: 30 }) });
-    expect(plain.keys[0]).toMatchObject({ time: 0, quarters: 0, bar: null, text: 'Ab', name: 'La♭ majeur' });
-    expect(up.keys[0]).toMatchObject({ text: 'Bb', name: 'Si♭ majeur' });
+    expect(plain.keys[0]).toMatchObject({ time: 0, quarters: 0, bar: null, text: 'Ab', name: 'A♭' });
+    expect(up.keys[0]).toMatchObject({ text: 'Bb', name: 'B♭' });
     expect(up.chords.length).toBe(plain.chords.length);
     plain.chords.forEach((c, i) => {
       const u = up.chords[i]!;

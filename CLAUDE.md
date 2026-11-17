@@ -212,7 +212,8 @@ rapport au périmètre ci-dessus :
   s'écrivent dans la tonalité du passage, et la tonalité du transport suit la
   lecture. Corrigeables à la main (clic sur la pastille ou menu de la mesure :
   changer, déplacer, supprimer, tout annulable). Réglage « Détecter les
-  modulations ».
+  modulations ». Les tonalités s'écrivent partout en lettres américaines
+  (« Ton : A♭ », jamais « La♭ » ; décision du propriétaire, 17 novembre 2026).
 - **Structure du morceau** : forme (AABA…), lettres de section, parties
   (Intro, Thème, Solo, Pont, Spécial, Outro ; Couplet, Refrain en mode Pop),
   proposées par l'app, recalculées seules quand les accords ou les mesures
@@ -225,7 +226,14 @@ rapport au périmètre ci-dessus :
   grille connue du standard, pistes séparées, et un petit modèle de
   reconnaissance d'instruments (quelques Mo, téléchargé au premier usage) ;
   « Solo (Vents) » quand l'instrument n'est pas sûr, « Solo 1, Solo 2 » sans
-  séparation.
+  séparation. Dans la grille simplifiée, quand la grille du standard
+  correspond nettement au morceau, un accord de même fondamentale prend la
+  couleur du livre, sauf s'il a été écrit à la main ; l'affichage complet
+  garde toujours l'accord entendu (accepté par le propriétaire, 17 novembre
+  2026).
+- **Modèle d'accords** : le modèle détaillé est choisi d'office quand
+  l'appareil le permet (décision du propriétaire, 17 novembre 2026), sinon le
+  modèle standard ; le choix reste modifiable dans les réglages.
 - **Exports** : audio (Wave réglable, Flac, MP3 de 96 à 320 kbit/s, pistes au
   choix), iReal Pro, PDF, **« Dossier pour Logic Pro »** (pistes audio et
   fichier MIDI avec tempo, signatures et accords en marqueurs : le format des

@@ -14,8 +14,7 @@
 // applied by `chartForExport`); iReal Pro transposes for instruments itself.
 
 import { chordParts } from '../harmony/chord';
-import { keyTonicName } from '../harmony/key';
-import { noteTextFr } from '../harmony/pitch';
+import { keyLabel } from '../harmony/key';
 import { sameMeter } from '../grid/tempoMap';
 import { t } from '../i18n';
 import type { Key } from '../model/harmony';
@@ -158,10 +157,13 @@ function sectionToken(label: string): string {
   return `<${clean}>`;
 }
 
-/** « Ton : La♭ », « Ton : Fa mineur »: a modulation as a comment of the chart (no `<`, `>`, `*`, `=` in it). */
+/**
+ * « Ton : Ab », « Ton : F#m »: a modulation as a comment of the chart, the key in American letters as
+ * everywhere (owner's decision, 17 November 2026), in iReal Pro's ASCII like its chords (no `<`, `>`, `*`, `=`).
+ */
 export function keyChangeComment(key: Key): string {
-  const tonic = noteTextFr(keyTonicName(key));
-  return t('export.ireal.keyChange', { key: key.mode === 'minor' ? `${tonic} ${t('export.ireal.minor')}` : tonic }).replace(/[<>*=]/g, '');
+  const ascii = keyLabel(key, 'm').replace(/♭/g, 'b').replace(/♯/g, '#');
+  return t('export.ireal.keyChange', { key: ascii }).replace(/[<>*=]/g, '');
 }
 
 /** Cells of one bar: `beats` tokens, one per beat. */

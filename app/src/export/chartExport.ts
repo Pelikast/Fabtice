@@ -55,7 +55,7 @@ export interface ExportBar {
    * Absent: the chart's key.
    */
   key?: Key | null;
-  /** C10: a later key passage starts at this bar: its key (transposed), written as a comment « Ton : La♭ »; null or absent elsewhere. */
+  /** C10: a later key passage starts at this bar: its key (transposed), written as a comment « Ton : Ab »; null or absent elsewhere. */
   keyChange?: Key | null;
   /** C14, the simplified chart: a repeat sign opens before this bar (`{`). */
   repeatStart?: boolean;

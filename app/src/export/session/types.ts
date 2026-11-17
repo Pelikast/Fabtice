@@ -109,7 +109,7 @@ export interface SessionKey {
   key: Key;
   /** ASCII: « Bb », « F#m ». */
   text: string;
-  /** French: « Si♭ majeur ». */
+  /** For display, in American letters as everywhere: « B♭ », « F♯m ». */
   name: string;
 }
 

@@ -124,13 +124,6 @@ export function noteText(n: NoteName): string {
   return n.letter + (n.accidental === -1 ? FLAT : n.accidental === 1 ? SHARP : '');
 }
 
-const FRENCH: Record<Letter, string> = { C: 'Do', D: 'Ré', E: 'Mi', F: 'Fa', G: 'Sol', A: 'La', B: 'Si' };
-
-/** French note name: « Si♭ », « Fa♯ », « Do ». */
-export function noteTextFr(n: NoteName): string {
-  return FRENCH[n.letter] + (n.accidental === -1 ? FLAT : n.accidental === 1 ? SHARP : '');
-}
-
 /** Reads « Bb », « B♭ », « bb », « F# », « f♯ », « C » (letter then optional accidental). */
 export function parseNoteName(text: string): NoteName | null {
   const m = /^([A-Ga-g])([b♭#♯]?)$/.exec(text.trim());
