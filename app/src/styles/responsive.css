@@ -57,6 +57,10 @@
   .feuille-infos .duo, .feuille-infos .imprimer-bouton { flex: none; }
   .case { --pg: 8px; --pd: 2px; --haut: 12px; --corps: 21px; height: 76px; gap: 8px; }
   .case .section { left: 5px; top: 4px; }
+  /* The mark of a modulation: just the key, the bar is 90 px wide. */
+  .case .case-tete { left: 5px; top: 4px; right: 22px; gap: 4px; }
+  .case .modulation { padding: 0 5px; }
+  .case .modulation .modulation-mot { display: none; }
   /* The chord editor is a sheet from the bottom of the screen. */
   .editeur {
     position: fixed;

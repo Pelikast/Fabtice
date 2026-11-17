@@ -339,6 +339,33 @@
   line-height: 1;
   color: var(--encre-douce);
 }
+/* C10, a modulation on paper: the key in the top row of the bar, after the section letter; ink on white, small. */
+.pp-entete-case {
+  position: absolute;
+  top: calc(1.4mm * var(--e));
+  left: calc(1.8mm * var(--e));
+  right: calc(8.5mm * var(--e));
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(1.4mm * var(--e));
+  height: calc(5mm * var(--e));
+  overflow: hidden;
+}
+.pp-entete-case .pp-section { position: static; flex: none; }
+.pp-modulation {
+  flex: 0 1 auto;
+  padding: 0 calc(1.4mm * var(--e));
+  border: calc(0.25mm * var(--e)) solid var(--encre);
+  border-radius: calc(2.4mm * var(--e));
+  font-family: var(--texte);
+  font-size: calc(8pt * var(--e));
+  font-weight: 600;
+  line-height: calc(4.1mm * var(--e));
+  white-space: nowrap;
+  color: var(--encre);
+}
+.pp-modulation .alt { font-size: 1.18em; }
 .pp-section {
   position: absolute;
   top: calc(1.4mm * var(--e));

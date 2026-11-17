@@ -8,6 +8,7 @@ import { leaveDialog } from '../project/leave';
 import { saveActivity } from '../project/saveFlow';
 import { appStore, type AppState } from '../store/store';
 import { tapFixDialog } from './barDialogs';
+import { keyDialog } from './keyDialog';
 import { partDialog } from './partDialog';
 
 /** A window of the app stands in front of the piece: export, print, save, settings, the render's wait, the alert, the save's own. */
@@ -19,6 +20,7 @@ export function otherWindowOpen(s: AppState = appStore.getState()): boolean {
     logicDialog.getState().open ||
     tapFixDialog.getState().at !== null ||
     partDialog.getState().at !== null ||
+    keyDialog.getState().at !== null ||
     abletonDialog.getState().open ||
     s.ui.saveProjectOpen ||
     s.ui.settings.open ||
@@ -32,7 +34,7 @@ export function otherWindowOpen(s: AppState = appStore.getState()): boolean {
 
 /** Follows what `otherWindowOpen` reads. Returns the stop function. */
 export function subscribeWindows(listener: () => void): () => void {
-  const offs = [appStore.subscribe(listener), leaveDialog.subscribe(listener), saveActivity.subscribe(listener), logicDialog.subscribe(listener), abletonDialog.subscribe(listener), tapFixDialog.subscribe(listener), partDialog.subscribe(listener)];
+  const offs = [appStore.subscribe(listener), leaveDialog.subscribe(listener), saveActivity.subscribe(listener), logicDialog.subscribe(listener), abletonDialog.subscribe(listener), tapFixDialog.subscribe(listener), partDialog.subscribe(listener), keyDialog.subscribe(listener)];
   return () => {
     for (const off of offs) off();
   };

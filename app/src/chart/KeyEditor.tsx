@@ -13,6 +13,7 @@ import { t } from '../i18n';
 import type { Key, KeyMode } from '../model/harmony';
 import { keyInForce, selectDisplayContext } from '../store/chartSelectors';
 import { setDisplayedKey } from '../store/harmonyActions';
+import { resetKeyChanges } from '../store/keyActions';
 import { useApp } from '../store/store';
 import { useFitPanel } from '../ui/useFitPanel';
 import { transposeKey } from '../harmony/key';
@@ -88,6 +89,8 @@ function KeyPanel({ ref, style, onClose }: { ref: React.Ref<HTMLDivElement>; sty
   // A primitive: `keyInForce` makes a new object on every call.
   const origin = useApp((s) => keyInForce(s).origin);
   const analysed = useApp((s) => s.analysis?.key ?? null);
+  // C10: the modulations are the user's (the whole list): they can be given back to the analysis from here too.
+  const modulationsByHand = useApp((s) => s.corrections.keyChanges !== null);
   const [mode, setMode] = useState<KeyMode>(ctx.key?.mode ?? 'major');
   const byHand = origin === 'manual';
   const shift = ctx.shift;
@@ -146,6 +149,18 @@ function KeyPanel({ ref, style, onClose }: { ref: React.Ref<HTMLDivElement>; sty
           }}
         >
           {t('key.edit.back', { key: keyLabel(analysedShown, ctx.minor) })}
+        </button>
+      )}
+      {modulationsByHand && (
+        <button
+          className="lien-encre cle-modulations"
+          data-testid="cle-modulations-revenir"
+          onClick={() => {
+            resetKeyChanges();
+            onClose();
+          }}
+        >
+          {t('key.edit.resetModulations')}
         </button>
       )}
     </div>

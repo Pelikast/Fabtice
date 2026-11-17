@@ -5,6 +5,9 @@
   position: fixed;
   z-index: 60;
   width: min(340px, calc(100vw - 16px));
+  /* Seven entries with their lines: scrolls on a short screen rather than leaving it. */
+  max-height: calc(100dvh - 16px);
+  overflow-y: auto;
   user-select: none;
   -webkit-user-select: none;
 }

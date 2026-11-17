@@ -32,6 +32,14 @@ describe('mouse', () => {
     expect(play([down({ target: 'section', bar: 8, index: 0 }), up()]).effects).toEqual([{ type: 'edit', bar: 8, index: 0, focus: 'section' }]);
   });
 
+  it('a click on the mark of a modulation opens its window: no seek, no editor', () => {
+    expect(play([down({ target: 'key', bar: 9 }), up()]).effects).toEqual([{ type: 'key', bar: 9 }]);
+  });
+
+  it('a drag that starts on the mark of a modulation selects bars as anywhere else', () => {
+    expect(play([down({ target: 'key', bar: 9 }), move(10), up()]).effects).toEqual([{ type: 'select', first: 9, last: 10 }, { type: 'commit' }]);
+  });
+
   it('a few pixels of shake are still a click', () => {
     expect(play([down(onBar(2)), move(2, 2, 1), up()]).effects).toEqual([{ type: 'seek', bar: 2 }]);
   });

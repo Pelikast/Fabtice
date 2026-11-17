@@ -29,6 +29,7 @@ import { StorageNotice } from './StorageNotice';
 import { IRealNotice } from './IRealNotice';
 import { TopBar } from './TopBar';
 import { MeterDialog } from './MeterDialog';
+import { ModulationDialog } from './ModulationDialog';
 import { PartDialog } from './PartDialog';
 import { TapFixDialog } from './TapFixDialog';
 import { TempoFixMenu } from './TempoFixMenu';
@@ -82,6 +83,7 @@ export function App() {
       <TapFixDialog />
       <MeterDialog />
       <PartDialog />
+      <ModulationDialog />
       {dragging && (
         <div className="depot" aria-hidden="true">
           <div>

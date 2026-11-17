@@ -54,6 +54,8 @@ import { sectionRanges } from '../markers/markers';
 import { formatLoop } from '../grid/loopText';
 import { t } from '../i18n';
 import { describeMeterMarks, MeterMarkSet } from './meterMarks';
+import { describeKeyMarks, indexKeyMarks, type KeyMarkView } from './keyMarks';
+import { keyLabel } from '../harmony/key';
 import { drawGrid, drawRuler, drawWave, readColors, type Colors } from './drawing';
 import { RULER_ROW_HEIGHT, TRACKS_FOOT, rulerHeight, rulerRows } from './layout';
 import { getPeaks, onPeaksChange } from './peakCache';
@@ -125,6 +127,12 @@ export class TimelineController {
   private chordMaxWidths: number[] = [];
   private chordDataStale = true;
   private chordStride = 1;
+  /** C10: what the ruler wrote of the modulations at its last drawing (reused), and what it was drawn from. */
+  private readonly keyWritten: { bar: number; text: string }[] = [];
+  private keyMarks: ReadonlyMap<number, KeyMarkView> = new Map();
+  private lastKeyBars: unknown = null;
+  private lastKeyContexts: unknown = null;
+  private lastKeyHand: boolean | null = null;
   private lastBars: unknown = null;
   private lastContext: unknown = null;
 
@@ -385,6 +393,7 @@ export class TimelineController {
       const rows = rulerRows({ hasChords: this.hasChords, hasMarkers: this.hasMarkers });
       const h = rows.reduce((sum, r) => sum + r.height, 0);
       this.sizeCanvas(this.rulerCanvas, this.rulerCtx, w, h);
+      this.watchKeys(s);
       drawRuler(this.rulerCtx, {
         w,
         h,
@@ -403,7 +412,12 @@ export class TimelineController {
         tempoFixes: s.corrections.tempoFixes.map((f) => f.time),
         meters: selectMeterChanges(s),
         meterMarks: this.meterMarks,
+        keyMarks: this.keyMarks,
+        keyWritten: this.keyWritten,
       });
+      const modulations = describeKeyMarks(this.keyWritten);
+      if (modulations) this.root.dataset.modulations = modulations;
+      else delete this.root.dataset.modulations;
       // What the ruler wrote, for the browser checks (`tests/meter.mjs`).
       const signatures = describeMeterMarks(this.meterMarks);
       if (signatures) this.root.dataset.signatures = signatures;
@@ -643,6 +657,7 @@ export class TimelineController {
         this.applyPhoneScale();
       }
       this.watchChords(s);
+      if (this.watchKeys(s)) this.invalidate(RULER);
       if (s.loop !== prev.loop) this.invalidate(RULER | LOOP | MARKERS);
       if (s.corrections.tempoFixes !== prev.corrections.tempoFixes) this.invalidate(RULER);
       if (s.markers !== prev.markers || sectionsInForce(s) !== sectionsInForce(prev) || s.tempoMap !== prev.tempoMap) this.invalidate(MARKERS);
@@ -656,6 +671,24 @@ export class TimelineController {
   }
 
   /** Chords, their grid, the transposition, the instrument or the minor notation changed: write the row again. */
+  /** C10: the modulations in force, as the chart writes them (the new key as displayed), changed: the ruler writes them again. */
+  private watchKeys(s: AppState): boolean {
+    const bars = selectChartBars(s);
+    const contexts = selectBarContexts(s);
+    const byHand = s.corrections.keyChanges !== null;
+    if (bars === this.lastKeyBars && contexts === this.lastKeyContexts && byHand === this.lastKeyHand) return false;
+    this.lastKeyBars = bars;
+    this.lastKeyContexts = contexts;
+    this.lastKeyHand = byHand;
+    const views: KeyMarkView[] = [];
+    for (const b of bars) {
+      const ctx = contexts.get(b.bar);
+      if (b.keyChange && ctx?.key) views.push({ bar: b.bar, time: b.start, text: keyLabel(ctx.key, ctx.minor), byHand });
+    }
+    this.keyMarks = indexKeyMarks(views);
+    return true;
+  }
+
   private watchChords(s: AppState): void {
     if (!this.hasChords && !selectHasChords(s)) return;
     const bars = selectChartBars(s);
