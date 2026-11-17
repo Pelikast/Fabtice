@@ -24,6 +24,7 @@ import { getKeeper, getProjectStorage } from '../storage';
 import { applySeparation, dropOtherSeparation, dropSeparation, setImportStems, setSeparationNotice, setSeparationRun, switchSeparation, wholeTracks } from '../store/separationActions';
 import { setStorageNotice } from '../store/actions';
 import { appStore, type AppState } from '../store/store';
+import { currentLoadShare } from '../settings/easeLoadShare';
 import { newId } from '../util/id';
 import { getDevice, knownDevice, resolveModel } from './device';
 import { getModelList } from './models';
@@ -113,6 +114,8 @@ export async function startSeparation(options: StartOptions = {}): Promise<void>
       backend: choice.backend === 'gpu' ? 'auto' : 'cpu',
       onProgress,
       signal: abort.signal,
+      // « Alléger le travail pour l'appareil »: read now, for the whole run (a change applies to the next one).
+      loadShare: currentLoadShare(),
     });
     if (!stillMine()) return;
     const parts = gatherParts(out.tracks, options.stems ?? []);

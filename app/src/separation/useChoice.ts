@@ -68,13 +68,16 @@ export function formatSize(bytes: number): string {
   return formatAmount(bytes);
 }
 
-/** The estimate sentence for a piece of `seconds`, honest about what is measured. */
-export function estimateSentence(choice: ModelChoice, seconds: number): string {
-  const time = formatWait(estimateSeconds(choice.model, choice.backend, knownDevice(), seconds));
+/**
+ * The estimate sentence for a piece of `seconds`, honest about what is measured. `share`: « Alléger le travail pour
+ * l'appareil » (`settings/easeLoadShare.ts#useLoadShare`), which makes the wait `1 / share` longer.
+ */
+export function estimateSentence(choice: ModelChoice, seconds: number, share = 1): string {
+  const time = formatWait(estimateSeconds(choice.model, choice.backend, knownDevice(), seconds, share));
   return choice.model.speed.measured ? t('separation.estimate', { time }) : t('separation.estimateGuess', { time });
 }
 
 /** The estimated wait alone (the new-piece dialog does not know the piece's length yet: a typical 4-minute piece). */
-export function estimateWait(choice: ModelChoice, seconds: number): string {
-  return formatWait(estimateSeconds(choice.model, choice.backend, knownDevice(), seconds));
+export function estimateWait(choice: ModelChoice, seconds: number, share = 1): string {
+  return formatWait(estimateSeconds(choice.model, choice.backend, knownDevice(), seconds, share));
 }

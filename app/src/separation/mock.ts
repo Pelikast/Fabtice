@@ -7,6 +7,7 @@
 
 import { CHUNK, PcmWriter, readPcm } from '../audio/pcm';
 import type { SeparationBackend, StemId } from '../model/separation';
+import { stretchedSeconds } from '../settings/easeLoad';
 import {
   SeparationError,
   type SeparatedTrack,
@@ -163,7 +164,9 @@ export class MockSeparator implements Separator {
     await sleep(80, signal);
     backend = request.backend === 'cpu' ? 'cpu' : 'gpu';
 
-    const durationMs = this.opts.durationMs ?? 2500;
+    // « Alléger le travail pour l'appareil »: the work is spread over `1 / share` of the time (the pauses a real
+    // separator takes after each slice), and the remaining time said below follows.
+    const durationMs = stretchedSeconds(this.opts.durationMs ?? 2500, request.loadShare ?? 1);
     const sr = audio.sampleRate;
     const stereo = !audio.mono;
     const writers = model.stems.map((stem) => ({ stem, writer: new PcmWriter(audio.frames, sr, audio.channelCount), band: BANDS[stem] }));

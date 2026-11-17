@@ -27,6 +27,12 @@ export interface RenderRequest {
   onProgress?: (fraction: number) => void;
   /** Cancels: `render()` rejects quickly with `RenderError('cancelled')`. */
   signal?: AbortSignal;
+  /**
+   * « Alléger le travail pour l'appareil » (`settings/easeLoad.ts`): the share of the time this render may spend
+   * working, 0.2 to 0.99, the rest being rests between its blocks; absent or 1 is full speed. The caller has
+   * already fewer renders at once (`controller.ts`): this is what each one does of the rest.
+   */
+  loadShare?: number;
 }
 
 export type RenderErrorCode = 'cancelled' | 'memory' | 'unsupported' | 'failed';

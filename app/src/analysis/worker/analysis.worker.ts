@@ -13,6 +13,7 @@ import ortWasmBinary from 'onnxruntime-web/ort-wasm-simd-threaded.wasm?url';
 import tsumugiGraphUrl from '../assets/tsumugi-chords.graph.onnx?url';
 import { ensureModels, missingModels, sha256Hex } from '../models/download';
 import { openModelStore } from '../models/store';
+import { createSleeper, createThrottle, easePlan } from '../../settings/easeLoad';
 import { AnalysisError, type AnalysisErrorCode, type AnalysisStep, type ChordFallback, type GridHint, type ListenedResult } from '../types';
 import { BEAT_MODEL_ID, CHORD_MODEL_ID, MODEL_REGISTRY, TSUMUGI_GRAPH, modelsFor } from '../models';
 import { TSUMUGI_WEIGHTS_LOCATION, runTsumugi, tsumugiAudio, tsumugiChordFrames, tsumugiInfo } from '../engine/tsumugi';
@@ -38,10 +39,25 @@ const post = (message: FromWorker, transfer: Transferable[] = []) => scope.postM
 
 let cancelRequested = false;
 let busy = false;
+/** The rests of « Alléger le travail pour l'appareil »: a cancellation wakes them at once. */
+const sleeper = createSleeper();
 
 const yieldNow = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 
-function control(): StepControl {
+/**
+ * What the pieces of work call between two network runs (`RunControl.yieldNow`). At full speed, the plain yield, as
+ * ever. « Alléger »: first the rest, as long as the work since the last one took, scaled by the share, then the yield.
+ * Whatever is one long call (loading the networks, decoding) is rested for at the next of these.
+ */
+function breather(throttle: ReturnType<typeof createThrottle>): () => Promise<void> {
+  if (!throttle) return yieldNow;
+  return async () => {
+    await throttle.pause();
+    await yieldNow();
+  };
+}
+
+function control(rest: () => Promise<void> = yieldNow): StepControl {
   let current: AnalysisStep = 'prepare';
   return {
     check() {
@@ -50,7 +66,7 @@ function control(): StepControl {
     progress(fraction) {
       post({ type: 'progress', step: current, fraction: Math.min(1, Math.max(0, fraction)) });
     },
-    yieldNow,
+    yieldNow: rest,
     step(step) {
       current = step;
       post({ type: 'step', step });
@@ -69,10 +85,15 @@ function describe(e: unknown): { code: AnalysisErrorCode; message: string } {
   return { code: 'failed', message };
 }
 
-function configureOrt(): void {
+/** Processor threads: up to four, one when the page is not isolated; fewer with `units` of « Alléger ». */
+function threadCount(): number {
   const isolated = scope.crossOriginIsolated === true;
   const cores = scope.navigator?.hardwareConcurrency || 1;
-  ort.env.wasm.numThreads = isolated ? Math.max(1, Math.min(4, cores)) : 1;
+  return isolated ? Math.max(1, Math.min(4, cores)) : 1;
+}
+
+function configureOrt(threads: number): void {
+  ort.env.wasm.numThreads = threads;
   ort.env.wasm.wasmPaths = { mjs: ortWasmModule, wasm: ortWasmBinary };
   ort.env.logLevel = 'error';
 }
@@ -103,7 +124,7 @@ async function resampleAll(msg: AnalyseRequestMessage, ctl: StepControl): Promis
   msg.mono = new Float32Array(0); // the message must not keep the piece alive
   const between = async () => {
     ctl.check();
-    await yieldNow();
+    await ctl.yieldNow();
   };
   const a22 = await resampleRatioAsync(mono, msg.sampleRate / 22050, 32, between);
   ctl.progress(0.7);
@@ -112,7 +133,11 @@ async function resampleAll(msg: AnalyseRequestMessage, ctl: StepControl): Promis
 }
 
 async function analyse(msg: AnalyseRequestMessage): Promise<void> {
-  const ctl = control();
+  // « Alléger le travail pour l'appareil »: fewer threads, and rests that make up the rest of the share.
+  const ease = easePlan(threadCount(), typeof msg.loadShare === 'number' ? msg.loadShare : 1);
+  const throttle = createThrottle({ share: ease.duty, sleep: sleeper.sleep });
+  const rest = breather(throttle);
+  const ctl = control(rest);
   const fine = msg.chordModel === 'fine';
   simulatedFailure = msg.simulateChordFailure ?? null;
   const specs = modelsFor(msg.beatModel, msg.chordModel);
@@ -162,7 +187,8 @@ async function analyse(msg: AnalyseRequestMessage): Promise<void> {
   // 2. Prepare: the sessions, then the audio at the networks' rates.
   ctl.step('prepare');
   ctl.check();
-  configureOrt();
+  configureOrt(ease.units);
+  throttle?.mark(); // the download is waiting, not working
   const sessions: ort.InferenceSession[] = [];
   let a22: Float32Array | null = null;
   let a44: Float32Array | null = null;
@@ -211,7 +237,7 @@ async function analyse(msg: AnalyseRequestMessage): Promise<void> {
     // 4. Decode.
     ctl.step('finish');
     ctl.check();
-    await yieldNow();
+    await rest();
     const result: ListenedResult = decode(outputs, msg.grid, msg.key, msg.known, { duration: msg.duration, models });
     if (fine) result.chordModel = fallback ? { id: CHORD_MODEL_ID.crema, fallback } : { id: CHORD_MODEL_ID.fine };
     const tapped = tappedInfoOf(msg.grid);
@@ -294,6 +320,7 @@ scope.onmessage = (ev: MessageEvent<ToWorker>) => {
   const msg = ev.data;
   if (msg.type === 'cancel') {
     cancelRequested = true;
+    sleeper.wake();
     return;
   }
   if (busy) {

@@ -27,6 +27,8 @@ import { getDesktopBridge } from '../platform/desktopBridge';
 import { onSeparationReport, separationReportFor } from '../separation/report';
 import { useFitPanel } from '../ui/useFitPanel';
 import { useOutsideClose } from '../ui/useOutsideClose';
+import { useLoadShare } from '../settings/easeLoadShare';
+import { EaseLoadCheck } from './settings/EaseLoad';
 
 const percent = (f: number) => Math.round(Math.min(1, Math.max(0, f)) * 100);
 
@@ -128,6 +130,7 @@ function Offer() {
   const run = useApp((s) => s.separationRun);
   const duration = useApp((s) => s.project?.duration ?? 0);
   const choice = useSeparationChoice(true);
+  const share = useLoadShare();
   const [wanted, setWanted] = useState<StemId[]>([]);
   const [cached, setCached] = useState<boolean | null>(null);
   useEffect(() => {
@@ -149,12 +152,15 @@ function Offer() {
       <p className="panneau-note">{t('separation.intro')}</p>
       <ToolLine choice={choice} />
       <p className="panneau-note" data-testid="estimation">
-        {estimateSentence(choice, duration)}
+        {estimateSentence(choice, duration, share)}
       </p>
       {cached === false && <FirstDownload choice={choice} />}
       <h3 className="libelle">{t('separation.choose')}</h3>
       <StemChips stems={offeredStems(choice)} pressed={wanted} onToggle={toggle} label={t('separation.choose')} />
       <p className="panneau-note discret">{t('separation.chooseNote')}</p>
+      <div className="alleger-panneau">
+        <EaseLoadCheck testId="alleger-separation" />
+      </div>
       <button className="bouton-cadre" data-testid="lancer-separation" onClick={() => void startSeparation({ stems: wanted })}>
         {run.status === 'error' ? t('separation.retry') : t('separation.start')}
       </button>

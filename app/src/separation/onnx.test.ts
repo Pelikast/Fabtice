@@ -199,6 +199,21 @@ describe('the real separator (stand-in worker)', () => {
     expect((await sep.toolsUsage()).bytes).toBe(0);
   });
 
+  it('« Alléger »: tells the worker the share only when eased, on the processor that takes over too', async () => {
+    const run = async (loadShare?: number, script: Script = {}) => {
+      const { sep } = separator(script);
+      await sep.separate({ audio: piece(true), model: scnet, backend: 'auto', onProgress: () => {}, signal: new AbortController().signal, loadShare });
+      return FakeWorker.all.map((w) => w.received.find((m): m is SeparateMessage => m.type === 'separate')!);
+    };
+    expect('loadShare' in (await run())[0]!).toBe(false);
+    expect('loadShare' in (await run(1))[0]!).toBe(false);
+    expect((await run(0.75))[0]!.loadShare).toBe(0.75);
+    const [gpu, cpu] = await run(0.5, { gpuFailAfter: 1 });
+    expect(gpu!.loadShare).toBe(0.5);
+    expect(cpu!.backend).toBe('cpu');
+    expect(cpu!.loadShare).toBe(0.5);
+  });
+
   it('the pace: nothing said from one segment, the first left out after', () => {
     const p = new Pace();
     p.add(10);

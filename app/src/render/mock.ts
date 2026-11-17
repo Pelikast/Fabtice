@@ -6,6 +6,7 @@
 // and the tests until Rubber Band R3 is in place (`render/types.ts`).
 
 import { CHUNK, PcmWriter, readPcm, type PcmAudio } from '../audio/pcm';
+import { stretchedSeconds } from '../settings/easeLoad';
 import { RenderError, type OfflineRenderer, type RenderRequest } from './types';
 
 const W = 2048;
@@ -41,6 +42,8 @@ export class MockRenderer implements OfflineRenderer {
     const block = [new Float32Array(CHUNK), new Float32Array(CHUNK)];
     const grain = new Float32Array(W);
     const began = Date.now();
+    // « Alléger le travail pour l'appareil »: the paced work is spread over `1 / share` of the time.
+    const msPerSecond = stretchedSeconds(this.opts.msPerSecond ?? 0, req.loadShare ?? 1);
     for (let o0 = 0; o0 < outFrames; o0 += CHUNK) {
       const o1 = Math.min(outFrames, o0 + CHUNK);
       const n = o1 - o0;
@@ -70,8 +73,8 @@ export class MockRenderer implements OfflineRenderer {
       writer.write(o0, block[0]!.subarray(0, n), channels === 2 ? block[1]!.subarray(0, n) : undefined);
       req.onProgress?.(o1 / outFrames);
       await tick();
-      if (this.opts.msPerSecond) {
-        const due = began + (o1 / sr) * this.opts.msPerSecond;
+      if (msPerSecond) {
+        const due = began + (o1 / sr) * msPerSecond;
         if (due > Date.now()) await new Promise((r) => setTimeout(r, due - Date.now()));
       }
       if (signal?.aborted) throw new RenderError('cancelled');

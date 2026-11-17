@@ -10,6 +10,7 @@ import { MODEL_REGISTRY } from '../../analysis/models';
 import { ensureModels, missingModels } from '../../analysis/models/download';
 import { openModelStore } from '../../analysis/models/store';
 import type { SessionLike } from '../../analysis/engine/session';
+import { createSleeper, createThrottle } from '../../settings/easeLoad';
 import { classifyExcerpt, sessionRunner } from './classify';
 import type { FromInstrumentsWorker, ToInstrumentsWorker } from './protocol';
 
@@ -22,6 +23,8 @@ const SPEC = MODEL_REGISTRY['ced-tiny'];
 let session: Promise<SessionLike> | null = null;
 const cancels = new Map<number, AbortController>();
 let queue: Promise<void> = Promise.resolve();
+/** The rest between two windows (« Alléger »): a cancellation wakes it at once. */
+const sleeper = createSleeper();
 
 async function openSession(download: boolean): Promise<SessionLike> {
   const store = await openModelStore();
@@ -48,7 +51,13 @@ async function recognise(msg: Extract<ToInstrumentsWorker, { type: 'recognise' }
       session = null; // tried again next time (back online, download allowed)
       throw e;
     }
-    const guess = await classifyExcerpt(msg.mono, msg.sampleRate, sessionRunner(ort as unknown as Parameters<typeof sessionRunner>[0], s), { signal: ctl?.signal });
+    // One thread, so only the rests: one after each window, as long as the window took, scaled by the share.
+    const throttle = createThrottle({ share: msg.loadShare ?? 1, sleep: sleeper.sleep });
+    throttle?.mark();
+    const guess = await classifyExcerpt(msg.mono, msg.sampleRate, sessionRunner(ort as unknown as Parameters<typeof sessionRunner>[0], s), {
+      signal: ctl?.signal,
+      ...(throttle ? { pause: () => throttle.pause() } : {}),
+    });
     scope.postMessage({ type: 'result', id: msg.id, guess });
   } catch (e) {
     if (ctl?.signal.aborted) scope.postMessage({ type: 'result', id: msg.id, guess: null });
@@ -62,6 +71,7 @@ scope.onmessage = (ev) => {
   const msg = ev.data;
   if (msg.type === 'cancel') {
     cancels.get(msg.id)?.abort();
+    sleeper.wake();
     return;
   }
   cancels.set(msg.id, new AbortController());

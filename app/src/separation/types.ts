@@ -147,6 +147,12 @@ export interface SeparationRequest {
   onTrack?: (track: SeparatedTrack) => void;
   /** Cancels: `separate()` rejects quickly with `SeparationError('cancelled')` and frees its memory. */
   signal: AbortSignal;
+  /**
+   * « Alléger le travail pour l'appareil » (`settings/easeLoad.ts`): the share of the device's capacity to use, on
+   * average, 0.2 to 0.99; absent or 1 is full speed. Read when the run starts (a change applies to the next run).
+   * The separator rests after each slice and, on the processor, uses fewer threads.
+   */
+  loadShare?: number;
 }
 
 export interface SeparatedTrack {

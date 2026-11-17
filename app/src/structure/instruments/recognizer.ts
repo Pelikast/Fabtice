@@ -8,6 +8,7 @@ import type { AnalysisModelInfo } from '../../analysis/types';
 import { MODEL_REGISTRY } from '../../analysis/models';
 import { openModelStore } from '../../analysis/models/store';
 import { t } from '../../i18n';
+import { isEased, stretchedSeconds } from '../../settings/easeLoad';
 import type { InstrumentGuess, InstrumentRecognizer } from '../types';
 import type { FromInstrumentsWorker, ToInstrumentsWorker } from './protocol';
 
@@ -30,6 +31,8 @@ export interface RecognizerOptions {
   retryMs?: number;
   /** Clock (tests). */
   now?: () => number;
+  /** « Alléger le travail pour l'appareil »: the share of the device's capacity to use, read at each excerpt (1: full speed). */
+  loadShare?: () => number;
 }
 
 /** The model as the interface shows it: name, role, source, licence, size, kept or not. */
@@ -101,12 +104,13 @@ export function createInstrumentRecognizer(options: RecognizerOptions = {}): Ins
       const w = ensureWorker();
       const id = nextId++;
       const copy = mono.slice(); // the caller keeps its excerpt
+      const share = options.loadShare?.() ?? 1;
       const answer = await new Promise<FromInstrumentsWorker | null>((resolve) => {
         const timer = setTimeout(() => {
           w.postMessage({ type: 'cancel', id });
           pending.delete(id);
           resolve(null);
-        }, timeoutMs);
+        }, stretchedSeconds(timeoutMs, share));
         const onAbort = () => {
           w.postMessage({ type: 'cancel', id });
           pending.delete(id);
@@ -118,7 +122,7 @@ export function createInstrumentRecognizer(options: RecognizerOptions = {}): Ins
           signal?.removeEventListener('abort', onAbort);
           resolve(m);
         });
-        w.postMessage({ type: 'recognise', id, mono: copy, sampleRate, download }, [copy.buffer]);
+        w.postMessage({ type: 'recognise', id, mono: copy, sampleRate, download, ...(isEased(share) ? { loadShare: share } : {}) }, [copy.buffer]);
       });
       if (!answer) return null;
       if (answer.type === 'unavailable') {

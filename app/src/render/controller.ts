@@ -33,6 +33,8 @@ import { getAudio } from '../audio/registry';
 import { sameTarget, type KeptRender, type RenderErrorCode, type RenderStatus, type RenderTarget } from '../model/render';
 import { getKeeper, getProjectStorage } from '../storage';
 import { newId } from '../util/id';
+import { easePlan } from '../settings/easeLoad';
+import { currentLoadShare } from '../settings/easeLoadShare';
 import { appStore, type AppState } from '../store/store';
 import { appliedFits } from './budget';
 import { getRenderer } from './index';
@@ -127,6 +129,9 @@ export async function applyRender(): Promise<void> {
     const totalFrames = sources.reduce((n, a) => n + a.frames, 0) || 1;
     const done = new Array<number>(tracks.length).fill(0);
     const report = () => setApplyProgress(done.reduce((n, f, i) => n + f * sources[i]!.frames, 0) / totalFrames);
+    // « Alléger le travail pour l'appareil » (read now, for the whole render): fewer tracks at once, and each
+    // one rests between its blocks for what the fewer lanes do not already take (`settings/easeLoad.ts#easePlan`).
+    const ease = easePlan(Math.max(1, Math.min(renderer.parallel ?? 1, tracks.length)), currentLoadShare());
     let next = 0;
     let failure: unknown = null;
     const lane = async () => {
@@ -140,6 +145,7 @@ export async function applyRender(): Promise<void> {
             tempoRatio: target.tempoRatio,
             formants: target.formants && renderer.supportsFormants,
             signal: abort.signal,
+            ...(ease.duty < 1 ? { loadShare: ease.duty } : {}),
             onProgress: (f) => {
               done[i] = Math.max(done[i]!, Math.min(1, Math.max(0, f)));
               report();
@@ -155,7 +161,7 @@ export async function applyRender(): Promise<void> {
         }
       }
     };
-    const lanes = Math.max(1, Math.min(renderer.parallel ?? 1, tracks.length));
+    const lanes = ease.units;
     await Promise.all(Array.from({ length: lanes }, lane));
     if (failure !== null) throw failure;
     if (!stillMine()) return;

@@ -11,6 +11,7 @@
 // Each render has its own worker, ended when it is done or cancelled.
 
 import { PcmWriter, readPcm, type PcmAudio } from '../audio/pcm';
+import { isEased } from '../settings/easeLoad';
 import { renderParallelism } from './budget';
 import { BLOCKS_IN_FLIGHT, BLOCK_FRAMES, type FromRenderWorker, type ToRenderWorker } from './rubberband/protocol';
 import { RenderError, type OfflineRenderer, type RenderRequest } from './types';
@@ -204,6 +205,7 @@ export class RubberBandRenderer implements OfflineRenderer {
         fadeOut: end < audio.frames ? fade : 0,
         delay: delays.get(key) ?? null,
         preRoll: pre,
+        ...(isEased(req.loadShare) ? { loadShare: req.loadShare } : {}),
       });
     });
   }
