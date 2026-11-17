@@ -196,13 +196,18 @@
 .exp-pied .plein { flex: none; padding: 0 28px; }
 .exp-pied .plein:disabled { opacity: 0.55; cursor: default; }
 .exp-pied .plein:disabled:hover { background: var(--encre); }
+/* A long file name wraps inside the button instead of being cut at both ends. */
 .fichier-pret {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: block;
+  box-sizing: border-box;
   max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  height: auto;
+  min-height: 46px;
+  padding: 11px 20px;
+  line-height: 1.3;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
   text-decoration: none;
 }
 .exp-simple .fichier-pret { margin-bottom: 8px; }
