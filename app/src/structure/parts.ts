@@ -113,7 +113,7 @@ export function leadFromStems(stems: Partial<Record<StemId, Float32Array>>, n: n
       const sc = own + Math.log(l / band);
       // bass and drums always play: they lead only well above their usual level, the band stepping back (a fill is not a solo)
       if (RHYTHM_STEMS.has(s)) {
-        const others = ids.filter((x) => x !== s && !intermittent.has(x)).map((x) => lv.get(x)![i]! / ref.get(x)!);
+        const others = ids.filter((x) => x !== s && !intermittent.has(x) && ref.get(x)! > silent).map((x) => lv.get(x)![i]! / ref.get(x)!);
         const bandBack = others.length === 0 || median(others) < 0.75;
         return own >= 0.4 && bandBack ? sc - 0.3 : Math.min(sc, LEAD_FLOOR - 0.5);
       }
