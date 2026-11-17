@@ -15,6 +15,7 @@ import type { Meter } from '../model/tempoMap';
 import { keyInForce } from '../store/chartSelectors';
 import { isTempoKnown } from '../store/derived';
 import type { AppState } from '../store/store';
+import { keyChangesInForce } from '../store/keySelectors';
 import { sectionsInForce } from '../store/structureSelectors';
 
 export interface ExportChord {
@@ -43,6 +44,14 @@ export interface ExportBar {
   repeat: boolean;
   /** Last bar of the chart (final bar line). */
   final: boolean;
+  /**
+   * C10: the key the bar's chords are spelled in (its passage's, transposed); null when no key is known.
+   * iReal Pro has one key per chart (`ExportChart.key`, the main one): the others are written as comments.
+   * Absent: the chart's key.
+   */
+  key?: Key | null;
+  /** C10: a later key passage starts at this bar: its key (transposed), written as a comment « Ton : La♭ »; null or absent elsewhere. */
+  keyChange?: Key | null;
 }
 
 export interface ExportChart {
@@ -75,7 +84,12 @@ export interface ExportChartInput {
 export function buildExportChart({ title, bars, key, semitones, tempo }: ExportChartInput): ExportChart {
   const writtenKey = key ? transposeKey(key, semitones) : null;
   let meter: Meter | null = null;
+  // The key of the passage: the main one until a bar where another starts (`ChartBar.keyChange`).
+  let passageKey = writtenKey;
   const out: ExportBar[] = bars.map((b, i) => {
+    const keyChange = b.keyChange ? transposeKey(b.keyChange, semitones) : null;
+    if (keyChange) passageKey = keyChange;
+    const spelling = passageKey;
     // The bar's own signature (C13: any of 1…64 over 4, 8, 16, 32; the encoder writes what its format knows).
     const m: Meter = { ...b.meter };
     const changed = !meter || !sameMeter(meter, m);
@@ -87,10 +101,12 @@ export function buildExportChart({ title, bars, key, semitones, tempo }: ExportC
       timeSignature: changed ? m : null,
       chords: b.chords.map((c) => {
         const chord = c.chord ? transposeChord(c.chord, semitones) : null;
-        return { beat: c.beatInBar, chord, text: chordText(chord, { key: writtenKey }), doubtful: c.doubtful };
+        return { beat: c.beatInBar, chord, text: chordText(chord, { key: spelling }), doubtful: c.doubtful };
       }),
       repeat: b.repeat,
       final: i === bars.length - 1,
+      key: spelling,
+      keyChange,
     };
   });
   return {
@@ -109,7 +125,7 @@ export function buildExportChart({ title, bars, key, semitones, tempo }: ExportC
 export function chartForExport(s: AppState): ExportChart | null {
   if (!s.project) return null;
   const chords = resolveChords(s.tempoMap, s.analysis?.chords ?? null, s.corrections);
-  const bars = chartBars({ map: s.tempoMap, chords, sections: sectionsInForce(s), duration: s.project.duration });
+  const bars = chartBars({ map: s.tempoMap, chords, sections: sectionsInForce(s), duration: s.project.duration, keyChanges: keyChangesInForce(s) });
   return buildExportChart({
     title: s.project.title,
     bars,

@@ -17,15 +17,20 @@
 //   - `analysis`, but only inside an explicit step (`transact`): the manual
 //     tempo actions (`store/tempoFixActions.ts`) change the grid, the tempo
 //     fixes and the analysed chords together, and one undo gives back all three.
+//     Its two DERIVED fields, `keyChanges` and `structure`, are left out: the
+//     harmony pass (`structure/refresh.ts`) recomputes them from what is in
+//     force after any change, so a refresh is no step, never clears the
+//     history, and an undo does not bring them back (the refresh that follows
+//     the undo does).
 //
 // Not undoable: import, separation (`separation`, `tracks` other than their
 // mix), a full analysis, the applied render (`keptRender`), app settings
 // (`settings`), the view, `exportPrefs`, `ui`, the transport and run states.
 //
 // History rules:
-//   - a full analysis (`analysis` changed outside `transact`) clears the
-//     history: no step recorded before it may bring back a grid or a chord
-//     reading that contradicts the new result;
+//   - a full analysis (`analysis` changed outside `transact`, in anything but
+//     its derived fields) clears the history: no step recorded before it may
+//     bring back a grid or a chord reading that contradicts the new result;
 //   - a project change (new, open, reopen at launch, close) clears it too;
 //   - a separation, a swap of the shown set, the render: no step, the history
 //     stays (the mix goes back by track id);
@@ -38,8 +43,11 @@
 // « Modified » (C5): the open project is modified when its undoable part
 // differs from the one at the save point (`markSaved`), or when a change that
 // cannot be undone but is part of the project happened since (analysis,
-// separation, applied render). Undoing back to the save point reads « not
-// modified » again, unless such a change happened in between. A new piece
+// separation, applied render), or when the derived fields of the analysis
+// (modulations, structure found by the harmony pass) differ in content from
+// those at the save point (a refresh that finds what the file holds changes
+// nothing; the demo piece, never saved, is not counted). Undoing back to the
+// save point reads « not modified » again, unless such a change happened in between. A new piece
 // (import, autosaved piece reopened at launch) starts modified: it was never
 // saved to a `.fab` file (or nothing says the file still matches); the demo
 // piece starts unmodified. Opening a `.fab` must call `markSaved()` once the
@@ -159,10 +167,33 @@ function loopEqual(a: AppState['loop'], b: AppState['loop']): boolean {
   return a.region.start === b.region.start && a.region.end === b.region.end;
 }
 
+/** The fields of `AnalysisResult` the harmony pass derives from what is in force: not undoable (see the header). */
+export const DERIVED_ANALYSIS_FIELDS: ReadonlySet<string> = new Set(['keyChanges', 'structure']);
+
+/** Same analysis but for its derived fields (a refresh of the harmony pass). */
+export function sameAnalysisCore(a: AppState['analysis'], b: AppState['analysis']): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  const ra = a as unknown as Record<string, unknown>;
+  const rb = b as unknown as Record<string, unknown>;
+  const keys = new Set([...Object.keys(ra), ...Object.keys(rb)]);
+  for (const k of keys) if (!DERIVED_ANALYSIS_FIELDS.has(k) && ra[k] !== rb[k]) return false;
+  return true;
+}
+
+/** Same derived fields, by content (the modulations and the structure are small). */
+function sameDerived(a: AppState['analysis'], b: AppState['analysis']): boolean {
+  if (a === b) return true;
+  if (!a || !b) return !a && !b;
+  if (a.keyChanges === b.keyChanges && a.structure === b.structure) return true;
+  return JSON.stringify([a.keyChanges, a.structure]) === JSON.stringify([b.keyChanges, b.structure]);
+}
+
 /** Same content for the history (a slice copied without change is the same slice). */
 function sameSlice(name: SliceName, a: unknown, b: unknown): boolean {
   if (a === b) return true;
   if (name === 'loop') return loopEqual(a as AppState['loop'], b as AppState['loop']);
+  if (name === 'analysis') return sameAnalysisCore(a as AppState['analysis'], b as AppState['analysis']);
   if (DEEP.has(name)) return shallowEqual(a as object | null, b as object | null);
   return false;
 }
@@ -196,7 +227,8 @@ function snapshotOf(s: AppState, base: Snapshot | null): Snapshot {
   for (const name of SLICES) {
     // A candidate grid shown for listening (C12) is not a change: the grid in force is.
     const v = name === 'tempoMap' ? gridInForce(s) : s[name];
-    (out as unknown as Record<string, unknown>)[name] = base && sameSlice(name, base[name], v) ? base[name] : v;
+    // The analysis as it is (its derived fields included, for « modified »); compared without them.
+    (out as unknown as Record<string, unknown>)[name] = name !== 'analysis' && base && sameSlice(name, base[name], v) ? base[name] : v;
   }
   if (base && base.mixFrom.tracks === s.tracks && base.mixFrom.separation === s.separation) {
     out.mix = base.mix;
@@ -252,7 +284,8 @@ function withMix(tracks: Track[], mix: MixTable): Track[] {
 function patchFor(s: AppState, snap: Snapshot): Partial<AppState> {
   const patch: Partial<AppState> = {};
   for (const name of SLICES) {
-    if (s[name] !== snap[name]) (patch as Record<string, unknown>)[name] = snap[name];
+    // An analysis that differs only in its derived fields is left as it is (the harmony pass keeps them up to date).
+    if (s[name] !== snap[name] && !(name === 'analysis' && sameSlice(name, s[name], snap[name]))) (patch as Record<string, unknown>)[name] = snap[name];
   }
   const tracks = withMix(s.tracks, snap.mix);
   if (tracks !== s.tracks) patch.tracks = tracks;
@@ -474,12 +507,15 @@ export class StoreHistory {
     const u = this.undos[this.undos.length - 1];
     const r = this.redos[this.redos.length - 1];
     const hasProject = this.store.getState().project !== null;
+    const s = this.store.getState();
+    // The modulations and the structure found by the harmony pass count when they differ from the save point's (not for the demo piece).
+    const derivedChanged = s.project?.source.kind !== 'demo' && !sameDerived(this.last.analysis, this.savePoint.analysis);
     return {
       canUndo: !!u,
       canRedo: !!r,
       undoLabel: u ? t('history.undoWhat', { what: t(u.what) }) : null,
       redoLabel: r ? t('history.redoWhat', { what: t(r.what) }) : null,
-      modified: hasProject && (this.dirty || !sameSnapshot(this.last, this.savePoint)),
+      modified: hasProject && (this.dirty || derivedChanged || !sameSnapshot(this.last, this.savePoint)),
     };
   }
 

@@ -3,7 +3,9 @@ import { demoAnalysis, demoCorrections } from '../demo/demoAnalysis';
 import { demoTempoMap } from '../demo/demoProject';
 import { emptyCorrections } from '../model/corrections';
 import { initialState, type AppState } from '../store/store';
+import { barStartTime } from '../grid/tempoMap';
 import { chartForExport, exportToIRealPro, IREAL_EXPORT_READY } from './index';
+import { iRealMusic, keyChangeComment } from './ireal';
 
 function demoState(patch: Partial<AppState> = {}): AppState {
   const map = demoTempoMap('variable');
@@ -53,5 +55,28 @@ describe('the chart ready for export', () => {
   it('the iReal Pro encoding is written (see ireal.test.ts)', () => {
     expect(IREAL_EXPORT_READY).toBe(true);
     expect(exportToIRealPro(chartForExport(demoState())!).url).toMatch(/^irealb:\/\//);
+  });
+});
+
+describe('C10: the modulations in the export', () => {
+  it('chords spelled in the key of their passage, the main key kept, the new key as a comment on its bar', () => {
+    const base = demoState();
+    const e = { tonic: 4, mode: 'major' as const };
+    const s = { ...base, corrections: { ...base.corrections, keyChanges: [{ time: barStartTime(base.tempoMap, 8) + 0.05, key: e }] } };
+    const chart = chartForExport(s)!;
+    expect(chart.key).toMatchObject({ tonic: 8, mode: 'major' });
+    expect(chart.bars[7]).toMatchObject({ keyChange: null, key: { tonic: 8, mode: 'major' } });
+    expect(chart.bars[8]).toMatchObject({ keyChange: e, key: e });
+    // B♭m7 E♭7 in A♭, A♯m7 D♯7 in E.
+    expect(chart.bars[14]!.chords.map((c) => c.text)).toEqual(['A♯m7', 'D♯7']);
+    const music = iRealMusic(chart);
+    expect(music).toContain('<Ton : Mi>');
+    expect(music.indexOf('<Ton : Mi>')).toBeGreaterThan(music.indexOf('*B'));
+    expect(music).toContain('A#-7');
+    expect(keyChangeComment({ tonic: 8, mode: 'major' })).toBe('Ton : La♭');
+    expect(keyChangeComment({ tonic: 6, mode: 'minor' })).toBe('Ton : Fa♯ mineur');
+    // Transposed with the transport, as the chords.
+    const up = chartForExport({ ...s, playback: { ...s.playback, semitones: 1 } })!;
+    expect(up.bars[8]!.keyChange).toEqual({ tonic: 5, mode: 'major' });
   });
 });

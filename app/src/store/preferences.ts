@@ -32,6 +32,8 @@ interface Preferences {
   atLaunch?: LaunchBehaviour;
   analyseOnImport?: boolean;
   useKnownCharts?: boolean;
+  detectModulations?: boolean;
+  autoStructure?: boolean;
 }
 
 function read(): Preferences {
@@ -64,6 +66,8 @@ const pick = (s: AppState): Preferences => ({
   atLaunch: s.settings.atLaunch,
   analyseOnImport: s.settings.analyseOnImport,
   useKnownCharts: s.settings.useKnownCharts,
+  detectModulations: s.settings.detectModulations,
+  autoStructure: s.settings.autoStructure,
 });
 
 /** Restores the saved preferences into the store, then saves them on every change. */
@@ -78,6 +82,8 @@ export function persistPreferences(store: AppStore): () => void {
       ...(p.atLaunch === 'lastProject' || p.atLaunch === 'newProject' ? { atLaunch: p.atLaunch } : {}),
       ...(typeof p.analyseOnImport === 'boolean' ? { analyseOnImport: p.analyseOnImport } : {}),
       ...(typeof p.useKnownCharts === 'boolean' ? { useKnownCharts: p.useKnownCharts } : {}),
+      ...(typeof p.detectModulations === 'boolean' ? { detectModulations: p.detectModulations } : {}),
+      ...(typeof p.autoStructure === 'boolean' ? { autoStructure: p.autoStructure } : {}),
       advanced: {
         ...s.settings.advanced,
         // A tool id that is no longer listed falls back to the automatic choice when used (`separation/device.ts#resolveModel`).

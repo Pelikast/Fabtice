@@ -5,7 +5,9 @@
 
 import { chartBars, resolveChords, sectionBar, type BarChord, type ChartBar, type ChartChord } from '../chart/layout';
 import { displayContext, type DisplayContext } from '../harmony/display';
-import type { Key } from '../model/harmony';
+import type { AnalysisResult } from '../model/analysis';
+import type { Key, KeyChange } from '../model/harmony';
+import { keyAt, keyChangesInForce } from './keySelectors';
 import type { AppState } from './store';
 import { sectionsInForce } from './structureSelectors';
 
@@ -73,12 +75,34 @@ export function tuningOffer(s: Pick<AppState, 'analysis' | 'corrections' | 'play
 
 // ---------------------------------------------------------------- display
 
-/** Transposition (transport semitones) + instrument + key + minor notation: how chords are written. */
-export const chartDisplayContext = memoN(
-  (analysis: AppState['analysis'], corrections: AppState['corrections'], semitones: number, instrument: AppState['view']['instrument'], minor: AppState['settings']['minorNotation']): DisplayContext =>
-    displayContext(keyInForce({ analysis, corrections }).key, semitones, instrument, minor),
-);
+/**
+ * One display context per (key, transposition, instrument, notation): the same object for the same
+ * values, so that a chart cell, a chord editor or the timeline comparing contexts by reference sees
+ * no change when nothing changed (a chord edit, a refresh of the modulations that finds the same).
+ */
+const contexts = new Map<string, DisplayContext>();
 
+function sharedContext(key: Key | null, semitones: number, instrument: AppState['view']['instrument'], minor: AppState['settings']['minorNotation']): DisplayContext {
+  const id = `${key ? `${key.tonic}${key.mode}` : '-'}|${semitones}|${instrument}|${minor}`;
+  let ctx = contexts.get(id);
+  if (!ctx) {
+    if (contexts.size > 512) contexts.clear();
+    ctx = displayContext(key, semitones, instrument, minor);
+    contexts.set(id, ctx);
+  }
+  return ctx;
+}
+
+/** Transposition (transport semitones) + instrument + key + minor notation: how chords are written. */
+export const chartDisplayContext = (
+  analysis: AppState['analysis'],
+  corrections: AppState['corrections'],
+  semitones: number,
+  instrument: AppState['view']['instrument'],
+  minor: AppState['settings']['minorNotation'],
+): DisplayContext => sharedContext(keyInForce({ analysis, corrections }).key, semitones, instrument, minor);
+
+/** The display context of the main key (the first passage): the title, the key editor, the transposition of what is typed. */
 export function selectDisplayContext(s: AppState): DisplayContext {
   return chartDisplayContext(s.analysis, s.corrections, s.playback.semitones, s.view.instrument, s.settings.minorNotation);
 }
@@ -88,15 +112,60 @@ export function selectDisplayedKey(s: AppState): Key | null {
   return selectDisplayContext(s).key;
 }
 
+/** C10: the display context of the key passage heard at `time` (source seconds): chords there are spelled in its key. */
+export function selectDisplayContextAt(s: AppState, time: number): DisplayContext {
+  return sharedContext(keyAt(s, time), s.playback.semitones, s.view.instrument, s.settings.minorNotation);
+}
+
+/**
+ * The display context of each bar, by bar number: `main` until a bar where a later passage starts
+ * (`ChartBar.keyChange`), that passage's key from there. Pure; contexts are shared (`sharedContext`).
+ */
+export function barContextsOf(
+  bars: readonly ChartBar[],
+  mainKey: Key | null,
+  semitones: number,
+  instrument: AppState['view']['instrument'],
+  minor: AppState['settings']['minorNotation'],
+): Map<number, DisplayContext> {
+  const out = new Map<number, DisplayContext>();
+  let ctx = sharedContext(mainKey, semitones, instrument, minor);
+  for (const b of bars) {
+    if (b.keyChange) ctx = sharedContext(b.keyChange, semitones, instrument, minor);
+    out.set(b.bar, ctx);
+  }
+  return out;
+}
+
+const barContextsMemo = memoN(
+  (bars: ChartBar[], main: Key | null, semitones: number, instrument: AppState['view']['instrument'], minor: AppState['settings']['minorNotation']): ReadonlyMap<number, DisplayContext> =>
+    barContextsOf(bars, main, semitones, instrument, minor),
+);
+
+/**
+ * C10: the display context of every bar of the chart, by bar number: the main key's until a bar where
+ * a later passage starts (`ChartBar.keyChange`), that passage's key from there. The same map while the
+ * bars and the display do not change; every context is shared (`sharedContext`).
+ */
+export function selectBarContexts(s: AppState): ReadonlyMap<number, DisplayContext> {
+  return barContextsMemo(selectChartBars(s), keyInForce(s).key, s.playback.semitones, s.view.instrument, s.settings.minorNotation);
+}
+
+/** C10: the display context of bar `bar` (the main key's for a bar outside the chart). */
+export function selectBarContext(s: AppState, bar: number): DisplayContext {
+  return selectBarContexts(s).get(bar) ?? selectDisplayContext(s);
+}
+
 // ---------------------------------------------------------------- chords and bars
 
-const chordsMemo = memoN((map: AppState['tempoMap'], analysis: AppState['analysis'], corrections: AppState['corrections']) =>
-  resolveChords(map, analysis?.chords ?? null, corrections),
+const chordsMemo = memoN((map: AppState['tempoMap'], analysed: AnalysisResult['chords'] | null, corrections: AppState['corrections']) =>
+  resolveChords(map, analysed, corrections),
 );
 
 /** The chords in force (analysis outside the hand-rewritten bars, plus hand chords), on the grid in force. */
 export function selectChords(s: AppState): ChartChord[] {
-  return chordsMemo(s.tempoMap, s.analysis, s.corrections);
+  // On the analysed chords, not the whole result: a refresh of the modulations or the structure leaves them alone.
+  return chordsMemo(s.tempoMap, s.analysis?.chords ?? null, s.corrections);
 }
 
 /** True once there is anything to draw in a chord row or chart. */
@@ -109,23 +178,24 @@ export function selectHasMarkers(s: AppState): boolean {
   return sectionsInForce(s).length > 0 || s.markers.loops.length > 0;
 }
 
-const barsMemo = memoN((chords: ChartChord[], map: AppState['tempoMap'], sections: AppState['corrections']['sections'], duration: number) =>
-  chartBars({ map, chords, sections, duration }),
+const barsMemo = memoN((chords: ChartChord[], map: AppState['tempoMap'], sections: AppState['corrections']['sections'], duration: number, keyChanges: KeyChange[]) =>
+  chartBars({ map, chords, sections, duration, keyChanges }),
 );
 
-/** Every bar of the chart (stored chords, not yet transposed: write them with `selectDisplayContext`). */
+/** Every bar of the chart (stored chords, not yet transposed: write them with `selectBarContexts`). */
 export function selectChartBars(s: AppState): ChartBar[] {
-  return barsMemo(selectChords(s), s.tempoMap, sectionsInForce(s), s.project?.duration ?? 0);
+  return barsMemo(selectChords(s), s.tempoMap, sectionsInForce(s), s.project?.duration ?? 0, keyChangesInForce(s));
 }
 
 /**
  * « Chords of bar N as displayed »: the chords starting in bar `bar`, each
  * with the stored chord and the display context to write it (transposed,
- * instrument applied). An empty list for a bar where the previous chord goes on.
+ * instrument applied, spelled in the key of the passage the bar is in). An
+ * empty list for a bar where the previous chord goes on.
  */
 export function selectBarChords(s: AppState, bar: number): { chords: BarChord[]; ctx: DisplayContext; repeat: boolean } {
   const found = selectChartBars(s).find((b) => b.bar === bar);
-  return { chords: found?.chords ?? [], ctx: selectDisplayContext(s), repeat: found?.repeat ?? false };
+  return { chords: found?.chords ?? [], ctx: selectBarContext(s, bar), repeat: found?.repeat ?? false };
 }
 
 /** Section label at a bar, if any (the letters in force). */

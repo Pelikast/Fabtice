@@ -64,15 +64,16 @@ export function clocksPerClick(m: Meter): number {
 const tickOf = (quarters: number): number => Math.max(0, Math.round(quarters * MIDI_PPQ));
 const nearTick = (quarters: number): number => Math.max(0, Math.round(quarters * MIDI_PPQ));
 
-/** One marker: « Theme 1 - [A] Bbmaj7 »; parts of them can be missing. ASCII. */
-export function markerText(parts: { part?: string | null; section?: string | null; chord?: string | null }): string {
+/** One marker: « Theme 1 - [A] Bbmaj7 », and where a modulation starts « [B] Em7 (Ton : D) »; parts of them can be missing. ASCII. */
+export function markerText(parts: { part?: string | null; section?: string | null; chord?: string | null; key?: string | null }): string {
   const head = [parts.part ? asciiText(parts.part) : null, parts.section ? `[${asciiText(parts.section)}]` : null].filter(Boolean).join(' - ');
   const chord = parts.chord ? asciiText(parts.chord) : '';
-  return [head, chord].filter(Boolean).join(' ').trim();
+  const key = parts.key ? `(Ton : ${asciiText(parts.key)})` : '';
+  return [head, chord, key].filter(Boolean).join(' ').trim();
 }
 
 function markers(session: Session): { tick: number; text: string }[] {
-  type Slot = { part?: string; section?: string; chord?: SessionChord };
+  type Slot = { part?: string; section?: string; chord?: SessionChord; key?: string };
   const slots = new Map<number, Slot>();
   const slot = (tick: number) => {
     let s = slots.get(tick);
@@ -82,15 +83,17 @@ function markers(session: Session): { tick: number; text: string }[] {
   for (const p of session.parts) slot(nearTick(p.quarters)).part = p.label;
   for (const s of session.sections) slot(nearTick(s.quarters)).section = s.label;
   for (const c of session.chords) slot(nearTick(c.quarters)).chord = c;
+  // C10: a modulation (not the first key, from the start of the file) says its key in the marker of its bar.
+  for (const k of session.keys) if (k.bar !== null) slot(nearTick(k.quarters)).key = k.text;
   const out: { tick: number; text: string }[] = [];
   let going: string | null = null;
   for (const tick of [...slots.keys()].sort((a, b) => a - b)) {
     const s = slots.get(tick)!;
     const chordText = s.chord ? s.chord.text : null;
     const changed = chordText !== null && chordText !== going;
-    if (!changed && !s.part && !s.section) continue;
+    if (!changed && !s.part && !s.section && !s.key) continue;
     if (chordText !== null) going = chordText;
-    out.push({ tick, text: markerText({ part: s.part, section: s.section, chord: going }) });
+    out.push({ tick, text: markerText({ part: s.part, section: s.section, chord: going, key: s.key }) });
   }
   return out;
 }

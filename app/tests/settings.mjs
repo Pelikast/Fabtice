@@ -269,6 +269,18 @@ try {
     await page.click('[data-testid="grilles-connues"]');
     check('chords: unticked', (await state(page)).settings.useKnownCharts === false && (await saved(page)).useKnownCharts === false);
     await page.click('[data-testid="grilles-connues"]');
+    // Stage 5: the modulations and the structure, on by default, kept on the device; the mode of the open piece.
+    check('chords: « Détecter les modulations » and « Structure automatique du morceau » are there, ticked', chordText.includes('Détecter les modulations') && chordText.includes('Structure automatique du morceau') && (await page.locator('[data-testid="detecter-modulations"]').isChecked()) && (await page.locator('[data-testid="structure-automatique"]').isChecked()));
+    await page.click('[data-testid="detecter-modulations"]');
+    await page.click('[data-testid="structure-automatique"]');
+    st = await state(page);
+    check('chords: unticked, in the store and on the device', st.settings.detectModulations === false && st.settings.autoStructure === false && (await saved(page)).detectModulations === false && (await saved(page)).autoStructure === false);
+    await page.click('[data-testid="detecter-modulations"]');
+    await page.click('[data-testid="structure-automatique"]');
+    check('chords: « Mode » (Auto, Jazz, Pop) for the open piece, the same value as the column\'s', chordText.includes('Mode') && (await page.locator('[data-testid="mode-structure-auto"]').getAttribute('aria-checked')) === 'true');
+    await page.click('[data-testid="mode-structure-pop"]');
+    check('chords: « Pop » chosen, in the piece\'s corrections', (await state(page)).corrections.structure.mode === 'pop' && (await page.locator('[data-testid="mode-structure-pop"]').getAttribute('aria-checked')) === 'true');
+    await page.click('[data-testid="mode-structure-auto"]');
     await page.selectOption('[data-testid="modele-accords"]', 'crema');
 
     // ---------------------------------------------------- Métronome (and the small panel)

@@ -18,7 +18,7 @@ import type { Instrument } from '../model/harmony';
 import type { Meter } from '../model/tempoMap';
 import { formatBarNumber, RANGE_DASH } from '../grid/format';
 import { partName } from '../model/structureLabels';
-import { keyInForce, selectChartBars } from '../store/chartSelectors';
+import { barContextsOf, keyInForce, selectChartBars } from '../store/chartSelectors';
 import { isTempoKnown, shownBpm } from '../store/derived';
 import { selectSimplifiedChart } from '../store/simplifiedSelectors';
 import { useApp, type ChartDisplay } from '../store/store';
@@ -46,7 +46,10 @@ export interface PrintChart {
   simplified: SimplifiedChart | null;
   /** The lines of bars to print. */
   lines: ChartLine[];
+  /** The main key's context (the title row). */
   ctx: DisplayContext;
+  /** C10: each bar's context, by bar number (spelled in the key of its passage); `ctx` for a bar not in it. */
+  contexts: ReadonlyMap<number, DisplayContext>;
 }
 
 /** The lines to print: the bars of the chart, or those of one part (`range`: bar indexes), in lines of four. */
@@ -84,7 +87,9 @@ export function usePrintChart(instrument: Instrument, what: ChartDisplay = { kin
   const wantSimplified = what.kind === 'simplified';
   return useMemo(() => {
     if (title === null) return null;
-    const ctx = displayContext(keyInForce({ analysis, corrections }).key, semitones, instrument, minor);
+    const main = keyInForce({ analysis, corrections }).key;
+    const ctx = displayContext(main, semitones, instrument, minor);
+    const contexts = barContextsOf(bars, main, semitones, instrument, minor);
     const part = partId === null ? null : (structure.parts.find((p) => p.id === partId) ?? null);
     const last = bars[bars.length - 1];
     const range = part ? partBars(map, part, duration, last ? last.bar : 0) : null;
@@ -100,6 +105,7 @@ export function usePrintChart(instrument: Instrument, what: ChartDisplay = { kin
       simplified: wantSimplified ? simplified : null,
       lines,
       ctx,
+      contexts,
     };
   }, [title, bars, analysis, corrections, semitones, minor, meter, bpm, instrument, structure, map, duration, simplified, partId, wantSimplified]);
 }

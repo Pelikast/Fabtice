@@ -10,11 +10,14 @@
 import { partBars } from '../chart/structureDisplay';
 import { sectionBar, type ChartBar } from '../chart/layout';
 import type { ChordSymbol } from '../model/harmony';
-import { simplifyChart, type HarmonyBar, type SimplifiedChart, type SimplifyInput } from '../structure';
+import { simplifyChart, type HarmonyBar, type KnownStandard, type SimplifiedChart, type SimplifyInput } from '../structure';
+import { knownStandardsFor } from '../structure/knownCache';
 import { selectChartBars } from './chartSelectors';
 import { keyChangesInForce, keyPassages } from './keySelectors';
 import type { AppState } from './store';
 import { structureInForce } from './structureSelectors';
+
+const NO_KNOWN: readonly KnownStandard[] = Object.freeze([]) as readonly KnownStandard[];
 
 /** The bars of the chart as the harmony pass reads them: chords that start in the bar, and the one still sounding at its bar line. */
 export function harmonyBars(bars: readonly ChartBar[]): HarmonyBar[] {
@@ -35,7 +38,15 @@ export function harmonyBars(bars: readonly ChartBar[]): HarmonyBar[] {
   });
 }
 
-let inputMemo: { bars: ChartBar[]; structure: ReturnType<typeof structureInForce>; map: AppState['tempoMap']; passages: ReturnType<typeof keyPassages>; duration: number; value: SimplifyInput } | null = null;
+let inputMemo: {
+  bars: ChartBar[];
+  structure: ReturnType<typeof structureInForce>;
+  map: AppState['tempoMap'];
+  passages: ReturnType<typeof keyPassages>;
+  duration: number;
+  known: readonly KnownStandard[];
+  value: SimplifyInput;
+} | null = null;
 
 /** What `simplifyChart` reads, for the state (the same object while nothing it reads changed). */
 export function selectSimplifyInput(s: AppState): SimplifyInput {
@@ -43,7 +54,17 @@ export function selectSimplifyInput(s: AppState): SimplifyInput {
   const structure = structureInForce(s);
   const passages = keyPassages(s);
   const duration = s.project?.duration ?? 0;
-  if (inputMemo && inputMemo.bars === bars && inputMemo.structure === structure && inputMemo.map === s.tempoMap && inputMemo.passages === passages && inputMemo.duration === duration) {
+  // The known charts the harmony pass found for the title (`structure/refresh.ts`; none when not looked up, or the setting is off).
+  const known = s.settings.useKnownCharts ? knownStandardsFor(s.project?.title) : NO_KNOWN;
+  if (
+    inputMemo &&
+    inputMemo.bars === bars &&
+    inputMemo.structure === structure &&
+    inputMemo.map === s.tempoMap &&
+    inputMemo.passages === passages &&
+    inputMemo.duration === duration &&
+    inputMemo.known === known
+  ) {
     return inputMemo.value;
   }
   const map = s.tempoMap;
@@ -57,9 +78,9 @@ export function selectSimplifyInput(s: AppState): SimplifyInput {
       return { id: p.id, type: p.type, firstBar: range.first, endBar: range.end, letters: p.letters };
     }),
     keyChanges: keyChangesInForce(s).map((c) => ({ bar: sectionBar(map, c.time), key: c.key })),
-    known: [],
+    known: known as KnownStandard[],
   };
-  inputMemo = { bars, structure, map, passages, duration, value };
+  inputMemo = { bars, structure, map, passages, duration, known, value };
   return value;
 }
 
