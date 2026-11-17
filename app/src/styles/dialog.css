@@ -65,13 +65,14 @@
   height: 46px;
   padding: 0 20px;
   border-radius: var(--rayon);
-  background: var(--braise);
-  color: #fff;
+  /* DESIGN.md: the main button of a window is ink; ember stays with what plays. */
+  background: var(--encre);
+  color: var(--papier-clair);
   font-weight: 600;
   white-space: nowrap;
   transition: background var(--vite) var(--courbe);
 }
-.plein:hover { background: var(--braise-sombre); }
+.plein:hover { background: var(--encre-douce); }
 .sinon { font-size: 13.5px; color: var(--encre-douce); margin-bottom: 6px; }
 /* Lot 4: « Déjà un projet enregistré ? ouvrir un projet Fabtice », a calm line under the main way in. */
 .ouvrir-projet { font-size: 13.5px; color: var(--encre-douce); margin: 12px 0 6px; }
