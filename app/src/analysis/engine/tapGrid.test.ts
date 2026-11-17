@@ -47,6 +47,16 @@ describe('the tapped correction', () => {
     expect(out.times.length).toBe(truth.length);
   });
 
+  it('taps along the count-in say the offset and are not the passage’s: neither dropped nor filled', () => {
+    const late = (t: number) => t + 0.07;
+    const taps = [...truth.slice(32, 40), ...truth.slice(40, 77)].map(late);
+    const out = tapped(taps);
+    expect(out.tapped.dropped).toBe(0);
+    expect(out.tapped.filled).toBe(0);
+    expect(out.tapped.used).toBe(37);
+    expect(out.tapped.offset).toBeCloseTo(0.07, 2);
+  });
+
   it('fills forgotten taps, drops doubled ones, and keeps the count', () => {
     const taps = truth.slice(40, 77).filter((_, i) => i % 7 !== 3 && i % 11 !== 5);
     taps.push(truth[50]! + 0.05, truth[61]! + 0.07);
