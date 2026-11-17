@@ -111,6 +111,11 @@ test('the menu bar: the page\'s commands, greyed out as in the app, run in the p
 
     await page.locator('.accueil input[type="file"]').setInputFiles(path.join(APP_FIXTURES, 'tone.wav'));
     await pieceReady(page);
+    // A full analysis empties the undo history when it ends: let it end (or fail) before counting steps.
+    await page.waitForFunction(() => {
+      const st = window.__fabtice.store.getState();
+      return st.analysisRun.status !== 'running' && (st.analysis !== null || st.analysisRun.status === 'error');
+    }, null, { timeout: 240000 });
     // A piece: « Enregistrer » can be used, in the app and in the bar.
     await waitBar(app, 'save', { enabled: true });
     await waitBar(app, 'exportAudio', { enabled: true });
