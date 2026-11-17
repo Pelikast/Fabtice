@@ -18,7 +18,7 @@ lisent que par parties, quand on en a besoin.
 | 2. Interface | C1, C3, C4, C6, C7, C8, C9 | fait (`v1/bilan-etape-2.md`) | `483c401` (code), puis le commit du bilan |
 | 3. Exports | C15 | fait (`v1/bilan-etape-3.md`) | `02eec3d` (code), puis le commit du bilan |
 | 4. Tempo à la main | C12, C13 (fenêtre) | fait (`v1/bilan-etape-4.md`) | `dfb1535` (code), puis le commit du bilan |
-| 5. Harmonie | C10, C14 | à faire | |
+| 5. Harmonie | C10, C14 | fait (`v1/bilan-etape-5.md`) | `4b8d2db` (code), puis le commit du bilan |
 | 6. Machine | C2, C16, C17 (numéros, fabrication) | à faire | |
 | 7. Finition | vérification complète, changelog, publication 1.0.0 | à faire | |
 

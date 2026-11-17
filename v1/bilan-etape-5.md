@@ -301,3 +301,78 @@ Modèle d'instruments
   puis relancés avec leur contexte, rien de perdu ; les calculs en cours
   sont à relancer.
 
+## Vérifications
+
+- Commit vérifié : `4b8d2db` sur `v1` (les commits suivants n'ajoutent que
+  ce bilan et la table du plan).
+- `app/` : `npm run typecheck` sans erreur ; `npm test` : 1 923 tests
+  réussis, 43 sautés (dont le sous-ensemble du banc de structure, avec ses
+  seuils).
+- Banc relancé par la session d'étape sur `v1` : palier simulé complet
+  (`FABTICE_STRUCTURE_FULL=1`) et palier des rendus : tableaux identiques à
+  ceux du dépôt.
+- Vérifications Chromium après `npm run build`, l'une après l'autre, au
+  calme, **toutes vertes au premier passage** : `smoke`, `menu`,
+  `settings`, `print`, `new-project`, `standards`, `undo`, `alert`,
+  `project-file`, `chart`, `timeline`, `import`, `export`, `export-audio`,
+  `export-memory`, `export-logic`, `export-ableton`, `analysis`,
+  `separation`, `markers`, `metronome`, `tempo-fix`, `tap-fix`, `meter`,
+  `structure`, `harmony`, `simplified`, `offline`, puis `engine`, `render`,
+  `memory`.
+- `desktop/` : `npm test` : 122 réussis ; après `npm run build:desktop`,
+  `FABTICE_NO_POPPLER=1 xvfb-run -a npm run test:e2e` : 40 tests, 37
+  réussis, 3 sautés (ceux qui téléchargent), aucun échec. À surveiller :
+  dans `tempo-by-hand.test.js`, le test de la barre d'espace a échoué une
+  fois, lancé seul, puis réussi au passage suivant sans changement ; vert
+  dans les deux passes entières.
+- Vérifié comme le demande le plan : chiffres du banc ci-dessus ;
+  l'exemple « Autumn Leaves » sort sous la forme du cahier à partir d'un
+  rendu **avec la grille connue et les pistes séparées** (pas sans grille
+  connue : voir plus haut) et à partir de la grille sans erreur
+  (`demo/demoAutumn.test.ts`, `test:simplified`) ; lecture suivie dans les
+  trois affichages (`test:structure`, `test:simplified` : la mesure écrite
+  en cours, le numéro de la reprise, le défilement sans saut) ; chaque
+  correction à la main s'annule et se rétablit (`test:structure`,
+  `test:harmony`).
+- Captures regardées par la session d'étape, dans les deux formes : colonne
+  (complète, une partie, partie corrigée, feuille du téléphone), fenêtre
+  d'impression avec une section, message iReal Pro, modulations (grille,
+  fenêtre, règle, menu de la mesure), grille simplifiée (lecture au
+  deuxième passage, page imprimée, téléphone). Les agents ont regardé les
+  autres. Défauts vus et corrigés en route : lettre de section sur un
+  accord (téléphone), « Corrigée à la main » mal coupée, accords du papier
+  touchant la marque de modulation, barres de reprise absentes du PDF,
+  « A♯7 » au lieu de « B♭7 », titre du menu de la mesure.
+- Aucun fichier de brouillon dans le dépôt (commande du plan) ; aucun nom
+  d'assistant ni information personnelle dans ce que l'étape a ajouté.
+
+## Pour l'étape suivante
+
+- **Étape 6 (Machine)** : rien ne change à sa section. À savoir :
+  - « Alléger le travail pour l'appareil » : la passe d'harmonie tourne sur
+    le fil principal (quelques dixièmes de seconde, après un anti-rebond de
+    150 ms) et la reconnaissance des vents dans son propre fil
+    (`structure/instruments/instruments.worker.ts`, un fil de calcul) :
+    deux calculs de plus à compter, légers.
+  - Le modèle des vents est dans `MODEL_REGISTRY` (`analysis/models.ts`),
+    dans le même magasin que les outils d'analyse : il suit leurs mises à
+    jour et « Libérer ».
+  - La liste distante des modèles (C17) ne le concerne pas : il est épinglé
+    dans le code, comme les modèles d'analyse.
+- **Étape 7 (Finition)** : rejouer le parcours « structurer » comme un
+  utilisateur (importer, séparer, corriger une partie, une lettre, une
+  modulation, enregistrer, rouvrir : tout doit revenir) ; relancer le banc
+  complet et `npm run captures` ; relire le changelog de l'étape.
+- **À faire essayer au propriétaire**, en premier : un de ses standards
+  avec les recueils téléchargés et le modèle d'accords détaillé, séparé
+  puis non séparé : la colonne, « Grille complète simplifiée », la lecture
+  suivie, l'impression sur une page ; un morceau qui module ; un solo de
+  trompette, de saxophone, de trombone (le nom donné, ou « Vents ») ; sur
+  téléphone, « Ouvrir dans iReal Pro ». Lui dire ce qui est fragile : les
+  solistes sans séparation, les modulations manquées, la grille simplifiée
+  sans grille connue avec le modèle d'accords standard.
+- **Questions à lui poser** : faut-il conseiller, ou choisir d'office, le
+  modèle d'accords détaillé quand l'appareil le permet (il double presque
+  la justesse de la grille simplifiée) ? La marque « Ton : A♭ » doit-elle
+  s'écrire en français (« Ton : La♭ ») ? L'appui sur la grille du livre
+  dans la grille simplifiée lui convient-il ?
