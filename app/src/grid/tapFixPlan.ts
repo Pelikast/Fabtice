@@ -72,11 +72,24 @@ export function tapFixVerify(map: TempoMap, bar: number, end: Seconds, countInBa
   return { ...s, stop: Math.min(duration, Number.isFinite(tail) && tail > end ? tail : end + 1) };
 }
 
+/** Bars before the chosen one whose taps are kept: along the count-in they tell the user's usual advance or delay on known beats. */
+export const TAPS_BARS_BEFORE = 2;
+
+/** The earliest time a tap is kept: the start of the bar `TAPS_BARS_BEFORE` bars before the chosen one (not before the piece). */
+export function tapsWindowStart(map: TempoMap, bar: number): Seconds {
+  return Math.max(0, barStartTime(map, bar - TAPS_BARS_BEFORE));
+}
+
 /**
- * The taps with `t` added, or the same list when it does not count: a tap before the chosen bar is ignored (it is
- * the count-in, or a stray touch). Kept in order of arrival.
+ * The taps with `t` added, or the same list when it does not count: a tap earlier than `earliest` (see
+ * `tapsWindowStart`) is ignored, it is a stray touch. Kept in order of arrival.
  */
-export function recordTap(taps: readonly Seconds[], t: Seconds, barTime: Seconds): readonly Seconds[] {
-  if (!Number.isFinite(t) || t < barTime) return taps;
+export function recordTap(taps: readonly Seconds[], t: Seconds, earliest: Seconds): readonly Seconds[] {
+  if (!Number.isFinite(t) || t < earliest) return taps;
   return [...taps, t];
+}
+
+/** How many taps are from the chosen bar on: the ones the counter shows (the earlier ones only help the computation). */
+export function tapsFromBar(taps: readonly Seconds[], barTime: Seconds): number {
+  return taps.filter((t) => t >= barTime).length;
 }

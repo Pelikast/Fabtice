@@ -368,23 +368,6 @@ export class StoreHistory {
     }
   }
 
-  /**
-   * Runs `fn` (synchronous) without it making a step: a temporary change the user did not make, such as the
-   * candidate grid heard before it is accepted (`analysis/tapFix.ts#showTappedPreview`). What the store holds
-   * afterwards is the new reference point for the next change.
-   */
-  untracked<T>(fn: () => T): T {
-    const was = this.applying;
-    this.applying = true;
-    try {
-      return fn();
-    } finally {
-      this.applying = was;
-      this.last = snapshotOf(this.store.getState(), this.last);
-      this.publish();
-    }
-  }
-
   /** Forgets every step and sets the save point here; `modified` says how the project starts. */
   reset(opts: { modified?: boolean } = {}): void {
     const s = this.store.getState();
@@ -555,11 +538,6 @@ export function endGesture(): void {
 /** Runs `fn` as one undo step (see `StoreHistory.transact`); without a running history, just runs it. */
 export function transact<T>(label: MessageKey | null, fn: () => T): T {
   return app ? app.transact(label, fn) : fn();
-}
-
-/** Runs `fn` (synchronous) without making a step (see `StoreHistory.untracked`); without a running history, just runs it. */
-export function untracked<T>(fn: () => T): T {
-  return app ? app.untracked(fn) : fn();
 }
 
 /** Forgets the history (a project change the generic rule cannot see). */
