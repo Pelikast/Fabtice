@@ -691,7 +691,8 @@ function simplify(input: SimplifyInput): SimplifiedChart | null {
       const knownBar = isLetter(g.label) ? known.at(g.label.letter, pos, g.key) : null;
       if (knownBar && half > 0) {
         const knownSplit = !sameChordish(knownBar[0] ?? null, knownBar[Math.floor((half * knownBar.length) / beats)] ?? null);
-        if (known.fits && (readings.length < 2 || agreementOf(readings, beats) < CLEAR_SHARE)) {
+        // (the repeats are judged where the book's bar would change: its second half)
+        if (known.fits && (readings.length < 2 || agreementOf(readings, knownSplit ? half : 0, beats) < CLEAR_SHARE)) {
           splitW = knownSplit ? 1 : 0;
           wholeW = knownSplit ? 0 : 1;
         } else if (knownSplit) splitW += 0.5;
@@ -915,10 +916,10 @@ function timesOf(g: Group, groupOf: ReadonlyMap<Occurrence, Group>, letterOcc: r
   return times;
 }
 
-/** How much the repeats of a bar agree with each other: per beat, the weight share of the most voted family, averaged. */
-function agreementOf(readings: readonly { at: (k: number) => BeatChord; wt: number }[], beats: number): number {
+/** How much the repeats of a bar agree with each other over beats [from, to): per beat, the weight share of the most voted family, averaged. */
+function agreementOf(readings: readonly { at: (k: number) => BeatChord; wt: number }[], from: number, to: number): number {
   let sum = 0;
-  for (let k = 0; k < beats; k++) {
+  for (let k = from; k < to; k++) {
     const w = new Map<number, number>();
     let total = 0;
     for (const r of readings) {
@@ -930,7 +931,7 @@ function agreementOf(readings: readonly { at: (k: number) => BeatChord; wt: numb
     }
     sum += total > 0 ? Math.max(...w.values()) / total : 1;
   }
-  return beats ? sum / beats : 1;
+  return to > from ? sum / (to - from) : 1;
 }
 
 /**

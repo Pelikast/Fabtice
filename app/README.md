@@ -1571,6 +1571,7 @@ résultats et explications dans `web/spikes/structure/`) :
 npx vitest run src/structure/bench.test.ts                           # sous-ensemble (16 morceaux), seuils compris
 FABTICE_STRUCTURE_FULL=1 npx vitest run src/structure/bench.test.ts  # tout le corpus, écrit resultats/symbolique.md
 cd ../web/spikes/structure && node banc/build.mjs && node dist/run.mjs   # Tier R : l'analyse de l'app sur les rendus
+node dist/run.mjs --fin                                                  # Tier R avec le modèle d'accords détaillé (analyses-fin/)
 ```
 
 Les seuils tenus par `npm test` sont dans `src/structure/bench/thresholds.ts`

@@ -245,6 +245,7 @@ async function partNames(h) {
   if (h.phone) {
     await h.page.locator('[data-testid="structure-barre"]').first().tap();
     await h.page.waitForSelector('[data-testid="structure-feuille"]');
+    await sleep(400); // the sheet slides in
   }
   await h.page.waitForSelector('[data-testid="structure-partie"]', { timeout: 10000 }).catch(() => {});
   return (await h.page.locator('[data-testid="structure-partie"] .structure-nom-texte').allInnerTexts()).map((x) => x.trim());
@@ -296,12 +297,19 @@ async function openMadeUpPiece(page, separated) {
     };
     const mix = new Float32Array(n * SR);
     for (const x of Object.values(stems)) for (let i = 0; i < mix.length; i++) mix[i] += x[i];
-    // AABA in C: the chords of each bar, one a bar
-    const c = (root, quality) => ({ root, quality, extensions: [], bass: null });
-    const A = [c(0, 'maj7'), c(9, 'min7'), c(2, 'min7'), c(7, '7'), c(0, 'maj7'), c(9, 'min7'), c(2, 'min7'), c(7, '7')];
-    const B = [c(4, 'min7'), c(9, '7'), c(2, 'min7'), c(7, '7'), c(5, 'maj7'), c(5, 'min7'), c(2, 'min7'), c(7, '7')];
-    const form = [...A, ...A, ...B, ...A];
-    const chords = Array.from({ length: n }, (_, b) => ({ time: b, chord: form[b % 32], confidence: 0.8, doubtful: false, alternatives: [] }));
+    // AABA in C (the unit tests' chart, `structure/testCharts.ts`): one or two chords a bar, on beats 1 and 3
+    const NAMES = { Cmaj7: [0, 'maj7'], A7: [9, '7'], Dm7: [2, 'min7'], G7: [7, '7'], Fmaj7: [5, 'maj7'], Fm7: [5, 'min7'], Em7: [4, 'min7'], E7: [4, '7'], D7: [2, '7'] };
+    const A1 = 'Cmaj7 A7 | Dm7 G7 | Cmaj7 A7 | Dm7 G7 | Fmaj7 Fm7 | Em7 A7 | Dm7 G7 | Em7 A7';
+    const A2 = 'Cmaj7 A7 | Dm7 G7 | Cmaj7 A7 | Dm7 G7 | Fmaj7 Fm7 | Em7 A7 | Dm7 G7 | Cmaj7';
+    const B = 'E7 | E7 | A7 | A7 | D7 | D7 | G7 | G7';
+    const form = [A1, A2, B, A2].join(' | ').split('|').map((cell) => cell.trim().split(/\s+/));
+    const chords = [];
+    for (let b = 0; b < n; b++) {
+      form[b % 32].forEach((name, k) => {
+        const [root, quality] = NAMES[name];
+        chords.push({ time: b + k * 0.5, chord: { root, quality, extensions: [], bass: null }, confidence: 0.8, doubtful: false, alternatives: [] });
+      });
+    }
     const map = f.lot4.tempoMap.constantTempoMap({ bpm: 240, firstDownbeat: 0, meter: { numerator: 4, denominator: 4 }, origin: 'manual' });
     await f.actions.openProject({
       title: separated ? 'Essai séparé' : 'Essai entier',
@@ -321,6 +329,7 @@ async function openMadeUpPiece(page, separated) {
         structure: null,
       },
     });
+    f.actions.setViewMode('grille');
     if (!separated) return;
     const id = `essai-${Date.now()}`;
     const parts = Object.entries(stems).map(([stem, x]) => {
@@ -330,6 +339,7 @@ async function openMadeUpPiece(page, separated) {
     });
     const summary = { id, modelId: 'essai', modelName: 'Essai', modelSha256: '0', backend: 'cpu', fellBack: false, stems: Object.keys(stems), kept: Object.keys(stems), startedAt: '2026-11-17T09:00:00.000Z', finishedAt: '2026-11-17T09:01:00.000Z', computeSeconds: 60, pieceSeconds: n };
     await f.lot3.separation.applySeparation(summary, parts);
+    f.actions.setViewMode('grille');
   }, separated);
 }
 

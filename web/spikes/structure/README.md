@@ -114,12 +114,17 @@ python3 corpus/build.py --check    # vérifie que les fichiers gardés sont à j
   - les **solos de contrebasse** sont muets dans les rendus (toutes les
     pistes à zéro sur ces mesures, par exemple `blues-solistes`, mesures
     72 à 84) : on ne peut pas les trouver dans le Tier R.
-- **Numéros des solos** : la vérité numérote tous les solos (Solo 1, Solo
-  2…) ; l'app suit la décision du propriétaire (« Solo (Piano) », « Solo
-  (Trompette) » sans numéro quand chaque soliste est nommé et ne revient
-  pas ; des numéros sinon). La mesure « Numéro juste » compte donc ces
-  solos nommés en faute à partir du deuxième : elle n'est pas à lire
-  comme une erreur de l'app.
+- **Numéros des solos** (corrigé dans le barème) : la vérité numérote tous
+  les solos (Solo 1, Solo 2…), alors que l'app suit la décision du
+  propriétaire (« Solo (Piano) », « Solo (Trompette) » sans numéro quand
+  chaque soliste est nommé et ne revient pas). Le barème
+  (`app/src/structure/bench/score.ts`) accepte désormais un numéro vide pour
+  un soliste nommé qui ne joue qu'un solo dans le morceau.
+- **Les reprises réharmonisées** (substitutions tritoniques, ii ajouté,
+  maj7 ↔ 6…) gardent toujours, par construction, le livre comme consensus
+  (`corpus/build.py`, `vary`) : le corpus ne contient aucun enregistrement
+  qui s'écarte durablement du livre. Le prix de la grille connue dans ce cas
+  est mesuré à part (voir « Jusqu'où cela tient »).
 
 ## Trois niveaux
 
@@ -180,7 +185,18 @@ node banc/build.mjs                          # après toute modification du code
 node dist/run.mjs                            # re-note depuis analyses/ : quelques secondes
 node dist/run.mjs --only autumn-leaves --conditions disque --evidence stems --known false
 node dist/run.mjs --measure                  # mesure de nouveau les indices sur les rendus (data/), garde l'analyse
+node dist/run.mjs --fin                      # avec le modèle d'accords détaillé (analyses-fin/) : resultats/rendu-fin.md
 ```
+
+**Modèle d'accords détaillé** (Tsumugi-Chords, celui des réglages avancés,
+`banc/fin.ts`) : ce que fait le worker de l'app, dans Node (onnxruntime-web),
+à partir des temps et de la tonalité de l'analyse standard. Ses analyses
+sont dans `analyses-fin/` (16 rendus : *Autumn Leaves* propre et vieux
+disque, et 13 autres morceaux courts, `blues-solistes` dans les deux
+conditions). Les poids ne sont pas dans le dépôt (licence CC BY-NC 4.0) ;
+pour en refaire : `FABTICE_TSUMUGI_WEIGHTS=<chemin de chord-model.safetensors>
+node dist/run.mjs --fin --fin-analyse --only <morceaux>` (2,5 Go de mémoire,
+environ 30 s par fenêtre de 30 s, soit le temps du morceau).
 
 Pour tout refaire depuis le son (il faut Python 3.11 ou plus, `ffmpeg` et
 `fluidsynth` ; ici `apt-get install fluidsynth`) :
@@ -259,64 +275,80 @@ runTierS({ detectors: { detectKeyChanges: mine, detectStructure, simplifyChart }
    puis `node dist/run.mjs --only <id> --analyse` (écrit
    `analyses/<id>.<condition>.json`, à garder dans le dépôt).
 
-## Chiffres actuels (structure et grille simplifiée de l'étape 5)
+## Chiffres actuels (structure, modulations et grille simplifiée de l'étape 5)
 
 Les tableaux complets : `resultats/symbolique.md` (Tier S, tout le corpus,
-deux tirages par niveau) et `resultats/rendu.md` (Tier R). Les modulations
-(`detectKeyChanges`) ne sont pas encore écrites : leurs lignes restent à 0
-(aucune fausse modulation, aucune trouvée). Les chiffres tenus par `npm
-test` sont dans `app/src/structure/bench/thresholds.ts`.
+deux tirages par niveau), `resultats/rendu.md` (Tier R) et
+`resultats/rendu-fin.md` (Tier R avec le modèle d'accords détaillé). Les
+chiffres tenus par `npm test` sont dans
+`app/src/structure/bench/thresholds.ts` (deux blocs : les modulations,
+mesurées sur le sous-ensemble ; la structure et la grille simplifiée, tenues
+sur le sous-ensemble et sur tout le corpus).
 
-Tier S, corpus entier (« pistes » = séparation idéale ; « grille » = la
+Tier S, corpus entier (« pistes » = séparation idéale ; « + grille » = la
 grille connue du standard trouvée par le titre) :
 
-| Mesure | parfait | realiste | realiste + grille | mauvais | mauvais + grille |
-|---|---:|---:|---:|---:|---:|
-| Longueur du chorus exacte | 96,6 % | 81,0 % | 96,6 % | 32,8 % | 93,1 % |
-| Forme (AABA…) exacte | 96,6 % | 79,3 % | 100 % | 41,4 % | 100 % |
-| Lettres (paires de mesures) | 93,5 % | 82,0 % | 89,4 % | 54,5 % | 83,0 % |
-| Mode Jazz / Pop | 100 % | 100 % | 100 % | 98,6 % | 98,6 % |
-| Limites de parties (F), pistes | 95,9 % | 83,7 % | 87,2 % | 63,2 % | 77,4 % |
-| Limites de parties (F), sans séparation | 86,4 % | 70,6 % | 79,2 % | 49,8 % | 67,3 % |
-| Type de partie, pistes | 97,9 % | 82,4 % | 83,2 % | 66,8 % | 72,3 % |
-| Solos voisins séparés, pistes | 95,6 % | 76,7 % | 78,9 % | 64,4 % | 71,1 % |
-| Solos voisins séparés, sans séparation | 55,6 % | 24,4 % | 28,9 % | 6,7 % | 13,3 % |
-| Long solo non coupé, pistes | 100 % | 91,7 % | 97,2 % | 72,2 % | 83,3 % |
-| Instrument juste (piano, guitare, basse, batterie, voix) | 96,1 % | 91,6 % | 90,3 % | 65,6 % | 66,2 % |
-| Instrument nommé faux | 0,9 % | 4,8 % | 5,1 % | 12,0 % | 12,0 % |
-| Instrument nommé sans séparation | 0 % | 0 % | 0 % | 0 % | 0 % |
-| Grille simplifiée, structure vraie : accords | 96,6 % | 78,4 % | 81,5 % | 56,9 % | 61,5 % |
-| Grille simplifiée, structure vraie : mesure jouée → écrite | 100 % | 98,3 % | 98,3 % | 78,0 % | 78,0 % |
-| Grille simplifiée, chaîne complète : accords | 85,5 % | 51,1 % | 70,3 % | 17,7 % | 55,2 % |
-| *Autumn Leaves* (grille écrite / chaîne complète) | passe / passe | échoue | échoue | échoue | échoue |
+| Mesure | parfait | parfait + grille | realiste | realiste + grille | mauvais | mauvais + grille |
+|---|---:|---:|---:|---:|---:|---:|
+| Longueur du chorus exacte | 96,6 % | 100 % | 81,0 % | 96,6 % | 32,8 % | 93,1 % |
+| Forme (AABA…) exacte | 96,6 % | 100 % | 79,3 % | 100 % | 41,4 % | 100 % |
+| Lettres (paires de mesures) | 93,5 % | 95,2 % | 82,0 % | 89,6 % | 54,7 % | 83,2 % |
+| Mode Jazz / Pop | 100 % | 100 % | 100 % | 100 % | 98,6 % | 98,6 % |
+| Modulations : précision | 100 % | 100 % | 96,9 % | 97,6 % | 76,2 % | 80,0 % |
+| Modulations : rappel | 100 % | 100 % | 64,6 % | 85,4 % | 33,3 % | 41,7 % |
+| Limites de parties (F), pistes | 95,9 % | 96,6 % | 83,7 % | 87,2 % | 63,2 % | 77,3 % |
+| Limites de parties (F), sans séparation | 86,4 % | 88,9 % | 70,7 % | 78,8 % | 49,9 % | 66,9 % |
+| Type de partie, pistes | 97,9 % | 98,4 % | 82,4 % | 83,8 % | 66,8 % | 72,9 % |
+| Numéro de partie, pistes | 94,4 % | 96,0 % | 69,9 % | 72,9 % | 54,0 % | 63,3 % |
+| Long solo non coupé, pistes | 100 % | 100 % | 91,7 % | 97,2 % | 72,2 % | 83,3 % |
+| Solos voisins séparés, pistes | 95,6 % | 95,6 % | 76,7 % | 78,9 % | 64,4 % | 71,1 % |
+| Solos voisins séparés, sans séparation | 55,6 % | 55,6 % | 24,4 % | 28,9 % | 6,7 % | 13,3 % |
+| Instrument juste (piano, guitare, basse, batterie, voix) | 96,1 % | 96,1 % | 91,6 % | 91,6 % | 65,6 % | 67,5 % |
+| Instrument nommé faux | 0,9 % | 0,9 % | 4,8 % | 5,1 % | 12,0 % | 12,0 % |
+| Instrument nommé sans séparation | 0 % | 0 % | 0 % | 0 % | 0 % | 0 % |
+| Grille simplifiée, structure vraie : accords | 96,6 % | 99,4 % | 78,3 % | 87,7 % | 56,8 % | 73,3 % |
+| Grille simplifiée, chaîne complète : accords | 88,9 % | 94,5 % | 51,9 % | 77,5 % | 17,9 % | 67,9 % |
+| *Autumn Leaves* : grille écrite (structure vraie) | passe | passe | échoue | passe | échoue | échoue |
+| *Autumn Leaves* : forme et grille (chaîne complète) | passe | passe | échoue | 1 tirage sur 2 | échoue | échoue |
 
-Tier R (l'analyse réelle de l'app sur les rendus ; pistes = rendus
-séparés, séparation parfaite) :
+Tier R, tous les rendus (35 propres, 9 vieux disques), modèle d'accords
+standard, pistes séparées (rendus séparés, séparation parfaite) :
 
 | Mesure | propre | propre + grille | vieux disque | vieux disque + grille |
 |---|---:|---:|---:|---:|
 | Longueur du chorus exacte | 82,8 % | 93,1 % | 75,0 % | 75,0 % |
 | Forme exacte | 79,3 % | 93,1 % | 62,5 % | 75,0 % |
+| Modulations : précision / rappel | 100 % / 58,3 % | 100 % / 66,7 % | – | – |
 | Limites de parties (F), pistes | 88,0 % | 86,3 % | 71,5 % | 72,1 % |
-| Limites de parties (F), sans séparation | 72,9 % | 77,1 % | 54,5 % | 65,8 % |
-| Type de partie, pistes | 93,1 % | 87,2 % | 80,0 % | 82,0 % |
+| Limites de parties (F), sans séparation | 72,9 % | 76,7 % | 54,5 % | 65,8 % |
+| Type de partie, pistes | 93,1 % | 87,8 % | 80,0 % | 82,0 % |
 | Solos voisins séparés, pistes | 77,8 % | 75,6 % | 81,8 % | 81,8 % |
-| Long solo non coupé, pistes | 61,1 % | 61,1 % | 50,0 % | 50,0 % |
-| Instrument juste, pistes | 84,4 % | 83,1 % | 95,0 % | 95,0 % |
+| Solos voisins séparés, sans séparation | 17,8 % | 22,2 % | 9,1 % | 27,3 % |
+| Instrument juste, pistes | 84,4 % | 84,4 % | 95,0 % | 95,0 % |
 | Instrument nommé faux | 6,6 % | 6,0 % | 4,8 % | 4,8 % |
-| Grille simplifiée (structure vraie) : accords | 77,5 % | 81,1 % | 62,7 % | 65,1 % |
-| Grille simplifiée (chaîne complète) : accords | 59,6 % | 59,5 % | 37,9 % | 46,9 % |
+| Grille simplifiée (structure vraie) : accords | 77,6 % | 93,4 % | 62,3 % | 78,1 % |
+| Grille simplifiée (chaîne complète) : accords | 61,6 % | 70,5 % | 37,9 % | 57,9 % |
+| *Autumn Leaves* : grille écrite / chaîne complète, pistes | échoue / échoue | **passe / passe** | échoue / échoue | **passe / passe** |
+| *Autumn Leaves* : chaîne complète, sans séparation | échoue | échoue (le dernier thème lu « Solo ») | échoue | échoue (idem) |
 
-*Autumn Leaves* : la grille écrite et la chaîne complète passent sur la
-grille vraie (Tier S « parfait », avec ou sans grille connue, avec ou sans
-séparation). Sur les rendus « propres » avec les pistes, la **structure**
-est juste (forme AABC, parties à leur place) mais la **grille écrite
-échoue** sur une dizaine d'accords : l'analyse des accords de l'app lit
-D△ comme D7, se trompe sur C♯m7♭5 et Em7, et sur « Bm B♭7 » dans la
-section C, de la même façon à chaque reprise. Le consensus ne peut pas
-corriger une erreur répétée, et la grille connue ne pèse qu'une
-demi-reprise. Sur le « vieux disque » sans grille connue, la forme est
-lue AABA au lieu de AABC.
+Les deux modèles d'accords côte à côte, sur les 16 rendus que le modèle
+détaillé a analysés (14 propres, 2 vieux disques ; pistes séparées) :
+
+| Mesure | standard, propre | détaillé, propre | standard, vieux disque | détaillé, vieux disque |
+|---|---:|---:|---:|---:|
+| Accords de l'analyse justes (famille, par temps) | 62,8 % | **86,0 %** | 53,5 % | **81,0 %** |
+| Longueur du chorus exacte (sans grille / + grille) | 66,7 % / 83,3 % | 75,0 % / 91,7 % | 100 % / 100 % | 100 % / 100 % |
+| Forme exacte (sans grille / + grille) | 58,3 % / 83,3 % | 83,3 % / 91,7 % | 50 % / 100 % | 50 % / 100 % |
+| Limites de parties (F), sans grille | 86,0 % | 88,7 % | 100 % | 100 % |
+| Grille simplifiée, structure vraie (sans grille / + grille) | 72,6 % / 95,0 % | **92,9 % / 99,6 %** | 68,8 % / 98,8 % | 88,8 % / 100 % |
+| Grille simplifiée, chaîne complète (sans grille / + grille) | 49,9 % / 67,4 % | 71,4 % / 63,5 % | 53,8 % / 98,8 % | 75,0 % / 100 % |
+| *Autumn Leaves*, sans grille (erreurs relevées) | échoue (11) | échoue (5) | échoue (13) | échoue (8) |
+| *Autumn Leaves*, + grille, pistes | passe | passe | passe | passe |
+
+(Sur si peu de morceaux, un morceau fait plusieurs points. Une chose est à
+regarder : avec le modèle détaillé, la chaîne complète des rendus propres
+est plus basse avec la grille connue que sans, alors qu'elle monte avec le
+modèle standard.)
 
 Le banc lui-même est vérifié : l'oracle (`bench/oracle.ts`, réponses lues
 dans la vérité) a 100 % partout sur les cas sans erreur du Tier S (test
@@ -338,3 +370,79 @@ de la condition propre, et `mauvais` (≈ 50 %) du vieux disque.
 Temps : Tier S, sous-ensemble ≈ 2 s, corpus entier ≈ 4 s ; Tier R
 re-noté depuis `analyses/` ≈ 1 s ; rendu ≈ 6 min (3 processus) ; analyse
 de l'app sur tout le corpus ≈ 16 min (4 cœurs, sans carte graphique).
+
+## Jusqu'où cela tient (bilan de l'étape 5)
+
+Pour le propriétaire, brique par brique, ce que les chiffres ci-dessus
+veulent dire. « Parfait », « réaliste », « mauvais » : les erreurs d'analyse
+simulées du Tier S ; « propre » et « vieux disque » : la vraie analyse de
+l'app sur nos rendus (Tier R).
+
+- **Limites des choruses** (longueur et place). Sûres quand les accords sont
+  bien lus (97 %), encore bonnes avec un accord sur quatre faux (81 %), mais
+  plus du tout avec un sur deux (33 %) : la longueur du chorus se lit aux
+  reprises de la grille, il faut qu'elles se ressemblent. La grille connue du
+  standard, quand elle est dans les recueils, rattrape presque tout (93 à
+  100 %). Sur les rendus : 83 % (propre), 75 % (vieux disque). Ce qui la
+  trompe : deux sections presque pareilles (une valse ABAC lue en 16 mesures),
+  une intro qui est la fin de la grille (blues), beaucoup de mesures perdues.
+- **Lettres des sections** (AABA…). Mesure F par paires de mesures : 94 %,
+  82 %, 55 % ; avec la grille connue 95 %, 90 %, 83 %. La forme exacte suit
+  la longueur du chorus.
+- **Thème ou solo.** Type de partie juste : 98 %, 82 %, 67 % (93 % sur les
+  rendus propres). Le thème du début se reconnaît à sa mélodie qui revient à
+  chaque A (piste séparée de la voix ou des vents) ; le thème de la fin à sa
+  place et à son instrument (voir les défauts des rendus : sa mélodie n'y est
+  pas celle du début). Sans séparation, la règle de position (un chorus de
+  thème, deux pour un blues) fait l'essentiel.
+- **Changement de soliste.** Avec les pistes séparées : 96 %, 77 %, 64 %
+  (78 % sur les rendus). Sans séparation, seul le timbre du mélange peut le
+  dire : 56 % au mieux, presque rien quand les accords sont mal lus. C'est la
+  limite principale de l'app web sans séparation.
+- **Instrument.** Jamais nommé sans séparation (0 % sur tous les cas, c'est
+  une règle). Avec séparation : piano, guitare, basse, batterie, voix justes
+  à 96 %, 92 %, 66 % (84 % sur les rendus), un instrument faux nommé dans
+  1 %, 5 %, 12 % des parties (7 % sur les rendus). Les vents passent par le
+  petit modèle de reconnaissance : sur le banc il est **simulé** (taux mesurés
+  à part, `instruments/`) ; quand il hésite, l'app écrit « Solo (Vents) ».
+  Deux vents l'un après l'autre se séparent par le modèle ou par un saut de
+  niveau de la piste « Autres ».
+- **Mode Jazz / Pop.** 100 %, 100 %, 99 % (100 % sur les rendus) : la part
+  d'accords de septième suffit sur ce corpus ; un vrai morceau pop très
+  jazzy, ou un jazz modal en triades, pourrait le tromper (le réglage
+  « Mode » le corrige).
+- **Modulations** (`keys.ts`, l'autre moitié de l'étape). Précision 100 %,
+  97 %, 76 % ; rappel 100 %, 65 %, 33 % (86 % et 42 % avec la grille
+  connue) ; aucune fausse modulation jusqu'au niveau réaliste. Rendus
+  propres : précision 100 %, rappel 58 %.
+- **Grille complète simplifiée.** Sur la structure vraie, accords écrits
+  justes : 97 %, 78 %, 57 % ; avec la grille connue du standard **99 %, 88 %,
+  73 %** (rendus propres : 78 % → **93 %** ; vieux disque : 62 % → 78 %).
+  Avec le modèle d'accords détaillé, sans grille connue : 93 % (propre) et
+  89 % (vieux disque) sur les 16 rendus qu'il a lus, contre 73 % et 69 %
+  avec le modèle standard : le meilleur moyen de se passer du livre.
+  La grille connue n'est utilisée que si elle colle au morceau (ressemblance
+  nettement au-dessus du bruit de fond : 0,48 à 0,93 pour la bonne grille sur
+  les rendus, 0,39 au plus pour une autre) et seulement là où la lecture est
+  faible (voir `app/src/structure/simplify.ts`, étape 7). Son prix : quand
+  l'enregistrement joue **toujours** un autre accord que le livre sur la même
+  fondamentale (D7 au lieu de D△), la grille simplifiée écrit celui du livre
+  tant qu'il n'est pas confirmé à la main une fois ; mesuré en changeant
+  15 % des mesures du livre : 97 % → 82 % des accords justes (parfait), contre
+  96 % sans livre. Une autre fondamentale jouée par plusieurs reprises est
+  gardée (95,6 % contre 95,8 % sans livre). La grille mesure par mesure, elle,
+  montre toujours ce qui a été entendu.
+- **Autumn Leaves** (l'exemple du cahier, C14). Voir le tableau : passe sur
+  la grille sans erreur dans toutes les configurations (chaîne complète
+  comprise, sauf « sans audio »), sur les deux rendus avec la grille connue
+  (pistes séparées : forme, parties et grille ; sans séparation, la grille
+  passe mais la dernière partie est lue « Solo » au lieu de « Thème 2 »).
+  Sans la grille connue, elle échoue sur les rendus à cause de l'analyse des
+  accords, pas de la structure : la forme AABC et les cinq parties sont
+  justes sur le rendu propre, mais l'analyse lit D7 pour D△, E7 pour Em7,
+  F♯7 pour C♯m7♭5 et pour « Bm B♭7 », de la même façon à chaque reprise.
+  Avec le modèle d'accords détaillé, il ne reste que 5 erreurs sur le rendu
+  propre (Em7 lu E7, C♯m7♭5 lu C♯m7 et Em7, la mesure « Bm B♭7 » lue Bm
+  seul) et 8 sur le vieux disque ; avec la grille connue, elle passe sur les
+  deux rendus avec les deux modèles.
+
