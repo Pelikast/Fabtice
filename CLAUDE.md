@@ -244,7 +244,17 @@ rapport au périmètre ci-dessus :
   ligne « Forme ».
 - **Mise à jour automatique** de l'app Mac par un système maison, sans
   signature Apple (le propriétaire a un compte développeur mais ne veut pas
-  des démarches de vérification pour l'instant).
+  des démarches de vérification pour l'instant). Chaque version publiée
+  expose un fichier `fabtice-version.json` (numéro, notes, empreinte et
+  taille de chaque archive) ; l'app télécharge l'archive de sa puce depuis
+  GitHub seulement, vérifie l'empreinte, remplace l'app et se relance ; en
+  cas d'échec l'ancienne app reste en place. La 1.0.0 est la première à
+  savoir le faire.
+- **Publication** : un push sur `main` fabrique, teste sur les deux puces,
+  puis publie la version du numéro de `desktop/package.json` (étiquette
+  `v1.0.0`, vraie version, dernière version), une seule fois par numéro. Pour
+  publier la suivante : changer le numéro dans `app/package.json` et
+  `desktop/package.json` et ajouter sa section en tête de `CHANGELOG.md`.
 - **Séparation** : comportement inchangé ; pas d'option « rapide », pas de
   calcul natif pour l'instant. **Version future** : séparation à distance par
   une clé secrète saisie par l'utilisateur, qui paie lui-même le service.
@@ -334,7 +344,7 @@ jour-là :
 - **Changelog à chaque version** (demande du propriétaire) : toute nouvelle
   version publiée sur GitHub a son changelog sur la page de la version, en
   français simple, pour qu'il puisse montrer les nouveautés. On l'écrit en
-  tête de `CHANGELOG.md` (section « ## Version du … ») dans le même envoi sur
+  tête de `CHANGELOG.md` (section « ## Version 1.0.1 … », avec le numéro) dans le même envoi sur
   `main` que le changement ; la fabrication recopie cette première section
   sur la page de la version.
 - **Numéros de version** : à partir de la 1.0.0, chaque version publiée porte

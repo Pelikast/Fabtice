@@ -19,7 +19,7 @@ lisent que par parties, quand on en a besoin.
 | 3. Exports | C15 | fait (`v1/bilan-etape-3.md`) | `02eec3d` (code), puis le commit du bilan |
 | 4. Tempo à la main | C12, C13 (fenêtre) | fait (`v1/bilan-etape-4.md`) | `dfb1535` (code), puis le commit du bilan |
 | 5. Harmonie | C10, C14 | fait (`v1/bilan-etape-5.md`) | `4b8d2db` (code), puis le commit du bilan |
-| 6. Machine | C2, C16, C17 (numéros, fabrication) | à faire | |
+| 6. Machine | C2, C16, C17 (numéros, fabrication) | fait (`v1/bilan-etape-6.md`) | `40e9d06` (code), puis le commit du bilan |
 | 7. Finition | vérification complète, changelog, publication 1.0.0 | à faire | |
 
 Chaque session d'étape met cette table à jour quand elle finit.
@@ -375,7 +375,15 @@ proche de la valeur, mesurée.
 - Parcours complets rejoués comme un utilisateur, dans les deux formes et dans
   l'app Mac : importer, séparer, corriger, structurer, enregistrer, rouvrir,
   exporter, imprimer.
-- Compatibilité des listes distantes avec la version déjà installée (C17).
+- Compatibilité des listes distantes avec la version déjà installée (C17) :
+  vérifiée à l'étape 6 (voir son bilan) ; à refaire si `models.json` ou
+  `collections.json` changent encore.
+- Avant et après la publication : suivre, dans l'ordre, la liste « Pour
+  l'étape suivante » de `v1/bilan-etape-6.md` (changelog daté, essai à blanc
+  lu sur `ci-logs`, étiquette `v1.0.0` absente ; puis travail `publish` vert,
+  page de la version, fichier de version, ancienne page `desktop-dev`).
+  La publication elle-même n'a jamais tourné pour de bon : seul son essai à
+  blanc l'a été.
 - `CHANGELOG.md` relu (français simple, complet), `README.md`, `CLAUDE.md`,
   `PASSATION.md` à jour.
 - Fabrication verte sur les Mac de GitHub, puis **question au propriétaire** :

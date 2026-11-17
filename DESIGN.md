@@ -218,6 +218,37 @@ droite toutes les 2,5 s (un dégradé découpé par le texte). Sans reflet quand
 le système demande de réduire les animations : la couleur et la taille
 restent. Une erreur ou un état terminé reprennent l'allure normale.
 
+## Alléger le travail pour l'appareil
+
+Une case ordinaire des réglages (même ligne, même encre), suivie d'une note en
+petit qui donne le pourcentage en vigueur. Elle est identique dans « Nouveau
+projet » (sous « Séparer les instruments »), dans Réglages → Général et dans
+le panneau de la séparation. Le curseur de Réglages → Avancé est un curseur
+ordinaire à l'encre : libellé à gauche, valeur (« 75 % ») à droite sur la même
+ligne, puis la phrase honnête en petit. Aucune couleur d'alerte, pas de
+braise : c'est un réglage calme.
+
+## Message de mise à jour
+
+De la famille des messages du démarrage (comme « Grilles des standards »),
+un seul à la fois : il attend derrière le message des grilles, et « Nouveau
+projet » attend derrière lui. Titre en Fraunces (« Une mise à jour est
+disponible »), une ligne avec les deux numéros (l'actuel, le nouveau), les
+nouveautés dans un cadre en papier foncé qui défile s'il est long, puis **un
+seul bouton plein à l'encre**, « Mettre à jour Fabtice », et « Plus tard » en
+bouton secondaire. Pendant le téléchargement : un pourcentage et un filet
+d'encre qui avancent régulièrement, et « Annuler ». Un échec ou un emplacement
+impossible se dit en une phrase simple, sans rouge vif, avec « Télécharger à
+la main ». Sur la petite fenêtre d'un Mac (656 px de haut), la hauteur du
+message est bornée et ce sont les nouveautés qui défilent. Dans l'app web, le
+même message dit « Une nouvelle version de Fabtice est prête » et son bouton
+« Recharger » ; sur téléphone, c'est une feuille posée en bas, boutons
+empilés.
+
+Dans Réglages → Général, la section montre « Fabtice 1.0.0 », le bouton
+encadré « Rechercher une mise à jour… », sa réponse à la place même (« Fabtice
+est à jour. »), et la case « Vérifier à chaque ouverture ».
+
 ## Nouveau projet et message des grilles
 
 « Nouveau projet » et le message « Grilles des standards » sont des fenêtres
