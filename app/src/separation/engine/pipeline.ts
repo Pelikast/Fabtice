@@ -80,6 +80,13 @@ export interface PipelineOptions {
   yieldNow?(): Promise<void>;
   /** Prepare the next segment while the current one runs (graphics path). */
   pipelined?: boolean;
+  /**
+   * « Alléger le travail pour l'appareil »: rests after each segment, for as long as it took, scaled by the share
+   * (`settings/easeLoad.ts#createThrottle`). Absent at full speed. The next segment starts only after the rest, so
+   * a caller that gives one must not pipeline: a segment already handed to the graphics chip would keep it busy
+   * through the pause.
+   */
+  throttle?: { mark(): void; pause(): Promise<unknown> };
   /** Clock (seconds), replaceable in tests. */
   now?(): number;
 }
@@ -331,6 +338,7 @@ export async function separatePiece(o: PipelineOptions): Promise<PipelineResult>
   const times: number[] = [];
   o.onStart?.(j0, n);
   let last = now();
+  o.throttle?.mark();
   let pending: Started | null = start(j0);
   for (let j = j0; j < n; j++) {
     const cur: Started = pending!;
@@ -371,6 +379,9 @@ export async function separatePiece(o: PipelineOptions): Promise<PipelineResult>
     last = t;
     o.onSegment?.({ index: j, count: n, first: j0, seconds: times[times.length - 1]!, written: next });
     if (!pending && j + 1 < n) {
+      // The rest comes after the segment's own work (its post-processing and the progress report included): the
+      // next segment is not even prepared before it ends, and a cancellation reaches `check()` right after.
+      if (o.throttle) await o.throttle.pause();
       await yieldNow();
       pending = start(j + 1);
     }

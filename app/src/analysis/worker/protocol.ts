@@ -35,6 +35,8 @@ export interface AnalyseRequestMessage {
   duration: number;
   /** A manual tempo action: the grid from its bar on is computed from the networks' outputs. */
   tempoFix?: ManualTempoFix | null;
+  /** « Alléger »: the share of the device's capacity to use (0.2…0.99), absent at full speed. */
+  loadShare?: number;
 }
 
 /** Decoding only, on the outputs of an earlier analysis of the same audio (the user's grid or key). */

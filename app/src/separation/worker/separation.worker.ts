@@ -29,6 +29,7 @@ import type { ModelSpec } from '../../analysis/models';
 import { BadOutputError, planOf, separatePiece, type SegmentModel } from '../engine/pipeline';
 import { ConfigError, parseConfig } from '../engine/plan';
 import { makeRunner, type NetworkOutputs, type Prepared } from '../engine/runners';
+import { createSleeper, createThrottle, separationEase } from '../../settings/easeLoad';
 import { SeparationError, type SeparationErrorCode } from '../types';
 import { SEPARATION_STORE_OPTIONS, SEPARATION_TOOLS_DB } from '../toolsDb';
 import type { FromWorker, GpuFailure, SeparateMessage, ToWorker } from './protocol';
@@ -44,6 +45,8 @@ const post = (message: FromWorker, transfer: Transferable[] = []) => scope.postM
 
 let cancelRequested = false;
 let busy = false;
+/** The rest after a slice (« Alléger »): a cancellation wakes it at once. */
+const sleeper = createSleeper();
 
 const yieldNow = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 const check = () => {
@@ -137,8 +140,13 @@ async function separate(msg: SeparateMessage): Promise<void> {
   post({ type: 'tool', seconds: (performance.now() - t0) / 1000, downloaded: missing.length > 0 });
   check();
 
-  // 2. The network, on the graphics chip or the processor.
-  const threads = threadCount();
+  // 2. The network, on the graphics chip or the processor. « Alléger le travail pour l'appareil »: on the processor,
+  //    fewer threads, and the pause after each segment makes up the rest of the share (`settings/easeLoad.ts#easePlan`);
+  //    on the graphics chip, the pause alone (the threads only serve the few operators left to the processor).
+  const share = typeof msg.loadShare === 'number' ? msg.loadShare : 1;
+  const ease = separationEase(msg.backend, threadCount(), share);
+  const threads = ease.units;
+  const throttle = createThrottle({ share: ease.duty, sleep: sleeper.sleep });
   const ort = await loadOrt(msg.backend, threads);
   const t1 = performance.now();
   let session: Ort.InferenceSession;
@@ -219,7 +227,9 @@ async function separate(msg: SeparateMessage): Promise<void> {
         },
         fromFrame: msg.fromFrame,
         monoOut: msg.monoOut,
-        pipelined: gpu,
+        // A segment prepared ahead would keep the graphics chip busy through the rest.
+        pipelined: gpu && !throttle,
+        ...(throttle ? { throttle } : {}),
         check,
         yieldNow,
         onStart: (j, count) => {
@@ -253,6 +263,7 @@ scope.onmessage = (ev: MessageEvent<ToWorker>) => {
   const msg = ev.data;
   if (msg.type === 'cancel') {
     cancelRequested = true;
+    sleeper.wake();
     return;
   }
   if (busy) {

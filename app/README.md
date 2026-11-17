@@ -49,6 +49,8 @@ le stockage.
 | `npm run test:print` | après `build` (étape 2, C4) : la fenêtre d'impression (cmd + P, menu, bouton), l'aperçu page par page comparé au PDF produit par Chromium (mêmes pages), options, téléphone |
 | `npm run test:new-project` | après `build` (étape 2, C9 et C1) : la fenêtre « Nouveau projet » (lancement, lien, fichier, case « Séparer les instruments »), le texte de chargement en braise |
 | `npm run test:update` | après `build` (étape 6, C16) : la mise à jour. App Mac (un `window.fabtice` scripté, ordinateur) : le message à l'ouverture (`?maj=message`), les deux numéros, les nouveautés, « Mettre à jour Fabtice », la progression, « Annuler », chaque échec et chaque emplacement impossible avec sa phrase et « Télécharger à la main », la question quand un calcul tourne, « Rechercher une mise à jour… » de la barre des menus, Réglages → Général. App web (les deux formes, vrai service worker, `?horsligne`) : une nouvelle version du site en attente proposée à l'ouverture et par la recherche, « Recharger » la prend aussitôt, le hors-ligne marche encore ensuite. Captures dans `FABTICE_UPDATE_OUT` |
+| `npm run test:ease` | après `build` (étape 6, C2) : « Alléger le travail pour l'appareil » dans les deux formes : la case dans « Nouveau projet » (après « Séparer les instruments », y compris par un lien dans l'app Mac), dans Réglages → Général et dans le panneau de la séparation, un seul état gardé après rechargement ; le curseur de Réglages → Avancé (20 à 99, 75 par défaut, clavier, toucher, phrase honnête, « Rétablir ») ; avec les moteurs d'essai, l'import à 50 % dure deux fois plus (séparation, analyse, « Appliquer meilleure qualité »), décoché il dure comme avant, les durées annoncées s'allongent, l'annulation est immédiate. `FABTICE_EASE_OUT` pour les captures |
+| `npm run measure:ease` | après `build`, hors des suites habituelles (plusieurs minutes, télécharge les outils) : la charge moyenne du processeur obtenue avec la **vraie** analyse et la **vraie** séparation (SCNet) décochée, à 75 % et à 50 % ; temps processeur de l'arbre des processus du navigateur lu dans `/proc`, divisé par le temps écoulé |
 | `npm run test:standards` | après `build` : le message des grilles au démarrage (les quatre chemins), le téléchargement et son pourcentage, la section des grilles de Réglages → Avancé, « Vérifier les mises à jour de grilles », faux serveurs |
 | `npm run captures -- <dossier>` | après `build` : les captures des écrans de l'étape 2 dans les deux formes, dans un dossier **hors du dépôt** (voir « Étape 2 de la 1.0.0 ») |
 | `npm run test:offline` | après `build` (lot 4) : la version web hors ligne dans Chromium, profil persistant, **vrai moteur** : le service worker s'installe (adresse `?horsligne&debug`), garde les petits fichiers de l'app mais pas les gros WebAssembly d'ONNX Runtime ; un morceau de 5 Mo importé ; réseau coupé (`setOffline`), rechargement : l'app s'ouvre, `crossOriginIsolated` est vrai, le morceau gardé revient et **joue** ; un gros fichier demandé en ligne est gardé et resservi hors ligne avec les en-têtes d'isolation ; la maquette voisine n'est pas touchée ; en ligne, une nouvelle page sur le serveur est celle qu'on voit au chargement suivant ; manifeste et icônes. Captures dans `FABTICE_OFFLINE_OUT` |
@@ -1418,6 +1420,103 @@ ferait doublon.
   depuis « Projets récents », copie abîmée, pas de service worker).
 
 ## Contrats pour la suite
+
+### Étape 6 de la 1.0.0 : « Alléger le travail pour l'appareil » (C2)
+
+Une case (décochée par défaut, retenue d'une fois à l'autre) et un curseur de
+20 à 99 % (75 par défaut) qui font travailler l'appareil à une part de ses
+capacités **en moyenne** : un processeur ou une carte graphique ne se plafonne
+pas à un pourcentage exact, on l’obtient par des pauses et, sur le
+processeur, moins de fils de calcul. Les réglages sont `AppSettings.easeLoad`
+et `easeLoadPercent` (gardés sur l'appareil, `store/preferences.ts` ; le
+« Rétablir les réglages d'origine » les remet).
+
+**Où.** La case est la même partout (`components/settings/EaseLoad.tsx`,
+`EaseLoadCheck`, un seul état) : « Nouveau projet » (juste après « Séparer les
+instruments », quel que soit le chemin d'entrée), Réglages → Général, le panneau
+de la séparation. Le curseur (`EaseLoadSlider`) est dans Réglages → Avancé, avec
+la phrase honnête sur les longues tranches. Quand un calcul est en cours, la
+note de la case dit que le changement vaudra pour le suivant.
+
+**La règle** (`settings/easeLoad.ts`, fonctions pures, `easeLoad.test.ts`) :
+`part = p / 100` si la case est cochée, 1 sinon ; `pauseAfterMs(tranche, part) =
+tranche × (1 − part) / part` ; `reducedThreads(n, part) = max(1, round(n ×
+part))`. Les deux se cumulent mal (en gros, 6 fils sur 8 font déjà 75 % ; en plus
+se reposer 25 % du temps ramènerait à 56 %), et la charge ne suit pas tout à fait
+les fils (une partie du travail n'est pas dans les fils) : `easePlan(n, part,
+fixe)` choisit les fils réduits **puis** une pause pour ce que la réduction ne
+prend pas déjà, `duty = min(1, part / ((réduits + fixe) / (n + fixe)))`, de
+sorte que la charge moyenne reste à la part. `fixe` est une constante **mesurée**
+(`SEPARATION_FIXED_LOAD` = 0,9 ; `ANALYSIS_FIXED_LOAD` = 3,2 : l'analyse est
+surtout du travail hors des réseaux) ; 0 pour « Appliquer » (non mesuré). Sur la
+carte graphique, seule la pause (`separationEase`). À pleine
+capacité (`part = 1`), `createThrottle` rend `null` : aucun code de pause n'est
+appelé, ni fil retiré, ni tour de boucle en plus. Les pauses de moins de 8 ms
+sont additionnées et dormies ensemble (`MIN_SLEEP_MS`). `createSleeper().wake()`
+réveille une pause sur-le-champ (l'annulation).
+
+La part est **lue au début de chaque calcul** (`settings/easeLoadShare.ts`,
+`currentLoadShare()`) et passée dans la demande (`loadShare`) : un changement
+en cours de route vaut pour le calcul suivant, pas pour la tranche suivante (les
+fils ne se changent pas en route, et un calcul qui change de rythme au milieu
+rendrait le temps restant faux).
+
+| Calcul | Ce que fait la règle | Où |
+|---|---|---|
+| Séparation | après chaque tranche, pause de sa durée × (1 − part) / part ; **sans pré-calcul** de la tranche suivante (sinon la carte graphique resterait occupée pendant la pause) ; sur le processeur, fils réduits | `separation/worker/separation.worker.ts`, `engine/pipeline.ts` (`throttle`) |
+| Analyse | pause à chaque point de repos naturel du moteur (`RunControl.yieldNow` : entre les tranches des réseaux, les fenêtres du modèle détaillé, le rééchantillonnage), proportionnelle au travail depuis le précédent ; ce qui est un seul long appel (chargement des réseaux, décodage) est « payé » au point de repos suivant ; fils réduits ; la règle de l'analyse du tempo n'est pas touchée | `analysis/worker/analysis.worker.ts` |
+| Appliquer meilleure qualité | moins de pistes à la fois (`easePlan(parallel, part)`), et dans chaque worker une pause après chaque bloc de 16 384 images | `render/controller.ts`, `render/rubberband/job.ts` |
+| Reconnaissance des vents | pause après chaque fenêtre de 10 s (un seul fil) | `structure/instruments/` |
+| Passe d'harmonie (fil principal) | rien : quelques dixièmes de seconde après un anti-rebond de 150 ms, une pause n'aurait pas de sens | |
+
+**Durées annoncées.** Le temps restant de la séparation vient du rythme mesuré
+des tranches, pause comprise (le temps entre deux tranches), donc il suit tout
+seul ; la progression avance au rythme de la même horloge (pas de palier). Les
+estimations faites avant le calcul sont allongées de `1 / part` :
+`estimateSeconds(…, part)` (« Nouveau projet », panneau de la séparation). Dans
+l'analyse, l'attente prévue de l'étape des accords et l'horloge des fenêtres sont
+allongées de la même façon. Les doubles de test (`MockSeparator`, `MockAnalyzer`,
+`MockRenderer` avec `msPerSecond`) durent `1 / part` fois plus.
+
+**Annulation.** Une pause est réveillée par le message d'annulation
+(`sleeper.wake()`), et l'app termine de toute façon le worker ; la tranche
+suivante ne part pas (`check()`).
+
+**Vérifications.** `npm test` : `settings/easeLoad.test.ts` (règles, pause,
+réveil), `settings/easeIntegration.test.ts` (ce que les exécutants passent,
+voies, doubles de test, durées annoncées, reconnaissance des vents, Rubber Band
+réel dans Node), `separation/engine/ease.test.ts` (pauses du pipeline, annulation
+pendant une pause), `separation/onnx.test.ts`, `analysis/fabtice.test.ts`.
+`npm run test:ease` (Chromium, deux formes). **Mesure** :
+`npm run measure:ease` (`tests/ease-measure.mjs`).
+
+**Mesure** (`npm run measure:ease`, machine à 4 cœurs sans carte graphique,
+Chromium, 25 s de morceau, vraie analyse puis vraie séparation SCNet sur le
+processeur ; charge = temps processeur de l'arbre des processus / temps écoulé,
+en cœurs ; « relative » = contre la même chose décochée) :
+
+| | Analyse : charge (relative, durée ×) | Séparation : charge (relative, durée ×, fils) |
+|---|---|---|
+| décochée | 2,79 (1,00, ×1,00) | 2,99 (1,00, ×1,00, 3 fils) |
+| 75 % | 2,15 (0,77, ×1,07) | 2,26 (0,76, ×1,23, 2 fils) |
+| 50 % | 1,42 (0,51, ×1,40) | 1,68 (0,56, ×1,60, 2 fils) |
+
+Avec le **modèle d'accords détaillé** (« Automatique » le choisit sur un ordinateur
+d'au moins 8 Go ; `FABTICE_EASE_CHORDS=fine`, `FABTICE_EASE_ONLY=analysis`,
+`FABTICE_EASE_SECONDS=90`), la même machine donne pour l'analyse : décochée 3,59
+cœurs (110,5 s pour 90 s de musique), 75 % : 2,78 (relative 0,77, durée ×1,09),
+50 % : 1,69 (relative 0,47, durée ×1,79). Le premier usage reste clair : le
+panneau de l'analyse montre « n sur 85 Mo », Hugging Face et la licence de chaque
+outil, Tsumugi-Chords compris (CC BY-NC 4.0, usage non commercial).
+
+Avec la première règle (fils réduits, pause calculée en croyant la charge
+proportionnelle aux fils), l'analyse donnait 0,86 à 75 % et 0,73 à 50 %
+(la réduction de 4 à 3 fils ne retirait que 14 % de la charge) et la séparation
+0,74 et 0,61. La durée annoncée est `1 / part` : elle est juste pour la pause
+seule, un peu trop longue quand les fils font une partie du travail (×1,6 mesuré
+à 50 % pour ×2 annoncé) ; le temps restant affiché en cours de route, lui, vient
+du rythme réel. Les chiffres d'autres machines (Mac Intel à 4 cœurs, M1) sont à
+relever avec le même script.
 
 ### Étape 5 de la 1.0.0 : harmonie (modulations, structure, grille simplifiée)
 

@@ -33,7 +33,7 @@ export interface WorkerLog {
  * messages delivered asynchronously like a worker's. `log` collects what the
  * page did.
  */
-export function inProcessWorkers(log: WorkerLog = { blocks: [], terminated: 0, sent: [] }): { create: () => RenderWorkerLike; log: WorkerLog } {
+export function inProcessWorkers(log: WorkerLog = { blocks: [], terminated: 0, sent: [] }, sleep?: (ms: number) => Promise<void>): { create: () => RenderWorkerLike; log: WorkerLog } {
   const create = (): RenderWorkerLike => {
     let dead = false;
     const w: RenderWorkerLike = {
@@ -54,11 +54,15 @@ export function inProcessWorkers(log: WorkerLog = { blocks: [], terminated: 0, s
         job.dispose();
       },
     };
-    const job = new RenderJob(loadEngine, (m: FromRenderWorker) => {
-      setTimeout(() => {
-        if (!dead) w.onmessage?.({ data: m } as MessageEvent<FromRenderWorker>);
-      }, 0);
-    });
+    const job = new RenderJob(
+      loadEngine,
+      (m: FromRenderWorker) => {
+        setTimeout(() => {
+          if (!dead) w.onmessage?.({ data: m } as MessageEvent<FromRenderWorker>);
+        }, 0);
+      },
+      sleep,
+    );
     return w;
   };
   return { create, log };

@@ -22,6 +22,7 @@
 // model, downloaded on its first use) is created only when a separation is
 // there to read.
 
+import { currentLoadShare } from '../settings/easeLoadShare';
 import { getAudio } from '../audio/registry';
 import type { StemId } from '../model/separation';
 import type { AppState } from '../store/store';
@@ -161,7 +162,7 @@ async function loadPageRecognizer(): Promise<InstrumentRecognizer | null> {
   if (recognizerFactory) return (pageRecognizer = recognizerFactory());
   try {
     const m = await import('./instruments');
-    pageRecognizer ??= m.createInstrumentRecognizer();
+    pageRecognizer ??= m.createInstrumentRecognizer({ loadShare: currentLoadShare });
   } catch {
     return null;
   }

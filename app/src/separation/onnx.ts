@@ -406,6 +406,7 @@ export class OnnxSeparator implements Separator {
           backend: path,
           fromFrame: written,
           monoOut,
+          ...(request.loadShare !== undefined && request.loadShare < 1 ? { loadShare: request.loadShare } : {}),
           ...(path === 'gpu' && this.simulateGpuFailureAt !== undefined ? { simulateGpuFailureAt: this.simulateGpuFailureAt } : {}),
         };
         try {

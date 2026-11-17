@@ -208,6 +208,12 @@ export interface AnalysisRequest {
    * result's `beats` is that new grid.
    */
   tempoFix?: ManualTempoFix | null;
+  /**
+   * « Alléger le travail pour l'appareil » (`settings/easeLoad.ts`): the share of the device's capacity to use, on
+   * average, 0.2 to 0.99; absent or 1 is full speed. Read when the analysis starts. The analyser rests between
+   * its pieces of work and uses fewer threads; the results are the same, only the schedule changes.
+   */
+  loadShare?: number;
 }
 
 export type AnalysisErrorCode =

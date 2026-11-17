@@ -1,0 +1,25 @@
+/* ---------- « Alléger le travail pour l'appareil » (C2) ----------
+   The case sits where it is offered: under « Séparer les instruments » (Nouveau projet), in Réglages → Général
+   and in the separation panel; the slider is in Réglages → Avancé. Ink only; same family as the other settings. */
+
+/* « Nouveau projet »: the second box under the way in, in the family of « Séparer les instruments ». */
+.alleger-choix { margin-top: 2px; }
+
+/* The separation panel: the case above « Séparer », like a setting of the panel. */
+.alleger-panneau { margin: 8px 0 0 -10px; }
+.alleger-panneau .option { width: auto; }
+.alleger-panneau .option small { color: var(--encre-douce); }
+
+/* Réglages → Avancé: the label and its value on one line, the slider under them, then the honest sentence. */
+.alleger-curseur { padding-bottom: 12px; }
+.alleger-ligne { max-width: 420px; display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font-size: 14px; font-weight: 500; color: var(--encre); }
+.alleger-ligne strong { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.alleger-curseur input[type="range"] { width: 100%; max-width: 420px; height: 32px; }
+
+@media (max-width: 760px) {
+  .alleger-panneau { margin-left: -6px; }
+  .alleger-panneau .option { min-height: 48px; }
+  .alleger-panneau .option input[type="checkbox"] { width: 22px; height: 22px; flex: none; }
+  .alleger-curseur input[type="range"] { height: 44px; max-width: none; }
+  .alleger-ligne { max-width: none; font-size: 15px; }
+}

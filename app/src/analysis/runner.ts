@@ -25,6 +25,7 @@ import type { TempoFixKind } from './engine/tempoFix';
 import { appStore, gridInForce, type AppState } from '../store/store';
 import type { AnalysisResult } from '../model/analysis';
 import type { Seconds } from '../model/project';
+import { currentLoadShare } from '../settings/easeLoadShare';
 import { chordModelChoice } from './chordModel';
 import { autoAnalysisDisabled, getAnalyzer } from './index';
 import { knownChartsFor } from './knownCharts';
@@ -175,6 +176,8 @@ async function launch(fix: TempoFixRun | null): Promise<AnalysisResult | null> {
     // A tempo action keeps the key in force, so that the chords from its bar are read in the same key.
     key: fix ? (s.corrections.key ?? (s.analysis?.key ? { tonic: s.analysis.key.tonic, mode: s.analysis.key.mode } : null)) : s.corrections.key,
     knownCharts,
+    // « Alléger le travail pour l'appareil »: read now, for the whole analysis (a change applies to the next one).
+    loadShare: currentLoadShare(),
     onProgress,
     signal: abort.signal,
     tempoFix: fix ? (fix.kind === 'tapped' ? { kind: 'tapped', from: fix.from, grid: fix.grid, taps: fix.taps } : { kind: fix.kind, from: fix.from, grid: fix.grid, ...(fix.anchored ? { anchored: true } : {}) }) : null,
