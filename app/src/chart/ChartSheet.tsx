@@ -29,6 +29,7 @@ import { PrinterIcon } from '../ui/icons';
 import { usePhoneLayout } from '../util/media';
 import type { ChartBar } from './layout';
 import { ChartGrid } from './ChartGrid';
+import { SimplifiedGrid } from './SimplifiedGrid';
 import { StructureBar, StructureColumn } from './StructureColumn';
 import { KeyEditor } from './KeyEditor';
 
@@ -40,6 +41,7 @@ export function ChartSheet() {
   const bars = useApp(selectChartBars);
   const shown = useApp(selectShownBars);
   const display = useApp(selectChartDisplay);
+  const simplified = useApp(selectSimplifiedChart);
   const phone = usePhoneLayout();
   const hasChords = bars.some((b) => b.chords.length > 0);
   const scroller = useRef<HTMLDivElement>(null);
@@ -60,10 +62,14 @@ export function ChartSheet() {
               <p>{t('chart.noPiece')}</p>
             </div>
           ) : hasChords ? (
-            <>
-              <ShownNote shown={shown} />
-              <ChartGrid bars={shown} scroller={scroller} />
-            </>
+            display.kind === 'simplified' && simplified ? (
+              <SimplifiedGrid chart={simplified} scroller={scroller} />
+            ) : (
+              <>
+                <ShownNote shown={shown} />
+                <ChartGrid bars={shown} scroller={scroller} />
+              </>
+            )
           ) : (
             <EmptyChart status={status} />
           )}
@@ -73,7 +79,7 @@ export function ChartSheet() {
   );
 }
 
-/** A quiet line above the bars when they are not the whole chart: the part shown, or the simplified chart that is not written yet. */
+/** A quiet line above the bars when they are not the whole chart: the part shown, or the calm sentence when the simplified chart has nothing to fold (the chart is then shown in full). */
 function ShownNote({ shown }: { shown: ChartBar[] }) {
   const display = useApp(selectChartDisplay);
   const part = useApp(selectShownPart);
@@ -81,7 +87,7 @@ function ShownNote({ shown }: { shown: ChartBar[] }) {
   if (display.kind === 'simplified' && simplified === null) {
     return (
       <p className="structure-note" data-testid="structure-note">
-        {t('structure.simplifiedSoon')}
+        {t('structure.simplifiedNone')}
       </p>
     );
   }
