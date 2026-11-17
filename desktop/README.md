@@ -284,16 +284,24 @@ Fonctionnement :
 - Pas de service worker dans l’app Mac : la version web hors ligne
   (`app/src/pwa/`) ne s’inscrit pas sur `fabtice://`, qui les refuse de toute
   façon, et la construction pour le Mac n’a ni manifeste ni `sw.js`.
-- **Exports en dossier** (« Dossier pour Logic Pro… », étape 3 de la 1.0.0) :
-  `src/folder-writer.js`. Le panneau d’enregistrement du système (« Enregistrer
-  le dossier ») donne le nom et l’endroit ; l’app crée un dossier **neuf**
-  (« nom 2 », « nom 3 »… si quelque chose porte déjà ce nom : rien n’est jamais
-  remplacé), puis la page envoie chaque fichier par morceaux de 8 Mo
-  (`fabtice:folder-write`, nom nettoyé, vérifié dans le dossier, créé une fois
-  puis complété dans l’ordre). `fabtice:folder-abort` retire ce que l’export a
-  écrit, puis le dossier s’il est vide ; `fabtice:folder-reveal` le montre dans
-  le Finder. La page ne voit jamais de chemin complet (le dossier personnel
-  s’écrit « ~ »).
+- **Exports en dossier** (« Dossier pour Logic Pro… », « Projet Ableton
+  Live… », étape 3 de la 1.0.0) : `src/folder-writer.js`. Le panneau
+  d’enregistrement du système (« Enregistrer le dossier ») donne le nom et
+  l’endroit ; l’app crée un dossier **neuf** (« nom 2 », « nom 3 »… si quelque
+  chose porte déjà ce nom : rien n’est jamais remplacé), puis la page envoie
+  chaque fichier par morceaux de 8 Mo (`fabtice:folder-write`, nom nettoyé,
+  vérifié dans le dossier, créé une fois puis complété dans l’ordre). Un nom
+  peut passer par des sous-dossiers (« Samples/Imported/01 Morceau.wav », trois
+  au plus, chaque partie nettoyée, ni « . » ni « .. ») : l’app les crée.
+  `fabtice:folder-abort` retire ce que l’export a écrit, puis les sous-dossiers
+  qu’il a créés et le dossier, chacun s’il est vide ; `fabtice:folder-reveal` le
+  montre dans le Finder. Pour montrer, la page reçoit le nom et l’endroit avec
+  le dossier personnel écrit « ~ ». Elle reçoit aussi le chemin complet du
+  dossier (`path`), seulement pour l’écrire **dans** un fichier qui doit dire
+  où sont ses voisins : le projet Ableton Live, où Live 11 cherche un
+  échantillon par son chemin absolu si le chemin relatif ne suffit pas. La page
+  n’écrit jamais par chemin : seul le processus principal résout les noms dans
+  le dossier.
 - **Barre de menus** (étape 2 de la 1.0.0) : `src/menu.js`, en français.
   Fabtice (À propos, Réglages… cmd + ,, Quitter), Fichier (Nouveau projet → À
   partir d’un lien YouTube… / d’un fichier audio…, Ouvrir…, Ouvrir un projet

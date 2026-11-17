@@ -20,8 +20,9 @@ relisent le fichier avec trois lecteurs indépendants (voir « Vérifications »
     12) l'ouvre, mais **dans Live 10 les clips s'ouvrent « manquants »** :
     il faut montrer une fois le dossier à Live (Gestionnaire de fichiers →
     rechercher). Tempo, signatures, repères et position des clips sont là.
-- Proposition pour la phase 2 : mettre les deux dans le dossier, plus le
-  fichier MIDI et les pistes en WAV (le repli sûr demandé par le cahier).
+- Le dossier de l'app contient les deux, plus le fichier MIDI et les pistes
+  en WAV (le repli sûr demandé par le cahier), et un mode d'emploi : voir « Le
+  dossier de l'app » à la fin.
 - Confiance globale : **probable, pas prouvé**. Environ 7 chances sur 10 que
   le fichier `live11` s'ouvre du premier coup dans Live 11 et 12 avec tout en
   place ; si Live l'ouvre, le tempo et les repères sont justes à la
@@ -327,10 +328,16 @@ Forme d'un échantillon enregistré dans le projet par Live 10.1.15 :
   porte la signature de départ.
 - **Établi** (aide d'Ableton) : numérateur 1 à 99, dénominateur 1, 2, 4, 8 ou
   16. **Conséquence** : les signatures en /32 que permet Fabtice (1 à 64 sur
-  4, 8, 16 ou 32) ne passent pas telles quelles. L'écrivain les refuse
-  (`RangeError`) ; en phase 2 : n/32 avec n pair → (n/2)/16 ; n impair → à
-  décider (une mesure x/32 impaire ne s'écrit pas en Live sans changer la
-  numérotation des mesures).
+  4, 8, 16 ou 32) ne passent pas telles quelles : l'écrivain les refuse
+  (`RangeError`), et la conversion depuis la session (`fromSession.ts`) les
+  récrit sur 16 en gardant chaque barre de mesure à son temps : n pair →
+  (n/2)/16, même durée ; n impair → n/16, deux fois plus long en noires, au
+  tempo doublé (chaque temps reste à son instant) ; si le tempo doublé
+  dépasse 999, k/16 avec k = n/2 arrondi en dessous, au tempo multiplié par
+  2k/n (les barres à leur temps, les temps intérieurs un peu à côté : dit dans
+  la fenêtre et le mode d'emploi). Les positions qui suivent se décalent sur la
+  ligne de temps de Live (`quartersMap`) ; la numérotation des mesures ne change
+  pas ; le fichier MIDI garde les signatures d'origine.
 - **Non établi** : que Live accepte un changement de signature ailleurs que sur
   une barre de mesure de la signature précédente (le modèle de session les
   place toujours sur des barres).
@@ -426,20 +433,55 @@ moyenne à haute selon que `Path` est connu. `live10` s'ouvrira probablement
 dans Live 10 avec les clips à retrouver. D'où « à l'essai », et le repli sûr
 (fichier MIDI + pistes WAV) dans le même dossier.
 
-## Ce qu'il faut du modèle de session pour la phase 2
+## Le dossier de l'app (phase 2)
 
-Le modèle de session (`export/session/types.ts`, branche `v1-etape3-logic`)
-donne déjà presque tout, dans la même unité (noires = temps de Live) :
+- **Nom** : « Titre (changements) Project », comme Live nomme le dossier d'un
+  projet. Rien n'établit que Live en a besoin (il reconnaît un projet au
+  sous-dossier `Ableton Project Info`, abletoolz), mais c'est la forme qu'un
+  utilisateur de Live connaît, et les pistes sont là où Live range les
+  fichiers importés d'un projet (`Samples/Imported/`). Pas de `Ableton Project
+  Info` : son fichier `Project8_1.cfg` est un format binaire de Live, non
+  écrit (pas inventé).
+- **Contenu** : `Titre.als` (`live11`), `Titre (Live 10).als` (`live10`),
+  `Samples/Imported/NN Nom.wav`, `Titre.mid`, `Lisez-moi.txt`.
+- **Ce que les projets disent des fichiers** : chemin relatif ; taille et somme
+  de contrôle de Live calculées sur le fichier écrit ; date (secondes Unix, à
+  l'écriture) ; dans l'app Mac, le chemin complet du fichier (le dossier final
+  est connu, « nom 2 » compris : `FolderTarget.fullPath`), dans `Path` (Live
+  11/12) et `PathHint` (Live 10). Sur le web, le chemin complet est inconnu
+  (l'archive est décompressée où l'utilisateur veut) : seul le chemin relatif,
+  et le repli par le gestionnaire de fichiers de Live.
+- **Repères** : les marqueurs du fichier MIDI, au même texte ASCII
+  (« Theme 1 - [A] Bbmaj7 », « Cm7 »), et chaque tonalité (« Tonalité Bb »).
+- **Session** : `buildSession(state, { tempoRange: { min: 20, max: 999 } })`.
 
-- `buildSession(state, { tempoRange: { min: LIVE_TEMPO_MIN, max: LIVE_TEMPO_MAX } })` ;
-- `tempo` ← `session.beats.map(b => ({ quarters: b.quarters, quarterBpm: b.quarterBpm }))`
-  (la mesure d'attente comprise, le premier temps à 0) ;
-- `meters` ← `session.meters` (`quarters`, `meter`) — **avec les /32 convertis**
-  (voir « Les signatures ») ;
-- `locators` ← `session.chords` (texte ASCII ou affiché), `session.sections`,
-  `session.parts`, `session.keys` (modulations) : choix de nommage à faire ;
-- `tracks` ← `session.tracks` (`name`, `fileStem` → `Samples/Imported/<fileStem>.wav`),
-  `frames` ← `session.frames`, `sampleRate` ← `session.sampleRate` ;
-- de l'assemblage du dossier : la taille de chaque WAV et ses 16 384 premiers
-  octets (`liveFileCrc`), et dans l'app Mac le chemin absolu final (`Path`,
-  `PathHint`).
+### Relecture du dossier sorti de l'app (morceau de démonstration, +2 demi-tons, 90 %)
+
+Le dossier produit par l'app web (`test:export-ableton`), décompressé, relu
+hors du dépôt :
+
+- **abletoolz** : versions 11.0.0 et 10.1.0 ; tempo 98,18 (la mesure
+  d'attente) ; signatures 1/4 puis 4/4 ; quatre pistes audio ; les quatre
+  fichiers « loads » (trouvés dans le dossier) avec leur taille et leur somme
+  de contrôle ; parcours contre les schémas de Live : **aucun membre non
+  déclaré, rien de plus récent que la version visée** (2 517 et 2 302 membres
+  parcourus) ; seuls manquent ce que Live lui-même n'écrit pas.
+- **dawtool** : les 25 repères d'accords et de sections, aux mêmes textes et
+  dans le même ordre que les marqueurs du fichier MIDI (relu par `midi-file`),
+  à **0,0005 ms** près au plus.
+- **ableton-als** : son validateur ne trouve rien, pour les deux projets ;
+  huit scènes, une case par scène, aucun identifiant en double.
+- **fastcrc** : les sommes de contrôle écrites sont celles des fichiers.
+- Le test Chromium vérifie en plus que chaque temps de la grille (99) tombe à
+  moins d'une milliseconde sur la courbe de tempo relue des deux projets
+  (écart maximal 0,0001 ms).
+
+### Confiance mise à jour
+
+Inchangée sur le format (environ 7 chances sur 10 que `Titre.als` s'ouvre du
+premier coup dans Live 11 et 12) ; plus haute sur ce qui en dépend : les
+fichiers écrits par l'app réelle passent les trois lecteurs indépendants, et
+dans l'app Mac le chemin complet des fichiers est écrit, ce qui couvre
+l'inconnue du dossier `Ableton Project Info`. Sur le web, l'audio dépend de
+la recherche par chemin relatif (non établie) ou du gestionnaire de fichiers
+de Live.
