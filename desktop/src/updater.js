@@ -349,16 +349,21 @@ function createUpdater(options) {
   return { state: () => state, check, start, cancel, openPage, afterStart, where };
 }
 
+/** How long the relaunch waits for this process to be gone, in tenths of a second (ten minutes). */
+const RELAUNCH_WAIT_TENTHS = 6000;
+
 /**
  * Starts the new app once this process has quit: a small detached shell waits for this process id to be
- * gone, then asks macOS to open the bundle (`open -n`, as the Finder does). Paths travel as arguments, never
- * inside the script. In test mode the variables `FABTICE_*` are handed on (`open --env`), so that the
+ * gone, then asks macOS to open the bundle (`open -n`, as the Finder does). The wait is long (ten minutes):
+ * a new app opened while the old one still lives loses the single-instance lock and quits at once, which
+ * would leave no app open at all; quitting can take a while (a project saved, a slow disk). Paths travel as
+ * arguments, never inside the script. In test mode the variables `FABTICE_*` are handed on (`open --env`), so that the
  * relaunched app writes its trial report; should `open` fail, the executable is started directly.
  */
 function relaunchAfterExit({ bundle, executable }, { env = process.env, pid = process.pid, spawnImpl = spawn } = {}) {
   const script = [
     'pid="$1"; bundle="$2"; exe="$3"; shift 3',
-    'i=0; while kill -0 "$pid" 2>/dev/null && [ "$i" -lt 600 ]; do sleep 0.1; i=$((i+1)); done',
+    `i=0; while kill -0 "$pid" 2>/dev/null && [ "$i" -lt ${RELAUNCH_WAIT_TENTHS} ]; do sleep 0.1; i=$((i+1)); done`,
     'if [ "$#" -gt 0 ]; then /usr/bin/open -n "$@" "$bundle" || exec "$exe"; else /usr/bin/open -n "$bundle" || exec "$exe"; fi',
   ].join('\n');
   const passed = [];
@@ -378,4 +383,4 @@ function relaunchAfterExit({ bundle, executable }, { env = process.env, pid = pr
   return child;
 }
 
-module.exports = { createUpdater, relaunchAfterExit, testSeams, LATEST_PAGE };
+module.exports = { createUpdater, relaunchAfterExit, testSeams, LATEST_PAGE, RELAUNCH_WAIT_TENTHS };

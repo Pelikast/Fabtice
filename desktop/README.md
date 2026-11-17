@@ -268,7 +268,9 @@ GitHub en change, l’ajouter à `ALLOWED_HOSTS` avant une version.
    même dossier, la nouvelle renommée à sa place, puis relue. À toute erreur,
    l’ancienne est remise à sa place (la nouvelle retourne dans le dossier de
    travail, effacé). Rien n’est jamais modifié à l’intérieur d’un paquet.
-7. **Relance** : un petit `sh` détaché attend la fin du processus, puis
+7. **Relance** : un petit `sh` détaché attend la fin du processus (jusqu’à
+   dix minutes : une nouvelle app ouverte pendant que l’ancienne vit encore
+   perdrait le verrou d’instance unique et se fermerait aussitôt), puis
    `open -n` du paquet (comme le Finder) ; les chemins passent en arguments,
    jamais dans le script.
 8. **Au démarrage suivant**, la nouvelle app efface `.Fabtice-ancienne.app`
