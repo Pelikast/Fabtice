@@ -11,7 +11,7 @@ import type { Key } from '../../model/harmony';
 import type { BeatModelChoice, ChordModelChoice } from '../models';
 import type { KnownCharts } from '../engine/chart';
 import type { NetworkOutputs } from '../engine/pipeline';
-import type { TempoFixRequest } from '../engine/tempoFix';
+import type { ManualTempoFix } from '../engine/tapGrid';
 import type { AnalysisErrorCode, AnalysisStep, ChordWindowProgress, DownloadProgress, GridHint } from '../types';
 
 export interface AnalyseRequestMessage {
@@ -34,7 +34,7 @@ export interface AnalyseRequestMessage {
   /** Length of the piece in seconds. */
   duration: number;
   /** A manual tempo action: the grid from its bar on is computed from the networks' outputs. */
-  tempoFix?: TempoFixRequest | null;
+  tempoFix?: ManualTempoFix | null;
 }
 
 /** Decoding only, on the outputs of an earlier analysis of the same audio (the user's grid or key). */
@@ -46,7 +46,7 @@ export interface DecodeRequestMessage {
   grid: GridHint | null;
   key: Key | null;
   known: KnownCharts | null;
-  tempoFix?: TempoFixRequest | null;
+  tempoFix?: ManualTempoFix | null;
 }
 
 export type ToWorker = AnalyseRequestMessage | DecodeRequestMessage | { type: 'cancel' };

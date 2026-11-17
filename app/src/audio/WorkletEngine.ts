@@ -433,6 +433,14 @@ export class WorkletEngine implements AudioEngine {
     this.post({ type: 'seek', frame });
   }
 
+  getOutputLatency(): Seconds {
+    // The frame rendered at `currentTime` reaches the system after `baseLatency`, the ears after `outputLatency`.
+    const ctx = this.ctx;
+    if (!ctx) return 0;
+    const v = (ctx.baseLatency || 0) + (ctx.outputLatency || 0);
+    return Number.isFinite(v) && v > 0 && v < 1 ? v : 0;
+  }
+
   getPosition(): Seconds {
     if (this.state !== 'playing' || !this.views || !this.ctx) return this.pos;
     const { i32, f64 } = this.views;

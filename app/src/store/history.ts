@@ -49,7 +49,7 @@ import { useStore } from 'zustand';
 import { createStore, type StoreApi } from 'zustand/vanilla';
 import { t, type MessageKey } from '../i18n';
 import type { Track } from '../model/project';
-import { appStore, type AppState, type AppStore } from './store';
+import { appStore, gridInForce, type AppState, type AppStore } from './store';
 
 /** How many steps can be undone. */
 export const HISTORY_LIMIT = 100;
@@ -194,7 +194,8 @@ function readMix(s: Pick<AppState, 'tracks' | 'separation'>): Map<string, TrackM
 function snapshotOf(s: AppState, base: Snapshot | null): Snapshot {
   const out = {} as Snapshot;
   for (const name of SLICES) {
-    const v = s[name];
+    // A candidate grid shown for listening (C12) is not a change: the grid in force is.
+    const v = name === 'tempoMap' ? gridInForce(s) : s[name];
     (out as unknown as Record<string, unknown>)[name] = base && sameSlice(name, base[name], v) ? base[name] : v;
   }
   if (base && base.mixFrom.tracks === s.tracks && base.mixFrom.separation === s.separation) {

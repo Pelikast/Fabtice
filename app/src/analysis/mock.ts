@@ -6,7 +6,7 @@
 // Grid and key hints are honoured as the real analyser must.
 
 import { tempoMapFromBeats } from '../grid/beats';
-import type { TempoFixRequest } from './engine/tempoFix';
+import type { ManualTempoFix, TappedFixRequest, TappedGrid } from './engine/tapGrid';
 import type { AnalysisResult } from '../model/analysis';
 import { demoSwingResult } from './fromDemoSwing';
 import { ANALYSIS_MODELS } from './models';
@@ -18,6 +18,7 @@ import {
   type AnalysisStep,
   type Analyzer,
   type GridHint,
+  type ListenedResult,
 } from './types';
 
 export interface MockAnalyzerOptions {
@@ -123,10 +124,34 @@ export class MockAnalyzer implements Analyzer {
 }
 
 /**
+ * The mock's stand-in for the tapped correction (the real one is the worker's, `engine/tapGrid.ts`,
+ * kept out of the interface's bundle): a beat on each tap after the bar, the grid in force after
+ * the last one.
+ */
+export function mockTappedFix(fix: TappedFixRequest): TappedGrid {
+  const { grid, from } = fix;
+  const idx = Math.max(0, grid.times.findIndex((t) => t >= from - 1e-6));
+  const t0 = grid.times[idx] ?? from;
+  const beats = [t0];
+  for (const t of [...fix.taps].sort((a, b) => a - b)) if (t - beats[beats.length - 1]! >= 0.15) beats.push(t);
+  const end = beats[beats.length - 1]!;
+  const step = beats.length >= 2 ? end - beats[beats.length - 2]! : 0.5;
+  const times = [...grid.times.slice(0, idx), ...beats, ...grid.times.filter((t) => t > end + 0.5 * step)];
+  const n = beats.length;
+  return {
+    times,
+    downbeat: grid.downbeat < idx ? grid.downbeat : idx,
+    meter: grid.meter,
+    tapped: { end, offset: 0, jitter: 0, used: n - 1, dropped: fix.taps.length - (n - 1), filled: 0, held: 0, snapped: 0, level: 1, beats: n, irregular: false },
+  };
+}
+
+/**
  * The mock's stand-in for a manual tempo action: the grid in force before the
  * bar, then beats at the tempo of the bars before it to the end (both actions).
  */
-export function mockTempoFix(fix: TempoFixRequest): GridHint {
+export function mockTempoFix(fix: ManualTempoFix): GridHint {
+  if (fix.kind === 'tapped') return mockTappedFix(fix);
   const { grid, from } = fix;
   const idx = grid.times.findIndex((t) => t >= from - 1e-6);
   if (idx < 0) return grid;
@@ -140,7 +165,12 @@ export function mockTempoFix(fix: TempoFixRequest): GridHint {
 /** The user's grid and key, when given, replace what the fixture says (as the real analyser must do). */
 function honourHints(result: AnalysisResult, request: AnalysisRequest): AnalysisResult {
   let out = result;
-  if (request.tempoFix) request = { ...request, grid: mockTempoFix(request.tempoFix) };
+  if (request.tempoFix) {
+    const grid = mockTempoFix(request.tempoFix);
+    const tapped = (grid as Partial<TappedGrid>).tapped;
+    if (tapped) out = { ...out, tapped } as ListenedResult;
+    request = { ...request, grid };
+  }
   if (request.grid) {
     // Validate the hint the way the app will read it back.
     tempoMapFromBeats(request.grid.times, request.grid.downbeat, request.grid.meter);

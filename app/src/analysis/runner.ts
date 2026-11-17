@@ -20,13 +20,16 @@ import { barStartTime } from '../grid/tempoMap';
 import type { TempoMap } from '../model/tempoMap';
 import { applyAnalysis, setAnalysisRun } from '../store/analysisActions';
 import { applyTempoFix } from '../store/tempoFixActions';
-import type { TempoFixKind, TempoFixRequest } from './engine/tempoFix';
-import { appStore, type AppState } from '../store/store';
+import type { ManualTempoFix } from './engine/tapGrid';
+import type { TempoFixKind } from './engine/tempoFix';
+import { appStore, gridInForce, type AppState } from '../store/store';
+import type { AnalysisResult } from '../model/analysis';
+import type { Seconds } from '../model/project';
 import { chordModelChoice } from './chordModel';
 import { autoAnalysisDisabled, getAnalyzer } from './index';
 import { knownChartsFor } from './knownCharts';
 import { analysisProgressStore, setAnalysisProgress } from './progress';
-import { AnalysisError, resultChordModel, type AnalysisProgress, type AnalysisRequest } from './types';
+import { AnalysisError, resultChordModel, type AnalysisProgress, type AnalysisRequest, type GridHint } from './types';
 
 let running: { projectId: string; abort: AbortController } | null = null;
 
@@ -53,7 +56,7 @@ export function isAnalysing(): boolean {
  * rejects): the outcome is in the store.
  */
 export function runAnalysis(): Promise<void> {
-  return launch(null);
+  return launch(null).then(() => undefined);
 }
 
 /**
@@ -68,24 +71,58 @@ export function runAnalysis(): Promise<void> {
 export function runTempoFix(kind: TempoFixKind, bar: number): Promise<void> {
   const s = appStore.getState();
   if (!s.project || !s.analysis) return Promise.resolve();
-  const from = barStartTime(s.tempoMap, bar);
-  const grid = beatGridOf(s.tempoMap, s.project.duration);
-  if (!grid.times.some((t) => Math.abs(t - from) < 1e-3)) return Promise.resolve();
-  return launch({ kind, from, grid, bar, previous: s.tempoMap });
+  const map = gridInForce(s);
+  const from = barStartTime(map, bar);
+  if (!(from >= 0 && from < s.project.duration)) return Promise.resolve();
+  return launch({ kind, from, grid: gridForFix(map, s.project.duration, from), bar, previous: map }).then(() => undefined);
 }
 
-interface TempoFixRun extends TempoFixRequest {
+/**
+ * The grid in force as the analysis takes it for a manual tempo action from the bar starting at
+ * `from`: its beats, and the bar's start among them. After a bar with an odd number of eighths
+ * (7/8, 7/16) the bars start between two beats of the grid; the bar's start is then added as a
+ * beat, so that the action can start there (the store splices the map at it:
+ * `store/tempoFixActions.ts#tempoMapForFix`).
+ */
+export function gridForFix(map: TempoMap, duration: Seconds, from: Seconds): GridHint {
+  const grid = beatGridOf(map, duration);
+  if (grid.times.some((t) => Math.abs(t - from) < 1e-3)) return grid;
+  const at = grid.times.findIndex((t) => t > from);
+  const i = at < 0 ? grid.times.length : at;
+  const times = [...grid.times.slice(0, i), from, ...grid.times.slice(i)];
+  return { times, downbeat: grid.downbeat >= i ? grid.downbeat + 1 : grid.downbeat, meter: grid.meter };
+}
+
+/**
+ * The tapped correction (C12, `analysis/tapFix.ts`): the grid from bar `bar` computed from the
+ * taps and the rest of the piece analysed again, decoded with its chords, like the two other
+ * actions; but the result is given back instead of stored (the screen lets the user listen to it
+ * first). Null when there is nothing to compute on, or the computation failed or was given up.
+ */
+export async function runTappedFix(bar: number, taps: readonly Seconds[]): Promise<{ result: AnalysisResult; from: Seconds; previous: TempoMap } | null> {
+  const s = appStore.getState();
+  if (!s.project || !s.analysis) return null;
+  const map = gridInForce(s);
+  const from = barStartTime(map, bar);
+  if (!(from >= 0 && from < s.project.duration)) return null;
+  const result = await launch({ kind: 'tapped', from, grid: gridForFix(map, s.project.duration, from), taps: [...taps], bar, previous: map, preview: true });
+  return result ? { result, from, previous: map } : null;
+}
+
+type TempoFixRun = ManualTempoFix & {
   bar: number;
   previous: TempoMap;
-}
+  /** Give the result back instead of storing it (the tapped correction, before « C'est bon »). */
+  preview?: boolean;
+};
 
-async function launch(fix: TempoFixRun | null): Promise<void> {
+async function launch(fix: TempoFixRun | null): Promise<AnalysisResult | null> {
   const store = appStore;
   const s = store.getState();
   const project = s.project;
   const track = sourceTrack(s);
   const audio = track ? getAudio(track.audio.id) : undefined;
-  if (!project || !track || !audio) return;
+  if (!project || !track || !audio) return null;
   cancelAnalysis();
   const abort = new AbortController();
   const mine = { projectId: project.id, abort };
@@ -119,13 +156,13 @@ async function launch(fix: TempoFixRun | null): Promise<void> {
   const channels = chordModel === 'fine' ? pcmToChannels(audio) : [await pcmToMonoInSlices(audio)];
   if (!stillMine()) {
     if (running === mine) running = null;
-    return;
+    return null;
   }
   // « S'appuyer sur les grilles connues des standards » (Réglages → Détection des accords): off, the title is not looked up.
   const knownCharts = s.settings.useKnownCharts ? await knownChartsFor(project.title) : null;
   if (!stillMine()) {
     if (running === mine) running = null;
-    return;
+    return null;
   }
   const request: AnalysisRequest = {
     channels,
@@ -138,19 +175,22 @@ async function launch(fix: TempoFixRun | null): Promise<void> {
     knownCharts,
     onProgress,
     signal: abort.signal,
-    tempoFix: fix ? { kind: fix.kind, from: fix.from, grid: fix.grid } : null,
+    tempoFix: fix ? (fix.kind === 'tapped' ? { kind: 'tapped', from: fix.from, grid: fix.grid, taps: fix.taps } : { kind: fix.kind, from: fix.from, grid: fix.grid }) : null,
   };
   try {
     const result = await getAnalyzer().analyse(request);
-    if (stillMine()) {
-      setAnalysisProgress({ chordWindow: null, fallback: resultChordModel(result).fallback ?? null });
-      if (fix) applyTempoFix(result, { time: fix.from, kind: fix.kind, previous: fix.previous });
-      else applyAnalysis(result, { keptGrid: userGrid });
-    }
+    if (!stillMine()) return null;
+    setAnalysisProgress({ chordWindow: null, fallback: resultChordModel(result).fallback ?? null });
+    if (fix?.preview) setAnalysisRun({ status: 'idle' });
+    else if (fix && fix.kind !== 'tapped') applyTempoFix(result, { time: fix.from, kind: fix.kind, previous: fix.previous });
+    else if (!fix) applyAnalysis(result, { keptGrid: userGrid });
+    return result;
   } catch (e) {
-    if (!stillMine()) return;
+    if (!stillMine()) return null;
     const code = e instanceof AnalysisError ? e.code : 'failed';
-    setAnalysisRun(code === 'cancelled' ? { status: 'idle' } : { status: 'error', projectId: project.id, code });
+    // The tapped correction says its failure in its own window.
+    setAnalysisRun(code === 'cancelled' || fix?.preview ? { status: 'idle' } : { status: 'error', projectId: project.id, code });
+    return null;
   } finally {
     if (running === mine) running = null;
   }

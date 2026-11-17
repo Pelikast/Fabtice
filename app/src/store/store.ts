@@ -157,6 +157,14 @@ export interface AppState {
   tracks: Track[];
   /** The grid in force; its `origin` says who made it (see `model/tempoMap.ts`). */
   tempoMap: TempoMap;
+  /**
+   * C12, « Vérifier en écoutant »: a candidate grid computed from the user's taps is shown in
+   * `tempoMap` (`shown`) for listening, while `inForce` stays the grid in force. The history, the
+   * autosave and the `.fab` file read the grid through `gridInForce`, so they never see the
+   * candidate; it applies only while `tempoMap` is still `shown` (anything that replaces the grid,
+   * an undo, opening a piece, ends it). Interface state, never saved.
+   */
+  tempoPreview: { shown: TempoMap; inForce: TempoMap } | null;
   /** The last analysis of the open piece, as it came out; null until one has finished. */
   analysis: AnalysisResult | null;
   /** What the user changed or added by hand (see `model/corrections.ts`). */
@@ -207,6 +215,7 @@ export function initialState(): AppState {
     project: null,
     tracks: [],
     tempoMap: defaultTempoMap(),
+    tempoPreview: null,
     analysis: null,
     corrections: emptyCorrections(),
     analysisRun: { status: 'idle' },
@@ -242,6 +251,12 @@ export function initialState(): AppState {
 }
 
 export type AppStore = StoreApi<AppState>;
+
+/** The grid in force: `tempoMap`, or while a tapped candidate is shown for listening, the grid it stands in for (see `tempoPreview`). */
+export function gridInForce(s: Pick<AppState, 'tempoMap' | 'tempoPreview'>): TempoMap {
+  const p = s.tempoPreview;
+  return p && p.shown === s.tempoMap ? p.inForce : s.tempoMap;
+}
 
 export function createAppStore(state: AppState = initialState()): AppStore {
   return createStore<AppState>()(() => state);

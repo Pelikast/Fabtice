@@ -30,7 +30,7 @@
 import { createStore } from 'zustand/vanilla';
 import { yieldToMain } from '../audio/pcm';
 import { getDesktopBridge, type DesktopBridge } from '../platform/desktopBridge';
-import { appStore, type AppState } from '../store/store';
+import { appStore, gridInForce, type AppState } from '../store/store';
 import { markSaved } from '../store/history';
 import { clearCurrentFile, getCurrentFile, setCurrentFile, type FileRef } from './currentFile';
 import { projectFileName, ProjectFileError, readReusableFile, ReuseError, writeProjectFile, type FlacEncode } from './fileFormat';
@@ -212,7 +212,7 @@ async function earlierFile(): Promise<ByteSource | null> {
 
 /** The parts of the state a file holds, by reference: if they are the same afterwards, nothing changed meanwhile. */
 function stateOfFile(s: AppState): unknown[] {
-  return [s.project, s.tracks, s.tempoMap, s.loop, s.playback, s.analysis, s.corrections, s.separation, s.metronome, s.markers, s.keptRender, s.exportPrefs, s.view];
+  return [s.project, s.tracks, gridInForce(s), s.loop, s.playback, s.analysis, s.corrections, s.separation, s.metronome, s.markers, s.keptRender, s.exportPrefs, s.view];
 }
 const sameState = (a: unknown[], b: unknown[]) => a.every((x, i) => x === b[i]);
 

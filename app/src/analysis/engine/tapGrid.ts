@@ -62,7 +62,7 @@
 import type { GridHint } from '../types';
 import { downProbAt, pickPeaks, refinePeak, type BeatActivations } from './beats';
 import { gridFromBeats } from './pipeline';
-import { followBeats, periodBefore } from './tempoFix';
+import { applyTempoFix, followBeats, periodBefore, type TempoFixRequest } from './tempoFix';
 
 export interface TappedFixRequest {
   kind: 'tapped';
@@ -955,4 +955,19 @@ export function applyTappedFix(act: BeatActivations | null, req: TappedFixReques
       irregular,
     },
   };
+}
+
+/** A manual tempo action of the bar menu: one of the two of `tempoFix.ts`, or the tapped correction. */
+export type ManualTempoFix = TempoFixRequest | TappedFixRequest;
+
+/** The grid after a manual tempo action (without network outputs, the tapped one from the taps alone, the others nothing). */
+export function manualTempoGrid(act: BeatActivations | null, req: ManualTempoFix): GridHint | TappedGrid {
+  if (req.kind === 'tapped') return applyTappedFix(act, req);
+  return act ? applyTempoFix(act, req) : req.grid;
+}
+
+/** What the tapped correction found, when the grid came from it. */
+export function tappedInfoOf(grid: GridHint | null | undefined): TappedInfo | null {
+  const t = (grid as Partial<TappedGrid> | null | undefined)?.tapped;
+  return t ? { ...t } : null;
 }
