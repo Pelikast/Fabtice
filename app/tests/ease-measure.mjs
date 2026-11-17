@@ -12,6 +12,8 @@
 //   FABTICE_EASE_PERCENTS=75,50   the settings measured besides unticked (default 75,50)
 //   FABTICE_EASE_SECONDS=25       the length of the excerpt
 //   FABTICE_EASE_ONLY=analysis|separation
+//   FABTICE_EASE_CHORDS=fine|crema  the chord model read by the analysis (default: what the device chooses by itself;
+//                                  the test address holds the automatic choice to `crema`, so `fine` is stored explicitly)
 // Playwright and Chromium are expected preinstalled (/opt/node-tools).
 
 import { createRequire } from 'node:module';
@@ -71,6 +73,8 @@ const cpuSeconds = () => {
 const { srv, url } = await startServer(0);
 const browser = await chromium.launch({ args: ['--no-sandbox', '--autoplay-policy=no-user-gesture-required', MARK] });
 const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+const CHORDS = process.env.FABTICE_EASE_CHORDS || null;
+if (CHORDS) await context.addInitScript((m) => localStorage.setItem('fabtice.chordModel.v1', m), CHORDS);
 const page = await context.newPage();
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
@@ -162,7 +166,7 @@ const separationEnd = () => window.__fabtice.store.getState().separationRun.stat
 const results = { analysis: {}, separation: {} };
 try {
   const wav = await excerpt(SECONDS);
-  note(`excerpt ${SECONDS} s stereo; cross-origin isolated: ${isolated}; cores: ${os.cpus().length}; settings: unticked, ${PERCENTS.join(' % and ')} %`);
+  note(`chord model: ${CHORDS ?? 'automatic'}; excerpt ${SECONDS} s stereo; cross-origin isolated: ${isolated}; cores: ${os.cpus().length}; settings: unticked, ${PERCENTS.join(' % and ')} %`);
   await page.evaluate(() => window.__fabtice.lot3.separation.setSeparationModel('scnet'));
 
   const runAll = async (label, percent) => {
