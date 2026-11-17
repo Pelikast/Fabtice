@@ -592,33 +592,44 @@ export function tapPath(
     return o.endEvidence * trust * hit;
   };
   // The last tap ends the passage; it may be dropped too (a doubled last tap).
-  let bj = -1;
-  let ba = -1;
-  let bc = Infinity;
-  for (let j = N - 1; j >= Math.max(0, N - 1 - o.maxSkip); j--) {
-    nodes[j]!.forEach((n, a) => {
-      // The beats after the passage are counted from the last tap: a dropped last tap shifts them by the beats it is away.
-      const shift = j === N - 1 ? 0 : Math.round((x[N - 1]! - x[j]!) / r[N - 1]!);
-      const c = n.cost + (N - 1 - j) * o.extra - endReward((n.pos + shift) % M);
-      if (c < bc) {
-        bc = c;
-        bj = j;
-        ba = a;
-      }
-    });
-  }
-  if (bj < 0) return [];
-  const steps: TapStep[] = [];
-  let j = bj;
-  let a = ba;
-  for (;;) {
-    const n = nodes[j]![a]!;
-    steps.push(n.step);
-    if (n.step.prev < 0) break;
-    a = n.back;
-    j = n.step.prev;
-  }
-  return steps.reverse();
+  const best = (reward: boolean): TapStep[] => {
+    let bj = -1;
+    let ba = -1;
+    let bc = Infinity;
+    for (let j = N - 1; j >= Math.max(0, N - 1 - o.maxSkip); j--) {
+      nodes[j]!.forEach((n, a) => {
+        // The beats after the passage are counted from the last tap: a dropped last tap shifts them by the beats it is away.
+        const shift = j === N - 1 ? 0 : Math.round((x[N - 1]! - x[j]!) / r[N - 1]!);
+        const c = n.cost + (N - 1 - j) * o.extra - (reward ? endReward((n.pos + shift) % M) : 0);
+        if (c < bc) {
+          bc = c;
+          bj = j;
+          ba = a;
+        }
+      });
+    }
+    if (bj < 0) return [];
+    const steps: TapStep[] = [];
+    let j = bj;
+    let a = ba;
+    for (;;) {
+      const n = nodes[j]![a]!;
+      steps.push(n.step);
+      if (n.step.prev < 0) break;
+      a = n.back;
+      j = n.step.prev;
+    }
+    return steps.reverse();
+  };
+  return best(true);
+}
+
+/**
+ * The taps read as a regular series: one tapped beat per tap, to the last tap, nothing held (a tap may
+ * be replaced by a filled beat at its place: a stray tap and the beat it missed, the count unchanged).
+ */
+export function cleanPath(steps: readonly TapStep[], taps: number, level: number): boolean {
+  return steps[steps.length - 1]?.tap === taps - 1 && steps.every((st) => !st.held && (st.prev < 0 || st.beats === (st.tap - st.prev) * level));
 }
 
 // ---------------------------------------------------------------- 3. where each beat goes
@@ -993,7 +1004,11 @@ export function applyTappedFix(act: BeatActivations | null, req: TappedFixReques
   const lastTap = x[x.length - 1]! - delta0;
   const qLast = (localPeriods(x)[x.length - 1] ?? P) / level;
   const after = act && Number.isFinite(qLast) ? followBeats(act, lastTap, Math.min(ev.last, lastTap + o.afterBars * m * qLast), qLast) : [];
-  const steps = tapPath(x, t0, P, delta0, level, m, trust, ev, sigma, o, after);
+  // The taps read alone first: when that reading is clean, it is kept, whatever the network's downbeats say
+  // (they may be the very defect being corrected: on a recorded old record they sit on beat 2 for whole
+  // choruses). Otherwise the downbeats, where they were right before the bar, weigh in.
+  const alone = tapPath(x, t0, P, delta0, level, m, 0, ev, sigma, o);
+  const steps = trust > 0 && !cleanPath(alone, x.length, level) ? tapPath(x, t0, P, delta0, level, m, trust, ev, sigma, o, after) : alone;
   if (!steps.length) return none(true);
   const first = pathBeats(x, t0, delta0, steps);
   const placed = placeBeats(x, first, grid.times.slice(Math.max(0, fromIdx - 2), fromIdx), countIn, delta0, ev, o, sigma);
