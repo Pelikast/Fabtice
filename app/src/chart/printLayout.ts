@@ -10,19 +10,23 @@
 // page less its margins is four bars, a line is `lineMm` high) and scaled as a
 // whole by the chosen scale, centred on the page. « Tenir sur une page » picks
 // the scale itself: the largest one at which every line fits the first sheet.
-// What the dialog will later offer to print besides the full chart (a
-// simplified chart, one section: C14) only changes the list of lines handed to
-// `paginate`; everything here depends on the number of lines.
+// What the dialog offers to print besides the full chart (« Ce qu'on imprime »:
+// the simplified chart, one section: C14) only changes the list of lines handed
+// to `paginate`; everything here depends on the number of lines.
 
 export type PrintOrientation = 'portrait' | 'paysage';
 export type PrintPaper = 'a4' | 'lettre';
 export type PrintMargins = 'etroites' | 'normales' | 'larges';
+/** « Ce qu'on imprime » (C14): the whole chart, the simplified chart, or the bars of one part of the structure. */
+export type PrintWhat = 'full' | 'simplified' | 'part';
 
 /** Which parts of the title block are written (each can be left out). */
 export interface PrintHeader {
   title: boolean;
   key: boolean;
   tempo: boolean;
+  /** « Forme : AABC », under the key and tempo, when the form of the piece is known. */
+  form: boolean;
 }
 
 export interface PrintOptions {
@@ -34,12 +38,15 @@ export interface PrintOptions {
   /** « Tenir sur une page »: the scale is the one that puts every line on the first sheet. */
   fitOne: boolean;
   header: PrintHeader;
+  /** « Ce qu'on imprime ». Which part is printed (when `what` is `part`) is the dialog's own choice, never kept. */
+  what: PrintWhat;
 }
 
 export const SCALES: readonly number[] = [50, 60, 70, 80, 90, 100];
 export const PRINT_ORIENTATIONS: readonly PrintOrientation[] = ['portrait', 'paysage'];
 export const PRINT_PAPERS: readonly PrintPaper[] = ['a4', 'lettre'];
 export const PRINT_MARGINS: readonly PrintMargins[] = ['etroites', 'normales', 'larges'];
+export const PRINT_WHATS: readonly PrintWhat[] = ['full', 'simplified', 'part'];
 
 /** Paper sizes in mm, upright. */
 export const PAPER_MM: Record<PrintPaper, { w: number; h: number }> = {
@@ -53,8 +60,12 @@ export const MARGIN_MM: Record<PrintMargins, number> = { etroites: 10, normales:
 /** Height of a line of four bars at the natural size, in mm (a little lower on its side: the page is). */
 export const LINE_MM: Record<PrintOrientation, number> = { portrait: 24, paysage: 21 };
 
-/** Height of the title row, of the row under it (key, meter, tempo) and the gap before the first line, in mm. */
-export const HEADER_ROWS_MM = { title: 11, info: 6, gap: 5 } as const;
+/**
+ * Height of the title row, of the row under it (key, meter, tempo), of the quiet line that names the part printed
+ * (« Thème 1 · mesures 3–10 », under the title), of the one that gives the form (« Forme : AABC », under the key
+ * row) and the gap before the first line, in mm.
+ */
+export const HEADER_ROWS_MM = { title: 11, info: 6, part: 5, form: 5, gap: 5 } as const;
 
 /** The smallest scale « Tenir sur une page » will use: below it the chords are too small to read. */
 export const MIN_FIT_SCALE = 0.4;
@@ -62,7 +73,7 @@ export const MIN_FIT_SCALE = 0.4;
 /** Bars drawn as 206 units wide, a chord 30 units high: the unit of the chart on paper. */
 export const BAR_UNITS = 206;
 
-export const DEFAULT_HEADER: PrintHeader = { title: true, key: true, tempo: true };
+export const DEFAULT_HEADER: PrintHeader = { title: true, key: true, tempo: true, form: true };
 
 /** US Letter in the regions that use it, A4 elsewhere (the same list as the Mac app's main process). */
 export function paperForLocale(locale: string | undefined): PrintPaper {
@@ -71,7 +82,7 @@ export function paperForLocale(locale: string | undefined): PrintPaper {
 }
 
 export function defaultPrintOptions(locale?: string): PrintOptions {
-  return { orientation: 'portrait', paper: paperForLocale(locale), margins: 'normales', scale: 100, fitOne: false, header: { ...DEFAULT_HEADER } };
+  return { orientation: 'portrait', paper: paperForLocale(locale), margins: 'normales', scale: 100, fitOne: false, header: { ...DEFAULT_HEADER }, what: 'full' };
 }
 
 /**
@@ -91,14 +102,16 @@ export function normalizePrintOptions(raw: unknown, locale?: string): PrintOptio
     margins: pick(r.margins, PRINT_MARGINS, base.margins),
     scale: typeof r.scale === 'number' && SCALES.includes(r.scale) ? r.scale : base.scale,
     fitOne: typeof r.fitOne === 'boolean' ? r.fitOne : r.size === 'une',
-    header: { title: flag(header.title, true), key: flag(header.key, true), tempo: flag(header.tempo, true) },
+    header: { title: flag(header.title, true), key: flag(header.key, true), tempo: flag(header.tempo, true), form: flag(header.form, true) },
+    what: pick(r.what, PRINT_WHATS, base.what),
   };
 }
 
 /** Height of the title block (rows that are shown plus the gap before the lines), in mm; 0 when nothing is shown. */
-export function headerHeightMm(shown: { title: boolean; info: boolean }): number {
-  if (!shown.title && !shown.info) return 0;
-  return (shown.title ? HEADER_ROWS_MM.title : 0) + (shown.info ? HEADER_ROWS_MM.info : 0) + HEADER_ROWS_MM.gap;
+export function headerHeightMm(shown: { title: boolean; info: boolean; part?: boolean; form?: boolean }): number {
+  const { title, info, part = false, form = false } = shown;
+  if (!title && !info && !part && !form) return 0;
+  return (title ? HEADER_ROWS_MM.title : 0) + (part ? HEADER_ROWS_MM.part : 0) + (info ? HEADER_ROWS_MM.info : 0) + (form ? HEADER_ROWS_MM.form : 0) + HEADER_ROWS_MM.gap;
 }
 
 /** A range of the chart's lines: the lines `first` to `first + count - 1` are on this sheet. */

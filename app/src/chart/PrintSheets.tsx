@@ -18,7 +18,7 @@ import { t } from '../i18n';
 import type { Instrument } from '../model/harmony';
 import { fitChart, type BarFit, type ChartBar as FitBar, type FitChord } from './fit';
 import type { ChartBar, ChartLine } from './layout';
-import { headerInfo, headerTitle, type PrintChart } from './printChart';
+import { headerForm, headerInfo, headerPart, headerTitle, type PrintChart } from './printChart';
 import { printBarGeometry, sheetNumberShown, type PrintHeader, type PrintLayout } from './printLayout';
 
 /**
@@ -69,16 +69,20 @@ export const PrintSheets = memo(function PrintSheets({ chart, layout, header, in
   const last = chart.lines[chart.lines.length - 1]?.bars.at(-1)?.bar;
   const title = headerTitle(chart, header);
   const info = headerInfo(chart, header, instrument);
+  const part = headerPart(chart);
+  const form = headerForm(chart, header);
   return (
     <div className="pp-pages" ref={root} data-testid="apercu-pages" data-pages={total} data-echelle={layout.scale}>
       {layout.sheets.map((sheet, i) => (
         <figure className="pp-cadre" key={i} data-page={i + 1}>
           <div className="pp-papier" style={sheetStyle(layout)}>
             <div className="pp-contenu">
-              {i === 0 && (title !== null || info.length > 0) && (
+              {i === 0 && (title !== null || info.length > 0 || part !== null || form !== null) && (
                 <div className="pp-tete" data-testid="apercu-tete">
                   {title !== null && <h1 className="pp-titre">{title}</h1>}
+                  {part !== null && <p className="pp-partie">{part}</p>}
                   {info.length > 0 && <p className="pp-infos">{withAccidentals(info.join(' · '))}</p>}
+                  {form !== null && <p className="pp-forme">{form}</p>}
                 </div>
               )}
               {chart.lines.slice(sheet.first, sheet.first + sheet.count).map((line) => (

@@ -16,6 +16,8 @@
 
 import { useSyncExternalStore } from 'react';
 import { chartForExport, exportToIRealPro } from '../export';
+import { browserHost, openIRealLink } from '../export/irealOpen';
+import { closeIRealNotice, showIRealNotice } from './irealNotice';
 import { t, type MessageKey } from '../i18n';
 import { getDesktopBridge } from '../platform/desktopBridge';
 import { chooseProjectFile } from '../project/choose';
@@ -132,10 +134,24 @@ function downloadIRealFile(): void {
   setTimeout(() => URL.revokeObjectURL(href), 30_000);
 }
 
+/**
+ * « Ouvrir dans iReal Pro »: the Mac app hands the link to the system; the web app follows it from the user's
+ * gesture and, when the page is still on screen a moment later, says what probably happened (`export/irealOpen.ts`).
+ * A link too long to follow is saved as the file instead, with a sentence that says why.
+ */
 async function openInIReal(): Promise<CommandOutcome> {
   const bridge = getDesktopBridge();
   const file = irealFile();
-  if (!bridge?.openInIRealPro || !file) return;
+  if (!file) return;
+  if (!bridge) {
+    closeIRealNotice();
+    if (openIRealLink(file.url, browserHost(), () => showIRealNotice('asked')) === 'too-long') {
+      downloadIRealFile();
+      showIRealNotice('tooLong');
+    }
+    return;
+  }
+  if (!bridge.openInIRealPro) return;
   try {
     const result = await bridge.openInIRealPro(file.url);
     if (!result.ok) return { error: t('export.irealOpenFailed') };
@@ -381,7 +397,8 @@ export function commandContext(): CommandContext {
     textField: isTextField(active),
     history: historyStatus(),
     desktop: bridge !== null,
-    canOpenIReal: typeof bridge?.openInIRealPro === 'function',
+    // The Mac app, when it can; the web app always (the link is followed from the gesture).
+    canOpenIReal: bridge ? typeof bridge.openInIRealPro === 'function' : true,
     hasRecent: typeof bridge?.recentProjects === 'function' && typeof bridge.openRecentProject === 'function',
     canQuit: typeof bridge?.quitApp === 'function',
   };

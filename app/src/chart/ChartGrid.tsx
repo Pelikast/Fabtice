@@ -170,7 +170,7 @@ function BarCell({
   onKeyboardOpen: (stop: Stop) => void;
 }) {
   const n = bar.chords.length;
-  const cls = ['case', bar.doubleBar ? 'double' : '', bar.signature ? 'signee' : '', looped ? (looped.from === 0 && looped.to === 1 ? 'dans-boucle' : 'dans-boucle partielle') : '', final ? 'finale' : ''].filter(Boolean).join(' ');
+  const cls = ['case', bar.doubleBar ? 'double' : '', bar.signature ? 'signee' : '', bar.section ? 'lettree' : '', looped ? (looped.from === 0 && looped.to === 1 ? 'dans-boucle' : 'dans-boucle partielle') : '', final ? 'finale' : ''].filter(Boolean).join(' ');
   const label = formatBarNumber(bar.bar);
   const stopProps = (index: number) => {
     const stop = { bar: bar.bar, index };

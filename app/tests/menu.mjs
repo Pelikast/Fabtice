@@ -104,7 +104,7 @@ try {
     check('hover on « Exporter »: its submenu (Audio…, iReal Pro, PDF…)', (await labels(page, '.sous-menu')).slice(0, 3).join('|') === 'Audio…|iReal Pro|PDF…', (await labels(page, '.sous-menu')).join('|'));
     await page.hover('[data-sous-menu="ireal"]');
     await page.locator('[data-commande="irealFile"]').waitFor({ timeout: 3000 });
-    check('« iReal Pro ▸ »: « Fichier iReal Pro… » only on the web', (await page.locator('[data-commande="irealOpen"]').count()) === 0);
+    check('« iReal Pro ▸ »: « Fichier iReal Pro… » then « Ouvrir dans iReal Pro », on the web too', (await labels(page, '.sous-menu .sous-menu')).join('|') === 'Fichier iReal Pro…|Ouvrir dans iReal Pro' && (await page.locator('[data-commande="irealOpen"]').count()) === 1, (await labels(page, '.sous-menu .sous-menu')).join('|'));
     const subBox = await page.locator('.sous-menu .sous-menu').boundingBox();
     check('submenus open to the right, inside the window', subBox && subBox.x > box.x + box.width && subBox.x + subBox.width <= 1280, JSON.stringify(subBox));
     // Leaving towards another entry closes the submenu (after a short grace for the way to it).

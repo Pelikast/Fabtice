@@ -217,11 +217,19 @@
 }
 .avis-stockage p { flex: 1; margin: 0; }
 .avis-stockage .bouton-cadre { width: auto; padding: 0 16px; }
+/* « Ouvrir dans iReal Pro » in the web app: a longer sentence, then its two buttons (the file, close). */
+.avis-ireal { align-items: flex-start; width: min(640px, calc(100% - 32px)); }
+.avis-ireal p { font-size: 14.5px; line-height: 1.45; }
+.avis-ireal-actions { display: flex; flex: none; flex-direction: column; gap: 8px; }
+.avis-ireal .bouton-cadre { white-space: nowrap; }
 /* The phone's transport is taller (DESIGN.md « Téléphone »): keep the notice above it. */
 @media (max-width: 760px) {
   /* « déposer le fichier dans la fenêtre » is for a mouse: nothing to drag from on a phone. */
   .pied-depot { display: none; }
   .avis-stockage { bottom: 212px; }
+  .avis-ireal { flex-direction: column; align-items: stretch; gap: 10px; }
+  .avis-ireal-actions { flex-direction: row; }
+  .avis-ireal .bouton-cadre { flex: 1; min-height: 44px; }
 }
 
 /* Mac app: the recent projects, three calm lines under « ouvrir un projet » (« voir tous » for the rest). */

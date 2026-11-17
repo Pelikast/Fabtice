@@ -242,6 +242,19 @@ liste pour l'échelle) puis, en bas à droite, « Enregistrer en PDF » et
 braise.** Sur téléphone, la fenêtre prend tout l'écran : aperçu en haut, pages
 côte à côte, options dessous, les deux boutons collés en bas.
 
+**Ce qu'on imprime** (C14) : un groupe de la colonne des options, avant « Marges »,
+dont les choix s'empilent (« Grille complète », « Grille complète simplifiée »,
+« Une section ») dans une même famille « duo » à l'encre ; « Grille complète
+simplifiée » n'est proposée que lorsque la grille simplifiée existe, « Une
+section » est grisée (à 50 %) quand le morceau n'a aucune partie. « Une section »
+déplie sous elle la liste des parties, avec leurs lettres (« Thème 1 · AABC »).
+La fenêtre s'ouvre sur ce que l'écran montre : la grille entière, ou la partie
+affichée. Imprimer une section ne met que ses mesures, avec leurs numéros ; une
+ligne discrète le dit sous le titre (« Thème 1 · mesures 3–10 », 10 pt, encre).
+Quand la forme du morceau est connue, une ligne « Forme : AABC » (même corps)
+vient sous la ligne de la tonalité et du tempo ; la case « Forme » du groupe
+« En-tête » la retire.
+
 L'aperçu est exactement ce qui sort : mêmes feuilles, même pagination, une
 feuille par page. Sur le papier, les règles de la grille restent vraies
 (quatre mesures par ligne, accords à la place de leur temps, une seule taille
@@ -348,8 +361,10 @@ qu'on entend est marquée par une petite barre d'encre dans la marge et un nom
 plus gras, posés directement dans le DOM par la boucle d'images (comme la
 mesure en cours de la grille). Le bouton « Boucle » d'une partie dont la
 boucle est active prend le laiton (filet `--laiton`, voile `--laiton-voile`,
-texte à l'encre). Une partie corrigée à la main le dit en une ligne en
-italique (« Corrigée à la main ») ; celles de l'analyse ne disent rien.
+texte à l'encre). Une partie corrigée à la main le dit sur sa propre ligne, en
+italique, sous ses lettres (« Corrigée à la main ») ; celles de l'analyse ne
+disent rien. Le nom d'une partie tient sur une ligne quand la colonne le permet
+(14,5 px) ; « Boucle » et le crayon restent à droite.
 
 **Au-dessus des mesures**, quand elles ne sont pas toute la grille, une ligne
 discrète (13,5 px, encre douce) : « Thème 1 · mesures 3–10 », ou, pour la
@@ -374,6 +389,21 @@ voile habituel) avec la même liste ; choisir un affichage ou une partie, ou
 toucher « Boucle » ou le crayon, la referme. Cibles d'au moins 40 px
 (boutons de 42 à 46 px). La fenêtre d'une partie est, elle aussi, une feuille
 posée en bas, boutons sur toute la largeur.
+
+## « Ouvrir dans iReal Pro » dans l'app web
+
+Le navigateur suit le lien `irealb://` au geste de l'utilisateur, puis surveille
+la page pendant un instant (1,6 s). Si une application a pris le lien, la page
+est cachée ou perd le focus et rien n'est dit. Si la page est restée visible,
+un avis calme, de la famille de l'avis de stockage (papier clair, filet de
+1 px, **filet de laiton à gauche**, jamais de braise), se pose au-dessus du
+transport : « Si rien ne s'est ouvert, iReal Pro n'est pas installé sur cet
+appareil, ou le navigateur a bloqué l'ouverture. Vous pouvez enregistrer le
+fichier et l'ouvrir depuis iReal Pro. », avec « Enregistrer le fichier… » et
+« Fermer » (deux boutons de la famille `bouton-cadre`). Un lien trop long pour
+être suivi enregistre le fichier tout de suite et le dit en une phrase, avec
+« Fermer » seul. Sur téléphone, l'avis est sur toute la largeur, les boutons
+côte à côte, de 44 px.
 
 ## Téléphone
 

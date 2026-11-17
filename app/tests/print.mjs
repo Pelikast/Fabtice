@@ -59,7 +59,7 @@ const upright = (paper, orientation) => (orientation === 'paysage' ? [PT[paper][
 
 const DIALOG = '[data-testid="impression"]';
 
-async function open(form) {
+async function open(form, query = '?demo&moteur=factice&vue=grille') {
   const context = await browser.newContext({ viewport: form.viewport, hasTouch: form.touch, isMobile: form.touch, deviceScaleFactor: form.touch ? 2 : 1 });
   const page = await context.newPage();
   const errors = [];
@@ -67,7 +67,7 @@ async function open(form) {
   page.on('console', (m) => {
     if (m.type() === 'error') errors.push(m.text());
   });
-  await page.goto(`${url}/?demo&moteur=factice&vue=grille`);
+  await page.goto(`${url}/${query}`);
   await page.waitForFunction(() => window.__fabtice && window.__fabtice.store.getState().transport.engine === 'ready', null, { timeout: 15000 });
   await page.evaluate(() => document.fonts.ready);
   await sleep(300);
@@ -121,6 +121,8 @@ async function choose(page, form, o) {
   if (o.orientation) await radio(o.orientation);
   if (o.margins) await radio(o.margins);
   if (o.instrument) await radio(o.instrument);
+  if (o.what) await radio(o.what);
+  if (o.section !== undefined) await page.selectOption('[data-testid="impression-section"]', { index: o.section });
   const box = async (testid, want) => {
     if (want === undefined) return;
     if ((await page.isChecked(`[data-testid="${testid}"]`)) !== want) await press(page, form, `[data-testid="${testid}"]`);
@@ -131,6 +133,7 @@ async function choose(page, form, o) {
   await box('impression-titre-case', o.title);
   await box('impression-ton-case', o.key);
   await box('impression-tempo-case', o.tempo);
+  await box('impression-forme-case', o.form);
   await sleep(150);
 }
 
@@ -569,6 +572,121 @@ try {
     await choose(page, form, { orientation: 'paysage' });
     await page.screenshot({ path: path.join(out, 'impression-mobile-paysage.png') });
     check('no page errors (mobile pages)', errors.length === 0, errors.join(' | '));
+    await page.close();
+  }
+
+  // ============================================================ « Ce qu'on imprime » (C14): the whole chart, or one section
+  for (const form of FORMS) {
+    const tag = form.name;
+    const { page, errors } = await open(form, '?demo&structure=demo&moteur=factice&vue=grille');
+    await page.setViewportSize(form.viewport);
+    const shot = (name) => page.screenshot({ path: path.join(out, `impression-${tag}-${name}.png`) });
+    const partIds = await page.evaluate(() => window.__fabtice.structure.selectors.structureInForce(window.__fabtice.store.getState()).parts.map((p) => p.id));
+    const openIt = async () => {
+      if (!form.touch) await page.click('[data-testid="imprimer-grille"]');
+      else await openDialog(page);
+      await page.waitForSelector(DIALOG);
+      await sleep(350);
+    };
+    const checked = () => page.$$eval(`${DIALOG} [role="radio"][aria-checked="true"]`, (els) => els.map((e) => e.dataset.choix));
+    const barsOnPaper = () => page.$$eval('.pp-case .pp-numero', (els) => els.map((e) => Number(e.textContent)));
+    const textOf = (sel) => page.$eval(sel, (e) => e.textContent).catch(() => null);
+
+    await openIt();
+    await choose(page, form, RESET);
+    const groups = await page.$$eval(`${DIALOG} .imp-groupe h3`, (els) => els.map((e) => e.textContent));
+    check(`${tag}: « Ce qu’on imprime » is a group of the window, before « Marges »`, groups.includes('Ce qu’on imprime') && groups.indexOf('Ce qu’on imprime') < groups.indexOf('Marges'), groups.join('|'));
+    const choices = await page.$$eval(`${DIALOG} [data-choix="full"], ${DIALOG} [data-choix="simplified"], ${DIALOG} [data-choix="part"]`, (els) => els.map((e) => `${e.dataset.choix}:${e.textContent.trim()}`));
+    check(`${tag}: « Grille complète » and « Une section »; no simplified chart to offer yet`, choices.join('|') === 'full:Grille complète|part:Une section', choices.join('|'));
+    check(`${tag}: the screen shows the whole chart: « Grille complète » is chosen, all 25 bars are on the paper`, (await checked()).includes('full') && (await barsOnPaper()).length === 25, (await checked()).join());
+    check(`${tag}: the first sheet says the form under the key and tempo: « Forme : AABC »`, (await textOf('.pp-forme')) === 'Forme : AABC' && (await textOf('.pp-infos')) !== null);
+    const order = await page.$$eval('.pp-tete > *', (els) => els.map((e) => e.className));
+    check(`${tag}: …the rows of the title block are title, key and tempo, form`, order.join('|') === 'pp-titre|pp-infos|pp-forme', order.join('|'));
+    check(`${tag}: « Forme » is a box of the « En-tête » group, ticked`, (await page.isChecked('[data-testid="impression-forme-case"]')) && (await page.locator('.imp-groupe', { hasText: 'En-tête' }).locator('.imp-case', { hasText: 'Forme' }).count()) === 1);
+    await shot('ce-quon-imprime');
+    await choose(page, form, { form: false });
+    check(`${tag}: leaving « Forme » out removes the line`, (await page.locator('.pp-forme').count()) === 0);
+    await choose(page, form, { form: true });
+
+    // One section.
+    await choose(page, form, { what: 'part' });
+    const options = await page.$$eval('[data-testid="impression-section"] option', (els) => els.map((e) => e.textContent));
+    check(`${tag}: « Une section » offers the parts in force, with their letters`, options.join('|') === 'Intro|Thème 1 · AABC|Solo (Guitare) · AA|Solo (Trompette) · AA|Thème 2 · BC|Outro', options.join('|'));
+    check(`${tag}: …the first one is on the paper, with the line that names it under the title`, (await textOf('.pp-partie')) !== null);
+    await choose(page, form, { section: 2 });
+    let nums = await barsOnPaper();
+    check(`${tag}: « Solo (Guitare) »: only its bars, numbers kept (11 to 14)`, nums.join() === '11,12,13,14', nums.join());
+    const order2 = await page.$$eval('.pp-tete > *', (els) => els.map((e) => e.className));
+    check(`${tag}: the header says which part, under the title: « Solo (Guitare) · mesures 11–14 »`, (await textOf('.pp-partie')) === 'Solo (Guitare) · mesures 11–14' && order2.join('|') === 'pp-titre|pp-partie|pp-infos|pp-forme', `${await textOf('.pp-partie')} | ${order2.join('|')}`);
+    const one = await sheets(page);
+    check(`${tag}: one sheet, one line of four bars`, one.length === 1 && one[0].lines === 1 && one[0].bars === 4, JSON.stringify(one.map((x) => [x.lines, x.bars])));
+    check(`${tag}: the section's own letters are on its bars (A, A)`, (await page.$$eval('.pp-case .pp-section', (els) => els.map((e) => e.textContent))).join('') === 'AA');
+    check(`${tag}: the first bar of the section has no double bar`, !(await page.$eval('.pp-case', (el) => el.classList.contains('pp-double'))));
+    await shot('une-section');
+    await choose(page, form, { section: 1 });
+    nums = await barsOnPaper();
+    check(`${tag}: « Thème 1 »: bars 3 to 10, in two lines, from the first bar of the section`, nums.join() === '3,4,5,6,7,8,9,10' && (await sheets(page))[0].lines === 2 && (await textOf('.pp-partie')) === 'Thème 1 · mesures 3–10', nums.join());
+    await choose(page, form, { section: 5 });
+    check(`${tag}: « Outro »: its two bars, 23 and 24`, (await barsOnPaper()).join() === '23,24', (await barsOnPaper()).join());
+    // The PDF is the preview for a section too.
+    await choose(page, form, { section: 2 });
+    await comparePdf(page, `${tag}, one section`, { paper: 'a4', orientation: 'portrait', pages: 1 }, null);
+    await choose(page, form, { orientation: 'paysage', paper: 'lettre' });
+    await comparePdf(page, `${tag}, one section, Letter on its side`, { paper: 'lettre', orientation: 'paysage', pages: 1 }, null);
+    await choose(page, form, { orientation: 'portrait', paper: 'a4' });
+    // Back to the whole chart.
+    await choose(page, form, { what: 'full' });
+    check(`${tag}: « Grille complète » again: all the bars, no line naming a part`, (await barsOnPaper()).length === 25 && (await page.locator('.pp-partie').count()) === 0);
+    check(`${tag}: choosing what to print leaves the chart on the screen as it was`, (await page.evaluate(() => window.__fabtice.store.getState().ui.chartDisplay.kind)) === 'full');
+    // What is kept is the kind, never the section.
+    const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('fabtice.print')));
+    check(`${tag}: the options kept hold « what » and the form box, never the section`, stored.what === 'full' && stored.header.form === true && !JSON.stringify(stored).includes('demo-'), JSON.stringify(stored));
+    await closeDialog(page);
+
+    // The window opens on what the screen shows.
+    await page.evaluate((id) => window.__fabtice.structure.display.showPart(id), partIds[3]);
+    await sleep(300);
+    await openIt();
+    check(`${tag}: the screen shows « Solo (Trompette) »: the window opens on « Une section », that one`, (await checked()).includes('part') && (await page.$eval('[data-testid="impression-section"]', (el) => el.selectedOptions[0].textContent)).startsWith('Solo (Trompette)') && (await barsOnPaper()).join() === '15,16,17,18', `${(await checked()).join()} ${(await barsOnPaper()).join()}`);
+    await closeDialog(page);
+    await page.evaluate(() => window.__fabtice.structure.display.showSimplifiedChart());
+    await sleep(200);
+    await openIt();
+    check(`${tag}: the screen shows the simplified chart, not offered yet: the window opens on the whole chart`, (await checked()).includes('full') && (await barsOnPaper()).length === 25, (await checked()).join());
+    await closeDialog(page);
+
+    // A part deleted while it is chosen: the list follows.
+    await page.evaluate((id) => window.__fabtice.structure.display.showPart(id), partIds[1]);
+    await openIt();
+    await page.evaluate((id) => window.__fabtice.structure.actions.removePart(id), partIds[1]);
+    await sleep(300);
+    check(`${tag}: the part chosen is deleted behind the window: the list follows (five parts left)`, (await page.$$eval('[data-testid="impression-section"] option', (els) => els.length)) === 5);
+    await closeDialog(page);
+
+    // No structure at all: « Une section » cannot be chosen.
+    await page.evaluate(() => {
+      const f = window.__fabtice.structure;
+      f.actions.resetStructure();
+      f.setDetected(null);
+      f.display.showFullChart();
+    });
+    await sleep(250);
+    await openIt();
+    check(`${tag}: no parts: « Une section » is greyed out, no « Forme » line (the form is not known)`, (await page.isDisabled('[data-choix="part"]')) && (await page.locator('.pp-forme').count()) === 0);
+    await closeDialog(page);
+
+    // Options kept by an older version (without « what » or « Forme ») still load.
+    await page.evaluate(() => localStorage.setItem('fabtice.print', JSON.stringify({ orientation: 'paysage', paper: 'a4', margins: 'larges', scale: 70, fitOne: false, header: { title: true, key: false, tempo: true } })));
+    await openIt();
+    const old = await page.evaluate(() => ({ checked: [...document.querySelectorAll('[role="radio"][aria-checked="true"]')].map((e) => e.dataset.choix).join(), forme: document.querySelector('[data-testid="impression-forme-case"]').checked, key: document.querySelector('[data-testid="impression-ton-case"]').checked }));
+    check(`${tag}: options kept before « Ce qu’on imprime » still load (landscape, wide margins kept; the whole chart; « Forme » on)`, old.checked.includes('paysage') && old.checked.includes('larges') && old.checked.includes('full') && old.forme === true && old.key === false, JSON.stringify(old));
+    if (form.touch) {
+      const small = await page.$$eval(`${DIALOG} [data-choix="full"], ${DIALOG} [data-choix="part"], ${DIALOG} [data-testid="impression-forme-case"]`, (els) => els.map((el) => [el.dataset.choix || el.dataset.testid, (el.closest('.imp-case') ?? el).getBoundingClientRect().height]).filter(([, h]) => h < 39.5));
+      check(`${tag}: the new controls are at least 40 px high`, small.length === 0, JSON.stringify(small));
+    }
+    const overflow = await noOverflow(page);
+    check(`${tag}: nothing overflows with the new group`, overflow.length === 0, overflow.join(' ; '));
+    check(`no page errors (${tag}, what is printed)`, errors.length === 0, errors.join(' | '));
     await page.close();
   }
 } catch (e) {

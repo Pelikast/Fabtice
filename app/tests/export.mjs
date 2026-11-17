@@ -10,6 +10,8 @@
 
 import { createRequire } from 'node:module';
 import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { startServer } from './serve.mjs';
 import { closeMenu, menuCommand, menuEntry, openMenu } from './lib/menu.mjs';
 
@@ -22,6 +24,10 @@ const check = (name, cond, detail = '') => {
   console.log(`${cond ? 'PASS' : 'FAIL'}  ${name}${detail ? `  (${detail})` : ''}`);
 };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const out = process.env.FABTICE_EXPORT_OUT || fs.mkdtempSync(path.join(os.tmpdir(), 'fabtice-export-'));
+fs.mkdirSync(out, { recursive: true });
+/** The texts of the elements a locator matches, trimmed. */
+const texts = (locator) => locator.allInnerTexts().then((all) => all.map((x) => x.trim()));
 
 // ---------------------------------------------------------------- a reader of the link (not the app's)
 
@@ -137,13 +143,13 @@ try {
   // ------------------------------------------------------------ the demo piece: menu, file, link
   {
     const { page, context, errors } = await open('?demo');
-    // The menu Fabtice (C6): Exporter ▸ iReal Pro ▸ Fichier iReal Pro… (and, in the Mac app only, Ouvrir dans iReal Pro).
+    // The menu Fabtice (C6): Exporter ▸ iReal Pro ▸ Fichier iReal Pro…, Ouvrir dans iReal Pro (the web app follows the link itself).
     await openMenu(page);
     await page.click('[data-sous-menu="export"]');
     await page.click('[data-sous-menu="ireal"]');
     const items = await page.$$eval('.sous-menu .sous-menu [role="menuitem"]', (els) => els.map((e) => ({ key: e.dataset.commande, disabled: e.getAttribute('aria-disabled') === 'true', text: e.innerText.trim() })));
     check('menu: « Fichier iReal Pro… », available', items.length >= 1 && items[0].key === 'irealFile' && !items[0].disabled && items[0].text === 'Fichier iReal Pro…', JSON.stringify(items));
-    check('menu: in a browser there is no « Ouvrir dans iReal Pro » (the Mac app adds it)', !items.some((i) => i.key === 'irealOpen'));
+    check('menu: « Ouvrir dans iReal Pro » follows it, in the web app too', items.length === 2 && items[1].key === 'irealOpen' && !items[1].disabled && items[1].text === 'Ouvrir dans iReal Pro', JSON.stringify(items));
     check('menu: the sound and PDF entries are still there', (await page.locator('.sous-menu [data-commande="exportAudio"]').count()) === 1 && (await page.locator('.sous-menu [data-commande="pdf"]').count()) === 1);
     await closeMenu(page);
 
@@ -244,10 +250,107 @@ try {
     check('no page errors (analysis)', errors.length === 0, errors.join(' | '));
     await context.close();
   }
+
+  // ------------------------------------------------------------ « Ouvrir dans iReal Pro » in the web app, in both forms
+  for (const form of [{ name: 'computer', viewport: { width: 1280, height: 800 }, touch: false }, { name: 'phone', viewport: { width: 390, height: 844 }, touch: true }]) {
+    const tag = form.name;
+    const context = await browser.newContext({ viewport: form.viewport, hasTouch: form.touch, isMobile: form.touch, deviceScaleFactor: form.touch ? 2 : 1, acceptDownloads: true });
+    const page = await context.newPage();
+    const errors = [];
+    page.on('pageerror', (e) => errors.push(e.message));
+    page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
+    // The navigation to irealb:// is intercepted: the link followed is noted and goes no further.
+    await page.addInitScript(() => {
+      document.addEventListener(
+        'click',
+        (e) => {
+          const a = e.target instanceof Element ? e.target.closest('a[data-export="ireal-open"]') : null;
+          if (!a) return;
+          (window.__irealClicks ||= []).push({ href: a.href, hidden: document.hidden, target: a.target });
+          e.preventDefault();
+        },
+        true,
+      );
+    });
+    await page.goto(`${url}/?demo&moteur=factice`);
+    await page.waitForFunction(() => window.__fabtice && window.__fabtice.store.getState().transport.engine === 'ready', null, { timeout: 15000 });
+    await page.evaluate(() => document.fonts.ready);
+    await sleep(300);
+    const clicks = () => page.evaluate(() => window.__irealClicks ?? []);
+    const notice = page.locator('[data-testid="avis-ireal"]');
+
+    // The entry is offered next to the file, and works.
+    const entry = await menuEntry(page, 'Exporter', 'iReal Pro', 'Ouvrir dans iReal Pro');
+    check(`${tag}: « Ouvrir dans iReal Pro » is in the web app too, available`, entry.enabled, JSON.stringify(entry));
+    const pagesBefore = context.pages().length;
+    await menuCommand(page, 'Exporter', 'iReal Pro', 'Ouvrir dans iReal Pro');
+    await sleep(150);
+    let c = await clicks();
+    check(`${tag}: the link of the chart is followed once, from the gesture`, c.length === 1 && /^irealb:\/\/[\x21-\x7e]+$/.test(c[0].href), JSON.stringify(c.map((x) => x.href.slice(0, 40))));
+    check(`${tag}: …no tab is opened, the page itself does not navigate`, context.pages().length === pagesBefore && c[0].target === '' && page.url().startsWith(url), `${context.pages().length} pages, ${page.url()}`);
+    const { html } = await download(page);
+    check(`${tag}: …and it is the link of the file « Fichier iReal Pro… » saves`, c[0].href === linkOf(html));
+    check(`${tag}: nothing is said at once`, (await notice.count()) === 0);
+
+    // The page stays visible: after a moment, the calm notice.
+    await notice.waitFor({ timeout: 6000 });
+    const text = (await notice.locator('p').innerText()).trim();
+    check(`${tag}: a moment later, the notice, to the letter`, text === 'Si rien ne s’est ouvert, iReal Pro n’est pas installé sur cet appareil, ou le navigateur a bloqué l’ouverture. Vous pouvez enregistrer le fichier et l’ouvrir depuis iReal Pro.', text);
+    check(`${tag}: …with « Enregistrer le fichier… » and « Fermer »`, (await texts(notice.locator('button'))).join('|') === 'Enregistrer le fichier…|Fermer');
+    const box = await notice.boundingBox();
+    check(`${tag}: …inside the screen, not over the transport`, box.x >= 0 && box.x + box.width <= form.viewport.width + 0.5 && box.y >= 0, JSON.stringify(box));
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth);
+    check(`${tag}: …the page does not scroll sideways`, overflow);
+    if (form.touch) {
+      const small = await notice.locator('button').evaluateAll((els) => els.map((e) => e.getBoundingClientRect().height).filter((h) => h < 40));
+      check(`${tag}: …its buttons are 40 px or more`, small.length === 0, JSON.stringify(small));
+    }
+    await page.screenshot({ path: path.join(out, `ireal-${tag}-avis.png`) });
+    // « Enregistrer le fichier… » is the file command.
+    const [dl] = await Promise.all([page.waitForEvent('download'), (form.touch ? notice.locator('[data-testid="avis-ireal-fichier"]').tap() : notice.locator('[data-testid="avis-ireal-fichier"]').click())]);
+    check(`${tag}: « Enregistrer le fichier… » saves the file of the piece, and the notice goes`, dl.suggestedFilename() === 'Blues du dimanche.html' && (await notice.count()) === 0, dl.suggestedFilename());
+    // « Fermer ».
+    await menuCommand(page, 'Exporter', 'iReal Pro', 'Ouvrir dans iReal Pro');
+    await notice.waitFor({ timeout: 6000 });
+    await (form.touch ? notice.locator('[data-testid="avis-ireal-fermer"]').tap() : notice.locator('[data-testid="avis-ireal-fermer"]').click());
+    check(`${tag}: « Fermer » closes it`, (await notice.count()) === 0);
+
+    // The page goes away (an app took the link): no notice.
+    await page.evaluate(() => (window.__irealClicks = []));
+    await menuCommand(page, 'Exporter', 'iReal Pro', 'Ouvrir dans iReal Pro');
+    await page.evaluate(() => {
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' });
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await sleep(150);
+    await page.evaluate(() => {
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' });
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await sleep(2400);
+    check(`${tag}: the page was hidden for a moment (an app took the link): no notice`, (await notice.count()) === 0 && (await clicks()).length === 1);
+
+    // A link too long to follow: the file is saved, the sentence says why, nothing is followed.
+    await page.evaluate(() => (window.__irealClicks = []));
+    await page.evaluate(() => {
+      const s = window.__fabtice.store;
+      s.setState({ project: { ...s.getState().project, duration: 60000 * 4 * (60 / 110) } });
+    });
+    await sleep(500);
+    const [long] = await Promise.all([page.waitForEvent('download', { timeout: 20000 }), menuCommand(page, 'Exporter', 'iReal Pro', 'Ouvrir dans iReal Pro')]);
+    await notice.waitFor({ timeout: 6000 });
+    const longText = (await notice.locator('p').innerText()).trim();
+    check(`${tag}: a link longer than the longest: the file is saved, nothing is followed, the sentence says why`, long.suggestedFilename() === 'Blues du dimanche.html' && (await clicks()).length === 0 && longText.includes('trop longue') && (await notice.getAttribute('data-avis')) === 'tooLong', longText);
+    check(`${tag}: …with « Fermer » only`, (await texts(notice.locator('button'))).join('|') === 'Fermer');
+    await page.screenshot({ path: path.join(out, `ireal-${tag}-trop-longue.png`) });
+    check(`no page errors (${tag}, opening in iReal Pro)`, errors.length === 0, errors.join(' | '));
+    await context.close();
+  }
 } finally {
   await browser.close();
   srv.close();
 }
 
+console.log(`\nScreenshots: ${out}`);
 console.log(failed ? `\n${failed} check(s) failed` : '\nAll checks passed');
 process.exit(failed ? 1 : 0);

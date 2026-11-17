@@ -26,6 +26,7 @@ import { SettingsDialog } from './SettingsDialog';
 import { SeparationPanelHost } from './SeparationPanel';
 import { StandardsMessage, useMessageStep } from './StandardsMessage';
 import { StorageNotice } from './StorageNotice';
+import { IRealNotice } from './IRealNotice';
 import { TopBar } from './TopBar';
 import { MeterDialog } from './MeterDialog';
 import { PartDialog } from './PartDialog';
@@ -65,6 +66,7 @@ export function App() {
       </div>
       <SeparationPanelHost />
       <StorageNotice />
+      <IRealNotice />
       <NewPieceDialog />
       <StandardsMessage />
       <ExportAudioDialog />

@@ -10,7 +10,8 @@ import { chartBars, chartLines, resolveChords } from './layout';
 import { emptyCorrections } from '../model/corrections';
 import type { AnalysedChord } from '../model/analysis';
 import { fitChart } from './fit';
-import { headerInfo, headerTitle, printLines } from './printChart';
+import { headerForm, headerInfo, headerPart, headerTitle, partCaption, printLines } from './printChart';
+import { barsOfRange } from './structureDisplay';
 import { loadPrintOptions, pageRule, savePrintOptions } from './print';
 import {
   BAR_UNITS,
@@ -239,6 +240,43 @@ describe('the drawing on paper', () => {
   });
 });
 
+describe('what is printed: the whole chart or one part', () => {
+  const m = constantTempoMap({ bpm: 120, firstDownbeat: 0, meter: { numerator: 4, denominator: 4 }, origin: 'manual' });
+  const bars = chartBars({ map: m, chords: [], sections: [], duration: 48 });
+
+  it('the whole chart by default', () => {
+    expect(printLines(bars)).toEqual(chartLines(bars));
+    expect(printLines(bars, null)).toEqual(chartLines(bars));
+  });
+
+  it('one part is the lines of its bars, bar numbers kept, four to a line from its first bar', () => {
+    const lines = printLines(bars, { first: 2, end: 11 });
+    expect(lines.map((l) => l.bars.map((b) => b.bar))).toEqual([[2, 3, 4, 5], [6, 7, 8, 9], [10]]);
+  });
+
+  it('says which part, with the bars as musicians count them', () => {
+    expect(partCaption('Thème 1', barsOfRange(bars, { first: 2, end: 10 }))).toBe('Thème 1 · mesures 3–10');
+    expect(partCaption('Intro', barsOfRange(bars, { first: 0, end: 1 }))).toBe('Intro · mesures 1');
+    expect(partCaption('Intro', [])).toBeNull();
+  });
+
+  it('the form and the part have their own rows in the title block', () => {
+    const rows = HEADER_ROWS_MM;
+    expect(headerHeightMm({ title: true, info: true, part: true, form: true })).toBe(rows.title + rows.part + rows.info + rows.form + rows.gap);
+    expect(headerHeightMm({ title: true, info: true, form: true })).toBe(rows.title + rows.info + rows.form + rows.gap);
+    expect(headerHeightMm({ title: false, info: false, part: false, form: false })).toBe(0);
+    expect(headerHeightMm({ title: false, info: false, form: true })).toBe(rows.form + rows.gap);
+  });
+
+  it('« Forme : AABC » only when it is chosen and known', () => {
+    expect(headerForm({ form: 'AABC' }, DEFAULT_HEADER)).toBe('Forme : AABC');
+    expect(headerForm({ form: 'AABC' }, { ...DEFAULT_HEADER, form: false })).toBeNull();
+    expect(headerForm({ form: null }, DEFAULT_HEADER)).toBeNull();
+    expect(headerPart({ partLabel: 'Solo · mesures 3–6' })).toBe('Solo · mesures 3–6');
+    expect(headerPart({ partLabel: null })).toBeNull();
+  });
+});
+
 describe('the preview', () => {
   it('shows the whole sheet in the area, never above life size', () => {
     const sheet = { w: 210, h: 297 };
@@ -256,11 +294,11 @@ describe('the title block', () => {
   it('says the key with the instrument, the meter and the tempo, each one when it is chosen', () => {
     expect(headerInfo(chart, DEFAULT_HEADER, 'ut')).toEqual(['Tonalité de A♭ pour instrument en Ut', '4/4 · tempo 110']);
     expect(headerInfo(chart, { ...DEFAULT_HEADER, tempo: false }, 'sib')).toEqual(['Tonalité de A♭ pour instrument en Si♭']);
-    expect(headerInfo(chart, { title: true, key: false, tempo: true }, 'ut')).toEqual(['4/4 · tempo 110']);
+    expect(headerInfo(chart, { title: true, key: false, tempo: true, form: true }, 'ut')).toEqual(['4/4 · tempo 110']);
   });
   it('keeps saying the instrument when the key is left out and it is not in C; nothing at all when nothing is chosen', () => {
-    expect(headerInfo(chart, { title: true, key: false, tempo: false }, 'mib')).toEqual(['Pour instrument en Mi♭']);
-    expect(headerInfo(chart, { title: true, key: false, tempo: false }, 'ut')).toEqual([]);
+    expect(headerInfo(chart, { title: true, key: false, tempo: false, form: true }, 'mib')).toEqual(['Pour instrument en Mi♭']);
+    expect(headerInfo(chart, { title: true, key: false, tempo: false, form: true }, 'ut')).toEqual([]);
     expect(headerInfo({ ...chart, key: null }, DEFAULT_HEADER, 'ut')).toEqual(['4/4 · tempo 110']);
     expect(headerInfo({ ...chart, bpm: null }, DEFAULT_HEADER, 'ut')).toEqual(['Tonalité de A♭ pour instrument en Ut', '4/4']);
   });
@@ -297,7 +335,7 @@ describe('the choices kept on the device', () => {
 
   it('are kept and read back, field by field', () => {
     store();
-    const chosen: PrintOptions = { orientation: 'paysage', paper: 'lettre', margins: 'larges', scale: 70, fitOne: true, header: { title: false, key: true, tempo: false } };
+    const chosen: PrintOptions = { orientation: 'paysage', paper: 'lettre', margins: 'larges', scale: 70, fitOne: true, header: { title: false, key: true, tempo: false, form: false }, what: 'part' };
     savePrintOptions(chosen);
     expect(loadPrintOptions()).toEqual(chosen);
   });
@@ -309,11 +347,24 @@ describe('the choices kept on the device', () => {
       margins: 'normales',
       scale: 100,
       fitOne: false,
-      header: { title: true, key: false, tempo: true },
+      header: { title: true, key: false, tempo: true, form: true },
+      what: 'full',
     });
     expect(normalizePrintOptions(null, 'fr-FR')).toEqual(defaultPrintOptions('fr-FR'));
     expect(normalizePrintOptions('x', 'fr-FR')).toEqual(defaultPrintOptions('fr-FR'));
     expect(normalizePrintOptions({ paper: 'lettre' }, 'fr-FR').paper).toBe('lettre');
+  });
+
+  it("options kept before « Ce qu'on imprime » and « Forme » existed still load, with the defaults for them", () => {
+    const old = { orientation: 'paysage', paper: 'a4', margins: 'larges', scale: 70, fitOne: false, header: { title: true, key: false, tempo: true } };
+    expect(normalizePrintOptions(old, 'fr-FR')).toEqual({ ...old, header: { ...old.header, form: true }, what: 'full' });
+  });
+
+  it('a « what » that is not one of the three is the whole chart', () => {
+    expect(normalizePrintOptions({ what: 'part' }, 'fr-FR').what).toBe('part');
+    expect(normalizePrintOptions({ what: 'simplified' }, 'fr-FR').what).toBe('simplified');
+    expect(normalizePrintOptions({ what: 'section' }, 'fr-FR').what).toBe('full');
+    expect(normalizePrintOptions({ header: { form: false } }, 'fr-FR').header.form).toBe(false);
   });
 
   it('the first version of the dialog kept an orientation and a size: both are understood', () => {

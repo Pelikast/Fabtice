@@ -1,6 +1,7 @@
 // The captures of the structure column of « Grille d'accords » (C14, stage 5) for `npm run captures`: the column with a
 // structure (whole chart), one part shown, a part corrected by hand, the part window, the empty state, and on a phone the
-// bar under the title and the open sheet. Named `<form>-structure-…` (`ordinateur-…`, `telephone-…`).
+// bar under the title and the open sheet, the print window with « Une section » chosen (and its preview), and the calm
+// notice of « Ouvrir dans iReal Pro » in the web app. Named `<form>-structure-…` (`ordinateur-…`, `telephone-…`).
 //
 // It is not run on its own: `tests/captures.mjs` calls it for each form, giving what its own sections use
 // (the same `browser`, `openPage`, `snap`, `contextOptions`, `press` as in that file):
@@ -8,6 +9,8 @@
 //   import { harmonyCaptures } from './captures-harmonie.mjs';
 //   ...
 //   ['structure du morceau', (form) => harmonyCaptures(form, { browser, openPage, snap, contextOptions, press })],
+
+import { menuCommand } from './lib/menu.mjs';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -106,6 +109,44 @@ export async function harmonyCaptures(form, deps) {
     await sleep(300);
     await openList(page);
     await snap(page, form, 'structure-vide');
+    await context.close();
+  }
+
+  // 7. The print window with « Une section » chosen: the preview is that part only, named under the title.
+  {
+    const { context, page } = await demo(form, deps);
+    if (form.phone) await page.evaluate(() => window.__fabtice.store.setState((s) => ({ ui: { ...s.ui, printOpen: true, panel: 'none' } })));
+    else await press(page, page.locator('[data-testid="imprimer-grille"]'));
+    await page.waitForSelector('[data-testid="impression"]');
+    await sleep(400);
+    await snap(page, form, 'structure-impression-complete');
+    await press(page, page.locator('[data-testid="impression"] [data-choix="part"]'));
+    await page.locator('[data-testid="impression-section"]').selectOption({ index: 1 });
+    await sleep(300);
+    // On a phone the options sit under the preview: bring the group into view next to it.
+    if (form.phone) await page.evaluate(() => document.querySelector('.imp-section')?.scrollIntoView({ block: 'center' }));
+    await sleep(250);
+    await snap(page, form, 'structure-impression-section');
+    await context.close();
+  }
+
+  // 8. « Ouvrir dans iReal Pro » in the web app: the link is followed (here intercepted), the page stays: the calm notice.
+  {
+    const context = await deps.browser.newContext(deps.contextOptions(form));
+    await context.addInitScript(() => {
+      document.addEventListener('click', (e) => {
+        const a = e.target instanceof Element ? e.target.closest('a[data-export="ireal-open"]') : null;
+        if (a) e.preventDefault();
+      }, true);
+    });
+    const page = await deps.openPage(context, '?demo&moteur=factice&vue=grille');
+    await page.evaluate(() => document.fonts.ready);
+    await page.waitForSelector('.vue-grille .case .ch', { timeout: 15000 });
+    await sleep(300);
+    await menuCommand(page, 'Exporter', 'iReal Pro', 'Ouvrir dans iReal Pro');
+    await page.waitForSelector('[data-testid="avis-ireal"]', { timeout: 8000 });
+    await sleep(500);
+    await snap(page, form, 'ireal-avis');
     await context.close();
   }
 }

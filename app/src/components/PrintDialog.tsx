@@ -8,17 +8,19 @@
 // The sheets in the preview ARE the printed pages (`chart/PrintSheets.tsx`,
 // paginated by `chart/printLayout.ts`): the print style sheet keeps nothing
 // else on the page and puts the preview's reduction back to 1. What is printed
-// (« ce qu'on imprime ») is `printLines` in `chart/printChart.ts`. The way the
+// (« Ce qu'on imprime »: the whole chart, the simplified chart, one section) is chosen here and read by
+// `usePrintChart` / `printLines` in `chart/printChart.ts`; the window opens on what the screen shows. The way the
 // pages leave is `chart/print.ts`.
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { PrintSheets } from '../chart/PrintSheets';
-import { headerInfo, headerTitle, hasChords, usePrintChart } from '../chart/printChart';
+import { headerForm, headerInfo, headerPart, headerTitle, hasChords, usePrintChart } from '../chart/printChart';
 import {
   PRINT_MARGINS,
   PRINT_ORIENTATIONS,
   PRINT_PAPERS,
   SCALES,
+  type PrintWhat,
   headerHeightMm,
   paginate,
   previewScale,
@@ -40,12 +42,16 @@ import {
   savePrinterName,
 } from '../chart/print';
 import { selectChartBars } from '../store/chartSelectors';
+import { selectChartDisplay } from '../store/chartDisplay';
+import { selectSimplifiedChart } from '../store/simplifiedSelectors';
+import { structureInForce } from '../store/structureSelectors';
+import { partName } from '../model/structureLabels';
 import { withAccidentals } from '../harmony/ChordSymbol';
 import { t } from '../i18n';
 import { INSTRUMENTS, type Instrument } from '../model/harmony';
 import type { PrinterInfo } from '../platform/desktopBridge';
 import { closePrint } from '../store/exportActions';
-import { appStore, useApp } from '../store/store';
+import { appStore, useApp, type ChartDisplay } from '../store/store';
 import { CloseIcon } from '../ui/icons';
 
 type Phase = { kind: 'choose' } | { kind: 'working' } | { kind: 'saved' } | { kind: 'error' };
@@ -97,7 +103,21 @@ function useAreaSize(ref: React.RefObject<HTMLElement | null>, active: boolean) 
 function PrintBox() {
   const bars = useApp(selectChartBars);
   const printable = hasChords(bars);
-  const [options, setOptions] = useState<PrintOptions>(loadPrintOptions);
+  // The window opens on what the screen shows: the whole chart, one part, or the simplified chart (when there is one).
+  const [start] = useState(() => {
+    const s = appStore.getState();
+    const d = selectChartDisplay(s);
+    const what: PrintWhat = d.kind === 'part' ? 'part' : d.kind === 'simplified' && selectSimplifiedChart(s) !== null ? 'simplified' : 'full';
+    return { what, partId: d.kind === 'part' ? d.id : null };
+  });
+  const [options, setOptions] = useState<PrintOptions>(() => ({ ...loadPrintOptions(), what: start.what }));
+  const [partId, setPartId] = useState<string | null>(start.partId);
+  const parts = useApp((s) => structureInForce(s).parts);
+  const simplifiedAvailable = useApp((s) => selectSimplifiedChart(s) !== null);
+  // What is really printed: a choice that no longer holds (the part was deleted, no simplified chart) is the whole chart.
+  const chosenPart = parts.find((p) => p.id === partId) ?? parts[0] ?? null;
+  const what: PrintWhat = options.what === 'part' && chosenPart === null ? 'full' : options.what === 'simplified' && !simplifiedAvailable ? 'full' : options.what;
+  const target: ChartDisplay = what === 'part' && chosenPart ? { kind: 'part', id: chosenPart.id } : what === 'simplified' ? { kind: 'simplified' } : { kind: 'full' };
   // The instrument is the dialog's own choice (it starts as the screen's): printing for a trumpet does not rewrite the screen.
   const [instrument, setInstrument] = useState<Instrument>(() => appStore.getState().view.instrument);
   const [phase, setPhase] = useState<Phase>({ kind: 'choose' });
@@ -111,10 +131,15 @@ function PrintBox() {
   const working = phase.kind === 'working';
   const pdfDirect = canSavePdfDirectly();
 
-  const chart = usePrintChart(instrument);
+  const chart = usePrintChart(instrument, target);
   const title = chart ? headerTitle(chart, options.header) : null;
   const info = chart ? headerInfo(chart, options.header, instrument) : [];
-  const layout = useMemo(() => paginate(chart?.lines.length ?? 0, options, headerHeightMm({ title: title !== null, info: info.length > 0 })), [chart?.lines.length, options, title, info.length]);
+  const partLine = chart ? headerPart(chart) : null;
+  const formLine = chart ? headerForm(chart, options.header) : null;
+  const layout = useMemo(
+    () => paginate(chart?.lines.length ?? 0, options, headerHeightMm({ title: title !== null, info: info.length > 0, part: partLine !== null, form: formLine !== null })),
+    [chart?.lines.length, options, title, info.length, partLine, formLine],
+  );
   usePageRule(printable ? pageRule(layout) : null);
 
   const area = useAreaSize(scroller, printable);
@@ -283,6 +308,40 @@ function PrintBox() {
                 </Group>
               </div>
 
+              <Group label={t('print.what')}>
+                <Radios<PrintWhat>
+                  label={t('print.what')}
+                  value={what}
+                  items={[
+                    ['full', t('print.whatFull')],
+                    ...(simplifiedAvailable ? ([['simplified', t('print.whatSimplified')]] as [PrintWhat, string][]) : []),
+                    ['part', t('print.whatPart')],
+                  ]}
+                  disabled={parts.length === 0 ? ['part'] : []}
+                  onPick={(next) => {
+                    if (next === 'part' && chosenPart) setPartId(chosenPart.id);
+                    choose({ what: next });
+                  }}
+                  pile
+                />
+                {what === 'part' && chosenPart && (
+                  <select
+                    className="imp-liste imp-liste-large imp-section"
+                    aria-label={t('print.whichPart')}
+                    data-testid="impression-section"
+                    value={chosenPart.id}
+                    onChange={(e) => setPartId(e.target.value)}
+                  >
+                    {parts.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {partName(p, t)}
+                        {p.letters.length ? ` · ${p.letters.join('')}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </Group>
+
               <Group label={t('print.margins')}>
                 <Radios<PrintMargins>
                   label={t('print.margins')}
@@ -344,6 +403,10 @@ function PrintBox() {
                     <input type="checkbox" data-testid="impression-tempo-case" checked={options.header.tempo} onChange={(e) => chooseHeader({ tempo: e.target.checked })} />
                     <span>{t('print.headerTempo')}</span>
                   </label>
+                  <label className="imp-case">
+                    <input type="checkbox" data-testid="impression-forme-case" checked={options.header.form} onChange={(e) => chooseHeader({ form: e.target.checked })} />
+                    <span>{t('print.headerForm')}</span>
+                  </label>
                 </div>
               </Group>
 
@@ -394,6 +457,8 @@ function Radios<T extends string>({
   onPick,
   firstRef,
   accidentals,
+  disabled = [],
+  pile = false,
 }: {
   label: string;
   value: T;
@@ -401,11 +466,15 @@ function Radios<T extends string>({
   onPick: (value: T) => void;
   firstRef?: React.Ref<HTMLButtonElement>;
   accidentals?: boolean;
+  /** Choices that cannot be picked now. */
+  disabled?: readonly T[];
+  /** One choice under the other, each as wide as the group (long names). */
+  pile?: boolean;
 }) {
   return (
-    <div className="duo imp-duo" role="radiogroup" aria-label={label}>
+    <div className={`duo imp-duo${pile ? ' imp-pile' : ''}`} role="radiogroup" aria-label={label}>
       {items.map(([id, label], i) => (
-        <button key={id} ref={i === 0 ? firstRef : undefined} role="radio" aria-checked={value === id} data-choix={id} onClick={() => onPick(id)}>
+        <button key={id} ref={i === 0 ? firstRef : undefined} role="radio" aria-checked={value === id} data-choix={id} disabled={disabled.includes(id)} onClick={() => onPick(id)}>
           {accidentals ? withAccidentals(label) : label}
         </button>
       ))}

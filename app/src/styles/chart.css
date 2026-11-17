@@ -94,6 +94,9 @@
 .case[data-taille="4"] { --r: 0.38; }
 /* Crowded bars: the chords go on two rows, one up and one down by turns (fit.ts). */
 .case[data-rangs="2"] { --rangs: 2; }
+/* A lettered bar whose chords are on two rows: the boxed letter keeps its corner and the rows start under it
+   (as a signature makes room: `.signee`), so the letter never covers a chord. */
+.case.lettree[data-rangs="2"] { --haut: 26px; }
 .case.dans-boucle { background: var(--laiton-voile); }
 /* A loop that starts or ends inside a bar veils that part of the bar only (--boucle-de / --boucle-a, fractions of its width). */
 .case.dans-boucle.partielle { background: none; }

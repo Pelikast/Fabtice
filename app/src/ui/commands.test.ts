@@ -42,7 +42,7 @@ const ctx = (over: Partial<CommandContext> = {}): CommandContext => ({
   textField: false,
   history: NO_HISTORY,
   desktop: false,
-  canOpenIReal: false,
+  canOpenIReal: true,
   hasRecent: false,
   canQuit: false,
   ...over,
@@ -63,9 +63,13 @@ describe('which commands can run', () => {
 
   it('a piece with chords: everything; undo and redo when the history has a step', () => {
     const c = ctx({ history: { canUndo: true, canRedo: false, undoLabel: 'Annuler : volume de la piste', redoLabel: null, modified: true } });
-    expect(enabledIds(c)).toEqual(['undo', 'newFromLink', 'newFromFile', 'open', 'save', 'saveAs', 'exportAudio', 'irealFile', 'pdf', 'exportLogic', 'exportAbleton', 'print', 'settings']);
+    expect(enabledIds(c)).toEqual(['undo', 'newFromLink', 'newFromFile', 'open', 'save', 'saveAs', 'exportAudio', 'irealFile', 'irealOpen', 'pdf', 'exportLogic', 'exportAbleton', 'print', 'settings']);
     expect(COMMANDS.undo.label(c)).toBe('Annuler : volume de la piste');
     expect(COMMANDS.redo.label(c)).toBe('Rétablir');
+  });
+
+  it('a piece with chords but a bridge that cannot hand the link over (an older Mac app): « Ouvrir dans iReal Pro » is not offered', () => {
+    expect(enabledIds(ctx({ desktop: true, canOpenIReal: false }))).not.toContain('irealOpen');
   });
 
   it('the demonstration piece is never saved', () => {
@@ -85,7 +89,7 @@ describe('which commands can run', () => {
     expect(COMMANDS.undo.label(c)).toBe('Annuler');
   });
 
-  it('the Mac app adds « Ouvrir dans iReal Pro », « Projets récents » and « Quitter »', () => {
+  it('« Ouvrir dans iReal Pro » is in the web app too; the Mac app adds « Projets récents » and « Quitter »', () => {
     const web = ctx();
     const mac = ctx({ desktop: true, canOpenIReal: true, hasRecent: true, canQuit: true });
     expect(outline(FABTICE_MENU, web)).toEqual([
@@ -97,7 +101,7 @@ describe('which commands can run', () => {
       '-',
       'save',
       'saveAs',
-      'export[exportAudio,ireal[irealFile],pdf,exportLogic,exportAbleton]',
+      'export[exportAudio,ireal[irealFile,irealOpen],pdf,exportLogic,exportAbleton]',
       'print',
       '-',
       'settings',

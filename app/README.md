@@ -1459,6 +1459,38 @@ nouvelle analyse, il efface l'historique). Vérification : `npm run
 test:structure` (deux formes) ; captures : `FABTICE_CAPTURES_ONLY=structure
 npm run captures -- /dossier` (`tests/captures-harmonie.mjs`).
 
+**Impression de la structure (étape 5, suite).** `PrintOptions.what`
+(`'full' | 'simplified' | 'part'`, gardé ; la partie choisie ne l'est pas) et
+`PrintHeader.form` (« Forme », par défaut oui) dans `chart/printLayout.ts`
+(`normalizePrintOptions` accepte les anciennes options) ; `HEADER_ROWS_MM` a deux
+lignes de plus (`part`, `form`) et `headerHeightMm({ title, info, part?, form? })`.
+`chart/printChart.ts` : `usePrintChart(instrument, what: ChartDisplay)` rend
+`PrintChart` avec `form`, `partLabel` (« Thème 1 · mesures 3–10 »), `simplified`
+(porté, pas encore dessiné : tant que `simplifyChart` ne rend rien, ou que son
+rendu n'existe pas, `lines` est la grille complète), `lines` ;
+`printLines(bars, range?)`, `partCaption`, `headerForm`, `headerPart`. La
+fenêtre (`components/PrintDialog.tsx`) s'ouvre sur `ui.chartDisplay` et propose
+« Grille complète simplifiée » seulement si `selectSimplifiedChart` rend une
+grille. **Pour la troisième lot** : fournir les lignes écrites de la grille
+simplifiée à `PrintSheets` à partir de `chart.simplified`.
+Vérification : `tests/print.mjs` (bloc « Ce qu'on imprime », deux formes, PDF
+identique à l'aperçu pour une section).
+
+**« Ouvrir dans iReal Pro » dans l'app web.** `export/irealOpen.ts` (pur :
+`planIRealOpen`, `needsIRealNotice` ; navigateur : `browserHost`,
+`openIRealLink`, 1,6 s de surveillance), `ui/irealNotice.ts`,
+`components/IRealNotice.tsx` (`data-testid="avis-ireal"`), commande `irealOpen`
+(`ui/commands.ts` : `canOpenIReal` est vrai dans l'app web). Le lien est suivi
+par un `<a data-export="ireal-open">` caché cliqué au geste (jamais d'onglet
+vide) : les essais l'interceptent. Vérification : `tests/export.mjs`,
+`tests/menu.mjs`.
+
+**Corrections vues dans les captures.** Une mesure à lettre et à deux rangs
+d'accords garde le coin de la lettre (`.case.lettree[data-rangs="2"]`,
+`--haut: 26px`) ; `.voile.voile-signature` / `.accueil.fenetre-signature` (la
+feuille du téléphone de « Changer la signature ») ont deux classes pour passer
+devant `.voile` et `.accueil` de `dialog.css`, qui viennent après dans la feuille.
+
 ### Étape 4 de la 1.0.0 : tempo à la main
 
 **Menu de la mesure** (`components/TempoFixMenu.tsx`) : quatre entrées. Les

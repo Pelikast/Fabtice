@@ -127,6 +127,13 @@
   font-weight: 560;
 }
 .imp-duo button[aria-checked="true"] { background: var(--encre); color: var(--papier-clair); }
+/* « Ce qu'on imprime »: long names, one under the other. */
+.imp-pile { flex-direction: column; }
+.imp-pile button { flex: none; text-align: left; padding: 6px 12px; }
+.imp-pile button + button { border-left: 0; border-top: 1px solid var(--trait-fin); }
+.imp-pile button:disabled { opacity: 0.5; cursor: default; }
+.imp-pile button:disabled:hover { background: none; color: var(--encre-douce); }
+.imp-section { margin-top: 8px; }
 .imp-echelle { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 .imp-liste {
   height: 36px;
@@ -267,6 +274,17 @@
   text-overflow: ellipsis;
 }
 .pp-infos .alt { margin-right: 0.1em; }
+/* The part printed (under the title) and the form of the piece (under the key and tempo): quiet lines of the same height. */
+.pp-partie, .pp-forme {
+  height: calc(5mm * var(--e));
+  margin: 0;
+  overflow: hidden;
+  font-size: calc(10pt * var(--e));
+  line-height: calc(5mm * var(--e));
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.pp-forme { letter-spacing: 0.02em; }
 .pp-numero-page {
   position: absolute;
   right: 0;

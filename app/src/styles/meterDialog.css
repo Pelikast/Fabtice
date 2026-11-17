@@ -47,8 +47,9 @@
 
 @media (max-width: 760px) {
   /* A sheet at the bottom of the screen; every target at least 40 px. */
-  .voile-signature { padding: 0; place-items: end stretch; }
-  .fenetre-signature { width: 100%; max-height: 100dvh; padding: 22px 18px calc(18px + env(safe-area-inset-bottom)); border-width: 1px 0 0; border-radius: var(--rayon-fenetre) var(--rayon-fenetre) 0 0; }
+  /* Two classes: `.voile` and `.accueil` (dialog.css) come later in the sheet and would win with one. */
+  .voile.voile-signature { padding: 0; place-items: end stretch; }
+  .accueil.fenetre-signature { width: 100%; max-height: 100dvh; padding: 22px 18px calc(18px + env(safe-area-inset-bottom)); border-width: 1px 0 0; border-radius: var(--rayon-fenetre) var(--rayon-fenetre) 0 0; }
   .signature-choix { min-height: 48px; }
   .signature-choix input { width: 24px; height: 24px; }
   .signature-retrait { min-height: 44px; }
