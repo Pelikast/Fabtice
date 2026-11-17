@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { classifyExcerpt, readExcerpt, sessionRunner, type WindowRunner } from './classify';
-import { createInstrumentRecognizer, type InstrumentsWorkerLike } from './recognizer';
+import { createInstrumentRecognizer, INSTRUMENT_MODEL, instrumentModelSourceText, type InstrumentsWorkerLike } from './recognizer';
 import type { FromInstrumentsWorker, ToInstrumentsWorker } from './protocol';
 
 const tone = (seconds: number, sr = 48000) => {
@@ -76,6 +76,16 @@ function fakeWorker(answer: (m: Extract<ToInstrumentsWorker, { type: 'recognise'
   };
   return { create, created, posted };
 }
+
+describe('the model as shown', () => {
+  it('comes from a pinned Hugging Face address, with its licence', () => {
+    expect(INSTRUMENT_MODEL.url).toMatch(/^https:\/\/huggingface\.co\/mispeech\/ced-tiny\/resolve\/[0-9a-f]{40}\/model\.onnx$/);
+    expect(INSTRUMENT_MODEL.sha256).toMatch(/^[0-9a-f]{64}$/);
+    expect(instrumentModelSourceText('6,7 Mo')).toBe(
+      'Pour reconnaître les instruments à vent d’un solo, Fabtice télécharge une fois CED-Tiny (6,7 Mo) depuis Hugging Face. Licence : Apache-2.0.',
+    );
+  });
+});
 
 describe('createInstrumentRecognizer', () => {
   it('passes the excerpt to its worker (a copy) and returns its answer', async () => {

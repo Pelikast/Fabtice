@@ -7,6 +7,7 @@
 import type { AnalysisModelInfo } from '../../analysis/types';
 import { MODEL_REGISTRY } from '../../analysis/models';
 import { openModelStore } from '../../analysis/models/store';
+import { t } from '../../i18n';
 import type { InstrumentGuess, InstrumentRecognizer } from '../types';
 import type { FromInstrumentsWorker, ToInstrumentsWorker } from './protocol';
 
@@ -43,6 +44,11 @@ export async function instrumentModelInfo(): Promise<AnalysisModelInfo> {
     cached = false;
   }
   return { ...info, cached };
+}
+
+/** The sentence that says what is downloaded, from where, under which licence (`sizeText`: « 6,7 Mo »). */
+export function instrumentModelSourceText(sizeText: string): string {
+  return t('instruments.model.source', { name: INSTRUMENT_MODEL.name, size: sizeText, host: INSTRUMENT_MODEL.host, licence: INSTRUMENT_MODEL.licence });
 }
 
 function defaultWorker(): InstrumentsWorkerLike {

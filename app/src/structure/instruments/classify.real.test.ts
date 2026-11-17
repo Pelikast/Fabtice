@@ -4,6 +4,8 @@
 // Python on the same signals (`fixtures/reference.json`, `reference.py`). Off by default:
 //
 //   FABTICE_INSTRUMENTS_REAL=1 npx vitest run src/structure/instruments/classify.real --silent=false
+//
+// (Behind an HTTPS proxy, Node's fetch needs NODE_USE_ENV_PROXY=1.)
 
 import { describe, expect, it } from 'vitest';
 import { MODEL_REGISTRY } from '../../analysis/models';

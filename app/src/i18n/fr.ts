@@ -715,6 +715,8 @@ export const fr = {
   'settings.chordModel.fineNote': 'Lit bien mieux les accords du jazz et des vieux disques : septièmes, extensions, basse, changements au milieu de la mesure.',
   'settings.chordModel.fineCost': 'Beaucoup plus long : plusieurs minutes par morceau (environ {minutes} min pour 4 minutes de musique sur un ordinateur). Demande environ 2,5 Go de mémoire ; déconseillé sur téléphone.',
   'settings.chordModel.fineSource': 'Téléchargé une fois depuis {host} ({size}) quand vous le choisissez. Licence des poids : {licence}. Code : MIT.',
+  // The small wind-instrument model of the structure (`structure/instruments/`): source and licence, wherever the tools are listed
+  'instruments.model.source': 'Pour reconnaître les instruments à vent d’un solo, Fabtice télécharge une fois {name} ({size}) depuis {host}. Licence : {licence}.',
   'settings.chordModel.again': 'Analyser de nouveau ce morceau avec ce modèle',
   'settings.chordModel.againNote': 'Vos corrections (grille, tonalité, accords) sont gardées.',
   'settings.formants': 'Conserver le timbre',

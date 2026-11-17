@@ -2,7 +2,7 @@
 // which wind instrument leads in an excerpt of the separated track « Autres ». See `model.ts`
 // for the model, `decide.ts` for the thresholds, `web/spikes/structure/instruments/` for the bench.
 
-export { createInstrumentRecognizer, instrumentModelInfo, INSTRUMENT_MODEL, type RecognizerOptions, type InstrumentsWorkerLike } from './recognizer';
+export { createInstrumentRecognizer, instrumentModelInfo, instrumentModelSourceText, INSTRUMENT_MODEL, type RecognizerOptions, type InstrumentsWorkerLike } from './recognizer';
 export { classifyExcerpt, readExcerpt, sessionRunner, type WindowRunner, type ExcerptReading } from './classify';
 export { decide, DECISION, type DecisionRule } from './decide';
 export { excerptWindows, windowPlan } from './excerpt';
