@@ -37,6 +37,10 @@ Un seul thème, clair. Pas de mode sombre.
 | `--laiton` | `#b8873a` | boucle, sélection, solo |
 | `--laiton-voile` | `rgba(184,135,58,.17)` | étendue de la boucle sur les pistes |
 
+Le texte sélectionné (un nombre présélectionné à l'ouverture d'une petite
+fenêtre, un titre qu'on modifie) est surligné en laiton, jamais dans le bleu
+du système.
+
 Teintes des pistes, sourdes et de même valeur, réservées aux formes d'onde et
 à la pastille de la piste :
 

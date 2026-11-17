@@ -263,6 +263,10 @@ est dans `analysis` et `corrections`.
 - **Migration exacte depuis la version 5** (celle de la version publiée), testée
   sur trois vrais documents (`storage/fixtures/v5-*.json`,
   `storage/documentVersion6.test.ts`) : un `.fab` publié s'ouvre sans rien perdre.
+  Preuve directe depuis l'étape 7 : `project/fixtures/published-main-v5.fab`, un
+  vrai fichier écrit par le code de la version du 16 novembre (deux séparations,
+  rendu gardé, corrections), rouvert champ par champ par
+  `project/publishedFile.test.ts`.
 
 ### Lot 2 : analyse, corrections, harmonie (document version 2)
 
@@ -2274,7 +2278,9 @@ et affichage des tonalités et de la structure : étape 5).
   sous… ») et `saveProjectAs()` (le dialogue « Enregistrer le projet », qui
   choisit ce qui part dedans, puis le volet du système ; le fichier choisi
   devient celui du projet). Toutes deux rendent `'saved' | 'cancelled' |
-  'failed'` ; aussi `cancelSave`, `saveActivity`. `project/choose.ts#chooseProjectFile()`
+  'failed'` ; un seul enregistrement à la fois : « Enregistrer sous… » demandé
+  pendant un « Enregistrer » attend qu'il finisse, et cmd + S pendant que la
+  fenêtre est ouverte rend la réponse de la fenêtre ; aussi `cancelSave`, `saveActivity`. `project/choose.ts#chooseProjectFile()`
   pour « Ouvrir… ». Le menu de l'étape 2 appelle ces fonctions et
   `requestNewProject()` (`project/leave.ts`) pour « Nouveau projet ». L'ancien
   dialogue est gardé : il sert à « Enregistrer sous… » ; « Enregistrer » garde en
@@ -2326,6 +2332,12 @@ et affichage des tonalités et de la structure : étape 5).
   système (point dans le bouton de fermeture quand il y a des modifications, icône
   du fichier dans la barre de titre : `reportProjectState`) ; web : « Nom —
   Fabtice », précédé d'un discret « • » tant qu'il y a des modifications.
+  À la fermeture de la fenêtre de l'app Mac, la sauvegarde automatique en
+  attente est écrite avant la réponse « on peut fermer » (3 s au plus,
+  `CLOSE_FLUSH_MAX_MS`). Le rendu gardé : `render/controller.ts#keptRenderAudio(kept)`
+  ne rend les sons en mémoire que s'ils sont ceux du rendu gardé nommé (un rendu
+  appliqué mais pas encore gardé ne part jamais dans le `.fab` sous l'étiquette
+  du précédent).
 - **Raccourcis** : `ui/saveKeys.ts` (`saveCommandFor`, `installSaveKeys`) : cmd + S
   et Maj + cmd + S (Ctrl ailleurs). Pris **partout, champ de texte compris**
   (c'est ce que l'utilisateur veut dire, et « enregistrer la page » du
