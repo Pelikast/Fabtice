@@ -1,5 +1,5 @@
 /// <reference types="vitest/config" />
-import { createHash } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { copyFileSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
@@ -56,6 +56,10 @@ const MANIFEST = {
   ],
 };
 
+// C16: which build this is, drawn once per build, in the page's code (`src/pwa/build.ts`) and in its service
+// worker: a worker waiting with another id is a new version of the site.
+const BUILD_ID = randomBytes(8).toString('hex');
+
 /** Writes the manifest, the icons and the service worker next to the built page (web build). */
 function writePwaFiles(outDir: string, files: string[]): void {
   for (const icon of ICONS) copyFileSync(path.join(ICONS_DIR, icon), path.join(outDir, icon));
@@ -71,6 +75,7 @@ function writePwaFiles(outDir: string, files: string[]): void {
     .slice(0, 16);
   const sw = readFileSync(path.join(PWA_DIR, 'sw.js'), 'utf8')
     .replace("'__VERSION__'", JSON.stringify(version))
+    .replace("'__BUILD__'", JSON.stringify(BUILD_ID))
     .replace('__PRECACHE__', JSON.stringify(precache))
     .replace('__ASSETS__', JSON.stringify(assets));
   writeFileSync(path.join(outDir, 'sw.js'), sw);
@@ -149,7 +154,10 @@ function fabticeOutput(mode: string): Plugin {
 export default defineConfig(({ mode }) => ({
   base: './',
   // The version number shown in the app (`src/version.ts`): the one of app/package.json.
-  define: { __FABTICE_VERSION__: JSON.stringify(JSON.parse(readFileSync(path.resolve(here, 'package.json'), 'utf8')).version) },
+  define: {
+    __FABTICE_VERSION__: JSON.stringify(JSON.parse(readFileSync(path.resolve(here, 'package.json'), 'utf8')).version),
+    __FABTICE_BUILD__: JSON.stringify(BUILD_ID),
+  },
   // No public dir: everything generated must land in assets/.
   publicDir: false,
   plugins: [react(), fabticeOutput(mode)],

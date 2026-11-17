@@ -357,6 +357,46 @@ export interface DesktopBridge {
   reportMenuState?(state: MenuBarState): Promise<boolean>;
   /** « Quitter » in the menu Fabtice: the same as cmd + Q (the alert about changes not saved first). */
   quitApp?(): Promise<boolean>;
+  /**
+   * C16, the update of the Mac app itself (`desktop/src/updater.js`). The page only ever says « check »,
+   * « update », « cancel », « open the page »: it never hands a path or an address. The state comes back through
+   * `onUpdateState` at each change (to every window). A Mac app that predates it (before 1.0.0) lacks these.
+   */
+  updateStatus?(): Promise<UpdateState>;
+  /** Reads the version file. `launch`: the search at opening (said only when there is something new). */
+  checkForUpdate?(origin?: 'launch' | 'page'): Promise<UpdateState>;
+  /** Downloads, checks and puts the new version in place, then quits and relaunches. Answers at once. */
+  startUpdate?(): Promise<{ ok: true } | { ok: false; reason: string }>;
+  /** While it downloads or prepares: everything made is removed, nothing was changed. */
+  cancelUpdate?(): Promise<boolean>;
+  /** The page of the new version on GitHub, in the browser (the manual download). */
+  openUpdatePage?(): Promise<boolean>;
+  onUpdateState?(callback: (state: UpdateState) => void): Unsubscribe;
+}
+
+/** Where the update of the Mac app is (`desktop/src/updater.js`, its `state`). */
+export type UpdatePhase = 'idle' | 'checking' | 'up-to-date' | 'available' | 'downloading' | 'preparing' | 'closing' | 'restarting' | 'failed';
+
+/** Why it cannot update itself here: macOS's protected copy, the disk image, a folder this account cannot write, … */
+export type UpdateBlock = 'translocated' | 'read-only' | 'not-writable' | 'not-packaged' | 'not-mac' | 'system';
+
+/** What went wrong: a search (`network`, `server`, `unreadable`) or an update (the others, and the blocks). */
+export type UpdateErrorCode = 'network' | 'server' | 'unreadable' | 'damaged' | 'download' | 'disk-space' | 'install' | 'refused' | UpdateBlock;
+
+export interface UpdateState {
+  /** The number of the app that runs (`app.getVersion()`). */
+  current: string;
+  phase: UpdatePhase;
+  /** Who asked the last search: the page at opening, Réglages, or the menu bar. */
+  origin: 'launch' | 'page' | 'menu' | null;
+  /** Grows with each answer of a search. */
+  seq: number;
+  available: { version: string; notes: string; publishedAt: string; size: number } | null;
+  blocked: { code: UpdateBlock; minimum?: string } | null;
+  /** Download then preparation, 0 to 1. */
+  progress: { fraction: number; received: number; total: number } | null;
+  error: { code: UpdateErrorCode; during: 'check' | 'update' } | null;
+  room: { needed: number; free: number | null } | null;
 }
 
 /** What the page tells the Mac menu bar: each command, its label and whether it can run now. */

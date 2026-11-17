@@ -119,6 +119,9 @@ function createUpdater(options) {
    */
   function check(origin = 'page') {
     if (job) return Promise.resolve(state);
+    // The end-to-end tests run the real address of the page, whose search at opening must not depend on what is
+    // published on GitHub that day: under their switch, only a test server is asked.
+    if (origin === 'launch' && env.FABTICE_HOLD_WINDOW === '1' && !updateNet.testOrigin(env)) return Promise.resolve(state);
     if (checking) {
       // A manual search during the one at opening: its answer is for the person who asked.
       if (origin !== 'launch') state = { ...state, origin };
