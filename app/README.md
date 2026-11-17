@@ -1416,6 +1416,49 @@ ferait doublon.
 
 ## Contrats pour la suite
 
+### Étape 5 de la 1.0.0 : colonne de la structure (première moitié des écrans)
+
+**Lecteurs des lettres.** Tout ce qui affiche ou exporte les lettres de
+section lit `sectionsInForce(s)` (lettres de l'analyse tant que l'utilisateur
+n'a pas touché aux lettres) : `chartSelectors.ts` (`selectHasMarkers`,
+`selectChartBars`, `selectSectionAt`), `markerActions.ts`, `MarkersPanel.tsx`,
+`timeline/controller.ts` (invalidation : la référence de `sectionsInForce`
+change avec l'analyse ou les corrections), `export/chartExport.ts`. Les
+écritures n'ont pas changé.
+
+**Noms des parties.** `model/structureLabels.ts` : `partName(part, t)`,
+`instrumentName`, clés `structure.part.*` et `structure.instrument.*` ; la
+colonne, la fenêtre et les marqueurs des exports (`export/session/build.ts#partLabel`)
+écrivent la même chose.
+
+**Affichage.** `ui.chartDisplay` (`{kind:'full'} | {kind:'simplified'} |
+{kind:'part', id}`, ni enregistré ni annulable) ; `store/chartDisplay.ts` :
+`selectChartDisplay` (retombe sur « complet » quand la partie disparaît),
+`selectShownPart`, `selectShownBars`, `showFullChart`, `showSimplifiedChart`,
+`showPart(id)` (affiche et `seek(part.start)`), `loopPart(id)`
+(`setLoopRegion` puis `enterLoop`), `changePart`, `deletePart`. Pur :
+`chart/structureDisplay.ts` (`partBars`, `limitsFromNumbers`,
+`defaultNewLimits`…). `store/simplifiedSelectors.ts` :
+`selectSimplifyInput`, `selectSimplifiedChart` (appelle `simplifyChart`, nul
+aujourd'hui : la grille complète s'affiche avec une note discrète).
+
+**Écran.** `chart/StructureColumn.tsx` (colonne de 20 % à l'ordinateur ;
+barre `StructureBar` et feuille au téléphone), `chart/usePlayingPart.ts` (la
+partie entendue, `data-jouee` posé dans le DOM par la boucle d'images),
+`components/PartDialog.tsx` + `ui/partDialog.ts` + `ui/partForm.ts` (fenêtre
+« Modifier la partie » / « Ajouter une partie »), `styles/structure.css`,
+`styles/partDialog.css`. `ChartSheet` : `.vue-structure` contient la colonne et
+`.vue-grille` (le défilement de la grille, inchangé pour `useFollowLine` et
+l'éditeur d'accord).
+
+**Démo et essais.** `?demo&structure=demo` (ou `pop`) : structure inventée
+(`demo/demoStructure.ts`), lettres à la main retirées ; poignée
+`window.__fabtice.structure` (`setDetected`, `demo`, `actions`, `display`,
+`dialog`, `selectors`). `setDetected` tient lieu de la détection (comme une
+nouvelle analyse, il efface l'historique). Vérification : `npm run
+test:structure` (deux formes) ; captures : `FABTICE_CAPTURES_ONLY=structure
+npm run captures -- /dossier` (`tests/captures-harmonie.mjs`).
+
 ### Étape 4 de la 1.0.0 : tempo à la main
 
 **Menu de la mesure** (`components/TempoFixMenu.tsx`) : quatre entrées. Les

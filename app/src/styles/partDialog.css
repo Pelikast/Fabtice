@@ -1,6 +1,6 @@
 /* « Modifier la partie » / « Ajouter une partie » (C14): a small window on the usual veil and paper;
    the main button is ink. On a phone it is a sheet at the bottom of the screen. */
-.fenetre-partie { width: min(480px, 100%); padding: 26px 30px 22px; }
+.accueil.fenetre-partie { width: min(480px, 100%); padding: 26px 30px 22px; }
 .fenetre-partie h2 { font-size: 26px; }
 .fenetre-partie p { margin: 0; }
 .fenetre-partie .partie-main { margin: 0 0 14px; font-size: 13.5px; color: var(--encre-douce); }
@@ -36,8 +36,8 @@
 .fenetre-partie .import-actions .plein:disabled:hover { background: var(--encre); }
 
 @media (max-width: 760px) {
-  .voile-partie { padding: 0; place-items: end stretch; }
-  .fenetre-partie { width: 100%; max-height: 100dvh; padding: 22px 18px calc(18px + env(safe-area-inset-bottom)); border-width: 1px 0 0; border-radius: var(--rayon-fenetre) var(--rayon-fenetre) 0 0; }
+  .voile.voile-partie { padding: 0; place-items: end stretch; }
+  .accueil.fenetre-partie { width: 100%; max-height: 100dvh; padding: 22px 18px calc(18px + env(safe-area-inset-bottom)); border-width: 1px 0 0; border-radius: var(--rayon-fenetre) var(--rayon-fenetre) 0 0; }
   .partie-puces .puce { min-height: 44px; }
   .partie-champ select, .partie-limites input { height: 46px; }
   .partie-supprimer { min-height: 44px; }

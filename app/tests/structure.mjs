@@ -77,6 +77,8 @@ const position = (page) => page.evaluate(() => window.__fabtice.engine.getPositi
 const undoLabel = (page) => page.evaluate(() => window.__fabtice.history.undoLabel());
 const names = (page) => texts(page, '[data-testid="structure-partie"] .structure-nom-texte');
 const row = (page, name) => page.locator('[data-testid="structure-partie"]', { has: page.locator('.structure-nom-texte', { hasText: new RegExp(`^${name.replace(/[()]/g, '\\$&')}$`) }) });
+/** Source time of the start of bar `bar` (index) on the grid in force: the demo piece's tempo moves, so bars are not a fixed length. */
+const bt = (page, bar) => page.evaluate((b) => window.__fabtice.lot4.tempoMap.barStartTime(window.__fabtice.store.getState().tempoMap, b), bar);
 const noOverflow = (page) => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1 && document.body.scrollWidth <= innerWidth + 1);
 
 /** On a phone the list lives in a sheet: open it (a touch on the bar), and close it again. */
@@ -100,6 +102,7 @@ async function suite(form) {
   const P = h.phone;
   const tag = P ? 'phone' : 'computer';
   const shot = (name) => page.screenshot({ path: path.join(out, `${tag}-${name}.png`) });
+  const ALL = (await cellBars(page)).length;
 
   // ------------------------------------------------------------ the layout, the texts
   if (!P) {
@@ -130,7 +133,7 @@ async function suite(form) {
   check(`${tag}: nothing corrected by hand: no reset, no mark`, (await $(page, '[data-testid="structure-revenir"]').count()) === 0 && (await $(page, '[data-testid="structure-lettres-revenir"]').count()) === 0 && (await $(page, '.structure-main').count()) === 0);
   check(`${tag}: « Ajouter une partie » is at the bottom`, (await $(page, '[data-testid="structure-ajouter"]').innerText()) === 'Ajouter une partie');
   check(`${tag}: the detected letters are on the chart (no hand letter)`, (await texts(page, '.grille .section')).join('') === 'AABCAAAABC', (await texts(page, '.grille .section')).join(','));
-  check(`${tag}: the whole chart is shown (24 bars), « complet » by default`, (await cellBars(page)).length === 24 && (await display(page)) === 'full');
+  check(`${tag}: the whole chart is shown (${ALL} bars), « complet » by default`, ALL >= 24 && (await display(page)) === 'full');
   if (P) {
     const sizes = await page.$$eval('[data-testid="structure-feuille"] button', (els) => els.map((e) => ({ t: e.textContent.trim().slice(0, 18), h: Math.round(e.getBoundingClientRect().height), w: Math.round(e.getBoundingClientRect().width) })));
     const small = sizes.filter((s) => s.h < 40 || s.w < 40);
@@ -146,7 +149,7 @@ async function suite(form) {
   await sleep(300);
   await closeList(h);
   check(`${tag}: a click on « Thème 1 » shows only its bars, their numbers kept`, (await cellBars(page)).join(',') === '2,3,4,5,6,7,8,9' && (await texts(page, '.grille .numero')).join(',') === '3,4,5,6,7,8,9,10', (await cellBars(page)).join(','));
-  check(`${tag}: …and puts the playhead at its start`, near(await position(page), 4, 0.05), `${await position(page)}`);
+  check(`${tag}: …and puts the playhead at its start`, near(await position(page), await bt(page, 2), 0.05), `${await position(page)} vs ${await bt(page, 2)}`);
   check(`${tag}: …the display says which part and which bars`, (await $(page, '[data-testid="structure-note"]').textContent()) === 'Thème 1 · mesures 3–10');
   check(`${tag}: …the sheet starts at the top`, (await $(page, '[data-testid="grille-feuille"]').evaluate((e) => e.scrollTop)) === 0);
   if (P) check('phone: the bar now says « Forme globale : AABC · Thème 1 »', (await $(page, '[data-testid="structure-barre"]').innerText()).replace(/\s+/g, ' ').trim() === 'Forme globale : AABC · Thème 1');
@@ -163,7 +166,9 @@ async function suite(form) {
   await openList(h);
   await press(h, row(page, 'Solo (Trompette)').locator('.structure-nom'));
   await sleep(500);
-  check(`${tag}: while playing, a click on a part goes to its start and it keeps playing`, near(await position(page), 28.4, 0.8) && (await state(page)).transport.engine === 'playing', `${await position(page)}`);
+  const trumpet = await bt(page, 14);
+  check(`${tag}: while playing, a click on a part goes to its start and it keeps playing`, (await position(page)) >= trumpet && (await position(page)) < trumpet + 1.5 && (await state(page)).transport.engine === 'playing', `${await position(page)} from ${trumpet}`);
+  await openList(h);
   const playing = await page.$$eval('[data-testid="structure-partie"][data-jouee]', (els) => els.map((e) => e.querySelector('.structure-nom-texte').textContent));
   check(`${tag}: the part being played is marked, and only it`, playing.join('|') === 'Solo (Trompette)', playing.join('|'));
   const ember = await page.$eval('[data-testid="structure-partie"][data-jouee]', (e) => getComputedStyle(e, '::before').backgroundColor);
@@ -176,13 +181,13 @@ async function suite(form) {
   await press(h, $(page, '[data-testid="structure-affichage-simplifie"]'));
   await sleep(300);
   await closeList(h);
-  check(`${tag}: « Grille complète simplifiée » is selectable and shows the whole chart with its quiet note`, (await display(page)) === 'simplified' && (await cellBars(page)).length === 24 && (await $(page, '[data-testid="structure-note"]').textContent()) === 'La grille simplifiée arrive avec la structure du morceau.');
+  check(`${tag}: « Grille complète simplifiée » is selectable and shows the whole chart with its quiet note`, (await display(page)) === 'simplified' && (await cellBars(page)).length === ALL && (await $(page, '[data-testid="structure-note"]').textContent()) === 'La grille simplifiée arrive avec la structure du morceau.');
   await shot('simplified');
   await openList(h);
   await press(h, $(page, '[data-testid="structure-affichage-complet"]'));
   await sleep(300);
   await closeList(h);
-  check(`${tag}: « Affichage complet » gives the whole chart back, no note`, (await display(page)) === 'full' && (await cellBars(page)).length === 24 && (await $(page, '[data-testid="structure-note"]').count()) === 0);
+  check(`${tag}: « Affichage complet » gives the whole chart back, no note`, (await display(page)) === 'full' && (await cellBars(page)).length === ALL && (await $(page, '[data-testid="structure-note"]').count()) === 0);
   check(`${tag}: the display is not saved and not undoable`, (await undoLabel(page)) === null);
 
   // ------------------------------------------------------------ « Boucle »
@@ -190,8 +195,8 @@ async function suite(form) {
   await press(h, row(page, 'Solo (Guitare)').locator('[data-testid="structure-boucle"]'));
   await sleep(300);
   let s = await state(page);
-  check(`${tag}: « Boucle » puts the loop on the whole part`, s.loop.enabled && near(s.loop.region.start, 20, 0.01) && near(s.loop.region.end, 28, 0.01), JSON.stringify(s.loop));
-  check(`${tag}: …the playhead is brought to its start`, near(await position(page), 20, 0.05), `${await position(page)}`);
+  check(`${tag}: « Boucle » puts the loop on the whole part`, s.loop.enabled && near(s.loop.region.start, await bt(page, 10), 0.01) && near(s.loop.region.end, await bt(page, 14), 0.01), JSON.stringify(s.loop));
+  check(`${tag}: …the playhead is brought to its start`, near(await position(page), await bt(page, 10), 0.05), `${await position(page)}`);
   if (P) await openList(h);
   check(`${tag}: …the button of that part is brass, the others not`, (await page.$$eval('[data-testid="structure-boucle"]', (els) => els.map((e) => e.getAttribute('aria-pressed')))).join(',') === 'false,false,true,false,false,false');
   const brass = await row(page, 'Solo (Guitare)').locator('[data-testid="structure-boucle"]').evaluate((e) => getComputedStyle(e).borderTopColor);
@@ -206,7 +211,7 @@ async function suite(form) {
   await press(h, row(page, 'Thème 2').locator('[data-testid="structure-boucle"]'));
   await sleep(400);
   s = await state(page);
-  check(`${tag}: while playing, « Boucle » plays the part from its start`, s.transport.engine === 'playing' && near(s.loop.region.start, 36, 0.01) && (await position(page)) >= 35.9 && (await position(page)) < 38, `${await position(page)}`);
+  check(`${tag}: while playing, « Boucle » plays the part from its start`, s.transport.engine === 'playing' && near(s.loop.region.start, await bt(page, 18), 0.01) && (await position(page)) >= (await bt(page, 18)) - 0.1 && (await position(page)) < (await bt(page, 18)) + 1.5, `${await position(page)} from ${await bt(page, 18)}`);
   await page.evaluate(() => window.__fabtice.engine.pause());
   await closeList(h);
 
@@ -249,7 +254,7 @@ async function suite(form) {
   await shot('window');
   // Invalid limits: the button waits, the sentence says what is possible.
   await $(page, '[data-testid="partie-a"]').fill('30');
-  check(`${tag}: a last bar out of the chart: calm sentence, « Valider » waits`, (await $(page, '[data-testid="partie-erreur"]').textContent()) === 'Des mesures de 1 à 24, la première avant la dernière.' && (await $(page, '[data-testid="partie-valider"]').isDisabled()));
+  check(`${tag}: a last bar out of the chart: calm sentence, « Valider » waits`, (await $(page, '[data-testid="partie-erreur"]').textContent()) === `Des mesures de 1 à ${ALL}, la première avant la dernière.` && (await $(page, '[data-testid="partie-valider"]').isDisabled()));
   await shot('window-invalid');
   await $(page, '[data-testid="partie-de"]').fill('20');
   await $(page, '[data-testid="partie-a"]').fill('19');
@@ -265,7 +270,9 @@ async function suite(form) {
   check(`${tag}: …the part is now « Solo 2 (Saxophone) », bars 15 to 19`, (await names(page)).join('|') === ['Intro', 'Thème 1', 'Solo (Guitare)', 'Solo 2 (Saxophone)', 'Thème 2', 'Outro'].join('|') || (await openList(h), (await names(page)).includes('Solo 2 (Saxophone)')), (await names(page)).join('|'));
   await openList(h);
   const edited = (await state(page)).corrections.structure;
-  check(`${tag}: …kept in the hand layer, limits from the bar numbers (28 to 38 s)`, edited.parts.length >= 1 && edited.parts.some((p) => p.instrument === 'saxophone' && p.number === 2 && near(p.start, 28, 0.01) && near(p.end, 38, 0.01)), JSON.stringify(edited.parts));
+  const bars14 = await bt(page, 14);
+  const bars19 = await bt(page, 19);
+  check(`${tag}: …kept in the hand layer, limits from the bar numbers (bars 15 to 19)`, edited.parts.length >= 1 && edited.parts.some((p) => p.instrument === 'saxophone' && p.number === 2 && near(p.start, bars14, 0.01) && near(p.end, bars19, 0.01)), JSON.stringify(edited.parts));
   check(`${tag}: …marked as corrected by hand, and « Revenir à la structure de l’analyse » appears`, (await row(page, 'Solo 2 (Saxophone)').locator('.structure-main').textContent()) === 'Corrigée à la main' && (await $(page, '[data-testid="structure-revenir"]').innerText()) === 'Revenir à la structure de l’analyse');
   check(`${tag}: …the part after it still starts where it did (nothing slid)`, (await row(page, 'Thème 2').count()) === 1);
   await shot('edited');
@@ -314,16 +321,19 @@ async function suite(form) {
   await sleep(300);
   await press(h, $(page, '[data-testid="partie-supprimer"]'));
   await sleep(300);
-  check(`${tag}: …deleted while shown: the whole chart is back`, (await cellBars(page)).length === 24 && (await display(page)) === 'full');
+  check(`${tag}: …deleted while shown: the whole chart is back`, (await cellBars(page)).length === ALL && (await display(page)) === 'full');
   await page.evaluate(() => window.__fabtice.history.undo());
   await sleep(200);
+  // Undone: the part is back, and so is its display (the display only waited for it).
+  await page.evaluate(() => window.__fabtice.structure.display.showFullChart());
 
   // Add: from the playhead (no loop).
-  await page.evaluate(() => {
+  const at18 = await bt(page, 18);
+  await page.evaluate((t) => {
     const f = window.__fabtice;
     f.store.setState({ loop: { region: null, enabled: false } });
-    f.actions.seek(36.5); // bar 18
-  });
+    f.actions.seek(t + 0.1); // inside bar 18
+  }, at18);
   await openList(h);
   await press(h, $(page, '[data-testid="structure-ajouter"]'));
   await page.waitForSelector('[data-testid="partie-dialogue"]');
@@ -341,7 +351,7 @@ async function suite(form) {
   check(`${tag}: …undone, it leaves`, !(await names(page)).includes('Pont'));
   // Add from a loop.
   await closeList(h);
-  await page.evaluate(() => window.__fabtice.store.setState({ loop: { region: { start: 36, end: 44 }, enabled: true } }));
+  await page.evaluate(([a, b]) => window.__fabtice.store.setState({ loop: { region: { start: a, end: b }, enabled: true } }), [at18, await bt(page, 22)]);
   await openList(h);
   await press(h, $(page, '[data-testid="structure-ajouter"]'));
   await page.waitForSelector('[data-testid="partie-dialogue"]');
@@ -409,7 +419,7 @@ async function chartStillWorks(form) {
     await page.mouse.up();
     await sleep(200);
     const loop = (await state(page)).loop;
-    check(`${tag}: selecting bars with the mouse still sets the loop`, loop.enabled && loop.region !== null && near(loop.region.start, 2, 0.5), JSON.stringify(loop));
+    check(`${tag}: selecting bars with the mouse still sets the loop`, loop.enabled && loop.region !== null && near(loop.region.start, await bt(page, 1), 0.3) && near(loop.region.end, await bt(page, 3), 0.3), JSON.stringify(loop));
     // The editor of a chord opens inside the chart's own scroller.
     await $(page, '.grille .case[data-mesure="3"] .accord-case').first().click();
     await page.waitForSelector('[data-testid="editeur"]');

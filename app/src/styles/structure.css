@@ -20,13 +20,13 @@
   scrollbar-width: thin;
   scrollbar-color: var(--trait) transparent;
   /* The top lines up with the sheet's title (.feuille: 30 px). */
-  padding: 30px 16px 40px 24px;
+  padding: 30px 12px 40px 20px;
   border-right: 1px solid var(--trait-fin);
 }
 
 /* « Forme globale : AABC »: a heading, in the face of the title; the letters a little apart. */
 .structure-forme {
-  margin: 0 0 16px;
+  margin: 0 0 12px;
   font-family: var(--titre);
   font-size: 19px;
   font-weight: 480;
@@ -36,7 +36,7 @@
 }
 
 /* « Mode : [Jazz | Pop]  Auto » */
-.structure-mode { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: 0 0 18px; }
+.structure-mode { display: flex; flex-wrap: wrap; align-items: center; gap: 5px 8px; margin: 0 0 14px; }
 .structure-mode .libelle { flex: 0 0 100%; }
 .structure-mode .duo button { min-height: 34px; padding: 3px 14px; font-family: var(--texte); font-size: 14px; font-weight: 560; }
 /* « Auto »: quiet; ringed in ink when the app chooses the mode. */
@@ -55,12 +55,12 @@
 
 /* The two displays. The one shown is ringed in ink. */
 .structure-affichages, .structure-parties { list-style: none; margin: 0; padding: 0; }
-.structure-affichages { margin-bottom: 20px; }
+.structure-affichages { margin-bottom: 16px; }
 .structure-affichage {
   display: block;
   width: 100%;
-  min-height: 36px;
-  padding: 6px 9px;
+  min-height: 34px;
+  padding: 5px 9px;
   border: 1px solid transparent;
   border-radius: var(--rayon);
   font-size: 15px;
@@ -82,15 +82,15 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
-  column-gap: 4px;
-  padding: 2px 0;
+  column-gap: 2px;
+  padding: 1px 0;
   border-radius: var(--rayon);
 }
 .structure-partie + .structure-partie { border-top: 1px solid var(--trait-fin); }
 .structure-nom {
   min-width: 0;
-  min-height: 40px;
-  padding: 6px 9px;
+  min-height: 36px;
+  padding: 4px 7px;
   border: 1px solid transparent;
   border-radius: var(--rayon);
   font-size: 15px;
@@ -102,12 +102,15 @@
 }
 .structure-nom:hover { background: var(--papier-fonce); }
 .structure-nom[aria-current="true"] { border-color: var(--encre); font-weight: 600; }
-.structure-lettres { color: var(--encre-douce); font-size: 13px; font-weight: 500; letter-spacing: 0.03em; white-space: nowrap; }
+/* The letters of the part, quietly under its name (the dot between them is for readers of the text only). */
+.structure-meta { display: block; margin-top: 1px; font-size: 12.5px; font-weight: 500; color: var(--encre-douce); }
+.structure-lettres { letter-spacing: 0.06em; }
+.structure-lettres i { display: none; }
 
 .structure-boucle {
   min-width: 0;
-  min-height: 30px;
-  padding: 0 9px;
+  min-height: 28px;
+  padding: 0 8px;
   border: 1px solid var(--trait);
   border-radius: var(--rayon);
   font-size: 12.5px;
@@ -121,7 +124,7 @@
 .structure-crayon {
   display: grid;
   place-items: center;
-  width: 30px;
+  width: 28px;
   height: 30px;
   border-radius: var(--rayon);
   color: var(--encre-douce);
@@ -130,13 +133,14 @@
 .structure-crayon:hover { background: var(--papier-fonce); color: var(--encre); }
 .structure-crayon svg { width: 16px; height: 16px; }
 /* A part corrected by hand says so, quietly (the analysis' ones say nothing). */
-.structure-main { grid-column: 1; margin: -4px 0 4px 9px; font-size: 12px; font-style: italic; color: var(--encre-douce); }
+.structure-main { font-style: italic; font-weight: 400; }
+.structure-lettres + .structure-main::before { content: " · "; font-style: normal; }
 
 /* The part being played: an ink bar in the margin and a bolder name (set by usePlayingPart). */
 .structure-partie[data-jouee]::before {
   content: "";
   position: absolute;
-  left: -13px;
+  left: -12px;
   top: 8px;
   bottom: 8px;
   width: 3px;
@@ -145,8 +149,8 @@
 }
 .structure-partie[data-jouee] .structure-nom-texte { font-weight: 640; }
 
-.structure-actions { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; margin: 16px 0 0 9px; }
-.structure-actions .lien-encre { min-height: 34px; text-align: left; font-size: 13.5px; line-height: 1.3; }
+.structure-actions { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; margin: 12px 0 0 9px; }
+.structure-actions .lien-encre { min-height: 30px; text-align: left; font-size: 13.5px; line-height: 1.3; }
 
 /* A line above the bars when they are not the whole chart (a part; the simplified chart not written yet). */
 .structure-note {

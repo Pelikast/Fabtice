@@ -107,7 +107,17 @@ function StructureList({ onDone }: { onDone?: () => void }) {
               <li key={p.id} className="structure-partie" data-part={p.id} data-origine={p.origin} data-choisie={(display.kind === 'part' && display.id === p.id) || undefined} data-testid="structure-partie">
                 <button className="structure-nom" aria-current={(display.kind === 'part' && display.id === p.id) || undefined} title={t('structure.partHint')} data-testid="structure-partie-nom" onClick={() => { showPart(p.id); done(); }}>
                   <span className="structure-nom-texte">{name}</span>
-                  {letters && <span className="structure-lettres"> · {letters}</span>}
+                  {(letters || p.origin === 'manual') && (
+                    <span className="structure-meta">
+                      {letters && (
+                        <span className="structure-lettres">
+                          <i> · </i>
+                          {letters}
+                        </span>
+                      )}
+                      {p.origin === 'manual' && <span className="structure-main">{t('structure.byHand')}</span>}
+                    </span>
+                  )}
                 </button>
                 <button className="structure-boucle" aria-pressed={looped} aria-label={t('structure.loopHint', { name })} data-testid="structure-boucle" onClick={() => { loopPart(p.id); done(); }}>
                   {t('structure.loop')}
@@ -115,7 +125,6 @@ function StructureList({ onDone }: { onDone?: () => void }) {
                 <button className="structure-crayon" aria-label={t('structure.edit', { name })} title={t('structure.edit', { name })} data-testid="structure-modifier" onClick={() => { openPartDialog(p.id); done(); }}>
                   <PencilIcon />
                 </button>
-                {p.origin === 'manual' && <span className="structure-main">{t('structure.byHand')}</span>}
               </li>
             );
           })}
