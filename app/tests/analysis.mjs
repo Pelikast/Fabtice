@@ -957,7 +957,7 @@ scenarios.fin = async () => {
     const rf = await result(p.page);
     const status = await p.page.locator('[data-testid="analyse-etat"]').innerText().catch(() => '');
     check(`fine, fallback (${fail}): CREMA read the chords and the result says so`, !!rf && rf.analyser.models.includes('crema-chords') && rf.chordModel?.fallback === (fail === 'memoire' ? 'memory' : 'failed'), JSON.stringify(rf?.chordModel));
-    check(`fine, fallback (${fail}): the status line says it plainly`, /modèle par défaut/.test(status), status);
+    check(`fine, fallback (${fail}): the status line says it plainly`, /modèle rapide/.test(status), status);
     check(`fine, fallback (${fail}): no console error`, p.errors.length === 0, p.errors.join(' | '));
     await p.page.close();
   }

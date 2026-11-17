@@ -14,7 +14,20 @@ import * as grid from '../store/gridActions';
 import * as harmony from '../store/harmonyActions';
 import { appStore, initialState } from '../store/store';
 import { fakeClock } from '../test/fakeClock';
-import { chordModelChoice, resetChordModelChoice, setChordModelChoice } from './chordModel';
+import {
+  autoChordModel,
+  chordModelChoice,
+  chordModelSetting,
+  FINE_MIN_MEMORY_GB,
+  readStoredSetting,
+  resetChordModelChoice,
+  resolveChordModel,
+  setChordModelAutoAllowed,
+  setChordModelChoice,
+  setChordModelDevice,
+  setChordModelSetting,
+} from './chordModel';
+import { resetPreferences } from '../store/preferences';
 import { demoSwingResult } from './fromDemoSwing';
 import { replaceAnalyzer } from './index';
 import { modelsFor } from './models';
@@ -58,7 +71,9 @@ async function openPiece(stereo: boolean) {
 
 const store: Record<string, string> = {};
 beforeEach(() => {
-  (globalThis as { window?: unknown }).window = { localStorage: { getItem: (k: string) => store[k] ?? null, setItem: (k: string, v: string) => (store[k] = v) } };
+  (globalThis as { window?: unknown }).window = {
+    localStorage: { getItem: (k: string) => store[k] ?? null, setItem: (k: string, v: string) => (store[k] = v), removeItem: (k: string) => delete store[k] },
+  };
   for (const k of Object.keys(store)) delete store[k];
   resetChordModelChoice();
 });
@@ -67,8 +82,85 @@ afterEach(() => {
   resetChordModelChoice();
 });
 
+describe('the automatic choice (owner\'s decision, 17 November 2026)', () => {
+  const computer8 = { phone: false, memoryGB: 8 };
+  it('the detailed model on a computer with 8 GB known; the standard one on a phone, with less memory, or when memory is unknown', () => {
+    expect(FINE_MIN_MEMORY_GB).toBe(8);
+    expect(autoChordModel(computer8)).toBe('fine');
+    expect(autoChordModel({ phone: false, memoryGB: 16 })).toBe('fine');
+    expect(autoChordModel({ phone: false, memoryGB: 4 })).toBe('crema');
+    expect(autoChordModel({ phone: false, memoryGB: null })).toBe('crema');
+    expect(autoChordModel({ phone: true, memoryGB: 8 })).toBe('crema');
+    expect(autoChordModel(null)).toBe('crema');
+  });
+
+  it('stored value × device: an explicit choice always wins', () => {
+    for (const d of [computer8, { phone: true, memoryGB: 8 }, { phone: false, memoryGB: null }]) {
+      expect(resolveChordModel('crema', d)).toBe('crema');
+      expect(resolveChordModel('fine', d)).toBe('fine');
+      expect(resolveChordModel('auto', d)).toBe(autoChordModel(d));
+    }
+  });
+
+  it('migration: nothing stored is automatic; a stored « fine » or « crema » is an explicit choice, kept', () => {
+    expect(readStoredSetting(null)).toBe('auto');
+    expect(readStoredSetting('nonsense')).toBe('auto');
+    expect(readStoredSetting('fine')).toBe('fine');
+    expect(readStoredSetting('crema')).toBe('crema');
+    store['fabtice.chordModel.v1'] = 'crema';
+    resetChordModelChoice();
+    setChordModelDevice(computer8);
+    expect(chordModelSetting()).toBe('crema');
+    expect(chordModelChoice()).toBe('crema');
+    expect(store['fabtice.chordModel.v1']).toBe('crema');
+  });
+
+  it('nothing stored: the device decides; the test addresses hold it to the standard model', () => {
+    setChordModelDevice(computer8);
+    expect(chordModelSetting()).toBe('auto');
+    expect(chordModelChoice()).toBe('fine');
+    setChordModelAutoAllowed(false);
+    expect(chordModelChoice()).toBe('crema');
+    // An explicit choice is used there too.
+    setChordModelChoice('fine');
+    expect(chordModelChoice()).toBe('fine');
+    expect(store['fabtice.chordModel.v1']).toBe('fine');
+  });
+
+  it('« Automatique » forgets the stored choice; « Rétablir les réglages d\'origine » goes back to it', () => {
+    setChordModelDevice({ phone: false, memoryGB: 4 });
+    setChordModelChoice('fine');
+    setChordModelSetting('auto');
+    expect('fabtice.chordModel.v1' in store).toBe(false);
+    expect(chordModelChoice()).toBe('crema');
+    setChordModelChoice('fine');
+    resetPreferences(appStore);
+    expect(chordModelSetting()).toBe('auto');
+    expect('fabtice.chordModel.v1' in store).toBe(false);
+  });
+
+  it('the runner asks for the model « Automatique » gives (both channels for the detailed one)', async () => {
+    await openPiece(true);
+    setChordModelDevice(computer8);
+    const rec = new Recorder(() => demoSwingResult(DURATION));
+    replaceAnalyzer(rec);
+    await runAnalysis();
+    expect(rec.requests[0]!.chordModel).toBe('fine');
+    expect(rec.requests[0]!.channels).toHaveLength(2);
+  });
+
+  it('a failure of the detailed model chosen automatically falls back the same way', async () => {
+    await openPiece(false);
+    setChordModelDevice(computer8);
+    replaceAnalyzer(new Recorder(() => ({ ...demoSwingResult(DURATION), chordModel: { id: 'crema-chords', fallback: 'download' } })));
+    await runAnalysis();
+    expect(resultChordModel(get().analysis!)).toEqual({ id: 'crema-chords', fallback: 'download' });
+    expect(analysisProgressStore.getState().fallback).toBe('download');
+  });
+});
+
 describe('the chord model choice', () => {
-  it('is CREMA by default, kept on the device, never in the project', async () => {
+  it('is CREMA by default here (Node: no memory known), kept on the device, never in the project', async () => {
     expect(chordModelChoice()).toBe('crema');
     setChordModelChoice('fine');
     expect(store['fabtice.chordModel.v1']).toBe('fine');

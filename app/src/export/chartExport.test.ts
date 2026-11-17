@@ -70,11 +70,11 @@ describe('C10: the modulations in the export', () => {
     // B♭m7 E♭7 in A♭, A♯m7 D♯7 in E.
     expect(chart.bars[14]!.chords.map((c) => c.text)).toEqual(['A♯m7', 'D♯7']);
     const music = iRealMusic(chart);
-    expect(music).toContain('<Ton : Mi>');
-    expect(music.indexOf('<Ton : Mi>')).toBeGreaterThan(music.indexOf('*B'));
+    expect(music).toContain('<Ton : E>');
+    expect(music.indexOf('<Ton : E>')).toBeGreaterThan(music.indexOf('*B'));
     expect(music).toContain('A#-7');
-    expect(keyChangeComment({ tonic: 8, mode: 'major' })).toBe('Ton : La♭');
-    expect(keyChangeComment({ tonic: 6, mode: 'minor' })).toBe('Ton : Fa♯ mineur');
+    expect(keyChangeComment({ tonic: 8, mode: 'major' })).toBe('Ton : Ab');
+    expect(keyChangeComment({ tonic: 6, mode: 'minor' })).toBe('Ton : F#m');
     // Transposed with the transport, as the chords.
     const up = chartForExport({ ...s, playback: { ...s.playback, semitones: 1 } })!;
     expect(up.bars[8]!.keyChange).toEqual({ tonic: 5, mode: 'major' });

@@ -11,7 +11,6 @@ import {
   displayChordText,
   displayContext,
   keyLabel,
-  keyNameFr,
   noteText,
   parseChord,
   parseHarte,
@@ -39,10 +38,7 @@ describe('key names and tonic spelling', () => {
     expect([0, 1, 3, 6, 8, 10].map((t) => keyLabel(minor(t)))).toEqual(['Cm', 'C♯m', 'E♭m', 'F♯m', 'G♯m', 'B♭m']);
     expect(keyLabel(minor(5), '–')).toBe('F–');
   });
-  it('names keys in French', () => {
-    expect(keyNameFr(major(8))).toBe('La♭ majeur');
-    expect(keyNameFr(minor(6))).toBe('Fa♯ mineur');
-    expect(keyNameFr(major(0))).toBe('Do majeur');
+  it('lists the 24 keys', () => {
     expect(allKeys()).toHaveLength(24);
   });
 });

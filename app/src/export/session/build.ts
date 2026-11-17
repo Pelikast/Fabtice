@@ -4,7 +4,7 @@
 import { resolveChords, sectionBar } from '../../chart/layout';
 import { barBeatToBeat, barStartTime, barToBeat, beatToBar, beatToTime, bpmAt, meterAtBar, sameMeter, timeToBar, timeToBeat } from '../../grid/tempoMap';
 import { approachTargets, chordParts, chordText, NO_CHORD_TEXT, transposeChord } from '../../harmony/chord';
-import { keyNameFr, keyTonicName, NEUTRAL_KEY, transposeKey } from '../../harmony/key';
+import { keyLabel, keyTonicName, NEUTRAL_KEY, transposeKey } from '../../harmony/key';
 import type { NoteName } from '../../harmony/pitch';
 import { t } from '../../i18n';
 import type { ChordQuality, ChordSymbol, Key } from '../../model/harmony';
@@ -237,12 +237,12 @@ export function buildSession(s: AppState, options: SessionOptions = {}): Session
     if (!p.key) continue;
     const key = transposeKey(p.key, semitones);
     let entry: SessionKey;
-    if (keys.length === 0) entry = { time: 0, quarters: 0, bar: null, key, text: asciiKey(key), name: keyNameFr(key) };
+    if (keys.length === 0) entry = { time: 0, quarters: 0, bar: null, key, text: asciiKey(key), name: keyLabel(key) };
     else {
       const bar = Math.max(startBar, sectionBar(map, p.time));
       const time = out(barStartTime(map, bar));
       if (time >= duration) continue;
-      entry = { time, quarters: quartersOfBeat(barToBeat(map, bar)), bar, key, text: asciiKey(key), name: keyNameFr(key) };
+      entry = { time, quarters: quartersOfBeat(barToBeat(map, bar)), bar, key, text: asciiKey(key), name: keyLabel(key) };
     }
     const last = keys[keys.length - 1];
     if (last && last.key.tonic === key.tonic && last.key.mode === key.mode) continue;

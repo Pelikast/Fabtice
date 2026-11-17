@@ -262,7 +262,11 @@ try {
     await openSettingsTab(page, 'chords');
     const chordText = await page.locator('[data-testid="reglages-panneau"]').innerText();
     check('chords: the model « Rapide » or « Détaillé », with its source and weight', chordText.includes('Rapide : CREMA') && chordText.includes('Détaillé : Tsumugi-Chords') && /licence/i.test(chordText));
+    // Owner's decision of 17 November 2026: « Automatique (recommandé) » first and by default; on a test address it gives the standard model.
+    check('chords: « Automatique (recommandé) » is the first entry, chosen, nothing stored', (await page.locator('[data-testid="modele-accords"] option').first().innerText()) === 'Automatique (recommandé)' && (await page.locator('[data-testid="modele-accords"]').inputValue()) === 'auto' && (await page.evaluate(() => localStorage.getItem('fabtice.chordModel.v1'))) === null);
+    check('chords: its note says which model it gives on this device (the standard one on a test address)', (await page.locator('[data-testid="modele-accords-auto"]').innerText()).startsWith('Sur cet appareil : modèle rapide'), await page.locator('[data-testid="modele-accords-auto"]').innerText());
     await page.selectOption('[data-testid="modele-accords"]', 'fine');
+    check('chords: an explicit choice hides the note', (await page.locator('[data-testid="modele-accords-auto"]').count()) === 0);
     check('chords: the detailed model states its cost, kept on the device', (await page.locator('[data-testid="modele-accords-cout"]').innerText()).includes('plusieurs minutes') && (await page.evaluate(() => localStorage.getItem('fabtice.chordModel.v1'))) === 'fine');
     check('chords: the detection can be run again for the open piece', await page.locator('[data-testid="modele-accords-relancer"]').isEnabled());
     check('chords: « S\'appuyer sur les grilles connues » is on, acts on the store, kept', (await state(page)).settings.useKnownCharts === true);
@@ -358,7 +362,7 @@ try {
     check('advanced: « Rétablir » puts every preference back (tool, timbre, sub-grid, magnet, follow, minor notation, launch, analysis, charts, chord model)',
       st.settings.advanced.separationModel === 'auto' && st.settings.advanced.formants === false && st.view.subdivision === 1 && st.view.triplets === false && st.view.snap === true && st.view.follow === true && st.settings.minorNotation === 'm' && st.settings.atLaunch === 'lastProject' && st.settings.analyseOnImport === true && st.settings.useKnownCharts === true,
       JSON.stringify([st.settings, st.view.subdivision, st.view.triplets, st.view.snap]));
-    check('advanced: and the chord model, kept on the device', (await page.evaluate(() => localStorage.getItem('fabtice.chordModel.v1'))) === 'crema');
+    check('advanced: and the chord model goes back to « Automatique » (nothing stored)', (await page.evaluate(() => localStorage.getItem('fabtice.chordModel.v1'))) === null);
     const p3 = await saved(page);
     check('advanced: and what is kept on the device is the default', p3.separationModel === 'auto' && p3.subdivision === 1 && p3.atLaunch === 'lastProject' && p3.formants === false);
     check('advanced: the piece and its settings are not touched', st.project.id === projectId && JSON.stringify(st.playback) === playback);
@@ -491,6 +495,9 @@ try {
     await openSettingsTab(page, 'metronome');
     await page.tap('[data-testid="decompte"] button:has-text("2 mesures")');
     check('phone: the count-in by touch', (await state(page)).metronome.countInBars === 2);
+    // The chord model on a phone: « Automatique » gives the standard model.
+    await openSettingsTab(page, 'chords');
+    check('phone: the chord model is « Automatique », its note says the standard model', (await page.locator('[data-testid="modele-accords"]').inputValue()) === 'auto' && (await page.locator('[data-testid="modele-accords-auto"]').innerText()).startsWith('Sur cet appareil : modèle rapide'));
     // The way into the separation, from the Instruments tab.
     await openSettingsTab(page, 'instruments');
     await page.tap('[data-separation-entry]');

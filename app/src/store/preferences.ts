@@ -5,7 +5,7 @@
 // chord analysis leans on the known charts of standards. Best effort only:
 // storage may be missing or blocked, and the app works the same without it.
 
-import { setChordModelChoice } from '../analysis/chordModel';
+import { setChordModelSetting } from '../analysis/chordModel';
 import { DEFAULT_SUBDIVISION, EASE_LOAD_MAX, EASE_LOAD_MIN, defaultAppSettings, type LaunchBehaviour } from '../model/project';
 import type { AppStore, AppState } from './store';
 
@@ -132,5 +132,5 @@ export function resetPreferences(store: AppStore): void {
     settings: defaultAppSettings(),
     view: { ...s.view, follow: true, subdivision: DEFAULT_SUBDIVISION, triplets: false, snap: true },
   }));
-  setChordModelChoice('crema');
+  setChordModelSetting('auto');
 }

@@ -5,7 +5,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MockAnalyzer, replaceAnalyzer } from '../analysis';
 import { setKnownChartsProvider } from '../analysis/knownCharts';
-import { chordModelChoice, resetChordModelChoice, setChordModelChoice } from '../analysis/chordModel';
+import { chordModelChoice, chordModelSetting, resetChordModelChoice, setChordModelChoice } from '../analysis/chordModel';
 import { runAnalysis, startAutoAnalysis } from '../analysis/runner';
 import { replaceEngine } from '../audio';
 import { ENGINE_SAMPLE_RATE } from '../audio/AudioEngine';
@@ -27,6 +27,7 @@ beforeEach(() => {
     localStorage: {
       getItem: (k: string) => memory[k] ?? null,
       setItem: (k: string, v: string) => void (memory[k] = v),
+      removeItem: (k: string) => void delete memory[k],
     },
   };
   resetChordModelChoice();
@@ -122,9 +123,11 @@ describe('« Rétablir les réglages d\'origine »', () => {
     expect(s.view).toMatchObject({ follow: true, subdivision: 1, triplets: false, snap: true });
     // What is not a preference of the device stays: the zoom, the instrument the chart is written for.
     expect(s.view).toMatchObject({ pxPerSecond: 77, instrument: 'sib' });
+    // Back to « Automatique » (nothing stored), which is the standard model where no memory is known.
+    expect(chordModelSetting()).toBe('auto');
     expect(chordModelChoice()).toBe('crema');
     expect(saved()).toMatchObject({ minorNotation: 'm', follow: true, subdivision: 1, triplets: false, snap: true, separationModel: 'auto', formants: false, atLaunch: 'lastProject', analyseOnImport: true, useKnownCharts: true });
-    expect(memory['fabtice.chordModel.v1']).toBe('crema');
+    expect('fabtice.chordModel.v1' in memory).toBe(false);
   });
 
   it('leaves the open piece and its own settings alone', async () => {
