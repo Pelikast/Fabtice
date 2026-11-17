@@ -216,18 +216,19 @@ async function assertNoPageProblems(page, problems, label) {
   assert.deepEqual(problems.filter((p) => p.startsWith('[pageerror]')), [], `${label}: page errors`);
 }
 
-test('the bar menu lists its four entries in order, each with its hint', async () => {
+test('the bar menu lists its five entries in order, each with its hint', async () => {
   const { app, page, problems } = await startDemo();
   try {
     const bar = await barInView(page);
     await openBarMenu(page, bar);
     const entries = await page.locator(`${MENU} [role="menuitem"]`).evaluateAll((els) => els.map((e) => ({ action: e.dataset.action, name: e.querySelector('span')?.textContent, hint: e.querySelector('small')?.textContent ?? '', off: e.disabled })));
-    assert.deepEqual(entries.map((e) => e.action), ['continuity', 'fresh', 'tap', 'meter'], 'four entries, in order (no « Revenir à l’analyse » where nothing was done)');
+    assert.deepEqual(entries.map((e) => e.action), ['continuity', 'fresh', 'tap', 'meter', 'key'], 'five entries, in order (no « Revenir à l’analyse » where nothing was done)');
     assert.deepEqual(entries.map((e) => e.name), [
       'Corriger un changement de tempo indésirable',
       'Réanalyser le tempo à partir de cette mesure',
       'Correction de la courbe en tapant le tempo',
       'Changer la signature rythmique',
+      'Changer de tonalité à partir de cette mesure…',
     ]);
     for (const e of entries) {
       assert.ok(e.hint.length > 20, `« ${e.name} » has its line of explanation`);
