@@ -37,16 +37,18 @@ const TRACK_COLORS = [2, 3, 4, 1, 15, 16, 17, 14, 28, 29];
 const MASTER_COLOR = 21;
 const NUM_ID_FLOOR = 1;
 
+// Automation targets and pointees share one id space, counted by `NextPointeeId`. Automation events have ids of
+// their own, but in the sets Live saves they stay below `NextPointeeId` too (and a validator of generated sets,
+// ableton-als, requires every Id of the file to): one counter for both keeps every Id unique and below it.
 class Ids {
   private pointee = NUM_ID_FLOOR;
-  private event = NUM_ID_FLOOR;
   /** A new id in the set-global space counted by `NextPointeeId` (targets, pointees). */
   next(): number {
     return this.pointee++;
   }
-  /** A new automation event id. */
+  /** A new automation event id (from the same counter). */
   nextEvent(): number {
-    return this.event++;
+    return this.pointee++;
   }
   get nextPointeeId(): number {
     return this.pointee;

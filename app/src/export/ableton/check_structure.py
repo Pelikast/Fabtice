@@ -99,6 +99,9 @@ def main(path):
     check(len(ids) == len(set(ids)), "duplicate pointee ids")
     nxt = int(value(ls, "NextPointeeId"))
     check(max(ids) < nxt, f"NextPointeeId {nxt} not above every id ({max(ids)})")
+    # In the sets Live saves, every Id of the file (automation events included) is below NextPointeeId.
+    every = [int(e.get("Id")) for e in root.iter() if e.get("Id") is not None]
+    check(max(every) < nxt, f"NextPointeeId {nxt} not above every Id of the file ({max(every)})")
     idset = set(ids)
     pointees = [int(e.get("Value")) for e in root.iter("PointeeId")]
     for p in pointees:

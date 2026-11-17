@@ -5,7 +5,9 @@
 //
 //   python3 -m venv /tmp/als-ref && /tmp/als-ref/bin/pip install abletoolz hexdump      (MPL-2.0; MIT)
 //   /tmp/als-ref/bin/pip install git+https://github.com/offlinemark/dawtool              (BSD-3-Clause)
-//   ALS_REFERENCE_PYTHON=/tmp/als-ref/bin/python npx vitest run src/export/ableton/ableton.reference.test.ts
+//   mkdir /tmp/als-ref-node && cd /tmp/als-ref-node && npm init -y && npm i ableton-als@0.4.2      (MIT)
+//   ALS_REFERENCE_PYTHON=/tmp/als-ref/bin/python ALS_REFERENCE_NODE_DIR=/tmp/als-ref-node \
+//     npx vitest run src/export/ableton/ableton.reference.test.ts
 //
 //   - abletoolz: parses the set (version, tempo, signatures, tracks, sample
 //     references found in the project folder), checks Live's loader rule on
@@ -13,9 +15,13 @@
 //     11.0_433 and the census of the releases that wrote each element.
 //   - dawtool: the time in seconds of every locator, through its
 //     reimplementation of Live's timeline (tempo read sixteenth by sixteenth).
+//   - ableton-als (JavaScript): its validator of generated sets (rules measured
+//     in Live 10 and 12: ids, NextPointeeId, one clip slot per scene, XML), its
+//     pointee-id inspection and its reader of tracks, scenes and tempo.
 
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -24,7 +30,10 @@ import { sampleSet } from './fixtures';
 import { writeAbletonSet } from './index';
 
 const python = process.env.ALS_REFERENCE_PYTHON;
-const suite = python ? describe : describe.skip;
+const nodeDir = process.env.ALS_REFERENCE_NODE_DIR;
+const suite = python || nodeDir ? describe : describe.skip;
+const pyTest = python ? it : it.skip;
+const nodeTest = nodeDir ? it : it.skip;
 const here = path.dirname(new URL(import.meta.url).pathname);
 const tmp = mkdtempSync(path.join(tmpdir(), 'fabtice-als-ref-'));
 afterAll(() => rmSync(tmp, { recursive: true, force: true }));
@@ -49,7 +58,7 @@ interface Report {
 const KEY_MIDI = /^KeyMidi|KeyMidi$/;
 
 suite('independent readers', () => {
-  it('abletoolz and dawtool read the set as intended; Live 11.0\'s schema declares every element', async () => {
+  pyTest('abletoolz and dawtool read the set as intended; Live 11.0\'s schema declares every element', async () => {
     const { input, beats } = sampleSet();
     // One locator per beat: dawtool gives the time of each one through Live's tempo curve.
     const withBeats = { ...input, locators: beats.map((b, i) => ({ quarters: b.quarters, name: `b${i}` })) };
@@ -86,5 +95,28 @@ suite('independent readers', () => {
     console.log(`dawtool: ${beats.length} beats, worst ${(worst * 1e6).toFixed(3)} µs; abletoolz: ${r.walked} members walked`);
     // fastcrc
     expect(r.fastcrc).toEqual(crcInputs.map((b) => liveFileCrc(new Uint8Array(b))));
+  });
+
+  nodeTest('ableton-als validates the set and reads its tracks, scenes and tempo', async () => {
+    const require = createRequire(path.join(nodeDir!, 'package.json'));
+    const aa = (await import(require.resolve('ableton-als'))) as {
+      validateGeneratedSet(xml: string): readonly { code: string; detail: string }[];
+      inspectPointeeIds(xml: string): { duplicatedIds: readonly string[]; collidingReferences: readonly string[]; targets: number };
+      parseAlsDocument(xml: string): { header: { minorVersion: string } | null; scenes: unknown[]; tracks: { type: string; name: string; sessionClips: unknown[] }[]; masterTempo: number | null; nextPointeeId: number | null };
+      gridIsConsistent(doc: unknown): boolean;
+    };
+    const { input } = sampleSet();
+    const { xml } = await writeAbletonSet(input);
+    expect(aa.validateGeneratedSet(xml)).toEqual([]);
+    const ids = aa.inspectPointeeIds(xml);
+    expect(ids.duplicatedIds).toEqual([]);
+    expect(ids.collidingReferences).toEqual([]);
+    const doc = aa.parseAlsDocument(xml);
+    expect(doc.header?.minorVersion).toBe('11.0_433');
+    expect(doc.tracks.map((t) => [t.type, t.name, t.sessionClips.length])).toEqual(input.tracks.map((t) => ['AudioTrack', t.name, 8]));
+    expect(doc.scenes).toHaveLength(8);
+    expect(aa.gridIsConsistent(doc)).toBe(true);
+    expect(doc.masterTempo).toBeCloseTo(input.tempo[0]!.quarterBpm, 3);
+    console.log(`ableton-als: valid, ${ids.targets} targets, NextPointeeId ${doc.nextPointeeId}`);
   });
 });
