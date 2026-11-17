@@ -96,7 +96,9 @@
 .case[data-rangs="2"] { --rangs: 2; }
 /* A lettered bar whose chords are on two rows: the boxed letter keeps its corner and the rows start under it
    (as a signature makes room: `.signee`), so the letter never covers a chord. */
-.case.lettree[data-rangs="2"], .case.modulee[data-rangs="2"] { --haut: 26px; }
+.case.lettree[data-rangs="2"] { --haut: 26px; }
+/* A bar with a mark: its two rows start a little lower still, so the pill never touches a chord. */
+.case.modulee[data-rangs="2"] { --haut: 29px; }
 .case.dans-boucle { background: var(--laiton-voile); }
 /* A loop that starts or ends inside a bar veils that part of the bar only (--boucle-de / --boucle-a, fractions of its width). */
 .case.dans-boucle.partielle { background: none; }
@@ -126,8 +128,11 @@
   overflow: hidden;
   pointer-events: none;
 }
-.case .case-tete .section { position: static; flex: none; pointer-events: auto; }
+/* The letter's own hit area (::after, 6 px around it) stays around the letter, and the mark lies over it. */
+.case .case-tete .section { position: relative; top: auto; left: auto; flex: none; pointer-events: auto; }
 .case .modulation {
+  position: relative;
+  z-index: 1;
   flex: 0 1 auto;
   display: inline-flex;
   align-items: baseline;
@@ -148,6 +153,7 @@
   transition: background var(--vite) var(--courbe), color var(--vite) var(--courbe);
 }
 .case .modulation[data-origine="manual"] { color: var(--encre); border-color: var(--encre-pale); }
+.case .modulation-cle { white-space: nowrap; }
 .case .modulation .alt { font-size: 1.18em; }
 @media (hover: hover) {
   .case .modulation:hover { background: var(--papier-clair); color: var(--encre); }

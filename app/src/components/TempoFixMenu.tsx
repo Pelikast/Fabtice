@@ -9,7 +9,7 @@
 // What they compute: `analysis/engine/tempoFix.ts`; how they are kept:
 // `store/tempoFixActions.ts`.
 
-import { useCallback, useEffect, useLayoutEffect, useRef, type KeyboardEvent } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { useStore } from 'zustand';
 import { runTempoFix } from '../analysis/runner';
 import { formatBarNumber } from '../grid/format';
@@ -25,7 +25,7 @@ import { canChangeMeterAt } from '../store/meterActions';
 import { tempoFixAt, undoTempoFix } from '../store/tempoFixActions';
 import { openMeterDialog, openTapFix } from '../ui/barDialogs';
 import { useOutsideClose } from '../ui/useOutsideClose';
-import { closeTempoMenu, tempoMenuStore } from '../ui/tempoMenu';
+import { closeTempoMenu, tempoMenuStore, whenPointerReleased } from '../ui/tempoMenu';
 import '../styles/tempoMenu.css';
 
 const MARGIN = 8;
@@ -58,6 +58,13 @@ export function TempoFixMenu() {
     el.style.left = `${x}px`;
     el.style.top = `${y}px`;
     el.querySelector<HTMLElement>('[role="menuitem"]:not(:disabled)')?.focus({ preventScroll: true });
+  }, [at]);
+
+  // Held by a finger: the click that follows its release must not choose the entry that lies under it.
+  const [armed, setArmed] = useState(true);
+  useEffect(() => {
+    setArmed(false);
+    return at ? whenPointerReleased(() => setArmed(true)) : undefined;
   }, [at]);
 
   useEffect(() => {
@@ -93,6 +100,12 @@ export function TempoFixMenu() {
       role="menu"
       aria-label={t('tempoMenu.label', { bar: formatBarNumber(at.bar) })}
       data-testid="menu-tempo"
+      onClickCapture={(e) => {
+        if (!armed) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      }}
       onKeyDown={onKeyDown}
       onContextMenu={(e) => e.preventDefault()}
     >

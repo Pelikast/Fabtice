@@ -32,6 +32,8 @@ export function ModulationDialog() {
   return <ModulationBox key={at.bar} bar={at.bar} />;
 }
 
+/** How long the window ignores the pointer after it opens (the click that follows a tap). */
+const OPENING_GUARD_MS = 350;
 const FOCUSABLE = 'input:not(:disabled), select:not(:disabled), button:not(:disabled)';
 
 /** What the window starts from: the piece as the window reads it, the modulation at the bar (if any). */
@@ -61,6 +63,12 @@ function ModulationBox({ bar }: { bar: number }) {
   const [mode, setMode] = useState<KeyMode>(initial?.mode ?? before?.mode ?? 'major');
   const [tonic, setTonic] = useState<number | null>(initial?.tonic ?? null);
   const [barText, setBarText] = useState(String(bar + 1));
+  // A tap on the mark opens the window under the finger: the click the browser sends after it must not press a key.
+  const [armed, setArmed] = useState(false);
+  useEffect(() => {
+    const id = window.setTimeout(() => setArmed(true), OPENING_GUARD_MS);
+    return () => window.clearTimeout(id);
+  }, []);
   const [opener] = useState(() => (document.activeElement instanceof HTMLElement ? document.activeElement : null));
   useEffect(() => {
     firstRef.current?.focus({ preventScroll: true });
@@ -112,6 +120,7 @@ function ModulationBox({ bar }: { bar: number }) {
       aria-modal="true"
       aria-labelledby="modulation-titre"
       data-testid="modulation-dialogue"
+      style={armed ? undefined : { pointerEvents: 'none' }}
       onPointerDown={(e) => {
         if (e.target === e.currentTarget) closeKeyDialog();
       }}

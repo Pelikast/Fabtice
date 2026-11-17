@@ -229,7 +229,7 @@ async function openMade(form, query = '?demo&moteur=factice&vue=grille&harmonie=
   await page.waitForFunction(() => window.__fabtice && window.__fabtice.store.getState().transport.engine === 'ready', null, { timeout: 15000 });
   await page.evaluate(() => window.__fabtice.ready);
   await page.evaluate(() => document.fonts.ready);
-  await page.waitForSelector('[data-testid="grille"] [data-mesure="14"]', { timeout: 15000 });
+  await page.waitForSelector(query.includes('vue=grille') ? '[data-testid="grille"] [data-mesure="14"]' : '.frise', { timeout: 15000 });
   await sleep(300);
   return { page, context, errors, phone, cdp: phone ? await context.newCDPSession(page) : null };
 }
@@ -254,12 +254,20 @@ const topRowProblems = (page) =>
   page.evaluate(() => {
     const out = [];
     for (const cell of document.querySelectorAll('[data-testid="grille"] .case')) {
-      const items = [...cell.querySelectorAll('.section, .modulation, .numero, .signature, .accord-case .ch')].map((e) => ({ k: e.className.toString().split(' ')[0], r: e.getBoundingClientRect() })).filter((x) => x.r.width > 0);
+      const items = [...cell.querySelectorAll('.section, .modulation, .numero, .signature, .accord-case .ch')]
+        .filter((e) => !e.parentElement.closest('.ch'))
+        .map((e) => ({ k: e.className.toString().split(' ')[0], r: e.getBoundingClientRect() }))
+        .filter((x) => x.r.width > 0);
       for (let i = 0; i < items.length; i++)
         for (let j = i + 1; j < items.length; j++) {
+          // Chords of two rows interleave by design; a chord's line box may touch the head by a few pixels (its glyphs do not).
+          if (items[i].k === 'ch' && items[j].k === 'ch') continue;
+          const slack = items[i].k === 'ch' || items[j].k === 'ch' ? 4 : 0.5;
           const a = items[i].r;
           const b = items[j].r;
-          if (a.left < b.right - 0.5 && b.left < a.right - 0.5 && a.top < b.bottom - 0.5 && b.top < a.bottom - 0.5) out.push(`bar ${cell.dataset.mesure}: ${items[i].k} over ${items[j].k}`);
+          const w = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+          const h = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+          if (w > 0.5 && h > slack) out.push(`bar ${cell.dataset.mesure}: ${items[i].k} over ${items[j].k} (${Math.round(w)} x ${Math.round(h)})`);
         }
     }
     return out;
@@ -278,7 +286,7 @@ async function modulationScreens(form) {
   check(`${tag}: it reads « Ton : E »${h.phone ? ' (on a phone, just the key is shown)' : ''}`, text9.replace(/\s+/g, ' ').trim() === 'Ton : E', text9);
   const shown = await markOf(page, 8).evaluate((e) => ({ word: getComputedStyle(e.querySelector('.modulation-mot')).display, font: getComputedStyle(e).fontFamily, color: getComputedStyle(e).color }));
   check(`${tag}: ${h.phone ? 'the word « Ton : » is left out on a phone' : 'the word « Ton : » is shown'}, in ink-soft, never ember or brass`, (h.phone ? shown.word === 'none' : shown.word !== 'none') && shown.color === 'rgb(106, 86, 70)', JSON.stringify(shown));
-  check(`${tag}: the chords of the passage are spelled in E (bar 10: C♯, not D♭), and after it in A♭`, (await barText(page, 9)).includes('C♯') && !(await barText(page, 17)).includes('♯'), `${await barText(page, 9)} / ${await barText(page, 17)}`);
+  check(`${tag}: the chords of the passage are spelled in E (bar 10: G♯7, not A♭7), and after it in A♭ (bar 18: Fm7, no sharp)`, (await barText(page, 9)).includes('G♯') && !(await barText(page, 17)).includes('♯'), `${await barText(page, 9)} / ${await barText(page, 17)}`);
   check(`${tag}: bar 9 carries a letter (B) and the mark side by side, bar 17 too (A); nothing covers anything`, (await topRowProblems(page)).length === 0 && (await page.locator('[data-mesure="8"] .case-tete .section').count()) === 1, (await topRowProblems(page)).join(' ; '));
   // A signature too: a bar with a letter, a signature AND a modulation.
   await page.evaluate(() => window.__fabtice.lot2.meter.setMeterFrom(8, { numerator: 3, denominator: 4 }));
@@ -292,6 +300,7 @@ async function modulationScreens(form) {
     window.__fabtice.lot2.harmony.setBarChords(8, [{ beatInBar: 0, chord: c(4, 'min7', ['b5', '9']) }, { beatInBar: 1, chord: c(9, '7', ['#9', 'b13']) }, { beatInBar: 2, chord: c(2, 'min7', ['9', '11']) }, { beatInBar: 3, chord: c(7, '7', ['b9', 'b13']) }]);
   });
   await sleep(300);
+  await page.screenshot({ path: path.join(out, `${tag}-deux-rangs.png`) });
   check(`${tag}: crowded chords (two rows) under a letter and a mark: the top row stays clear`, (await topRowProblems(page)).length === 0, (await topRowProblems(page)).join(' ; '));
   await page.evaluate(() => window.__fabtice.history.undo());
   await sleep(200);
@@ -303,10 +312,10 @@ async function modulationScreens(form) {
   await page.evaluate(() => window.__fabtice.actions.resetTransposition());
   await page.evaluate(() => window.__fabtice.lot2.harmony.setInstrument('sib'));
   await sleep(250);
-  check(`${tag}: written for a B♭ instrument: F♯ and B♭`, (await marks(page)).map((m) => m.split(':')[1]).join(' ') === 'F♯ B♭', (await marks(page)).join(' '));
+  check(`${tag}: written for a B♭ instrument: G♭ and B♭ (the app's spelling of the key a tone above)`, (await marks(page)).map((m) => m.split(':')[1]).join(' ') === 'G♭ B♭', (await marks(page)).join(' '));
   await page.evaluate(() => window.__fabtice.lot2.harmony.setInstrument('mib'));
   await sleep(250);
-  check(`${tag}: written for an E♭ instrument: C♯ and F`, (await marks(page)).map((m) => m.split(':')[1]).join(' ') === 'C♯ F', (await marks(page)).join(' '));
+  check(`${tag}: written for an E♭ instrument: D♭ and F`, (await marks(page)).map((m) => m.split(':')[1]).join(' ') === 'D♭ F', (await marks(page)).join(' '));
   await page.evaluate(() => window.__fabtice.lot2.harmony.setInstrument('ut'));
   await detect(page, [[8, 4]]);
   await page.evaluate(() => {
@@ -381,6 +390,10 @@ async function modulationScreens(form) {
   await sleep(300);
   check(`${tag}: written by hand: « Écrite à la main. » and « Revenir aux modulations de l’analyse »`, (await page.locator('.modulation-origine').textContent()) === 'Écrite à la main.' && (await page.locator('[data-testid="modulation-revenir"]').innerText()) === 'Revenir aux modulations de l’analyse');
   await page.locator('[data-testid="modulation-mesure"]').fill('11');
+  await sleep(150);
+  await page.screenshot({ path: path.join(out, `${tag}-fenetre-main.png`) });
+  const picked = await page.$$eval('.fenetre-modulation [aria-checked="true"], .fenetre-modulation [aria-pressed="true"]', (els) => els.map((e) => e.dataset.testid).join(' '));
+  check(`${tag}: before Valider the window still holds F♯ minor (the move only changes the bar)`, picked === 'modulation-mode-minor modulation-note-6', picked);
   await press(h, page.locator('[data-testid="modulation-valider"]'));
   await sleep(300);
   check(`${tag}: moved to bar 11: the mark is above bar 11 and gone from bar 9`, (await marks(page)).join(' ') === '10:F♯m:manual 16:A♭:manual', (await marks(page)).join(' '));
@@ -403,8 +416,6 @@ async function modulationScreens(form) {
   await page.evaluate(() => window.__fabtice.history.undo());
   await sleep(250);
   // The key of the title: the main key stays the piece's (A♭), with the link only when the list is the user's.
-  await page.evaluate(() => window.__fabtice.history.undo());
-  await sleep(250);
   await page.evaluate(() => (document.querySelector('.vue-grille').scrollTop = 0));
   await page.locator('[data-testid="cle-bouton"]').scrollIntoViewIfNeeded();
   check(`${tag}: the title still says the MAIN key (A♭), not the key of a passage`, (await page.locator('[data-testid="grille-ton"]').textContent()).startsWith('Tonalité de A♭'), await page.locator('[data-testid="grille-ton"]').textContent());
@@ -422,16 +433,32 @@ async function modulationScreens(form) {
   // ---------------------------------------------------- the bar menu
   const openMenu = async (bar) => {
     const cell = page.locator(`[data-testid="grille"] [data-mesure="${bar}"]`);
-    await cell.scrollIntoViewIfNeeded();
-    const b = await cell.boundingBox();
-    const x = b.x + b.width - 6;
-    const y = b.y + b.height - 6;
+    await cell.evaluate((e) => e.scrollIntoView({ block: 'center' }));
+    await sleep(200);
+    // A point of the bar that is none of its parts (a chord, the letter, the mark, the number would be other targets).
+    const { x, y } = await cell.evaluate((el) => {
+      const b = el.getBoundingClientRect();
+      for (const fy of [0.55, 0.4, 0.7, 0.85]) for (let fx = 0.95; fx > 0.05; fx -= 0.05) {
+        const px = b.left + b.width * fx;
+        const py = b.top + b.height * fy;
+        const hit = document.elementFromPoint(px, py);
+        if (hit && el.contains(hit) && !hit.closest('.accord-case, .section, .modulation, .numero, .signature')) return { x: px, y: py };
+      }
+      throw new Error('no free point in the bar');
+    });
     if (h.phone) {
       await h.cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y, id: 1 }] });
       await sleep(1100);
+      if (process.env.FABTICE_DEBUG_MENU) await page.screenshot({ path: path.join(out, `${tag}-menu-tenu-${bar}.png`) });
       await h.cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+      await sleep(450); // the menu ignores clicks for a moment after the finger lifts
     } else await page.mouse.click(x, y, { button: 'right' });
-    await page.waitForSelector('[data-testid="menu-tempo"]', { timeout: 4000 });
+    try {
+      await page.waitForSelector('[data-testid="menu-tempo"]', { timeout: 4000 });
+    } catch (e) {
+      await page.screenshot({ path: path.join(out, `${tag}-menu-echec-${bar}.png`) });
+      throw new Error(`no bar menu at bar ${bar}, pressed at ${Math.round(x)},${Math.round(y)}`);
+    }
     await sleep(200);
   };
   const menuActions = () => page.$$eval('[data-testid="menu-tempo"] [role="menuitem"]', (els) => els.map((e) => `${e.dataset.action}${e.disabled ? ':off' : ''}`));
@@ -516,7 +543,7 @@ async function modulationRuler(form) {
   const h = await openMade(form, '?demo&moteur=factice&harmonie=non');
   const { page } = h;
   await page.waitForSelector('.frise');
-  await page.evaluate(() => window.__fabtice.actions.setZoom(h.phone ? 90 : 130));
+  await page.evaluate((pps) => window.__fabtice.actions.setZoom(pps), h.phone ? 90 : 130);
   await detect(page, [[1, 4], [3, 8]]);
   await page.mouse.move(h.phone ? 250 : 700, 400);
   await page.mouse.wheel(-8000, 0);

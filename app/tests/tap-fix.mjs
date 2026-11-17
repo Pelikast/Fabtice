@@ -103,6 +103,7 @@ async function longPress(context, page, x, y) {
   await sleep(900);
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   await cdp.detach();
+  await sleep(450); // the menu ignores clicks for a moment after the finger lifts (the click that follows a long press)
 }
 
 /** The viewport point of the bars of the ruler, for the bars whose line is on screen. */

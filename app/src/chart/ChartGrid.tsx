@@ -224,8 +224,8 @@ function BarCell({
             data-cle={keyLabel(ctx.key ?? bar.keyChange, ctx.minor)}
             title={t(modulationByHand ? 'modulation.markHand' : 'modulation.markAnalysis', { key: keyLabel(ctx.key ?? bar.keyChange, ctx.minor) })}
           >
-            <span className="modulation-mot">{t('modulation.label')}</span>
-            {withAccidentals(keyLabel(ctx.key ?? bar.keyChange, ctx.minor))}
+            <span className="modulation-mot">{t('modulation.label')}</span>{' '}
+            <span className="modulation-cle">{withAccidentals(keyLabel(ctx.key ?? bar.keyChange, ctx.minor))}</span>
           </button>
         </div>
       ) : (
