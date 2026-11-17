@@ -17,12 +17,13 @@ const HF = 'https://huggingface.co/';
 const BEAT_REPO = 'nilsbc/beat-this-onnx/resolve/0d66b58ee1b3b42ec5e82334949626295f3ed82b/';
 const CREMA_REPO = 'thebluescreen/crema-chords-onnx/resolve/302ae89e3ed7753fc8da9cb08274aff446d8fe47/';
 const TSUMUGI_REPO = 'anime-song/Tsumugi-Chords/resolve/a6731e1eea7353773188421702ff67049a84ce7a/';
+const CED_REPO = 'mispeech/ced-tiny/resolve/ace276d29dd0bb3f3517b0fa8cf300738c409019/';
 
 export interface ModelSpec extends Omit<AnalysisModelInfo, 'cached'> {
   sha256: string;
 }
 
-export type ModelId = 'beat-this-logmel' | 'beat-this-small0' | 'beat-this-final0' | 'crema-chords' | 'tsumugi-chords';
+export type ModelId = 'beat-this-logmel' | 'beat-this-small0' | 'beat-this-final0' | 'crema-chords' | 'tsumugi-chords' | 'ced-tiny';
 
 /**
  * Which chord model reads the chords (« Réglages avancés », a device preference:
@@ -87,6 +88,19 @@ export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
     licence: 'CC BY-NC 4.0 (usage non commercial)',
     bytes: 67647992,
     sha256: '6b62daef6d164ca433486abdda1b74a5e513c48297a4f57e0e19fdf536c0ee0a',
+  },
+  // Not an analysis model: the small AudioSet tagger that tells the wind instruments apart in the
+  // separated track « Autres » (`structure/instruments/`), fetched the first time a structure needs it.
+  // The authors' own ONNX export (8-bit weights, log-mel front end inside the graph).
+  'ced-tiny': {
+    id: 'ced-tiny',
+    name: 'CED-Tiny',
+    role: 'reconnaissance des instruments à vent',
+    url: `${HF}${CED_REPO}model.onnx`,
+    host: 'Hugging Face',
+    licence: 'Apache-2.0',
+    bytes: 6681767,
+    sha256: '3890f227660be71886ff48633d11a731993e0206db8a486781412c28a0873435',
   },
 };
 
