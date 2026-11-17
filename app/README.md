@@ -34,6 +34,8 @@ le stockage.
 | `npm run test:memory` | après `build`, au premier plan : la mémoire d'un morceau de cinq minutes stéréo en une piste puis en sept, avec le vrai moteur ; puis le jeu « Appliquer » de ces sept pistes à 0,7 (taille, budget de l'appareil, libération) (chiffres affichés) |
 | `npm run test:render` | après `build`, au premier plan : le vrai rendu (Rubber Band R3 dans un worker) dans Chromium : alignement d'un train de clics à plusieurs tempos et hauteurs, cinq minutes sans dérive, vitesse (secondes de calcul par minute stéréo, gain de plusieurs workers), annulation, binaire chargé au premier rendu seulement et licence servie ; puis « Appliquer » dans l'app avec le vrai moteur (progression réelle, rendu joué tel quel, retour à la préécoute, refus calme d'un appareil trop petit) à 1280 × 800 et 390 × 844. `FABTICE_RENDER_OUT` pour les captures, `FABTICE_RENDER_ONLY=renderer\|app`, `FABTICE_RENDER_QUICK=1` saute les cinq minutes |
 | `npm run test:export-audio` | après `build` : « Exporter » ▸ « Audio… » avec les vrais encodeurs MP3 et FLAC (WAV, MP3, FLAC relus et comparés ; Wave à chaque fréquence et quantification relu par un lecteur écrit dans le test et par ffprobe ; chaque débit MP3 de 96 à 320 ; pistes en un fichier ou en archive ; boucle, annulation, encodeur qui ne se charge pas, export à une autre tonalité et un autre tempo par le rendu), vitesses, la fenêtre dans les deux formes (réglages, case « Un fichier par piste », téléchargements relus) et ses captures (`FABTICE_EXPORT_OUT`) |
+| `npm run test:export-audio` | après `build` : « Exporter le son » avec les vrais encodeurs MP3 et FLAC (WAV, MP3, FLAC relus et comparés, archive, boucle, annulation, encodeur qui ne se charge pas, export à une autre tonalité et un autre tempo par le rendu), vitesses, captures du dialogue |
+| `npm run test:export-logic` | après `build` : « Dossier pour Logic Pro… » (C15.4) dans les deux formes (1280 × 800 à la souris, 390 × 844 au toucher) sur le morceau de démonstration à +2 demi-tons et 90 % : l'entrée du menu après « PDF… », la fenêtre, le pourcentage qui monte, « Annuler », l'archive .zip relue (un dossier, les Wave 48 kHz 16 bits de même longueur, le fichier MIDI relu par `midi-file` : chaque temps à moins d'une milliseconde, signatures, armure, marqueurs ; `Lisez-moi.txt`). Captures et archives dans `FABTICE_CAPTURES` (par défaut `/tmp/fabtice-captures-C`) |
 | `npm run test:export-memory` | après `build`, au premier plan : la mémoire de l'export de sept pistes de cinq minutes (archive de WAV, de MP3, mélange en WAV, FLAC et MP3), chiffres affichés |
 | `npm run test:metronome` | après `build` (lot 4) : le panneau du métronome (volume, décompte, mesure et regroupement, temps forts et faibles, accélération), ce qui arrive au moteur factice (piste de clics, volume, plan, décompte au moment de Lecture), le palier et le décompte affichés, le panneau dans la fenêtre à 1280 × 800, 960 × 640 et 390 × 844, puis les réglages retrouvés après rechargement (profil persistant). `FABTICE_METRONOME_OUT` pour les captures |
 | `npm run test:markers` | après `build` (lot 4) : boucles gardées (garder, rappeler, renommer, ordonner, supprimer), sections (les lettres de la grille : listées, bouclées, ajoutées, renommées, supprimées, les mêmes dans la grille d'accords), la rangée « Repères » de la règle (clic), le clavier, le téléphone, puis tout retrouvé après rechargement (profil persistant). `FABTICE_MARKERS_OUT` pour les captures |
@@ -1411,6 +1413,54 @@ ferait doublon.
   depuis « Projets récents », copie abîmée, pas de service worker).
 
 ## Contrats pour la suite
+
+### Étape 3 de la 1.0.0 : « Dossier pour Logic Pro… » (C15.4)
+
+La recherche sur ce que Logic lit d'un fichier MIDI, le mode d'emploi en trois
+gestes et les choix du fichier sont dans `src/export/midi/LOGIC.md`.
+
+**Modèle de session (`export/session/`, commun aux exports vers un
+séquenceur ; l'export Ableton s'en sert).** `buildSession(state, { tempoRange? })
+→ Session` (pur, testé dans Node) : tout **dans le temps de sortie** (temps
+source ÷ `playback.tempoRatio`), deux coordonnées pour chaque position, `time`
+(secondes de l'audio exporté) et `quarters` (noires depuis le début de la
+ligne du temps du séquenceur). `leadIn` (mesure d'attente : `meter`, `bars`,
+`quarterBpm`, `duration`) avant la première barre de la grille après 0
+(`start`), `startError` quand elle est posée à 0 faute de mesure d'attente
+assez courte ; `beats` (chaque temps dans la signature de sa mesure, avec le
+tempo en noires par minute qui mène au suivant), `bars`, `meters`, `keys`
+(tonalité par passage, transposée, ASCII et français), `chords` (transposés,
+ASCII `text` et `display`), `sections`, `parts` (libellés français, « Solo
+(Vents) »), `tracks` (`fileStem` : « 01 Voix »), `frames`, `duration`,
+`warnings`. Aussi `asciiChord`, `asciiKey`, `partLabel`, `trackFileStems`,
+`leadInFor`, `DEFAULT_TEMPO_RANGE` (20 à 990). Contrat stable : on ajoute des
+champs, on n'en change pas le sens.
+
+**Fichier MIDI (`export/midi/`).** `sessionToMidi(session, { chordTrack? }) →
+{ bytes, beatTimes, maxBeatError, markers }` : format 1, 960 tics par noire,
+piste de tempo (nom, signatures, armures, un tempo par temps sans dérive,
+marqueurs « Theme 1 - [A] Bbmaj7 ») puis piste « Accords ». Écrivain bas
+niveau `writeSmf(tracks, ppq)`, `asciiText`. Relu dans les tests par
+`midi-file` (devDependency, licence MIT).
+
+**Remise d'un dossier (`export/folder/`).** `openFolderTarget(nom) →
+FolderTarget | null` (null : panneau annulé), puis `add({ name, data })`
+fichier par fichier, `finish() → FolderResult` ou `abort()`. App Mac : un vrai
+dossier (`{ kind: 'folder', folderName, where, reveal }`) ; web : une archive
+.zip dont les entrées sont dans un dossier de ce nom (`{ kind: 'zip', file }`).
+`writesRealFolder()`. Pont : `beginFolderExport`, `writeFolderFile`,
+`finishFolderExport`, `abortFolderExport`, `revealFolderExport` (canaux
+`fabtice:folder-*`, `desktop/src/folder-writer.js`).
+
+**Contenu Logic (`export/logic/`).** `planLogicFolder(state)` (pur : nom du
+dossier, du fichier MIDI, un plan d'export audio par piste, gain 1, Wave),
+`runLogicExport(plan, target, deps)` (rend les pistes une à une par
+`runAudioExport` avec l'encodeur `fixedLengthWav(session.frames)` : toutes de
+la même longueur), `logicTextFiles`, `logicReadme`, `logicGestures`,
+`logicBarOfFirstBar`. Fenêtre : `components/ExportLogicDialog.tsx`, état
+`export/logic/dialog.ts` (`logicDialog`, `openExportLogic`), compté dans
+`ui/windows.ts`. Commande `exportLogic` (`ui/commands.ts`, `desktop/src/menu.js`).
+Poignée de test : `window.__fabtice.lot3.sequencer`.
 
 ### Étape 2 de la 1.0.0 : interface
 
