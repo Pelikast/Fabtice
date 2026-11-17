@@ -84,10 +84,12 @@ export async function gatherProject(s: AppState = appStore.getState(), earlier: 
     originals.set(id, old ? { fileName: old.fileName, mimeType: old.mimeType, byteLength: old.bytes, load: () => load(id) } : await load(id));
   }
   const renderTrack = new Map((document.keptRender?.tracks ?? []).map((t) => [t.audioId, t.trackId]));
+  // The render in memory only when it is the one the document names (a newer one may be applied but not kept).
+  const renderInMemory = document.keptRender ? keptRenderAudio(document.keptRender) : null;
   const tracks = new Map<string, () => Promise<PcmAudio>>();
   for (const p of trackEntries(document)) {
     const trackId = renderTrack.get(p.id);
-    tracks.set(p.id, readerFor(p.id, () => (p.kind === 'render' && trackId ? keptRenderAudio()?.get(trackId) : getAudio(p.id))));
+    tracks.set(p.id, readerFor(p.id, () => (p.kind === 'render' && trackId ? renderInMemory?.get(trackId) : getAudio(p.id))));
   }
   return { document, originals, tracks };
 }

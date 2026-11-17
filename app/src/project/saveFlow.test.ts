@@ -32,7 +32,7 @@ import type { FileHandle } from './fileSystem';
 import { answerLeave, confirmLeaveProject, leaveDialog, requestNewProject } from './leave';
 import { openProjectSource } from './open';
 import { cancelSave, runSaveAs, saveActivity, saveProject, saveProjectAs, settleSaveAs } from './saveFlow';
-import { windowTitle } from './windowState';
+import { installProjectWindow, windowTitle } from './windowState';
 import { blobSource, bytesSource, readZipDirectory } from './zip';
 
 const SR = ENGINE_SAMPLE_RATE;
@@ -381,6 +381,41 @@ describe('the Mac app: the main process owns the file', () => {
     expect(opened.document.playback.semitones).toBe(-1);
   });
 
+  it('« Enregistrer sous… » asked while « Enregistrer » writes: the dialog waits for it, and the first save succeeds', async () => {
+    await openKeptPiece();
+    const mac = fakeMac();
+    withBridge(mac.bridge);
+    await runSaveAs({ encode: nodeFlacEncode });
+    await separate('htdemucs-6s', ['vocals']);
+    let release: () => void = () => {};
+    const gate = new Promise<void>((r) => (release = r));
+    let encoding = false;
+    const slow: FlacEncode = async (pcm, o) => {
+      encoding = true;
+      await gate;
+      return nodeFlacEncode(pcm, o);
+    };
+    const first = saveProject({ encode: slow });
+    while (!encoding) await settle();
+    const asked = saveProjectAs();
+    await settle();
+    // Nothing interrupts the save under way: the dialog is not up, no other save was begun.
+    expect(appStore.getState().ui.saveProjectOpen).toBe(false);
+    expect(mac.log.begins).toEqual(['choose']);
+    release();
+    expect(await first).toBe('saved');
+    expect(mac.log.aborts).toBe(0);
+    await settle();
+    expect(appStore.getState().ui.saveProjectOpen).toBe(true);
+    // « Enregistrer » while the dialog is up: the dialog's answer, no second save.
+    const again = saveProject({ encode: nodeFlacEncode });
+    settleSaveAs('cancelled');
+    expect(await asked).toBe('cancelled');
+    expect(await again).toBe('cancelled');
+    expect(mac.log.finishes).toBe(2);
+    expect(mac.log.begins).toEqual(['choose', 'current']);
+  });
+
   it('an entry of the earlier file that no longer reads back as recorded: the save starts again, whole, and succeeds', async () => {
     await openKeptPiece();
     await separate('htdemucs-6s', ['vocals', 'bass']);
@@ -559,5 +594,79 @@ describe('the title of the window', () => {
     expect(getCurrentFile()?.name).toBe('a.fab');
     await openKeptPiece();
     expect(getCurrentFile()).toBeNull();
+  });
+});
+
+describe('the Mac app asks whether the window may close', () => {
+  /** The main process's question, and what it was answered with, with what the device held at that moment. */
+  function closingMac() {
+    let ask: ((q: { id: string }) => void) | null = null;
+    const answers: { go: boolean; keptSemitones: number | undefined }[] = [];
+    const bridge = {
+      onConfirmClose: (cb: (q: { id: string }) => void) => ((ask = cb), () => (ask = null)),
+      ackClose: async () => true,
+      answerClose: async (_id: string, go: boolean) => {
+        answers.push({ go, keptSemitones: (await storage.loadCurrent())?.playback.semitones });
+        return true;
+      },
+    } as unknown as DesktopBridge;
+    return { bridge, answers, ask: () => ask!({ id: 'q1' }) };
+  }
+  const fakeDoc = { title: '' } as Document;
+
+  async function changedJustBefore(semitones: number) {
+    await openKeptPiece();
+    await getKeeper().settled();
+    appStore.setState((s) => ({ playback: { ...s.playback, semitones } }));
+    // The autosave waits for its delay: nothing on the device yet.
+    expect((await storage.loadCurrent())?.playback.semitones).toBe(0);
+  }
+
+  it('« Ne pas enregistrer »: the last change is written on the device before the window may go', async () => {
+    await changedJustBefore(4);
+    const mac = closingMac();
+    const stop = installProjectWindow(mac.bridge, fakeDoc);
+    mac.ask();
+    await settle();
+    expect(leaveDialog.getState().open).toBe(true);
+    await answerLeave('discard');
+    await settle();
+    expect(mac.answers).toEqual([{ go: true, keptSemitones: 4 }]);
+    stop();
+  });
+
+  it('nothing to ask (just saved to its file), the autosave still waiting: written before the answer', async () => {
+    await openKeptPiece();
+    picks(memoryFile());
+    await runSaveAs({ encode: nodeFlacEncode });
+    await getKeeper().settled();
+    appStore.setState((s) => ({ playback: { ...s.playback, semitones: 6 } }));
+    expect(await saveProject({ encode: nodeFlacEncode })).toBe('saved');
+    expect(isModified()).toBe(false);
+    const mac = closingMac();
+    const stop = installProjectWindow(mac.bridge, fakeDoc);
+    mac.ask();
+    await settle();
+    expect(mac.answers).toEqual([{ go: true, keptSemitones: 6 }]);
+    stop();
+  });
+
+  it('a device that does not answer never holds the closing back; « Annuler » answers « stay » at once', async () => {
+    await changedJustBefore(2);
+    const mac = closingMac();
+    const stop = installProjectWindow(mac.bridge, fakeDoc, { flush: () => new Promise(() => {}), flushMaxMs: 50 });
+    mac.ask();
+    await settle();
+    await answerLeave('cancel');
+    await settle();
+    expect(mac.answers.map((a) => a.go)).toEqual([false]);
+    mac.ask();
+    await settle();
+    await answerLeave('discard');
+    await settle();
+    expect(mac.answers.map((a) => a.go)).toEqual([false]);
+    await new Promise((r) => setTimeout(r, 60));
+    expect(mac.answers.map((a) => a.go)).toEqual([false, true]);
+    stop();
   });
 });

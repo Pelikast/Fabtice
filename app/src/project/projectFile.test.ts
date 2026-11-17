@@ -30,7 +30,7 @@ import { appStore, initialState } from '../store/store';
 import { fakeClock } from '../test/fakeClock';
 import { nodeFlacEncode } from '../test/flacEncode';
 import { openProjectSource } from './open';
-import { buildProjectFile, saveRefusal } from './save';
+import { buildProjectFile, gatherProject, saveRefusal } from './save';
 import { blobSource, type ByteSource } from './zip';
 
 const SR = ENGINE_SAMPLE_RATE;
@@ -169,6 +169,56 @@ describe('the last applied render, kept with the piece', () => {
     for (const t of first.tracks) expect(await storage.loadTrackAudio(t.audioId)).toBeNull();
     // Never the original nor the separations.
     expect(appStore.getState().separation.others.length).toBe(1);
+  });
+});
+
+describe('a newer render applied but not kept: the file holds the kept one', () => {
+  /** Applies a render at another tempo while the device refuses (or has not finished writing) its samples. */
+  async function newerRenderNotKept(save: (audioId: string, pcm: PcmAudio) => Promise<void>) {
+    await workedOnPiece();
+    const kept = appStore.getState().keptRender!;
+    const keptSamples = new Map(await Promise.all(kept.tracks.map(async (t) => [t.audioId, (await storage.loadTrackAudio(t.audioId))!] as const)));
+    storage.saveTrackAudio = save;
+    appStore.setState((s) => ({ playback: { ...s.playback, tempoRatio: 0.8 } }));
+    await applyRender();
+    await settle();
+    const s = appStore.getState();
+    expect(selectApplyState(s)).toBe('applied');
+    expect(s.keptRender).toBe(kept);
+    return { kept, keptSamples };
+  }
+
+  async function expectKeptSamples(kept: ReturnType<typeof appStore.getState>['keptRender'] & object, keptSamples: Map<string, PcmAudio>) {
+    const input = await gatherProject();
+    expect(input.document.keptRender).toEqual(kept);
+    for (const t of kept.tracks) {
+      const pcm = await input.tracks.get(t.audioId)!();
+      expect(samePcm(pcm, keptSamples.get(t.audioId)!)).toBe(true);
+    }
+  }
+
+  it('the device was full: the entries `rendu/` hold the samples of the kept render, not of the one heard', async () => {
+    const { kept, keptSamples } = await newerRenderNotKept(() => Promise.reject(Object.assign(new Error('full'), { code: 'quota' })));
+    expect(appStore.getState().ui.storageNotice).toBe('renderFull');
+    await expectKeptSamples(kept, keptSamples);
+  });
+
+  it('saved while the new render is being written on the device: still the kept one', async () => {
+    const original = storage.saveTrackAudio.bind(storage);
+    let release: () => void = () => {};
+    const gate = new Promise<void>((r) => (release = r));
+    const { kept, keptSamples } = await newerRenderNotKept(async (id, pcm) => {
+      await gate;
+      return original(id, pcm);
+    });
+    await expectKeptSamples(kept, keptSamples);
+    release();
+    await settle();
+    // Once written, the new render is the kept one and is taken from memory.
+    const now = appStore.getState().keptRender!;
+    expect(now.target.tempoRatio).toBe(0.8);
+    expect(keptRenderAudio(now)).not.toBeNull();
+    expect(keptRenderAudio(kept)).toBeNull();
   });
 });
 

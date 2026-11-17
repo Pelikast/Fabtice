@@ -82,6 +82,14 @@ export function selectApplyError(s: AppState): RenderErrorCode | null {
 let job: { abort: AbortController; target: RenderTarget } | null = null;
 /** The audio the engine was given, by track id: the one copy, let go when stale. */
 let rendered: Map<string, PcmAudio> | null = null;
+/**
+ * Which kept render `rendered` is (its audio ids, `renderKey`), or null while it is not kept yet (a render just
+ * applied whose samples are still being written on the device, or failed to be). The `.fab` writer only takes the
+ * samples from memory when they are those of the kept render the document names.
+ */
+let renderedKey: string | null = null;
+
+const renderKey = (kept: KeptRender): string => kept.tracks.map((t) => `${t.trackId}=${t.audioId}`).join('|');
 
 const setRender = (render: RenderStatus) => appStore.setState({ render });
 
@@ -93,6 +101,7 @@ export function renderedBytes(): number {
 }
 
 function dropRendered(): void {
+  renderedKey = null;
   if (!rendered) return;
   rendered = null;
   void getEngine()
@@ -180,6 +189,7 @@ export async function applyRender(): Promise<void> {
       return;
     }
     rendered = out;
+    renderedKey = null;
     setApplyProgress(1);
     setRender({ status: 'applied', target });
     void keepRender(target, tracks.map((tr) => tr.id), out);
@@ -257,8 +267,13 @@ export function appliedAudioFor(s: AppState, trackId: string): PcmAudio | null {
 
 // ---------------------------------------------------------------- the render kept with the piece (version 5)
 
-/** The samples of the kept render, by track id: in memory while applied, else on the device. */
-export function keptRenderAudio(): Map<string, PcmAudio> | null {
+/**
+ * The samples of the kept render `kept` (by default the one in the store), by track id, when they are the ones
+ * held in memory; null otherwise (then they are read from the device by their audio ids). A render applied but
+ * not (yet) kept is never returned for an older kept render.
+ */
+export function keptRenderAudio(kept: KeptRender | null = appStore.getState().keptRender): Map<string, PcmAudio> | null {
+  if (!kept || !rendered || renderedKey !== renderKey(kept)) return null;
   return rendered;
 }
 
@@ -299,6 +314,7 @@ async function keepRender(target: RenderTarget, trackIds: readonly string[], out
   }
   if (appStore.getState().project?.id !== project.id) return;
   appStore.setState({ keptRender: kept });
+  if (rendered === out) renderedKey = renderKey(kept);
 }
 
 let reviving: Promise<boolean> | null = null;
@@ -343,6 +359,7 @@ async function reviveOnce(source?: ReadonlyMap<string, PcmAudio>): Promise<boole
       tracks: now.tracks.map((tr) => ({ id: tr.id, pcm: out.get(tr.id)! })),
     });
     rendered = out;
+    renderedKey = renderKey(kept);
     setRender({ status: 'applied', target: kept.target });
     return true;
   } catch {

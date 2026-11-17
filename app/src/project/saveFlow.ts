@@ -377,9 +377,12 @@ let running: Promise<SaveOutcome> | null = null;
  */
 export function saveProject(options: SaveRunOptions = {}): Promise<SaveOutcome> {
   if (running) return running;
+  // The dialog of « Enregistrer sous… » is up (maybe writing its file: the Mac app keeps one save at a time):
+  // its answer is the answer.
+  if (pendingAs) return pendingAs.promise;
   const refusal = saveRefusal();
   if (refusal === 'no-project') return Promise.resolve('cancelled');
-  if (!getCurrentFile() && !refusal) return saveProjectAs();
+  if (!getCurrentFile() && !refusal) return openSaveAsDialog();
   const job = (async (): Promise<SaveOutcome> => {
     const controller = new AbortController();
     abortCurrent = () => controller.abort();
@@ -399,7 +402,7 @@ export function saveProject(options: SaveRunOptions = {}): Promise<SaveOutcome> 
         // Its file is gone (or the browser will not write to it): it has none any more, say where.
         dismissSaveActivity();
         clearCurrentFile();
-        return await saveProjectAs();
+        return await openSaveAsDialog();
       }
       showSaved();
       return 'saved';
@@ -426,16 +429,32 @@ export function saveProject(options: SaveRunOptions = {}): Promise<SaveOutcome> 
 // ---------------------------------------------------------------- « Enregistrer sous… »: its dialog
 
 let pendingAs: { promise: Promise<SaveOutcome>; resolve: (o: SaveOutcome) => void } | null = null;
+/** How many times the dialog was opened (a wait for « Enregistrer » knows whether it went through the dialog). */
+let dialogsOpened = 0;
 
 /**
  * « Enregistrer sous… »: opens the dialog (what goes in, then the system's save panel). Resolves when it ends:
- * `'saved'`, or `'cancelled'` if it was closed before.
+ * `'saved'`, or `'cancelled'` if it was closed before. While « Enregistrer » is writing the file, the dialog
+ * waits for it to end (both write through the same channel: one would make the other fail); if that save
+ * itself went to the dialog (its file was gone), its answer is the answer.
  */
 export function saveProjectAs(): Promise<SaveOutcome> {
+  if (pendingAs) return pendingAs.promise;
+  const busy = running;
+  if (!busy) return openSaveAsDialog();
+  const opened = dialogsOpened;
+  return busy.then((outcome) => {
+    if (pendingAs) return pendingAs.promise;
+    return dialogsOpened !== opened ? outcome : openSaveAsDialog();
+  });
+}
+
+function openSaveAsDialog(): Promise<SaveOutcome> {
   if (pendingAs) return pendingAs.promise;
   let resolve!: (o: SaveOutcome) => void;
   const promise = new Promise<SaveOutcome>((r) => (resolve = r));
   pendingAs = { promise, resolve };
+  dialogsOpened++;
   appStore.setState((s) => ({ ui: { ...s.ui, saveProjectOpen: true, panel: 'none' } }));
   return promise;
 }

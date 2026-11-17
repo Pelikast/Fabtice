@@ -8,12 +8,17 @@
 //   - Mac app, a piece restored from the local autosave: the file it was last
 //     saved to is found again (the main process remembers it);
 //   - Mac app, closing the window or quitting (the red button, cmd + Q): the main
-//     process asks, the alert about changes not saved answers (`leave.ts`). A web
-//     page cannot be asked: the autosave covers the tab being closed.
+//     process asks, the alert about changes not saved answers (`leave.ts`). Before
+//     the answer « it may go », the autosave waiting for its delay is written
+//     (within `CLOSE_FLUSH_MAX_MS`: a device that does not answer never holds the
+//     closing back), so that the last change is in the work kept on the device
+//     whichever way the alert went. A web page cannot be asked: the autosave
+//     covers the tab being closed.
 
 import { t } from '../i18n';
 import { getDesktopBridge, type DesktopBridge } from '../platform/desktopBridge';
 import { appStore } from '../store/store';
+import { getKeeper } from '../storage';
 import { isModified, subscribeHistory } from '../store/history';
 import { displayName, getCurrentFile, recallDesktopFile, subscribeCurrentFile } from './currentFile';
 import { confirmLeaveProject } from './leave';
@@ -27,8 +32,29 @@ export function windowTitle(input: { projectTitle: string | null; fileName: stri
   return t(input.modified ? 'window.titleModified' : 'window.titleWith', { name });
 }
 
+/** How long the closing waits at most for the autosave to be written. */
+export const CLOSE_FLUSH_MAX_MS = 3000;
+
+export interface ProjectWindowOptions {
+  /** Writes the autosave now (default: the keeper's `flush`). */
+  flush?: () => Promise<void>;
+  flushMaxMs?: number;
+}
+
+/** Writes what the autosave still waits to write, within `maxMs`; never rejects. */
+async function flushBounded(flush: () => Promise<void>, maxMs: number): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  try {
+    await Promise.race([flush().catch(() => {}), new Promise<void>((r) => (timer = setTimeout(r, maxMs)))]);
+  } finally {
+    if (timer !== null) clearTimeout(timer);
+  }
+}
+
 /** Follows the project, its file and its « modified » state. Returns the stop function. */
-export function installProjectWindow(bridge: DesktopBridge | null = getDesktopBridge(), doc: Document = document): () => void {
+export function installProjectWindow(bridge: DesktopBridge | null = getDesktopBridge(), doc: Document = document, options: ProjectWindowOptions = {}): () => void {
+  const flush = options.flush ?? (() => getKeeper().flush());
+  const flushMaxMs = options.flushMaxMs ?? CLOSE_FLUSH_MAX_MS;
   let lastTitle = '';
   let lastReport = '';
   const refresh = () => {
@@ -69,7 +95,11 @@ export function installProjectWindow(bridge: DesktopBridge | null = getDesktopBr
     void bridge.ackClose?.(id).catch(() => {});
     void confirmLeaveProject()
       .catch(() => false)
-      .then((go) => bridge.answerClose?.(id, go))
+      .then(async (go) => {
+        // Saved, « Ne pas enregistrer », or nothing to ask: the last change is kept on the device before the window goes.
+        if (go) await flushBounded(flush, flushMaxMs);
+        return bridge.answerClose?.(id, go);
+      })
       .catch(() => {});
   });
 
