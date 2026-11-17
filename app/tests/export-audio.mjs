@@ -836,9 +836,10 @@ try {
     const remark = await page.locator('[data-testid="export-note-frequence"]').innerText();
     check(`${tag}: above 48 kHz the window says in one line that Fabtice works at 48 kHz and that more adds no quality`, /48 kHz/.test(remark) && /n’ajoute pas de qualité/.test(remark), remark);
     check(`${tag}: the choices are kept with the piece (96 kHz, 24 bits)`, (await prefs()).waveRate === 96000 && (await prefs()).waveBits === 24, JSON.stringify(await prefs()));
+    await page.waitForTimeout(300);
+    await page.screenshot({ path: path.join(out, `dialogue-wave-${tag}.png`) });
     await page.selectOption('[data-testid="export-frequence"]', '88200');
     check(`${tag}: 88,2 kHz carries the same remark; 44,1 kHz does not`, (await page.locator('[data-testid="export-note-frequence"]').count()) === 1 && (await (async () => (await page.selectOption('[data-testid="export-frequence"]', '44100'), await page.locator('[data-testid="export-note-frequence"]').count()))()) === 0);
-    await page.screenshot({ path: path.join(out, `dialogue-wave-${tag}.png`) });
     await page.selectOption('[data-testid="export-frequence"]', '48000');
     await page.click('.exp-duo [data-bits="16"]');
     // The sound of the loop line: whole bars as before, any other loop with its two points.

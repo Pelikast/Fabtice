@@ -251,6 +251,26 @@ première page, et un petit numéro de page en pied quand il y en a plusieurs.
 Dans l'app Mac, l'imprimante et le nombre de copies se choisissent en haut des
 options ; sans imprimante listée, la fenêtre du système s'ouvre.
 
+## Fenêtre « Audio… »
+
+« Exporter » ▸ « Audio… » : une fenêtre de la famille (papier clair, titre en
+Fraunces, bouton principal **à l'encre**), large de 720 px au plus. Deux
+colonnes sur ordinateur. À gauche, **Format** (trois boutons « Wave »,
+« Flac », « MP3 », le choisi à l'encre) et ses réglages juste dessous (Wave : la
+fréquence dans une liste et la quantification en trois boutons ; MP3 : le débit
+constant dans une liste, 320 « meilleure qualité » ; Flac : une ligne), puis
+**Durée** (deux cartes). À droite, **Quoi exporter** (deux cartes : « Le mix
+complet », « Des pistes »), la liste des **pistes** à cocher, chacune avec la
+pastille de sa teinte (grisée tant que le mix est choisi), et la case « Un
+fichier par piste » avec sa phrase. Libellés en capitales de 11 px, comme les
+autres fenêtres ; le choix en cours est cerné d'un filet d'encre, jamais de
+braise. Une ligne discrète dit en une phrase que Fabtice travaille en 48 kHz
+quand on choisit plus haut. Au pied, séparé par un filet : à gauche ce qui sera
+fabriqué (le nom du fichier, ou le nombre de fichiers et l'archive) puis la
+tonalité et le tempo choisis, à droite « Exporter ». Sur téléphone, une feuille
+posée en bas, une colonne, cibles d'au moins 44 px, le bouton collé au pied sur
+toute la largeur ; la liste des pistes se déroule en entier, la feuille défile.
+
 ## Téléphone
 
 Sous 760 px de large : la colonne des pistes se réduit à 92 px (nom, M, S), la

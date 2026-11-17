@@ -75,6 +75,13 @@ pourrait passer en FLAC, mais il ne se décode pas toujours à l'identique en
 - `id` relie chaque son au document : `Track.audio.id` pour l'original et les
   instruments (séparation écoutée, son jeu mis de côté, `separation.others`),
   `keptRender.tracks[].audioId` pour le rendu.
+- Dans `projet.json`, `exportPrefs` garde les choix de la fenêtre « Audio… » :
+  `what`, `range`, `format` (depuis le lot 3) et, depuis la 1.0.0, `waveRate`
+  (44100, 48000, 88200 ou 96000), `waveBits` (16, 24 ou 32 = flottant),
+  `mp3Kbps` (96, 128, 160, 192, 256 ou 320) et `separate` (booléen). Le numéro de
+  version du document reste **6** : un fichier écrit avant ces quatre champs
+  s'ouvre avec leurs valeurs par défaut (48000, 16, 320, vrai), et un champ
+  illisible se remet seul à sa valeur par défaut, sans rien perdre d'autre.
 - `mono: true` : les deux voies sont égales, le FLAC n'en a qu'une
   (`channelCount` dit ce que la séparation ou le rendu avait donné).
 - Le nombre d'images, la fréquence et les 16 bits sont vérifiés en décodant.
