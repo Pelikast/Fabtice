@@ -24,6 +24,7 @@ const { registerFolderIpc } = require('./folder-writer');
 const { createCloseGuard } = require('./close-guard');
 const { createAudioJournal, sourceFromUrl } = require('./audio-journal');
 const { installPowerEvents } = require('./power-events');
+const { createUpdater, relaunchAfterExit } = require('./updater');
 
 // The interface is built by app/ (npm run build:desktop) into desktop/ui/.
 const UI_DIR = path.join(__dirname, '..', 'ui');
@@ -39,6 +40,8 @@ let manager = null;
 let systemInfo = null;
 let updateCheck = null;
 let extraction = null;
+/** The automatic update of the app itself (C16, updater.js); `updateCheck` above is yt-dlp's. */
+let appUpdater = null;
 /** The menu bar (menu.js), kept in step with the page's commands. */
 let menuBar = null;
 // Project files: macOS hands them over (double-click, « Ouvrir avec », recent documents), the recent list (projects.js).
@@ -108,6 +111,26 @@ async function readLastImport() {
     return entry && typeof entry === 'object' && typeof entry.at === 'string' ? entry : null;
   } catch {
     return null;
+  }
+}
+
+// What the last updates did (C16), a few hundred lines kept in the user-data folder: when an update fails at the
+// owner's, this file says at which step (no personal data: the home folder is replaced by « ~ »).
+const UPDATE_LOG_FILE = 'update-log.txt';
+const UPDATE_LOG_MAX = 300;
+function writeUpdateLog(line) {
+  try {
+    const file = path.join(app.getPath('userData'), UPDATE_LOG_FILE);
+    let lines = [];
+    try {
+      lines = fs.readFileSync(file, 'utf8').split('\n').filter(Boolean);
+    } catch {
+      // first line
+    }
+    lines.push(`${new Date().toISOString()} ${redact(String(line)).replace(/[\r\n]+/g, ' ')}`);
+    fs.writeFileSync(file, `${lines.slice(-UPDATE_LOG_MAX).join('\n')}\n`);
+  } catch {
+    // best effort
   }
 }
 
@@ -394,6 +417,17 @@ function registerIpc() {
   handle('fabtice:close-ack', async (_e, id) => closeGuard.ack(String(id)));
   handle('fabtice:close-answer', async (_e, id, ok) => closeGuard.answer(String(id), ok === true));
 
+  // C16, the update of the app itself (updater.js): the page says « check », « update », « cancel », « open the
+  // page », and never hands a path or an address; the state comes back to every window on `fabtice:update-state`.
+  handle('fabtice:update-status', async () => appUpdater.state());
+  handle('fabtice:update-check', async (_e, origin) => appUpdater.check(origin === 'launch' ? 'launch' : 'page'));
+  handle('fabtice:update-start', async (event) => {
+    if (!event.senderFrame.url.startsWith(`${fabticeProtocol.SCHEME}://${fabticeProtocol.HOST_APP}/`)) throw new Error('unexpected sender');
+    return appUpdater.start();
+  });
+  handle('fabtice:update-cancel', async () => appUpdater.cancel());
+  handle('fabtice:update-open-page', async () => appUpdater.openPage());
+
   handle('fabtice:copy', async (_e, text) => {
     if (typeof text !== 'string' || text.length > 1_000_000) throw new Error('invalid text');
     clipboard.writeText(text);
@@ -463,7 +497,14 @@ if (!app.requestSingleInstanceLock()) {
       [fabticeProtocol.HOST_APP]: UI_DIR,
       [fabticeProtocol.HOST_DIAGNOSTIC]: DIAGNOSTIC_DIR,
     });
-    menuBar = buildMenu({ openDiagnostic, window: () => win });
+    menuBar = buildMenu({ openDiagnostic, window: () => win, checkForUpdate: () => {
+      // « Rechercher une mise à jour… » in the menu Fabtice of the bar: the answer is shown in the window.
+      if (win && !win.isDestroyed()) {
+        if (win.isMinimized()) win.restore();
+        win.show();
+      }
+      void appUpdater.check('menu');
+    } });
     session.defaultSession.setPermissionRequestHandler((_wc, _perm, cb) => cb(false));
     session.defaultSession.setPermissionCheckHandler(() => false);
     // Files the interface exports (audio, iReal Pro chart): a clean name and a French save panel.
@@ -478,6 +519,35 @@ if (!app.requestSingleInstanceLock()) {
     removeStaleTempDirs();
     // A save that died (power cut, kill) may have left its temporary file next to a project.
     void projects.cleanStale().catch(() => {});
+    appUpdater = createUpdater({
+      currentVersion: app.getVersion(),
+      arch: process.arch,
+      platform: process.platform,
+      osVersion: process.getSystemVersion(),
+      execPath: process.execPath,
+      packaged: app.isPackaged,
+      fetchImpl: electronFetch(net),
+      send: (state) => send('fabtice:update-state', state),
+      // Quitting for the update goes through the same question as cmd + Q (changes not saved).
+      askToLeave: () => (closeGuardOn() && win && !win.isDestroyed() ? askToLeave() : Promise.resolve(true)),
+      relaunch: (plan) => relaunchAfterExit(plan),
+      quit: () => {
+        leaveConfirmed = true;
+        app.quit();
+      },
+      // Read at call time: a test stands in for it.
+      openExternal: (url) => shell.openExternal(url),
+      log: (line) => {
+        trace(line);
+        writeUpdateLog(line);
+      },
+    });
+    // The set-aside old app of the last update goes, now that this one runs (and the trial report, in test mode).
+    try {
+      appUpdater.afterStart();
+    } catch (e) {
+      trace(`update clean-up failed: ${e && e.message}`);
+    }
     registerIpc();
     // The audio journal (Aide → Diagnostic…) and the Mac's sleeps and wakes, forwarded to the pages, which
     // then give the audio output back to the system: see audio-journal.js and power-events.js.

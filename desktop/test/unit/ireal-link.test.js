@@ -102,7 +102,10 @@ test('main.js answers through the validation and the preload exposes one method 
   const preload = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'preload.js'), 'utf8');
   assert.match(main, /validateIRealLink\(link\)/);
   assert.match(main, /shell\.openExternal\(checked\.url\)/);
-  assert.equal((main.match(/shell\.openExternal\(/g) || []).length, 1, 'shell.openExternal is called from one place only');
+  // Two places: this one, and the page of a new version of the app (C16), which updater.js only gives for the
+  // project's release pages on GitHub (test/unit/updater.test.js).
+  assert.equal((main.match(/shell\.openExternal\(/g) || []).length, 2, 'shell.openExternal is called from two places only');
+  assert.match(main, /openExternal: \(url\) => shell\.openExternal\(url\)/);
   assert.match(preload, /openInIRealPro: \(link\) => ipcRenderer\.invoke\('fabtice:open-ireal', String\(link\)\)/);
   // The existing protections stay: no navigation, no new windows.
   assert.match(main, /contents\.on\('will-navigate', \(event\) => event\.preventDefault\(\)\)/);

@@ -27,7 +27,7 @@ test('macOS: the commands of the page at the usual places, greyed out until the 
   const bar = createMenuBar({ platform: 'darwin', openDiagnostic() {}, sendCommand() {} });
   const t = bar.template();
   assert.deepEqual(t.map((m) => m.label), ['Fabtice', 'Fichier', 'Édition', 'Présentation', 'Fenêtre', 'Aide']);
-  assert.deepEqual(summary(menu(t, 'Fabtice')), ['À propos de Fabtice', '-', 'Réglages… (off)', '-', 'Services', '-', 'Masquer Fabtice', 'Masquer les autres', 'Tout afficher', '-', 'Quitter Fabtice']);
+  assert.deepEqual(summary(menu(t, 'Fabtice')), ['À propos de Fabtice', 'Rechercher une mise à jour…', '-', 'Réglages… (off)', '-', 'Services', '-', 'Masquer Fabtice', 'Masquer les autres', 'Tout afficher', '-', 'Quitter Fabtice']);
   assert.deepEqual(summary(menu(t, 'Fichier')), [
     'Nouveau projet (off)',
     'Ouvrir… (off)',
@@ -88,7 +88,7 @@ test('what the page sends is checked: unknown ids dropped, labels on one line an
 test('outside macOS: the same commands, shortcuts shown but not registered (the page takes the keys)', () => {
   const bar = createMenuBar({ platform: 'linux', openDiagnostic() {}, sendCommand() {} });
   const t = bar.template();
-  assert.deepEqual(summary(menu(t, 'Fabtice')), ['Réglages… (off)', '-', 'Quitter Fabtice']);
+  assert.deepEqual(summary(menu(t, 'Fabtice')), ['Rechercher une mise à jour…', 'Réglages… (off)', '-', 'Quitter Fabtice']);
   assert.deepEqual(summary(menu(t, 'Fichier')), ['Nouveau projet (off)', 'Ouvrir… (off)', '-', 'Enregistrer (off)', 'Enregistrer sous… (off)', 'Exporter (off)', '-', 'Imprimer… (off)']);
   assert.deepEqual(summary(menu(t, 'Fenêtre')), ['Réduire', 'Fermer']);
   for (const id of Object.keys(ACCELERATORS)) {
@@ -114,4 +114,14 @@ test('the script handed to the page names a known command only', () => {
   assert.match(commandScript('undo', true), /"accelerator":true/);
   assert.equal(commandScript("save'); alert(1); ('", false), null);
   assert.equal(commandScript('reload', false), null);
+});
+
+test('« Rechercher une mise à jour… » after « À propos de Fabtice »: a command of the main process (C16)', () => {
+  let asked = 0;
+  const bar = createMenuBar({ platform: 'darwin', openDiagnostic() {}, sendCommand() { throw new Error('not a page command'); }, checkForUpdate: () => asked++ });
+  const entry = find(bar.template(), 'checkUpdate');
+  assert.equal(entry.label, 'Rechercher une mise à jour…');
+  assert.notEqual(entry.enabled, false, 'never greyed out: it does not depend on the page');
+  entry.click();
+  assert.equal(asked, 1);
 });
