@@ -80,8 +80,8 @@ try {
     ['ZIP of 7 WAV (tracks)', { what: 'tracks', range: 'whole', format: 'wav' }, 7 * 300 * 48000 * 4],
     ['mix as WAV', { what: 'mix', range: 'whole', format: 'wav' }, 300 * 48000 * 4],
     ['mix as FLAC', { what: 'mix', range: 'whole', format: 'flac' }, null],
-    ['mix as MP3', { what: 'mix', range: 'whole', format: 'mp3' }, 300 * 32000],
-    ['ZIP of 7 MP3 (tracks)', { what: 'tracks', range: 'whole', format: 'mp3' }, 7 * 300 * 32000],
+    ['mix as MP3', { what: 'mix', range: 'whole', format: 'mp3' }, 300 * 40000],
+    ['ZIP of 7 MP3 (tracks)', { what: 'tracks', range: 'whole', format: 'mp3' }, 7 * 300 * 40000],
   ]) {
     await settle(page);
     const before = rss();
