@@ -27,6 +27,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { closeMenu, menuCommand, menuOpenTo, openMenu } from './lib/menu.mjs';
 import { SETTINGS_TABS, openSettings, openSettingsTab } from './lib/settings.mjs';
+import { meterCaptures } from './captures-meter.mjs';
+import { tapFixCaptures } from './captures-tap.mjs';
 import { startServer } from './serve.mjs';
 import { LOGIN_PAGE, link, shrinkList, tunes } from './standards-fixtures.mjs';
 
@@ -419,6 +421,9 @@ try {
       ['impression', printWindow],
       ['export audio', audioWindow],
       ['chargement', loading],
+      // Stage 4: the tap correction of the tempo, the time signature window and what follows from it.
+      ['correction en tapant', (form) => tapFixCaptures(form, { browser, contextOptions, openPage, snap, press, sleep })],
+      ['signature rythmique', (form) => meterCaptures(form, { browser, openPage, snap, contextOptions, press })],
     ]) {
       try {
         console.log(`${form.name} : ${label}…`);
