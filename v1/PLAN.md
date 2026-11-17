@@ -16,7 +16,7 @@ lisent que par parties, quand on en a besoin.
 |---|---|---|---|
 | 1. Socle | C5, C11, C13 (données), C10 et C14 (données) | fait (`v1/bilan-etape-1.md`) | `2a52351` (code), puis le commit du bilan |
 | 2. Interface | C1, C3, C4, C6, C7, C8, C9 | fait (`v1/bilan-etape-2.md`) | `483c401` (code), puis le commit du bilan |
-| 3. Exports | C15 | à faire | |
+| 3. Exports | C15 | fait (`v1/bilan-etape-3.md`) | `02eec3d` (code), puis le commit du bilan |
 | 4. Tempo à la main | C12, C13 (fenêtre) | à faire | |
 | 5. Harmonie | C10, C14 | à faire | |
 | 6. Machine | C2, C16, C17 (numéros, fabrication) | à faire | |
@@ -387,7 +387,8 @@ proche de la valeur, mesurée.
 
 Rien d'obligatoire avant la fin. Deux choses utiles s'il a le temps :
 - étape 2 : regarder le contenu proposé pour les onglets de « Réglages » (C7) ;
-- étape 3 : ouvrir dans Logic 13 le dossier d'essai qu'on lui remettra.
+- étape 3 : ouvrir dans Logic 13 le dossier d'essai qu'on lui remettra
+  (`npm run essais`, voir `v1/bilan-etape-3.md`).
 
 ## Pièges à connaître
 
