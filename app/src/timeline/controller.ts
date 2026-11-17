@@ -23,6 +23,7 @@ import { loopFromDrag, loopWithEdgeAt, type LoopEdge, type LoopSnap } from '../g
 import type { Seconds, TimeRange } from '../model/project';
 import { applyAutoFit, enterLoop, seek, setLoopRegion, setZoom } from '../store/actions';
 import { selectChartBars, selectDisplayContext, selectHasChords } from '../store/chartSelectors';
+import { selectMeterChanges } from '../store/meterActions';
 import { appStore, type AppState } from '../store/store';
 import { onFrame } from '../ui/frameLoop';
 import { isPhoneLayout } from '../util/media';
@@ -51,6 +52,7 @@ import { recallLoop, recallSection } from '../store/markerActions';
 import { sectionRanges } from '../markers/markers';
 import { formatLoop } from '../grid/loopText';
 import { t } from '../i18n';
+import { describeMeterMarks, MeterMarkSet } from './meterMarks';
 import { drawGrid, drawRuler, drawWave, readColors, type Colors } from './drawing';
 import { RULER_ROW_HEIGHT, TRACKS_FOOT, rulerHeight, rulerRows } from './layout';
 import { getPeaks, onPeaksChange } from './peakCache';
@@ -116,6 +118,8 @@ export class TimelineController {
   private hasChords: boolean;
   private chordLayer: ChordLayer | null = null;
   private chordItems: RowChord[] = [];
+  /** The signatures the ruler wrote at its last drawing (reused). */
+  private readonly meterMarks = new MeterMarkSet();
   private chordHtml = new WeakMap<RowChord, string>();
   private chordMaxWidths: number[] = [];
   private chordDataStale = true;
@@ -396,7 +400,13 @@ export class TimelineController {
         chordStride: this.chordStride,
         mesuresTop: h - RULER_ROW_HEIGHT.mesures,
         tempoFixes: s.corrections.tempoFixes.map((f) => f.time),
+        meters: selectMeterChanges(s),
+        meterMarks: this.meterMarks,
       });
+      // What the ruler wrote, for the browser checks (`tests/meter.mjs`).
+      const signatures = describeMeterMarks(this.meterMarks);
+      if (signatures) this.root.dataset.signatures = signatures;
+      else delete this.root.dataset.signatures;
     }
     if (d & LOOP) this.placeLoop();
     if (d & BAR) this.placeScrollbar();

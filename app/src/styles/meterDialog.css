@@ -1,0 +1,59 @@
+/* « Changer la signature rythmique » (C13): a small window on the usual veil and paper. Two boxes one over the
+   other, a line between them, as a signature is written; the figures are in the chart's face (--titre). */
+.fenetre-signature { width: min(400px, 100%); padding: 26px 30px 22px; }
+.fenetre-signature h2 { font-size: 26px; }
+.fenetre-signature p { margin: 0; }
+.fenetre-signature .signature-mesure {
+  margin: 2px 0 18px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--encre-douce);
+}
+
+.signature-saisie { display: flex; flex-direction: column; align-items: stretch; width: 112px; margin: 0 auto; }
+.signature-haut, .signature-bas {
+  width: 100%;
+  height: 64px;
+  padding: 0;
+  text-align: center;
+  text-align-last: center;
+  font-family: var(--titre);
+  font-size: 40px;
+  font-weight: 560;
+  font-variation-settings: "opsz" 72, "SOFT" 40;
+  font-variant-numeric: lining-nums;
+  color: var(--encre);
+  background: #fff;
+  border: 1px solid var(--trait);
+  border-radius: var(--rayon);
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: text;
+}
+.signature-bas { cursor: pointer; }
+.signature-haut[aria-invalid="true"] { border-color: var(--laiton); background: var(--laiton-voile); }
+.signature-trait { height: 3px; margin: 8px -10px; border-radius: 2px; background: var(--encre); }
+
+.fenetre-signature .signature-erreur { min-height: 20px; margin: 8px 0 6px; font-size: 13.5px; text-align: center; color: var(--encre-douce); }
+
+.signature-portee { display: flex; flex-direction: column; gap: 2px; margin-top: 4px; }
+.signature-choix { display: flex; align-items: center; gap: 12px; min-height: 40px; padding: 4px 8px 4px 2px; cursor: pointer; line-height: 1.3; }
+.signature-choix input { flex: none; width: 20px; height: 20px; margin: 0; accent-color: var(--encre); cursor: pointer; }
+
+.fenetre-signature .signature-note { margin: 14px 0 0; font-size: 13.5px; }
+.signature-retrait { display: block; min-height: 40px; margin-top: 10px; font-size: 13.5px; text-align: left; }
+.fenetre-signature .import-actions { margin-top: 22px; }
+.fenetre-signature .import-actions .plein:disabled { opacity: 0.5; cursor: default; }
+.fenetre-signature .import-actions .plein:disabled:hover { background: var(--encre); }
+
+@media (max-width: 760px) {
+  /* A sheet at the bottom of the screen; every target at least 40 px. */
+  .voile-signature { padding: 0; place-items: end stretch; }
+  .fenetre-signature { width: 100%; max-height: 100dvh; padding: 22px 18px calc(18px + env(safe-area-inset-bottom)); border-width: 1px 0 0; border-radius: var(--rayon-fenetre) var(--rayon-fenetre) 0 0; }
+  .signature-choix { min-height: 48px; }
+  .signature-choix input { width: 24px; height: 24px; }
+  .signature-retrait { min-height: 44px; }
+  .fenetre-signature .import-actions .bouton-cadre, .fenetre-signature .import-actions .plein { flex: 1; min-height: 46px; }
+}

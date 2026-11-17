@@ -1128,6 +1128,22 @@ export const fr = {
   'menu.key.ctrl': 'Ctrl',
   'menu.key.shift': 'Maj',
   'menu.linkOnMac': 'L’import d’un lien YouTube se fait dans l’app Mac de Fabtice. Ici, choisissez un fichier audio.',
+
+  // « Changer la signature rythmique » (C13)
+  'meterDialog.title': 'Changer la signature rythmique',
+  'meterDialog.bar': 'Mesure {bar}',
+  'meterDialog.close': 'Fermer la fenêtre',
+  'meterDialog.figures': 'Signature rythmique',
+  'meterDialog.numerator': 'Nombre de temps par mesure, de 1 à 64',
+  'meterDialog.denominator': 'Valeur d’un temps : 4, 8, 16 ou 32',
+  'meterDialog.scope': 'Étendue du changement',
+  'meterDialog.permanent': 'Changement permanent à partir de cette mesure',
+  'meterDialog.single': 'Changement uniquement pour cette mesure',
+  'meterDialog.invalid': 'Un nombre de 1 à 64.',
+  'meterDialog.quarter': 'La noire garde sa durée : une mesure en {n}/{d} dure {len}.',
+  'meterDialog.remove': 'Retirer ce changement de signature',
+  'meterDialog.cancel': 'Annuler',
+  'meterDialog.confirm': 'Changer la signature',
 } as const;
 
 export type Messages = { readonly [K in keyof typeof fr]: string };
