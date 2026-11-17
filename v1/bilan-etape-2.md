@@ -240,7 +240,43 @@ Aspect
 
 ## Vérifications
 
-À REMPLIR
+- Commit vérifié : `483c401` sur `v1` (le commit de fin n'ajoute que cette
+  section et la table du plan).
+- `app/` : `npm run typecheck` sans erreur ; `npm test` : 1 450 tests
+  réussis, 38 sautés.
+- Vérifications Chromium après `npm run build`, toutes vertes, lancées l'une
+  après l'autre au calme : `smoke`, `menu`, `settings`, `print`,
+  `new-project`, `standards`, `undo`, `alert`, `project-file`, `chart`,
+  `timeline`, `import`, `export`, `export-audio`, `export-memory`,
+  `analysis`, `separation`, `render`, `memory`, `metronome`, `markers`,
+  `tempo-fix`, `offline`, `engine`.
+- `desktop/` : `npm test` : 116 réussis ; après `npm run build:desktop` dans
+  `app/`, `FABTICE_NO_POPPLER=1 xvfb-run -a npm run test:e2e` : 34 tests, 31
+  réussis, 3 sautés (ceux qui téléchargent), aucun échec.
+- Fabrication sur les Mac de GitHub, lancée à la main sur `v1` : verte au
+  troisième lancement de la fin d'étape (run 43994994364, commit `483c401`) :
+  tests unitaires, adresses des recueils, construction pour puce Apple et
+  Intel, e2e sur les deux (34 tests, 31 réussis, 3 sautés), analyse,
+  séparation, yt-dlp. Rien n'a été publié. Le premier lancement a échoué sur
+  le test de la barre de menus (voir « Pièges rencontrés », corrigé). Le
+  deuxième était vert sur puce Apple et rouge sur Intel : la page s'est
+  arrêtée (« Target crashed ») pendant `audio-device.test.js`, un test que
+  l'étape ne touche pas ; relancé sans rien changer au code, il est passé.
+  **À surveiller** : si cela revient, c'est peut-être lié au blocage du son
+  signalé sur le Mac Intel.
+- Vérifié comme le demande le plan : chaque commande du menu à la souris, au
+  clavier et au toucher (`test:menu`) ; barre de menus du Mac en e2e
+  (`menu-bar.test.js`) ; réglages retrouvés à l'identique (`test:settings`) ;
+  aperçu d'impression et PDF : mêmes pages (`test:print`,
+  `chart-pdf.test.js`) ; message des grilles : oui, non, non avec la case,
+  déjà téléchargé (`standards/offer.test.ts`, `test:standards`).
+- Captures regardées et comparées à `DESIGN.md`, dans les deux formes : menu
+  et sous-menus, Réglages (liste, Tempo et analyse, Métronome, Avancé),
+  « Nouveau projet » (case cochée), message des grilles (question,
+  progression), fenêtre d'impression (une et plusieurs pages), chargement en
+  braise.
+- Aucun fichier de brouillon dans le dépôt (commande du plan) ; aucun nom
+  d'assistant en dehors des lignes d'attribution des commits.
 
 ## Pour l'étape suivante
 
