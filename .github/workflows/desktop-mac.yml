@@ -1,10 +1,14 @@
 name: desktop-mac
 
-# Checks and builds the interface (app/), builds the two macOS downloads
-# (Apple Silicon and Intel, ad-hoc signed), tests each one with the stub
-# yt-dlp on its own architecture, and publishes the two .dmg files on the
-# "desktop-dev" prerelease. Every run leaves its status and log tails on the
-# ci-logs branch:
+# Checks the version number, checks and builds the interface (app/), builds
+# the two macOS downloads (Apple Silicon and Intel, ad-hoc signed), tests each
+# one on its own architecture, then:
+#   - on main: publishes the numbered version v<desktop/package.json version>
+#     (job "publish", desktop/ci/publish-release.js), only if both chips are
+#     green and only if this number is not published yet;
+#   - anywhere else: the same script in dry run (job "publish-dry-run"): it
+#     reads, prints what it would do, and writes nothing on GitHub.
+# Every run leaves its status and log tails on the ci-logs branch:
 #   git fetch origin ci-logs && git show FETCH_HEAD:STATUS.md
 
 on:
@@ -14,14 +18,17 @@ on:
       - 'desktop/**'
       - 'app/**'
       - '.github/workflows/desktop-mac.yml'
+      - 'CHANGELOG.md'
   workflow_dispatch:
 
 permissions:
   contents: write
 
+# A run on main is never cancelled by a newer push (it may be publishing): the
+# newer one waits. Runs on other branches share one group and replace each other.
 concurrency:
-  group: desktop-mac
-  cancel-in-progress: true
+  group: desktop-mac-${{ github.ref == 'refs/heads/main' && 'main' || 'branches' }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 defaults:
   run:
@@ -29,7 +36,6 @@ defaults:
     working-directory: desktop
 
 env:
-  RELEASE_TAG: desktop-dev
   CSC_IDENTITY_AUTO_DISCOVERY: 'false'
 
 jobs:
@@ -42,6 +48,14 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 22
+
+      # Same number in app/package.json and desktop/package.json (a.b.c), named by
+      # the first section of CHANGELOG.md. Every run, before anything is built.
+      - name: Version number and changelog
+        id: version
+        run: |
+          source "$GITHUB_WORKSPACE/desktop/ci/log-step.sh" 00a-version
+          node ci/publish-release.js check
 
       - name: Interface - install, typecheck, tests
         id: ui-check
@@ -216,6 +230,16 @@ jobs:
           retention-days: 7
           compression-level: 0
 
+      # The two downloads people open, for the publish job.
+      - uses: actions/upload-artifact@v6
+        with:
+          name: fabtice-mac-dmg
+          path: |
+            desktop/dist/Fabtice-mac-apple-silicon.dmg
+            desktop/dist/Fabtice-mac-intel.dmg
+          retention-days: 7
+          compression-level: 0
+
       # The fake newer Intel build, for the Intel job's update trial (never published).
       - uses: actions/upload-artifact@v6
         with:
@@ -223,51 +247,6 @@ jobs:
           path: desktop/dist-next/x64/Fabtice-mac-intel.zip
           retention-days: 1
           compression-level: 0
-
-      - name: Publish prerelease
-        id: publish
-        if: github.ref == 'refs/heads/main'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          source "$GITHUB_WORKSPACE/desktop/ci/log-step.sh" 11-publish
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git tag -f "$RELEASE_TAG" "$GITHUB_SHA"
-          git push -f origin "refs/tags/$RELEASE_TAG"
-          cat > "$RUNNER_TEMP/notes.md" <<EOF
-          Version de test de l'app Mac, reconstruite automatiquement à chaque modification de \`app/\` ou de \`desktop/\`.
-
-          ## Quel fichier télécharger ?
-
-          - **Mac à puce Apple (M1, M2, M3, M4…)** : \`Fabtice-mac-apple-silicon.dmg\`
-          - **Mac Intel** : \`Fabtice-mac-intel.dmg\`
-
-          Pour le savoir : menu Pomme (en haut à gauche) → **À propos de ce Mac**. Sur un Mac à puce Apple, la ligne « Puce » indique « Apple M… » ; sur un Mac Intel, la ligne « Processeur » indique « Intel ».
-
-          - Commit : $GITHUB_SHA
-          - Construite le : $(date -u +'%Y-%m-%d %H:%M UTC')
-          - macOS 12 Monterey minimum.
-          - Non signée par un développeur identifié : voir « Ouvrir l'app » dans desktop/README.md.
-          EOF
-          # The newest section of CHANGELOG.md (from its first "## " heading to the next one).
-          if [ -f "$GITHUB_WORKSPACE/CHANGELOG.md" ]; then
-            { echo; echo '# Nouveautés'; echo; awk '/^## /{n++} n==1' "$GITHUB_WORKSPACE/CHANGELOG.md" | sed 's/^##/###/'; } >> "$RUNNER_TEMP/notes.md"
-          fi
-          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            gh release edit "$RELEASE_TAG" --prerelease --title 'Fabtice pour Mac — version de test' --notes-file "$RUNNER_TEMP/notes.md"
-          else
-            gh release create "$RELEASE_TAG" --prerelease --verify-tag --title 'Fabtice pour Mac — version de test' --notes-file "$RUNNER_TEMP/notes.md"
-          fi
-          gh release upload "$RELEASE_TAG" dist/Fabtice-mac-apple-silicon.dmg dist/Fabtice-mac-intel.dmg --clobber
-          # Remove every other asset, the old universal app included.
-          for asset in $(gh release view "$RELEASE_TAG" --json assets -q '.assets[].name'); do
-            case "$asset" in
-              Fabtice-mac-apple-silicon.dmg|Fabtice-mac-intel.dmg) ;;
-              *) gh release delete-asset "$RELEASE_TAG" "$asset" -y ;;
-            esac
-          done
-          gh release view "$RELEASE_TAG" --json url,assets -q '.url, (.assets[] | "\(.name) \(.size) \(.url)")'
 
       - name: Collect logs
         if: always()
@@ -374,8 +353,122 @@ jobs:
           path: ${{ runner.temp }}/ci-logs
           retention-days: 7
 
-  ci-logs:
+  # The numbered version, on main only, once both chips are green. The files are
+  # the artifacts of the build job (the fake newer build is never among them).
+  publish:
     needs: [build, intel]
+    if: success() && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: fabtice-mac-apple-silicon
+          path: ${{ runner.temp }}/assets
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: fabtice-mac-intel
+          path: ${{ runner.temp }}/assets
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: fabtice-mac-dmg
+          path: ${{ runner.temp }}/assets
+
+      # Already published (tag or release of this number): nothing is changed, green.
+      # Otherwise: draft, five files, checked, then published (latest). See the script.
+      - name: Publish the numbered version
+        id: publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          source "$GITHUB_WORKSPACE/desktop/ci/log-step.sh" 15-publish
+          ls -la "$RUNNER_TEMP/assets"
+          node ci/publish-release.js publish --assets "$RUNNER_TEMP/assets" --out "$RUNNER_TEMP/release"
+
+      - name: Collect logs
+        if: always()
+        working-directory: .
+        env:
+          STEPS_JSON: ${{ toJSON(steps) }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/ci-logs/release"
+          printf '%s\n' "$STEPS_JSON" > "$RUNNER_TEMP/ci-logs/steps-publish.json"
+          cp "$RUNNER_TEMP/release/notes.md" "$RUNNER_TEMP/ci-logs/release/notes.txt" 2>/dev/null || true
+          cp "$RUNNER_TEMP/release/fabtice-version.json" "$RUNNER_TEMP/ci-logs/release/fabtice-version.txt" 2>/dev/null || true
+
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: logs-publish
+          path: ${{ runner.temp }}/ci-logs
+          retention-days: 7
+
+  # Everywhere but main: the same script with the same files, in dry run. It only
+  # reads (git ls-remote, the list of releases) and prints the commands it would run.
+  publish-dry-run:
+    needs: [build, intel]
+    if: success() && github.ref != 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: fabtice-mac-apple-silicon
+          path: ${{ runner.temp }}/assets
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: fabtice-mac-intel
+          path: ${{ runner.temp }}/assets
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: fabtice-mac-dmg
+          path: ${{ runner.temp }}/assets
+
+      - name: Publish the numbered version (dry run)
+        id: publish-dry-run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          source "$GITHUB_WORKSPACE/desktop/ci/log-step.sh" 15-publish-dry-run
+          ls -la "$RUNNER_TEMP/assets"
+          node ci/publish-release.js publish --dry-run --assets "$RUNNER_TEMP/assets" --out "$RUNNER_TEMP/release"
+
+      - name: Collect logs
+        if: always()
+        working-directory: .
+        env:
+          STEPS_JSON: ${{ toJSON(steps) }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/ci-logs/release"
+          printf '%s\n' "$STEPS_JSON" > "$RUNNER_TEMP/ci-logs/steps-publish-dry-run.json"
+          cp "$RUNNER_TEMP/release/notes.md" "$RUNNER_TEMP/ci-logs/release/notes.txt" 2>/dev/null || true
+          cp "$RUNNER_TEMP/release/fabtice-version.json" "$RUNNER_TEMP/ci-logs/release/fabtice-version.txt" 2>/dev/null || true
+
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: logs-publish-dry-run
+          path: ${{ runner.temp }}/ci-logs
+          retention-days: 7
+
+  ci-logs:
+    needs: [build, intel, publish, publish-dry-run]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 10

@@ -6,7 +6,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createMenuBar, parseMenuState, commandScript, MENU_COMMANDS, ACCELERATORS } = require('../../src/menu');
+const { createMenuBar, parseMenuState, commandScript, aboutPanelOptions, MENU_COMMANDS, ACCELERATORS } = require('../../src/menu');
 
 /** Labels of a menu, « (off) » for an entry greyed out, « - » for a line. */
 const summary = (items) => items.map((i) => (i.type === 'separator' ? '-' : `${i.label || i.role}${i.enabled === false ? ' (off)' : ''}`));
@@ -124,4 +124,13 @@ test('« Rechercher une mise à jour… » after « À propos de Fabtice »: a c
   assert.notEqual(entry.enabled, false, 'never greyed out: it does not depend on the page');
   entry.click();
   assert.equal(asked, 1);
+});
+
+test('« À propos de Fabtice » (C17): the number of package.json, no build number in brackets, the licence', () => {
+  const pkg = require('../../package.json');
+  assert.deepEqual(aboutPanelOptions(pkg.version), { applicationName: 'Fabtice', applicationVersion: pkg.version, version: '', copyright: 'Fabtice — GPL-3.0-or-later' });
+  assert.equal(aboutPanelOptions(pkg.version).copyright, pkg.build.copyright, 'the same licence line as the Info.plist of the app');
+  // buildMenu sets them with the app's own number before the bar exists.
+  const source = require('node:fs').readFileSync(require.resolve('../../src/menu'), 'utf8');
+  assert.match(source, /app\.setAboutPanelOptions\(aboutPanelOptions\(app\.getVersion\(\)\)\)/);
 });

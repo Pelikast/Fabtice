@@ -4,7 +4,19 @@ Un outil de travail pour musiciens : séparation des instruments, boucles,
 changement de tonalité et de tempo, grille d'accords. Tout le traitement se
 fait sur l'appareil de l'utilisateur.
 
-Le projet est en phase de prototypes. Licence : GPL-3.0-or-later.
+Licence : GPL-3.0-or-later.
+
+## Télécharger
+
+- **App Mac** (macOS 12 Monterey ou plus récent) : la dernière version est sur
+  https://github.com/pelikast/fabtice/releases/latest. Prenez
+  `Fabtice-mac-apple-silicon.dmg` pour un Mac à puce Apple (M1, M2, M3, M4…)
+  ou `Fabtice-mac-intel.dmg` pour un Mac Intel (menu Pomme → **À propos de
+  ce Mac** : ligne « Puce » ou « Processeur »). L'app n'est pas signée par un
+  développeur identifié : la première ouverture est expliquée dans
+  [`desktop/README.md`](desktop/README.md#ouvrir-lapp-la-première-fois).
+  Ensuite, elle se met à jour d'elle-même.
+- **App web** : https://fabtice.netlify.app, sans rien installer.
 
 ## Organisation
 

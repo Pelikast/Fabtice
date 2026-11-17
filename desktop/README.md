@@ -7,9 +7,11 @@ connexion, grâce à yt-dlp. Tout le reste tourne comme sur le site.
 
 ## Télécharger
 
-La dernière version de test se trouve sur la page des versions du dépôt,
-rubrique « desktop-dev » :
-https://github.com/Pelikast/fabtice/releases/tag/desktop-dev
+La dernière version se trouve sur la page des versions du dépôt :
+https://github.com/pelikast/fabtice/releases/latest
+
+(L’ancienne « version de test », rubrique « desktop-dev », n’est plus
+reconstruite depuis la 1.0.0.)
 
 Il y a **deux téléchargements**, un par type de Mac (chacun est deux fois plus
 léger qu’une app universelle) :
@@ -715,13 +717,123 @@ Deux autres fichiers gardent des défauts déjà rencontrés :
 Les tests unitaires couvrent aussi `src/progress.js` (les lignes de progression
 exactes du vrai yt-dlp) et `src/report.js` (le rapport copiable).
 
-Intégration continue : `.github/workflows/desktop-mac.yml` vérifie et construit
-l’interface (`npm ci`, `typecheck`, `test`, `build:desktop` dans `app/`), construit
-les deux apps sur un Mac Apple Silicon, teste chacune (avec le faux yt-dlp) sur
-sa propre architecture, puis publie les deux `.dmg` sur la version de test
-`desktop-dev` (sur `main` seulement). Le résultat de chaque
-passage et la fin des journaux sont poussés sur la branche `ci-logs` :
+## Fabrication et publication
+
+Tout passe par `.github/workflows/desktop-mac.yml`, sur les Mac de GitHub. Il
+se lance à chaque envoi sur `main` qui touche `app/`, `desktop/`, le workflow
+lui-même ou `CHANGELOG.md` (un envoi qui ne touche que d’autres documents ne
+fabrique rien), et à la main (« Run workflow ») sur n’importe quelle branche.
+
+### Ce que fait un envoi sur `main`, dans l’ordre
+
+1. **Numéro de version** (`node ci/publish-release.js check`, à chaque
+   passage, sur toutes les branches, avant toute fabrication) :
+   `app/package.json` et `desktop/package.json` portent le même numéro, trois
+   nombres (`1.0.0`), et le premier titre « ## » de `CHANGELOG.md` le nomme
+   (« ## Version 1.0.0 … »). Sinon tout s’arrête, en rouge, avec la phrase qui
+   dit quoi corriger. Le test `test/unit/publish-release.test.js` vérifie la
+   même chose dans `npm test`.
+2. **Interface** vérifiée et construite (`npm ci`, `typecheck`, `test`,
+   `build:desktop` dans `app/`), puis les tests unitaires de l’app Mac.
+3. **Les deux apps** construites sur un Mac à puce Apple : `.dmg` (ce qu’on
+   télécharge) et `.zip` (ce que télécharge la mise à jour automatique), puis
+   essayées : bout en bout avec le faux yt-dlp, essai complet de la mise à
+   jour… L’app Intel est essayée ensuite sur un Mac Intel (tâche `intel`).
+4. **Publication** (tâche `publish`), seulement sur `main` et seulement si
+   les deux puces sont vertes, avec les fichiers fabriqués à l’étape 3, par
+   `ci/publish-release.js` :
+   1. la version `V` est lue dans `desktop/package.json`, l’étiquette est
+      `vV` ;
+   2. **déjà publiée ?** Si l’étiquette `vV` existe, ou une release `vV`
+      publiée : **rien n’est publié ni modifié** (aucun fichier remplacé,
+      aucune étiquette déplacée), le journal le dit (« RIEN À PUBLIER ») et
+      la tâche finit en vert. Un envoi sur `main` sans nouveau numéro
+      fabrique et essaie donc tout, mais ne republie pas. Si un **brouillon**
+      `vV` traîne (fabrication interrompue au milieu) : rien non plus, mais en
+      rouge, pour qu’on le supprime à la main sur GitHub avant de relancer ;
+   3. `fabtice-version.json` est fait par `ci/make-version-file.js` à partir
+      des deux `.zip` (adresses de l’étiquette `vV`), et les notes de la
+      release : quel fichier télécharger (puce Apple ou Intel, comment le
+      savoir, macOS 12 minimum, « Ouvrir l’app la première fois »), puis
+      « Nouveautés » : exactement les notes du fichier de version (la
+      première section de `CHANGELOG.md`, sans son titre) ;
+   4. une release **brouillon** « Fabtice V » est créée pour `vV`, sur le
+      commit envoyé. Un brouillon ne crée pas d’étiquette et ne se voit pas ;
+   5. les cinq fichiers y sont envoyés : `Fabtice-mac-apple-silicon.dmg`,
+      `Fabtice-mac-intel.dmg`, `Fabtice-mac-apple-silicon.zip`,
+      `Fabtice-mac-intel.zip`, `fabtice-version.json` ; puis vérifiés : les
+      noms exacts, les tailles, et les deux `.zip` et le fichier de version
+      **retéléchargés** depuis GitHub, avec la même empreinte SHA-256 que
+      dans le fichier de version ;
+   6. le brouillon est **publié** : pas une préversion, marqué « dernière
+      version » (`latest`). C’est à ce moment que GitHub crée l’étiquette
+      `vV` sur le commit. Le script vérifie ensuite que la dernière version
+      selon GitHub est bien `vV` et que l’étiquette est sur le commit.
+
+   Un échec aux étapes 4 et 5 supprime le brouillon (seulement s’il est
+   encore brouillon) et met la tâche en rouge : rien ne s’est vu, aucune
+   étiquette n’a été créée. Un échec des vérifications après l’étape 6 met
+   la tâche en rouge mais laisse la version publiée : à regarder à la main.
+   Une fabrication sur `main` n’est jamais annulée par un envoi plus récent
+   (elle peut être en train de publier) : le suivant attend son tour.
+5. **Journaux** (tâche `ci-logs`) : l’état de chaque tâche, publication
+   comprise, et la fin de chaque journal sont poussés sur la branche
+   `ci-logs`, avec les notes et le fichier de version obtenus
+   (`release/notes.txt`, `release/fabtice-version.txt`) :
 
 ```
 git fetch origin ci-logs && git show FETCH_HEAD:STATUS.md
 ```
+
+L’ancienne version de test (`desktop-dev`) n’est plus touchée par le
+workflow.
+
+### Publier la version suivante (par exemple 1.0.1)
+
+1. Mettre `"version": "1.0.1"` dans `app/package.json` **et** dans
+   `desktop/package.json` (puis `npm install --package-lock-only` dans les
+   deux dossiers, pour que les `package-lock.json` suivent).
+2. Ajouter en tête de `CHANGELOG.md` la section « ## Version 1.0.1 — <date> »,
+   en français simple : c’est le texte de la page de la version et du
+   message de mise à jour dans l’app.
+3. Envoyer sur `main`. La fabrication publie `v1.0.1` et les apps installées
+   la proposent à leur ouverture suivante.
+
+Si le numéro existe déjà sur GitHub, rien n’est publié (voir plus haut) :
+changer de numéro. Une étiquette ou une release n’est jamais remplacée ni
+déplacée par le workflow.
+
+### Lancement à la main et essai à blanc
+
+Lancé à la main sur une autre branche que `main`, le workflow vérifie,
+fabrique et essaie tout, exactement comme sur `main`, mais ne publie rien :
+à la place de `publish`, la tâche `publish-dry-run` lance le même script avec
+les mêmes fichiers en **essai à blanc** (`--dry-run`). Il fait pour de vrai
+tout ce qui ne fait que lire (numéro, étiquette par `git ls-remote`, liste des
+releases par `gh api`, fichier de version, notes, liste des cinq fichiers
+avec tailles et empreintes) et écrit seulement la liste des commandes qu’il
+lancerait. Le script refuse de toute façon de publier pour de vrai dans
+GitHub Actions hors de `main`. En local :
+
+```
+node ci/publish-release.js publish --dry-run --assets <dossier des quatre fichiers> [--out <dossier>]
+```
+
+(`gh` absent ou non connecté : seule l’étiquette est vérifiée.) Les tests
+unitaires essaient le script entier avec un faux `gh` (`test/unit/fake-gh.js`)
+et un dépôt local à la place de GitHub : déjà publié, brouillon resté,
+publication complète, fichier relu différent, envoi qui échoue.
+
+### Listes distantes : rester lisible par les versions installées
+
+Deux listes sont lues **sur `main`** par les versions déjà installées, au
+moment où elles s’ouvrent : la liste des outils de séparation
+(`app/src/separation/models.json`) et celle des recueils de grilles
+(`app/src/standards/collections.json`), par `raw.githubusercontent.com`. Une
+version installée n’est pas mise à jour en même temps que `main` : avant
+d’envoyer un changement de l’une de ces listes, vérifier qu’il reste lisible
+par le lecteur de la plus ancienne version encore installée (champ ajouté
+qu’elle ignore, rien d’enlevé ou de renommé qu’elle exige). Sinon, publier le
+nouveau format sous **un autre nom de fichier**, lu par les nouvelles
+versions seulement, et laisser l’ancien en place. Même règle pour
+`fabtice-version.json` (voir « Le fichier de version »).
