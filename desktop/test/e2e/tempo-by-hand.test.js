@@ -383,10 +383,25 @@ test('the space bar: with a window or a menu open it never starts the playback; 
 
     // The bar menu open, « Correction de la courbe… » focused: Space presses it (the window of the taps opens), nothing plays.
     const bar = await barInView(page);
-    await openBarMenu(page, bar);
-    await page.locator(`${MENU} [data-action="tap"]`).focus();
-    await page.keyboard.press('Space');
-    await page.waitForSelector(BOX, { timeout: 10000 });
+    // Patient: on a loaded machine the menu can close under the test (a late redraw of the ruler) before the key
+    // lands. The key only counts when the entry is seen focused right before it; otherwise the menu is opened again.
+    let opened = false;
+    for (let attempt = 0; attempt < 4 && !opened; attempt++) {
+      if (!(await page.$(MENU))) await openBarMenu(page, bar);
+      const entry = page.locator(`${MENU} [data-action="tap"]`);
+      const focused = await entry
+        .focus({ timeout: 5000 })
+        .then(() => entry.evaluate((el) => document.activeElement === el))
+        .catch(() => false);
+      if (!focused) {
+        await wait(500);
+        continue;
+      }
+      await page.keyboard.press('Space');
+      opened = await page.waitForSelector(BOX, { timeout: 10000 }).then(() => true, () => false);
+      if (!opened) assert.equal(await engineState(page), 'ready', 'bar menu: Space on the focused entry did not start the playback');
+    }
+    assert.ok(opened, 'bar menu: Space on the focused entry opened the window of the taps');
     await waitStep(page, 'prepare');
     assert.equal(await engineState(page), 'ready', 'bar menu: Space pressed the entry and did not start the playback');
     await page.keyboard.press('Escape');
