@@ -107,9 +107,17 @@ export interface FormOptions {
   key: Key | null;
   /** Modulations in force (bar index, key): a change that lasts 16 bars or more may transpose a chorus. */
   keyChanges: readonly { bar: number; key: Key }[];
+  /**
+   * Bar indices where who plays changes (from the audio: a soloist enters, the
+   * timbre changes); a chorus start that falls on one is likelier. Optional.
+   */
+  cues?: readonly number[];
 }
 
 const MIN_CHORUS = 12;
+/** How much a chorus start on a change of who plays counts (the first one more: the theme enters after the intro). */
+const CUE_FIRST = 1.5;
+const CUE_OTHER = 0.5;
 /** No chorus is longer (forms of 64 bars exist; longer ones are two choruses). */
 const MAX_CHORUS = 96;
 
@@ -729,7 +737,7 @@ class Phrases {
  */
 /** Weight of the bars a rotation takes in or leaves out (the priors above weigh more: the chords alone often cannot tell). */
 const FIT_W = 0.3;
-function bestRotation(ph: Phrases, toks: readonly BarTokens[], T: readonly BarTokens[], choruses: readonly Chorus[], n: number, len: number, tau: number): number {
+function bestRotation(ph: Phrases, toks: readonly BarTokens[], T: readonly BarTokens[], choruses: readonly Chorus[], n: number, len: number, tau: number, cues: ReadonlySet<number>): number {
   const L = T.length;
   const c0 = choruses[0]!;
   const cz = choruses[choruses.length - 1]!;
@@ -759,6 +767,10 @@ function bestRotation(ph: Phrases, toks: readonly BarTokens[], T: readonly BarTo
     } else if (r < 0) {
       for (let j = r; j < 0; j++) score += FIT_W * (fit(first + j, L + j, c0.transpose) - fit(end + j, L + j, cz.transpose));
     }
+    // who plays changes where a chorus starts (a soloist enters at a chorus start, the theme after the intro)
+    if (cues.size) choruses.forEach((c, k) => {
+      if (cues.has(c.first + r)) score += k === 0 ? CUE_FIRST : CUE_OTHER;
+    });
     const f = first + r;
     const e = end + r;
     const lost = Math.max(0, -f) + Math.max(0, e - n);
@@ -1045,7 +1057,7 @@ export function analyseForm(bars: readonly HarmonyBar[], o: FormOptions): FormAn
       if (iter === 2) {
         const ph = new Phrases(toks, S, choruses, L, bg);
         const len = phraseLength(L, () => ph.same(0, 8, 8, 0) >= SAME_SECTION);
-        const r = bestRotation(ph, toks, T, choruses, n, len, Math.min(0.6, Math.max(0.2, bg + 0.4 * (crossAgreement(toks, choruses, L) - bg))));
+        const r = bestRotation(ph, toks, T, choruses, n, len, Math.min(0.6, Math.max(0.2, bg + 0.4 * (crossAgreement(toks, choruses, L) - bg))), new Set(o.cues ?? []));
         if (r === 0) break;
         T = T.map((_, j) => T[(((j + r) % L) + L) % L]!);
       }

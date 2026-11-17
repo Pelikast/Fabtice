@@ -588,8 +588,10 @@ function simplify(input: SimplifyInput): SimplifiedChart | null {
         if (half > 0) {
           const a = at(0).chord;
           const b = at(half).chord;
-          // a change near the middle (one beat early or late included) splits the bar
-          split = !sameChordish(a, b) && (sameChordish(at(half - 1).chord, a) || sameChordish(at(half + 1 < beats ? half + 1 : half).chord, b));
+          // a change near the middle (one beat early or late included) splits the bar, unless it is the next
+          // bar's chord come early (an anticipation, heard or read: not a second chord of this bar)
+          const next = i + 1 < bars.length ? beatChords(bars[i + 1]!)[0]!.chord : null;
+          split = !sameChordish(a, b) && !sameChordish(b, next) && (sameChordish(at(half - 1).chord, a) || sameChordish(at(half + 1 < beats ? half + 1 : half).chord, b));
         }
         return { at, wt, split };
       });

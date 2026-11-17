@@ -19,7 +19,7 @@ import type { Key } from '../model/harmony';
 import type { Seconds } from '../model/project';
 import { FORM_PATTERN, PART_INSTRUMENT_PATTERN, PART_TYPES, type DetectedStructure, type StructureMode, type StructurePart } from '../model/structure';
 import { analyseForm, type FormAnalysis, type Layout } from './form';
-import { detectParts, type BarPart } from './parts';
+import { detectParts, leadFromStems, leadFromTimbre, leadStretches, type BarPart } from './parts';
 import type { HarmonyBar, HarmonyInput } from './types';
 
 /** Fewer bars than this: nothing can be said. */
@@ -69,6 +69,19 @@ function barIndexAt(bars: readonly HarmonyBar[], time: Seconds): number {
   return next && Math.abs(next.start - time) < Math.abs(bars[lo]!.start - time) ? lo + 1 : lo;
 }
 
+/** Bars where who plays changes, from the audio evidence (a lead enters or leaves; without separation, the timbre). */
+export function playerChanges(input: HarmonyInput): number[] {
+  const ev = input.evidence;
+  const n = input.bars.length;
+  if (!ev) return [];
+  // the timbre read in blocks of four bars (the form is not known yet)
+  const grid = Int8Array.from({ length: n }, (_, i) => (i % 4 === 0 ? 2 : 0));
+  const reading = ev.stems ? leadFromStems(ev.stems, n) : ev.timbre ? leadFromTimbre(ev.timbre, n, grid) : null;
+  if (!reading) return [];
+  // on any bar (not only every four): the form is not known yet
+  return leadStretches(reading, new Int8Array(n).fill(1), 0, n).map((s) => s.first).filter((i) => i > 0);
+}
+
 /** The form, letters and parts in bars, before they become times (the tests read this). */
 export interface StructureInBars {
   mode: StructureMode;
@@ -96,6 +109,7 @@ export function structureInBars(input: HarmonyInput, keyChanges: readonly { time
     known: input.known,
     key: input.key,
     keyChanges: keyChanges.map((k) => ({ bar: barIndexAt(bars, k.time), key: k.key })),
+    cues: playerChanges(input),
   });
   const mode: StructureMode = input.mode === 'auto' ? chooseMode(bars, analysis) : input.mode;
   const layout = mode === 'pop' ? (analysis.phrases ?? analysis.chorus) : (analysis.chorus ?? analysis.phrases);
