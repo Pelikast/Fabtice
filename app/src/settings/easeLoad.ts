@@ -9,10 +9,10 @@
 // The share is the fraction of the device's capacity used, 0.2 to 0.99, or 1 when the case is unticked: with
 // 1, none of the helpers does anything (no thread removed, no pause, not even an extra tick of the event loop).
 //
-// Threads and pauses compound: running on 6 of 8 threads already uses 75 % of the device, and resting a
+// Threads and pauses compound: running on 6 of 8 threads already uses about 75 % of the device, and resting a
 // further 25 % of the time would bring it to 56 %. One consistent rule (`easePlan`): the threads are reduced
-// by the share, and the pause is computed for what the reduction does not already take, so that the average
-// stays at the share (and below it only where rounding the threads down made it so).
+// by the share, and the pause is computed for what the reduction does not already take (measured, not assumed:
+// the load does not follow the threads exactly), so that the average stays at the share.
 
 /** 1: the case is unticked (full speed). Otherwise `percent` / 100. */
 export function loadShare(settings: { easeLoad: boolean; easeLoadPercent: number }): number {
@@ -43,28 +43,40 @@ export function reducedThreads(threads: number, share: number): number {
 export interface EasePlan {
   /** Threads (or parallel workers) to use. */
   units: number;
-  /** The share the pauses must make up: 1 when the reduction of the units already takes all of it (no pause). */
+  /** The share of the time the work may fill: 1 when the reduction of the units already takes all of it (no pause). */
   duty: number;
 }
 
 /**
  * Fewer units AND pauses, as one rule: `units` are reduced by the share (at least one), and the pauses make up the
- * rest, `duty = min(1, share × units / reduced)`, so that `reduced / units × duty` is the share. With one unit,
- * the duty is the share itself (the plain rule).
+ * rest, so that the average load is the share of the full-speed load.
+ *
+ * Fewer threads do not cut the load in proportion: part of the work does not run in the threads (the JavaScript
+ * around the network, the main thread). `fixed` is that part, in thread-equivalents of load, measured
+ * (`tests/ease-measure.mjs`): the load of `n` threads is taken as `n + fixed`, so the load kept by the reduction is
+ * `(reduced + fixed) / (units + fixed)` and the pauses make up the rest, `duty = min(1, share / kept)`. With
+ * `fixed = 0` the load is taken as proportional to the threads (6 of 8 at 75 % is already 75 %: no pause); with
+ * one unit the duty is the share itself (the plain rule).
  */
-export function easePlan(units: number, share: number): EasePlan {
+export function easePlan(units: number, share: number, fixed = 0): EasePlan {
   const n = Math.max(1, Math.floor(units));
   if (!isEased(share)) return { units: n, duty: 1 };
   const reduced = reducedThreads(n, share);
-  return { units: reduced, duty: Math.min(1, (share * n) / reduced) };
+  const kept = (reduced + fixed) / (n + fixed);
+  return { units: reduced, duty: Math.min(1, share / kept) };
 }
+
+/** Fixed load of the separation on the processor, in thread-equivalents (SCNet, 3 threads: 2 threads kept 0.74 of the load). */
+export const SEPARATION_FIXED_LOAD = 0.9;
+/** Fixed load of the analysis (the networks are a small part of its work: 3 of 4 threads kept 0.86 of the load, 2 of 4 kept 0.73). */
+export const ANALYSIS_FIXED_LOAD = 3.2;
 
 /**
  * The separation's choice: on the processor, `easePlan` of its threads; on the graphics chip, the threads (which only
  * serve the few operators the chip leaves to the processor) are kept and the pause makes up the whole share.
  */
 export function separationEase(backend: 'gpu' | 'cpu', threads: number, share: number): EasePlan {
-  return backend === 'gpu' ? { units: Math.max(1, Math.floor(threads)), duty: isEased(share) ? share : 1 } : easePlan(threads, share);
+  return backend === 'gpu' ? { units: Math.max(1, Math.floor(threads)), duty: isEased(share) ? share : 1 } : easePlan(threads, share, SEPARATION_FIXED_LOAD);
 }
 
 /** What a computation that lasts `seconds` at full speed lasts at this share: `seconds / share`. */

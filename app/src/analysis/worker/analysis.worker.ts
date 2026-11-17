@@ -13,7 +13,7 @@ import ortWasmBinary from 'onnxruntime-web/ort-wasm-simd-threaded.wasm?url';
 import tsumugiGraphUrl from '../assets/tsumugi-chords.graph.onnx?url';
 import { ensureModels, missingModels, sha256Hex } from '../models/download';
 import { openModelStore } from '../models/store';
-import { createSleeper, createThrottle, easePlan } from '../../settings/easeLoad';
+import { ANALYSIS_FIXED_LOAD, createSleeper, createThrottle, easePlan } from '../../settings/easeLoad';
 import { AnalysisError, type AnalysisErrorCode, type AnalysisStep, type ChordFallback, type GridHint, type ListenedResult } from '../types';
 import { BEAT_MODEL_ID, CHORD_MODEL_ID, MODEL_REGISTRY, TSUMUGI_GRAPH, modelsFor } from '../models';
 import { TSUMUGI_WEIGHTS_LOCATION, runTsumugi, tsumugiAudio, tsumugiChordFrames, tsumugiInfo } from '../engine/tsumugi';
@@ -134,7 +134,7 @@ async function resampleAll(msg: AnalyseRequestMessage, ctl: StepControl): Promis
 
 async function analyse(msg: AnalyseRequestMessage): Promise<void> {
   // « Alléger le travail pour l'appareil »: fewer threads, and rests that make up the rest of the share.
-  const ease = easePlan(threadCount(), typeof msg.loadShare === 'number' ? msg.loadShare : 1);
+  const ease = easePlan(threadCount(), typeof msg.loadShare === 'number' ? msg.loadShare : 1, ANALYSIS_FIXED_LOAD);
   const throttle = createThrottle({ share: ease.duty, sleep: sleeper.sleep });
   const rest = breather(throttle);
   const ctl = control(rest);

@@ -98,6 +98,27 @@ describe('easePlan', () => {
   });
 });
 
+describe('easePlan with a fixed part of the load', () => {
+  it('rests more when the threads cut less of the load than they should (analysis: 3 of 4 threads kept 0.86, measured)', () => {
+    const p = easePlan(4, 0.75, 3.2);
+    expect(p.units).toBe(3);
+    expect(p.duty).toBeCloseTo(0.75 / ((3 + 3.2) / (4 + 3.2)), 9);
+    expect(p.duty).toBeLessThan(1);
+    expect(p.units / 4 * p.duty).toBeLessThan(0.75); // the threads' own share is lower than the load they keep
+  });
+  it('keeps the average load at the share, by the model: kept × duty = share', () => {
+    for (const [units, share, fixed] of [[3, 0.5, 0.9], [4, 0.5, 3.2], [8, 0.4, 0.9], [4, 0.2, 3.2]] as const) {
+      const p = easePlan(units, share, fixed);
+      const kept = (p.units + fixed) / (units + fixed);
+      expect(kept * p.duty).toBeCloseTo(share, 9);
+    }
+  });
+  it('is the plain rule with one unit, and nothing at full speed, whatever the fixed part', () => {
+    expect(easePlan(1, 0.6, 3.2)).toEqual({ units: 1, duty: 0.6 });
+    expect(easePlan(4, 1, 3.2)).toEqual({ units: 4, duty: 1 });
+  });
+});
+
 describe('stretchedSeconds', () => {
   it('is seconds / share, and the same at full speed', () => {
     expect(stretchedSeconds(100, 0.75)).toBeCloseTo(133.33, 1);

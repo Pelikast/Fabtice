@@ -12,7 +12,7 @@
 
 /* Réglages → Avancé: the label and its value on one line, the slider under them, then the honest sentence. */
 .alleger-curseur { padding-bottom: 12px; }
-.alleger-ligne { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font-size: 14px; font-weight: 500; color: var(--encre); }
+.alleger-ligne { max-width: 420px; display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font-size: 14px; font-weight: 500; color: var(--encre); }
 .alleger-ligne strong { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .alleger-curseur input[type="range"] { width: 100%; max-width: 420px; height: 32px; }
 
@@ -21,5 +21,5 @@
   .alleger-panneau .option { min-height: 48px; }
   .alleger-panneau .option input[type="checkbox"] { width: 22px; height: 22px; flex: none; }
   .alleger-curseur input[type="range"] { height: 44px; max-width: none; }
-  .alleger-ligne { font-size: 15px; }
+  .alleger-ligne { max-width: none; font-size: 15px; }
 }

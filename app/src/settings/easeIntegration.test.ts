@@ -289,12 +289,16 @@ describe('the offline renderer (Rubber Band, in this thread)', () => {
 describe('the separation worker: threads and rests', () => {
   // The pipeline's rests are `separation/engine/ease.test.ts`; here the worker's choice of threads and rests.
   it('on the processor, fewer threads and the rest for what they do not take; on the graphics chip, the whole rest', async () => {
-    const { separationEase } = await import('./easeLoad');
-    expect(separationEase('cpu', 7, 0.5)).toEqual({ units: 4, duty: 0.875 });
-    // rounded below the share (5 of 7 is 71 %): no rest on top
-    expect(separationEase('cpu', 7, 0.75)).toEqual({ units: 5, duty: 1 });
-    expect(separationEase('cpu', 8, 0.75)).toEqual({ units: 6, duty: 1 });
+    const { separationEase, SEPARATION_FIXED_LOAD } = await import('./easeLoad');
+    // The load does not follow the threads exactly (a fixed part, measured): the rest makes up what is left.
+    const p = separationEase('cpu', 3, 0.5);
+    expect(p.units).toBe(2); // round(1.5)
+    expect(p.duty).toBeCloseTo(0.5 / ((2 + SEPARATION_FIXED_LOAD) / (3 + SEPARATION_FIXED_LOAD)), 9);
+    expect(p.duty).toBeGreaterThan(0.6);
+    expect(p.duty).toBeLessThan(0.75);
     expect(separationEase('cpu', 1, 0.5)).toEqual({ units: 1, duty: 0.5 });
+    // Rounded to the same threads: no rest on top.
+    expect(separationEase('cpu', 7, 0.75)).toEqual({ units: 5, duty: 1 });
     expect(separationEase('gpu', 7, 0.75)).toEqual({ units: 7, duty: 0.75 });
     expect(separationEase('gpu', 7, 1)).toEqual({ units: 7, duty: 1 });
     expect(separationEase('cpu', 7, 1)).toEqual({ units: 7, duty: 1 });

@@ -50,7 +50,11 @@ export class RenderJob {
     if (this.dead) return;
     try {
       if (m.type === 'start') await this.start(m);
-      else if (m.type === 'block') await this.block(m.l, m.r);
+      else if (m.type === 'block') {
+        // At full speed `block` returns nothing and nothing is awaited: the same path as before.
+        const rest = this.block(m.l, m.r);
+        if (rest) await rest;
+      }
       else this.end();
     } catch (e) {
       this.stretch?.destroy();
@@ -89,7 +93,7 @@ export class RenderJob {
     this.throttle?.mark();
   }
 
-  private async block(l: Float32Array, r: Float32Array | undefined): Promise<void> {
+  private block(l: Float32Array, r: Float32Array | undefined): Promise<unknown> | undefined {
     if (!this.stretch) throw new Error('block before start');
     const t0 = now();
     this.throttle?.mark(); // the block's own work, not the wait for it to arrive
@@ -98,7 +102,7 @@ export class RenderJob {
     this.post({ type: 'ack' });
     // « Alléger »: the rest, as long as the block took, scaled by the share. The next block waits in the queue; a
     // cancellation ends the worker (`dispose`), which wakes the rest at once.
-    if (this.throttle) await this.throttle.pause();
+    return this.throttle?.pause();
   }
 
   private end(): void {
