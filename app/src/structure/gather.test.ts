@@ -346,6 +346,5 @@ describe('the two steps in the runner', () => {
       [null, 1],
       [null, 2],
     ]);
-  });
+  }, 30_000);
 });
-

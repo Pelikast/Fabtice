@@ -9,10 +9,10 @@
 
 import { partBars } from '../chart/structureDisplay';
 import { sectionBar, type ChartBar } from '../chart/layout';
-import type { ChordSymbol } from '../model/harmony';
+import type { ChordSymbol, Key } from '../model/harmony';
 import { simplifyChart, type HarmonyBar, type KnownStandard, type SimplifiedChart, type SimplifyInput } from '../structure';
 import { knownStandardsFor } from '../structure/knownCache';
-import { selectChartBars } from './chartSelectors';
+import { keyInForce, selectChartBars } from './chartSelectors';
 import { keyChangesInForce, keyPassages } from './keySelectors';
 import type { AppState } from './store';
 import { structureInForce } from './structureSelectors';
@@ -45,6 +45,7 @@ let inputMemo: {
   passages: ReturnType<typeof keyPassages>;
   duration: number;
   known: readonly KnownStandard[];
+  mainKey: Key | null;
   value: SimplifyInput;
 } | null = null;
 
@@ -56,6 +57,8 @@ export function selectSimplifyInput(s: AppState): SimplifyInput {
   const duration = s.project?.duration ?? 0;
   // The known charts the harmony pass found for the title (`structure/refresh.ts`; none when not looked up, or the setting is off).
   const known = s.settings.useKnownCharts ? knownStandardsFor(s.project?.title) : NO_KNOWN;
+  const k = keyInForce(s).key;
+  const mainKey: Key | null = k ? { tonic: k.tonic, mode: k.mode } : null;
   if (
     inputMemo &&
     inputMemo.bars === bars &&
@@ -63,7 +66,8 @@ export function selectSimplifyInput(s: AppState): SimplifyInput {
     inputMemo.map === s.tempoMap &&
     inputMemo.passages === passages &&
     inputMemo.duration === duration &&
-    inputMemo.known === known
+    inputMemo.known === known &&
+    (inputMemo.mainKey === mainKey || (!!inputMemo.mainKey && !!mainKey && inputMemo.mainKey.tonic === mainKey.tonic && inputMemo.mainKey.mode === mainKey.mode))
   ) {
     return inputMemo.value;
   }
@@ -79,8 +83,9 @@ export function selectSimplifyInput(s: AppState): SimplifyInput {
     }),
     keyChanges: keyChangesInForce(s).map((c) => ({ bar: sectionBar(map, c.time), key: c.key })),
     known: known as KnownStandard[],
+    key: mainKey,
   };
-  inputMemo = { bars, structure, map, passages, duration, known, value };
+  inputMemo = { bars, structure, map, passages, duration, known, mainKey, value };
   return value;
 }
 

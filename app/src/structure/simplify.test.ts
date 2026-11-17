@@ -5,6 +5,7 @@ import { truthSimplifyInput } from './bench/run';
 import { autumnChartFailures } from './bench/score';
 import { simplifyChart } from './simplify';
 import { AABA, AABA_A1, AABA_A2, AABA_B, chartBars, repeat } from './testCharts';
+import { AUTUMN_LETTERS, AUTUMN_MODULATION_BAR, AUTUMN_PARTS, autumnBars } from '../demo/demoAutumn';
 import type { HarmonyBar, SimplifiedChart, SimplifyInput } from './types';
 
 /** Written chart as text: « A x2: Cmaj7 A7 | Dm7 G7 | % » per section. */
@@ -224,6 +225,63 @@ describe('simplified chart: leaning on the known chart', () => {
     expect(t[0]).toBe('intro x1: Bm7 | % | % | %');
     bars[1]!.chords = bars[1]!.chords.map((c) => ({ ...c, doubtful: false }));
     expect(text(simplifyChart(input(bars, marks(bars, 4, 8, 'AABA', 2), parts))!)[0]).toBe('intro x1: Bm7 | F♯7 | Bm7 | %');
+  });
+});
+
+describe('simplified chart: the modulation marks', () => {
+  const B_MINOR = { tonic: 11, mode: 'minor' as const };
+  /** The cahier's piece (`demo/demoAutumn.ts`), its last B and C a half step up when `modulated`, a modulation at `at` to `tonic`. */
+  const autumn = (modulated: boolean, at: number, tonic: number, key: SimplifyInput['key'] = B_MINOR): SimplifyInput => {
+    const bars = chartBars(autumnBars(modulated).map((b) => b.join(' ')).join(' | ') + ' | ');
+    const parts = AUTUMN_PARTS.map(([type, , , first, end], i) => ({
+      id: `autumn-${i + 1}`,
+      type,
+      firstBar: first,
+      endBar: end,
+      letters: AUTUMN_LETTERS.filter(([bar]) => bar >= first && bar < end).map(([, label]) => label),
+    }));
+    return { bars, sections: AUTUMN_LETTERS.map(([bar, label]) => ({ bar, label })), parts, keyChanges: [{ bar: at, key: { tonic, mode: 'minor' } }], known: [], key };
+  };
+  /** Each section as « id [mark] first chords », the mark where it is written. */
+  const marked = (c: SimplifiedChart) =>
+    c.sections.map((sec) => {
+      const at = sec.bars.findIndex((i) => c.bars[i]!.keyChange);
+      return at < 0 ? sec.id : `${sec.id} [${c.bars[sec.bars[at]!]!.keyChange!.tonic} at ${at + 1}]`;
+    });
+
+  it('a modulation by hand over the same chords is written: the passage is its own block with its mark', () => {
+    // E minor from the last B on, the chords left as they were
+    const chart = simplifyChart(autumn(false, AUTUMN_MODULATION_BAR, 4))!;
+    expect(marked(chart)).toEqual(['intro', 'A', 'B', 'C', 'B@2 [4 at 1]', 'C@2']);
+    // the passes of B before the modulation stay on B, those after on B@2
+    const b = chart.sections.find((x) => x.id === 'B')!;
+    const b2 = chart.sections.find((x) => x.id === 'B@2')!;
+    expect(chart.bars[b.bars[0]!]!.played).toEqual([17, 49]);
+    expect(chart.bars[b2.bars[0]!]!.played).toEqual([AUTUMN_MODULATION_BAR]);
+    // without the main key (older callers), the same chords in two keys are still one section
+    expect(marked(simplifyChart(autumn(false, AUTUMN_MODULATION_BAR, 4, null))!)).toEqual(['intro', 'A', 'B', 'C']);
+  });
+
+  it('a modulation inside a section is marked there, not on the next section', () => {
+    // the half step up from the third bar of the last B (bar 83), not from its first
+    const chart = simplifyChart(autumn(true, AUTUMN_MODULATION_BAR + 2, 1))!;
+    expect(marked(chart)).toEqual(['intro', 'A', 'B', 'C', 'B@2 [1 at 1]', 'C@2']);
+    const b2 = chart.sections.find((x) => x.id === 'B@2')!;
+    expect(chart.bars[b2.bars[0]!]!.played).toEqual([AUTUMN_MODULATION_BAR + 2]);
+    // the two bars of that B before the change are read in the old key, with the other B (their chords, already
+    // a half step up here, place them somewhere in it)
+    const b = chart.sections.find((x) => x.id === 'B')!;
+    expect(b.bars).toContain(chart.places.get(AUTUMN_MODULATION_BAR)!.written);
+  });
+
+  it('back in the main key after a modulation: the main key\'s sections, and the return marked where it is written', () => {
+    const input = autumn(true, AUTUMN_MODULATION_BAR, 1);
+    // a return to B minor at the last C (the chords there are the main key's)
+    const bars = chartBars(autumnBars(true).map((b, i) => (i >= 89 ? autumnBars(false)[i]! : b).join(' ')).join(' | ') + ' | ');
+    const chart = simplifyChart({ ...input, bars, keyChanges: [...input.keyChanges, { bar: 89, key: B_MINOR }] })!;
+    expect(marked(chart)).toEqual(['intro', 'A', 'B', 'C', 'B@2 [1 at 1]']);
+    // the last C is the main key's C
+    expect(chart.places.get(89)!.written).toBe(chart.sections.find((x) => x.id === 'C')!.bars[0]);
   });
 });
 
