@@ -30,9 +30,15 @@ const SA2 = 'Em7 | A7 | Dmaj7 | Gmaj7 | C#m7b5 | C7 | Bm | -';
 const B = 'C#m7b5 | F#7 | Bm | - | Em7 | A7 | Dmaj7 | Gmaj7';
 const SB = 'C#m7b5 | F#7 | Bm | - | Em7 | A7 | Dmaj7 | Gmaj9';
 const C = 'C#m7b5 | F#7 | Bm Bb7 | Am7 G#7 | C#m7b5 | F#7 | Bm | -';
+/** The same B and C a tone higher (C♯ minor): the last chorus of the `modulation` variant, with a modulation written in the analysis. */
+const B_UP = 'D#m7b5 | G#7 | C#m | - | F#m7 | B7 | Emaj7 | Amaj7';
+const C_UP = 'D#m7b5 | G#7 | C#m C7 | Bm7 A#7 | D#m7b5 | G#7 | C#m | -';
 
-/** The chords of every bar, as text (« Bm Bb7 »); an empty list is a bar that goes on with the chord before. 97 bars. */
-export function autumnBars(): string[][] {
+/**
+ * The chords of every bar, as text (« Bm Bb7 »); an empty list is a bar that goes on with the chord before. 97 bars.
+ * `modulated`: the last chorus (Thème 2) is a tone higher, C♯ minor, from bar 82 (`AUTUMN_MODULATION_BAR`).
+ */
+export function autumnBars(modulated = false): string[][] {
   return [
     ...cells('Bm'),
     // Thème Chant: A A B C
@@ -42,11 +48,13 @@ export function autumnBars(): string[][] {
     // Solo Trompette: A A
     ...cells([A1, A1].join(' | ')),
     // Thème Chant 2: B C
-    ...cells([B, C].join(' | ')),
+    ...cells(modulated ? [B_UP, C_UP].join(' | ') : [B, C].join(' | ')),
   ];
 }
 
 export const AUTUMN_BAR_COUNT = 97;
+/** The bar (index) where the modulated variant changes key. */
+export const AUTUMN_MODULATION_BAR = 81;
 
 type Row = [type: PartType, number: number | null, instrument: PartInstrument | null, firstBar: number, endBar: number];
 
@@ -88,10 +96,10 @@ export function autumnDuration(map: TempoMap): number {
 }
 
 /** What « the analysis » finds in the piece: its chords (the bars above), the key, the structure. */
-export function autumnAnalysis(map: TempoMap, duration: number): AnalysisResult {
+export function autumnAnalysis(map: TempoMap, duration: number, modulated = false): AnalysisResult {
   const grid = beatGridOf(map, duration);
   const chords: AnalysedChord[] = [];
-  autumnBars().forEach((bar, i) => {
+  autumnBars(modulated).forEach((bar, i) => {
     const at = bar.length === 2 ? [0, 2] : bar.map((_, k) => k);
     bar.forEach((text, k) => {
       const parsed = parseChord(text);
@@ -106,7 +114,7 @@ export function autumnAnalysis(map: TempoMap, duration: number): AnalysisResult 
     duration,
     beats: { times: grid.times, downbeat: grid.downbeat, meter: grid.meter, meterConfidence: 0.9 },
     key: { tonic: 11, mode: 'minor', confidence: 0.8, alternatives: [] },
-    keyChanges: [],
+    keyChanges: modulated ? [{ time: barStartTime(map, AUTUMN_MODULATION_BAR), key: { tonic: 1, mode: 'minor', confidence: 0.7, alternatives: [] } }] : [],
     tuning: { cents: 0, confidence: 0.8 },
     chords,
     structure: autumnStructure(map),
@@ -114,7 +122,7 @@ export function autumnAnalysis(map: TempoMap, duration: number): AnalysisResult 
 }
 
 /** The piece as an import would give it: one silent track as long as the chart. */
-export function autumnProject(): NewProjectInput {
+export function autumnProject(modulated = false): NewProjectInput {
   const map = autumnTempoMap();
   const duration = autumnDuration(map);
   return {
@@ -123,6 +131,6 @@ export function autumnProject(): NewProjectInput {
     tempoMap: map,
     loop: null,
     tracks: [{ role: 'morceau', audio: { channels: [new Float32Array(Math.ceil(duration * ENGINE_SAMPLE_RATE))], sampleRate: ENGINE_SAMPLE_RATE } }],
-    analysis: autumnAnalysis(map, duration),
+    analysis: autumnAnalysis(map, duration, modulated),
   };
 }

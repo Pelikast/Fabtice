@@ -395,11 +395,10 @@ export async function simplifiedCaptures(form, deps) {
     await context.close();
   }
 
-  // 4. A modulation in the last chorus (written by hand from bar 90): its mark above the first bar of the block.
+  // 4. The last chorus a tone higher (`&modulation=oui`, the analysis found the modulation at bar 82): the new key above the block.
   {
-    const { context, page } = await feuilles(form, deps);
-    await page.evaluate((t) => window.__fabtice.lot2.key.addKeyChange(t + 0.05, { tonic: 1, mode: 'minor' }), barSeconds(89));
-    await sleep(700);
+    const { context, page } = await feuilles(form, deps, '?demo&piece=feuilles&modulation=oui&moteur=factice&vue=grille');
+    await sleep(300);
     await page.evaluate(() => {
       const marks = [...document.querySelectorAll('[data-testid="grille-simplifiee"] .modulation-lue')];
       (marks[0] ?? document.querySelector('[data-testid="grille-simplifiee"] .bloc:last-child')).scrollIntoView({ block: 'center' });

@@ -169,7 +169,8 @@ export function startDemo(params: URLSearchParams): Promise<void> {
       // `&piece=feuilles`: the made-up piece of the simplified chart (demoAutumn.ts), already analysed, its structure detected.
       // The harmony pass would replace that structure: its automatic runs stop for that piece.
       suspendHarmonyRefresh();
-      const input = autumnProject();
+      // `&modulation=oui`: the last chorus a tone higher, with the modulation found by the analysis.
+      const input = autumnProject(params.get('modulation') === 'oui');
       replaceAnalyzer(new MockAnalyzer({ durationMs: 0, downloadMs: 0, fixture: () => input.analysis! }));
       await actions.openProject(input);
     } else if (mode === 'aucune') {

@@ -387,6 +387,43 @@ async function printing(form) {
   await h.context.close();
 }
 
+/** The last chorus a tone higher (`&modulation=oui`): its B and C are written again, the new key above the first bar. */
+async function modulated(form) {
+  const tag = form;
+  const h = await open(form, '?demo&piece=feuilles&modulation=oui&moteur=factice&vue=grille');
+  const { page } = h;
+  await showSimplified(page);
+  const heads = await page.$$eval(`${GRID} [data-testid="bloc-titre"]`, (els) => els.map((e) => e.textContent));
+  check(`${tag}: a last chorus a tone higher: the blocks are Intro, A, B, C, B, C`, heads.join(' ') === 'Intro A B C B C', heads.join(' '));
+  const marks = await page.$$eval(`${GRID} .modulation-lue`, (els) => els.map((e) => [e.closest('.bloc').dataset.bloc, e.textContent.replace(/\s+/g, ' ').trim(), getComputedStyle(e).pointerEvents]));
+  check(`${tag}: the new key is written once, above the first bar of the first block in it, only to be read`, marks.length === 1 && marks[0][1].endsWith('C♯m') && marks[0][2] === 'none', JSON.stringify(marks));
+  check(`${tag}: it does not collide with the bar (the chords start under it)`, await page.evaluate(() => {
+    const cell = document.querySelector('[data-testid="grille-simplifiee"] .modulation-lue').closest('.case');
+    const pill = cell.querySelector('.modulation-lue').getBoundingClientRect();
+    return [...cell.querySelectorAll('.accord-case .ch')].every((c) => { const r = c.getBoundingClientRect(); return r.left >= cell.getBoundingClientRect().left && (r.top >= pill.bottom - 4 || r.left >= pill.right || r.right <= pill.left); });
+  }));
+  await seekBar(page, 90);
+  await sleep(300);
+  const place = await placeOf(page, 90);
+  const lit = await jouee(page);
+  check(`${tag}: the playing follows into the modulated block (bar 91: written bar ${place.written})`, lit.length === 1 && lit[0] === place.written, `${lit.join()} / ${place.written}`);
+  await page.screenshot({ path: path.join(out, `${tag}-modulation.png`) });
+  // On paper.
+  await page.evaluate(() => window.__fabtice.store.setState((s) => ({ ui: { ...s.ui, printOpen: true, panel: 'none' } })));
+  await page.waitForSelector('[data-testid="impression"]');
+  await sleep(500);
+  const paper = await page.$$eval('.pp-modulation', (els) => els.map((e) => e.textContent.replace(/\s+/g, ' ').trim()));
+  check(`${tag}: the paper writes it too (« Ton : C♯m »)`, paper.join('|') === 'Ton : C♯m', paper.join('|'));
+  // Eleven lines and six headings are more than an A4 page at 100 %: two pages; « Tenir sur une page » makes it one.
+  const pagesText = () => page.locator('[data-testid="impression-pages"]').innerText();
+  const longer = await pagesText();
+  await (form === 'phone' ? page.tap('[data-testid="impression-une-page"]') : page.click('[data-testid="impression-une-page"]'));
+  await sleep(400);
+  check(`${tag}: the longer chart is ${longer} at 100 % and one page with « Tenir sur une page »`, longer === '2 pages' && (await pagesText()) === '1 page', `${longer} → ${await pagesText()}`);
+  check(`${tag}: no console error (modulation)`, h.errors.length === 0, h.errors.join(' | '));
+  await h.context.close();
+}
+
 /** A piece with no form to fold: the chart is shown in full, and the row says so calmly. */
 async function noForm(form) {
   const tag = form;
@@ -408,6 +445,8 @@ try {
   await suite('phone');
   await printing('computer');
   await printing('phone');
+  await modulated('computer');
+  await modulated('phone');
   await noForm('computer');
   await noForm('phone');
 } finally {
