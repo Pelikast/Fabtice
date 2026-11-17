@@ -21,6 +21,7 @@ import { createRequire } from 'node:module';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { startServer } from './serve.mjs';
 
 const require = createRequire(process.env.PLAYWRIGHT_MODULE_DIR || '/opt/node-tools/');
@@ -57,8 +58,10 @@ const TEXT = {
   stop: 'Arrêter l’écoute',
   retry: 'Ce n’est pas bon, réessayer',
   accept: 'C’est bon, c’est corrigé',
-  tooFew: 'Il y a eu trop peu de tapes pour retrouver le tempo. Recommencez en tapant sur chaque temps, du début du passage jusqu’à sa fin.',
-  committing: 'Analyse de la suite du morceau…',
+  tooFew: 'Tapez au moins trois temps à partir de la mesure choisie.',
+  committing: 'Mise en place de la correction…',
+  listen: 'Écoutez le décompte… Vous pouvez déjà taper avec le clic.',
+  computing: 'Calcul de la nouvelle grille et analyse de la suite du morceau…',
 };
 
 const BOX = '[data-testid="tapes"]';
@@ -353,7 +356,7 @@ async function suite(form) {
     const last = times[times.length - 1];
     const beatLen = beats[1] - beats[0];
     check(`${tag}: the clicks follow the grid up to the chosen bar and none from it`, times.length === before && times.every((t) => t < barTime - 0.01) && Math.abs(last - (barTime - beatLen)) < 0.05, `${times.length} clicks for ${before}, last ${last.toFixed(2)}, bar at ${barTime.toFixed(2)}`);
-    check(`${tag}: it says to listen to the count-in`, (await page.locator('[data-testid="tapes-phase"]').innerText()) === 'Écoutez le décompte…');
+    check(`${tag}: it says to listen to the count-in`, (await page.locator('[data-testid="tapes-phase"]').innerText()) === TEXT.listen);
     // taps before the chosen bar do not count
     if (form.phone) {
       const b = await page.locator('[data-testid="tapes-zone"]').boundingBox();
@@ -361,7 +364,8 @@ async function suite(form) {
     } else {
       await page.keyboard.press('Space');
     }
-    check(`${tag}: a tap during the count-in is ignored`, (await tapCount(page)) === 0);
+    await sleep(60);
+    check(`${tag}: a tap along the count-in pulses but is not counted (the counter counts from the chosen bar)`, (await tapCount(page)) === 0 && (await page.locator('.tapes-pouls.bat').count()) === 1);
     check(`${tag}: and it did not stop the playback`, (await snapshot(page)).state === 'playing');
     await shot('tapping-decompte');
     const w = await inTheOpen(page);
@@ -495,6 +499,11 @@ async function suite(form) {
       await page.keyboard.press('Enter');
     }
     await waitStep(page, 'check');
+    const shown = await state(page);
+    const previewMap = JSON.stringify(shown.tempoMap.segments);
+    check(`${tag}: while the candidate is shown, the store says which grid is in force, and listening made nothing to undo or save`, shown.tempoPreview !== null && (await page.evaluate(() => window.__fabtice.history.canUndo())) === base.canUndo && (await page.evaluate(() => window.__fabtice.history.isModified())) === base.modified);
+    const line = await page.locator('[data-testid="tapes-lecture"]').allInnerTexts();
+    check(`${tag}: at most one calm line about the way of tapping`, line.length <= 1 && (line.length === 0 || /ms (avant|après) le temps|temps oubliés? a|tapes? en trop/.test(line[0])), line.join(' | '));
     // the whole listening, up to its end by itself
     await press(page, form, page.locator('[data-testid="tapes-verifier"]'));
     await page.waitForFunction(() => window.__fabtice.engine.getState() === 'playing', null, { timeout: 5000 });
@@ -511,7 +520,8 @@ async function suite(form) {
     check(`${tag}: the window closes, one « tapped » correction is kept`, fixes.length === 1 && s.corrections.tempoFixes.length === base.fixes + 1, JSON.stringify(s.corrections.tempoFixes.map((f) => f.kind)));
     const taps = fixes[0]?.taps ?? [];
     const dev = taps.map((t) => Math.min(...beats.map((b) => Math.abs(b - t))));
-    check(`${tag}: the taps are recorded in source time, at the beats heard (slowed playback), none before the bar`, taps.length === 5 && Math.max(...dev) < 0.15 && taps.every((t) => t >= barTime), `${taps.map((t) => t.toFixed(2))} vs ${beats.slice(0, 5).map((t) => t.toFixed(2))}`);
+    check(`${tag}: the taps are recorded in source time, at the beats heard (slowed playback)`, taps.length === 5 && Math.max(...dev) < 0.15, `${taps.map((t) => t.toFixed(2))} vs ${beats.slice(0, 5).map((t) => t.toFixed(2))}`);
+    check(`${tag}: the grid kept is the one that was heard (the candidate), the preview is over`, JSON.stringify(s.tempoMap.segments) === previewMap && s.tempoPreview === null, `origin ${s.tempoMap.origin}`);
     const snap = await snapshot(page);
     check(`${tag}: the user's metronome and loop are back`, snap.metronome === false && JSON.stringify(snap.loop) === JSON.stringify(base.loop));
     // one undo step
@@ -519,7 +529,21 @@ async function suite(form) {
     await page.evaluate(() => window.__fabtice.history.undo());
     check(`${tag}: and that was the only step (nothing else to undo)`, (await page.evaluate(() => window.__fabtice.history.canUndo())) === base.canUndo);
     const undone = await state(page);
-    check(`${tag}: one undo step takes it back (« ${label} »)`, undone.corrections.tempoFixes.length === base.fixes && JSON.stringify(undone.tempoMap.segments) === JSON.stringify(JSON.parse(base.map).segments), `${undone.corrections.tempoFixes.length} fixes; origin ${undone.tempoMap.origin}`);
+    check(`${tag}: one undo step takes it back (« ${label} »): no fix, the previous grid`, undone.corrections.tempoFixes.length === base.fixes && JSON.stringify(undone.tempoMap.segments) === JSON.stringify(JSON.parse(base.map).segments), `${undone.corrections.tempoFixes.length} fixes; origin ${undone.tempoMap.origin}`);
+    // redo, then « Revenir à l'analyse » on the bar's menu
+    await page.evaluate(() => window.__fabtice.history.redo());
+    check(`${tag}: redo gives it back`, (await state(page)).corrections.tempoFixes.filter((f) => f.kind === 'tapped').length === 1 && JSON.stringify((await state(page)).tempoMap.segments) === previewMap);
+    {
+      const at = await barOnScreen(page, BAR);
+      if (form.phone) await longPress(context, page, at.x, at.y);
+      else await page.mouse.click(at.x, at.y, { button: 'right' });
+      await page.waitForSelector('[data-testid="menu-tempo"]');
+      await press(page, form, page.locator('[data-action="undo"]'));
+      await sleep(200);
+      const back = await state(page);
+      check(`${tag}: « Revenir à l’analyse » on that bar gives the previous grid back, no fix left`, back.corrections.tempoFixes.length === base.fixes && JSON.stringify(back.tempoMap.segments) === JSON.stringify(JSON.parse(base.map).segments));
+      await page.evaluate(() => window.__fabtice.history.resetHistory({ modified: false }));
+    }
     // space plays again when the window is closed
     await setPlayback(page, { tempoRatio: 1 });
     await page.evaluate(() => window.__fabtice.store.setState({ playback: { ...window.__fabtice.store.getState().playback, tempoRatio: 1 } }));
@@ -740,9 +764,174 @@ async function spaceRule() {
   await context.close();
 }
 
+// ---------------------------------------------------------------- the REAL analyser: taps at the true beats, with jitter
+
+/** A small seeded generator (mulberry32): the same jitter at every run. */
+function seeded(seed) {
+  let a = seed;
+  return () => {
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+async function realPass() {
+  const SWING = path.join(path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..'), 'web/spikes/analyse/demo/demo-swing.mp3');
+  const R_BAR = 4; // « mesure 5 »
+  const R_BARS = 4;
+  const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'fabtice-tap-fix-profile-'));
+  const form = FORMS[0];
+  const launch = async () => {
+    const context = await chromium.launchPersistentContext(profile, { args: ['--no-sandbox', '--autoplay-policy=no-user-gesture-required'], viewport: form.viewport });
+    const page = context.pages()[0] ?? (await context.newPage());
+    const errors = [];
+    page.on('pageerror', (e) => errors.push(e.message));
+    page.on('console', (m) => {
+      if (m.type() === 'error') errors.push(m.text());
+    });
+    await page.goto(`${url}/?debug&moteur=factice&analyse=reel`);
+    await page.waitForFunction(() => window.__fabtice, null, { timeout: 15000 });
+    return { context, page, errors };
+  };
+  const idle = (page) => page.waitForFunction(() => window.__fabtice.store.getState().analysisRun.status !== 'running', null, { timeout: 240000, polling: 100 });
+  /** Beats of the grid in force (times of its segments). */
+  const gridTimes = (page) => page.evaluate(() => window.__fabtice.store.getState().tempoMap.segments.map((x) => x.time));
+  /** Plants bars R_BAR … at half tempo in the analysis and the grid (as `tempo-fix.mjs` does). */
+  const plant = (page) =>
+    page.evaluate(
+      ([bar, bars]) => {
+        const st = window.__fabtice.store;
+        const s = st.getState();
+        const b = s.analysis.beats;
+        const m = b.meter.numerator;
+        const i0 = b.downbeat + bar * m;
+        const times = b.times.filter((_, i) => i <= i0 || i >= i0 + bars * m || (i - i0) % 2 === 0);
+        const segments = [];
+        for (let i = 0; i + 1 < times.length; i++) segments.push({ time: times[i], beat: i - b.downbeat, bpm: 60 / (times[i + 1] - times[i]) });
+        st.setState({ analysis: { ...s.analysis, beats: { ...b, times } }, tempoMap: { origin: 'analysis', segments, meters: [{ bar: 0, beat: 0, meter: { ...b.meter } }] }, corrections: { ...s.corrections, tempoFixes: [] } });
+      },
+      [R_BAR, R_BARS],
+    );
+  const rulerAt = (page, bar) =>
+    page.evaluate((b) => {
+      const s = window.__fabtice.store.getState();
+      const m = s.tempoMap.meters[0].meter.numerator;
+      const seg = s.tempoMap.segments.find((x) => Math.abs(x.beat - b * m) < 1e-6);
+      const r = document.querySelector('.frise').getBoundingClientRect();
+      const row = document.querySelector('.frise-rang.mesures').getBoundingClientRect();
+      return { x: r.left + seg.time * s.view.pxPerSecond + 12, y: row.top + row.height / 2 };
+    }, bar);
+  /** The share of the true beats of [from, to] that the grid has a beat within 50 ms of, and the worst gap. */
+  const landing = (truth, got, from, to) => {
+    const want = truth.filter((t) => t >= from - 1e-3 && t <= to + 1e-3);
+    const gaps = want.map((t) => Math.min(...got.map((g) => Math.abs(g - t))));
+    return { share: gaps.filter((g) => g <= 0.05).length / Math.max(1, want.length), worst: Math.max(...gaps), n: want.length };
+  };
+
+  /** Opens the window at the bar, one bar of count-in, taps along the count-in bar and the passage, « Ok, j'ai fini »; returns what the wait showed. */
+  async function tapPassage(page, truth, tag, rand) {
+    const at = await rulerAt(page, R_BAR);
+    await page.mouse.click(at.x, at.y, { button: 'right' });
+    await page.waitForSelector('[data-testid="menu-tempo"]');
+    await page.click('[data-action="tap"]');
+    await page.waitForSelector(BOX);
+    await page.click('[data-testid="tapes-depart"]');
+    await waitStep(page, 'tapping');
+    // taps along the count-in bar and the passage: a habitual delay of 70 ms and ± 40 ms of jitter
+    for (const t of truth) {
+      const target = t + 0.07 + (rand() * 2 - 1) * 0.04;
+      await page.waitForFunction((x) => window.__fabtice.engine.getPosition() >= x, target, { polling: 'raf', timeout: 60000 });
+      await page.keyboard.press('Space');
+    }
+    await sleep(100);
+    await page.click('[data-testid="tapes-fini"]');
+    // the wait: its text and the percentage, as long as it lasts
+    const seen = { text: false, percents: [] };
+    for (let i = 0; i < 4800; i++) {
+      const stepNow = await page.locator(BOX).getAttribute('data-etape').catch(() => null);
+      if (stepNow !== 'computing') break;
+      if ((await page.locator('[data-testid="tapes-attente"]').innerText().catch(() => '')).includes(TEXT.computing)) seen.text = true;
+      const pc = await page.locator('[data-testid="tapes-pourcentage"]').innerText({ timeout: 100 }).catch(() => null);
+      if (pc) seen.percents.push(Number.parseInt(pc, 10));
+      await sleep(50);
+    }
+    await waitStep(page, 'check', 5000).catch(() => {});
+    return seen;
+  }
+
+  let truth;
+  let from;
+  let last;
+  // ---- pass 1: the piece is analysed for real in this session (the networks' outputs are kept)
+  {
+    const { context, page, errors } = await launch();
+    await page.locator('.accueil input[type="file"]').setInputFiles(SWING);
+    await page.waitForFunction(() => window.__fabtice.store.getState().analysis, null, { timeout: 240000, polling: 200 });
+    await idle(page);
+    const a = await page.evaluate(() => {
+      const b = window.__fabtice.store.getState().analysis.beats;
+      return { times: b.times, downbeat: b.downbeat, m: b.meter.numerator };
+    });
+    truth = a.times.slice(a.downbeat + (R_BAR - 1) * a.m, a.downbeat + (R_BAR + R_BARS) * a.m + 1);
+    from = a.times[a.downbeat + R_BAR * a.m];
+    last = a.times[a.downbeat + (R_BAR + R_BARS) * a.m];
+    await plant(page);
+    const planted = await gridTimes(page);
+    const before = landing(a.times, planted, from, last);
+    check('real analyser: the planted passage is wrong (half tempo: few true beats are on the grid)', before.share < 0.7, `${(100 * before.share).toFixed(0)} %`);
+    const rand = seeded(20261117);
+    const seen = await tapPassage(page, truth, 'real 1', rand);
+    check('real analyser: the check step is reached', (await step(page)) === 'check', String(await step(page)));
+    const got = await gridTimes(page);
+    const fit = landing(a.times, got, from, last);
+    check('real analyser: the grid heard in the passage lands within 50 ms of the true beats (taps delayed by 70 ms, ± 40 ms of jitter)', fit.share >= 0.95, `${(100 * fit.share).toFixed(0)} % of ${fit.n}, worst ${(1000 * fit.worst).toFixed(0)} ms`);
+    const line = await page.locator('[data-testid="tapes-lecture"]').allInnerTexts();
+    console.log(`NOTE  the line about the taps: ${line.join(' | ') || '(none)'}; the wait: text ${seen.text}, percents ${seen.percents.join(',') || '-'}`);
+    check('real analyser: it says the habitual delay, calmly, compensated', line.length === 1 && /ms après le temps : c’est compensé\./.test(line[0]), line.join(' | '));
+    await page.screenshot({ path: path.join(out, 'ordinateur-reel-verification.png') });
+    const preview = (await state(page)).tempoMap;
+    await page.click('[data-testid="tapes-ok"]');
+    await page.waitForFunction(() => !document.querySelector('[data-testid="tapes"]'), null, { timeout: 30000 });
+    const s = await state(page);
+    const fixes = s.corrections.tempoFixes.filter((f) => f.kind === 'tapped');
+    check('real analyser: « C’est bon »: one « tapped » correction, the grid kept is the previewed one, one undo step', fixes.length === 1 && JSON.stringify(s.tempoMap.segments) === JSON.stringify(preview.segments) && s.tempoPreview === null);
+    const kept = landing(a.times, await gridTimes(page), from, last);
+    check('real analyser: the kept grid is within 50 ms of the true beats', kept.share >= 0.95, `${(100 * kept.share).toFixed(0)} %`);
+    await page.evaluate(() => window.__fabtice.history.undo());
+    check('real analyser: undo gives the previous grid back, no fix', (await state(page)).corrections.tempoFixes.length === 0 && JSON.stringify(await gridTimes(page)) === JSON.stringify(planted));
+    await page.evaluate(() => window.__fabtice.history.redo());
+    check('real analyser: no console error', errors.length === 0, errors.join(' | '));
+    await page.waitForTimeout(1800); // the autosave
+    await context.close();
+  }
+  // ---- pass 2: the piece comes back from the device: the networks run again during the wait, with a percentage
+  {
+    const { context, page, errors } = await launch();
+    await page.waitForFunction(() => window.__fabtice.store.getState().project && window.__fabtice.store.getState().analysis, null, { timeout: 30000 });
+    await sleep(500);
+    await plant(page);
+    const a = await page.evaluate(() => ({ times: window.__fabtice.store.getState().analysis.beats.times }));
+    void a;
+    const rand = seeded(7);
+    const seen = await tapPassage(page, truth, 'real 2', rand);
+    check('reopened piece: the wait says what is done, with a percentage that goes up', seen.text && seen.percents.length >= 2 && seen.percents.every((p, i) => i === 0 || p >= seen.percents[i - 1]), `text ${seen.text}, percents ${seen.percents.join(',')}`);
+    check('reopened piece: the check step is reached', (await step(page)) === 'check', String(await step(page)));
+    await page.screenshot({ path: path.join(out, 'ordinateur-reel-reouverture.png') });
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(() => !document.querySelector('[data-testid="tapes"]'), null, { timeout: 3000 });
+    check('reopened piece: Escape leaves no fix', (await state(page)).corrections.tempoFixes.length === 0);
+    check('reopened piece: no console error', errors.length === 0, errors.join(' | '));
+    await context.close();
+  }
+  fs.rmSync(profile, { recursive: true, force: true });
+}
+
 try {
   for (const form of FORMS) await suite(form);
   await spaceRule();
+  await realPass();
 } catch (e) {
   failed++;
   console.log(`FAIL  ${e.stack || e}`);

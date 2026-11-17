@@ -8,7 +8,7 @@
 // The helpers are those of `captures.mjs` (`browser`, `contextOptions(form)`, `openPage(context, query)`,
 // `snap(page, form, name)`, `press(page, locator)`, `sleep`). Files written (`ordinateur-…`, `telephone-…`):
 //   tempo-menu-de-la-mesure, tapes-preparation, tapes-decompte, tapes-en-cours, tapes-verification,
-//   tapes-refus, tapes-attente.
+//   tapes-calcul (when the wait can be caught), tapes-refus, tapes-attente.
 
 const BAR = 6; // index; « mesure 7 », inside the demo's loop and away from its edges
 const BOX = '[data-testid="tapes"]';
@@ -99,6 +99,8 @@ export async function tapFixCaptures(form, { browser, contextOptions, openPage, 
   await sleep(100);
   await snap(page, form, 'tapes-en-cours');
   await press(page, page.locator('[data-testid="tapes-fini"]'));
+  // The wait while the passage and the rest of the piece are computed (short with the demo's stand-in analyser).
+  if (await page.waitForSelector(`${BOX}[data-etape="computing"]`, { timeout: 1500 }).then(() => true, () => false)) await snap(page, form, 'tapes-calcul');
   await waitStep('check');
   await snap(page, form, 'tapes-verification');
 

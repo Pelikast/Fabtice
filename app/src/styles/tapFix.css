@@ -32,6 +32,8 @@
 }
 .tapes .fermer { flex: none; margin: -6px -10px 0 0; }
 .tapes-texte { margin: 0 0 14px; color: var(--encre-douce); line-height: 1.45; }
+.tapes-texte + .tapes-lecture { margin-top: -6px; }
+.tapes-lecture { margin: 0 0 14px; padding-left: 12px; border-left: 2px solid var(--trait); font-size: 13.5px; line-height: 1.4; color: var(--encre-douce); }
 .tapes-champ { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 4px; }
 .tapes-champ label { font-weight: 500; }
 .tapes-champ input {

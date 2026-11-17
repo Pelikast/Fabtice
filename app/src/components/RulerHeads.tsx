@@ -6,6 +6,7 @@ import { selectHasChords, selectHasMarkers } from '../store/chartSelectors';
 import { useApp } from '../store/store';
 import { rulerRows } from '../timeline/layout';
 import { ChevronIcon } from '../ui/icons';
+import { usePhoneLayout } from '../util/media';
 import { useOutsideClose } from '../ui/useOutsideClose';
 import { GridPanel } from './GridPanel';
 
@@ -19,12 +20,14 @@ export function RulerHeads() {
   const markersOpen = useApp((s) => s.ui.panel === 'markers');
   const variable = useApp((s) => s.tempoMap.segments.length > 1);
   const hasProject = useApp((s) => s.project !== null);
+  // The phone's head column is 92 px wide: a decimal would cut the label (« TEMPO · ≈ 11… »), the whole number fits.
+  const phone = usePhoneLayout();
   const buttonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const refs = useRef([buttonRef, panelRef]).current;
   useOutsideClose(open, refs, useCallback(() => closePanel(), []));
 
-  const label = known && bpm !== null ? t(variable ? 'ruler.tempoApprox' : 'ruler.tempoValue', { bpm: formatNumber(bpm, 1) }) : t('ruler.tempoUnset');
+  const label = known && bpm !== null ? t(variable ? 'ruler.tempoApprox' : 'ruler.tempoValue', { bpm: formatNumber(bpm, phone ? 0 : 1) }) : t('ruler.tempoUnset');
   return (
     <div className="regle-tetes">
       {rulerRows({ hasChords, hasMarkers }).map((row) => {

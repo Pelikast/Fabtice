@@ -17,23 +17,25 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { useStore } from 'zustand';
-import { commitTappedFix, previewTappedFix, tapNow, type TapFixRefusal, type TappedPreview } from '../analysis/tapFix';
+import { commitTappedFix, discardTappedPreview, previewTappedFix, showTappedPreview, tapNow, type TapFixRefusal, type TappedPreview } from '../analysis/tapFix';
 import { useAnalysisProgress } from '../analysis/progress';
+import { cancelAnalysis } from '../analysis/runner';
 import { getEngine } from '../audio';
 import { formatBarNumber } from '../grid/format';
-import { TAP_COUNT_IN, clampTapCountIn, recordTap } from '../grid/tapFixPlan';
+import { TAP_COUNT_IN, clampTapCountIn, recordTap, tapsFromBar, tapsWindowStart } from '../grid/tapFixPlan';
 import { t, type MessageKey } from '../i18n';
-import { useApp } from '../store/store';
+import { appStore, useApp } from '../store/store';
 import { closeTapFix, tapFixDialog } from '../ui/barDialogs';
 import { onFrame } from '../ui/frameLoop';
 import { CloseIcon } from '../ui/icons';
-import { discardPreview, restoreEngineSettings, showPreview, startTapping, startVerifying, stopPlaying } from '../ui/tapFixSession';
+import { restoreEngineSettings, startTapping, startVerifying, stopPlaying } from '../ui/tapFixSession';
+import { tapsReadingText } from '../ui/tapFixReading';
 import { usePhoneLayout } from '../util/media';
 import '../styles/tapFix.css';
 
 type Step = 'prepare' | 'tapping' | 'computing' | 'check' | 'refused' | 'committing';
 
-const REFUSALS: readonly string[] = ['tooFewTaps', 'notABar', 'noAnalysis', 'failed'] satisfies TapFixRefusal[];
+const REFUSALS: readonly string[] = ['tooFewTaps', 'notABar', 'noAnalysis', 'irregular', 'failed'] satisfies TapFixRefusal[];
 
 /** The sentence for a refusal; an unknown code gets the general one. */
 export function refusalText(code: string): string {
@@ -68,6 +70,8 @@ function TapFixBox({ bar }: { bar: number }) {
   const stepRef = useRef<Step>('prepare');
   const tapsRef = useRef<readonly number[]>([]);
   const barTimeRef = useRef(0);
+  /** The earliest tap kept: two bars before the chosen one. */
+  const earliestRef = useRef(0);
   const countInRef = useRef<number>(TAP_COUNT_IN.default);
   const previewRef = useRef<TappedPreview | null>(null);
   const stopAtRef = useRef(0);
@@ -83,8 +87,10 @@ function TapFixBox({ bar }: { bar: number }) {
     aliveRef.current = true;
     return () => {
       aliveRef.current = false;
+      // Closed while the passage is being computed: the work is given up.
+      if (stepRef.current === 'computing') cancelAnalysis();
       stopPlaying();
-      discardPreview();
+      discardTappedPreview();
       restoreEngineSettings();
     };
   }, []);
@@ -113,12 +119,14 @@ function TapFixBox({ bar }: { bar: number }) {
 
   // ---- tapping
 
-  const tap = useCallback(() => {
+  // `at`: the event's time stamp, so that the time it waited before this handler ran is taken off the tap.
+  const tap = useCallback((at?: number) => {
     if (stepRef.current !== 'tapping') return;
-    const next = recordTap(tapsRef.current, tapNow(), barTimeRef.current);
+    const next = recordTap(tapsRef.current, tapNow(at), earliestRef.current);
     if (next === tapsRef.current) return;
     tapsRef.current = next;
-    setCount(next.length);
+    // Every tap pulses; the counter counts those from the chosen bar on (the earlier ones, along the count-in, only help the computation).
+    setCount(tapsFromBar(next, barTimeRef.current));
     setPulse((n) => n + 1);
   }, []);
 
@@ -140,7 +148,7 @@ function TapFixBox({ bar }: { bar: number }) {
       setStep('refused');
       return;
     }
-    showPreview(result);
+    showTappedPreview(result);
     previewRef.current = result;
     setPreview(result);
     setVerifying(false);
@@ -156,6 +164,7 @@ function TapFixBox({ bar }: { bar: number }) {
     setRefused(null);
     const plan = startTapping(bar, n);
     barTimeRef.current = plan.barTime;
+    earliestRef.current = tapsWindowStart(appStore.getState().tempoMap, bar);
     setPhase(plan.start >= plan.barTime && !plan.countIn ? 'go' : 'listen');
     setStep('tapping');
   };
@@ -168,7 +177,7 @@ function TapFixBox({ bar }: { bar: number }) {
       // Before the page, before the focused button (a button would « click » on keyup).
       e.preventDefault();
       e.stopPropagation();
-      if (e.type === 'keydown' && !e.repeat) tap();
+      if (e.type === 'keydown' && !e.repeat) tap(e.timeStamp);
     };
     window.addEventListener('keydown', onKey, true);
     window.addEventListener('keyup', onKey, true);
@@ -239,7 +248,7 @@ function TapFixBox({ bar }: { bar: number }) {
 
   const retry = () => {
     stopPlaying();
-    discardPreview();
+    discardTappedPreview();
     restoreEngineSettings();
     previewRef.current = null;
     setPreview(null);
@@ -252,13 +261,15 @@ function TapFixBox({ bar }: { bar: number }) {
     const p = previewRef.current;
     if (!p) return;
     stopPlaying();
-    // The grid in force first, so that what is analysed again starts from it (and `commitTappedFix` has nothing left to give back).
-    discardPreview();
     setVerifying(false);
     setStep('committing');
     const started = Date.now();
     try {
+      // The preview is still shown: the commit gives the grid in force back itself, then stores what was heard.
       await commitTappedFix(p);
+      // It is ignored when the grid changed since the preview: then nothing was kept, and it is said.
+      const kept = appStore.getState().corrections.tempoFixes.some((f) => f.kind === 'tapped' && Math.abs(f.time - p.from) < 1e-3);
+      if (!kept) throw new Error('not kept');
       // A work that ends at once must not make the window blink: the wait stays a moment, so that it is read.
       const rest = COMMIT_MIN_MS - (Date.now() - started);
       if (rest > 0) await new Promise((resolve) => window.setTimeout(resolve, rest));
@@ -277,6 +288,7 @@ function TapFixBox({ bar }: { bar: number }) {
   const waiting = step === 'computing' || step === 'committing';
   const tapsText = count === 0 ? t('tapFix.taps.none') : count === 1 ? t('tapFix.taps.one') : t('tapFix.taps.many', { n: count });
   const share = running ? fraction : 0;
+  const readingLine = preview ? tapsReadingText(preview.reading) : null;
 
   return (
     <div
@@ -337,7 +349,7 @@ function TapFixBox({ bar }: { bar: number }) {
         <>
           <div className="tapes-zone" data-testid="tapes-zone" data-phase={phase} onPointerDown={(e) => {
             e.preventDefault();
-            tap();
+            tap(e.timeStamp);
           }}>
             <span key={pulse} className={`tapes-pouls${pulse > 0 ? ' bat' : ''}`} aria-hidden="true" />
             <span className="tapes-consigne-vive" role="status" aria-live="polite" data-testid="tapes-phase">
@@ -359,9 +371,9 @@ function TapFixBox({ bar }: { bar: number }) {
         <div className="import-etat tapes-attente" role="status" aria-live="polite" data-testid="tapes-attente">
           <div className="phase">
             <span>{step === 'computing' ? t('tapFix.computing') : t('tapFix.committing')}</span>
-            {step === 'committing' && <span data-testid="tapes-pourcentage">{t('import.percent', { n: Math.round(share * 100) })}</span>}
+            {step === 'computing' && running && <span data-testid="tapes-pourcentage">{t('import.percent', { n: Math.round(share * 100) })}</span>}
           </div>
-          <div className={`jauge${step === 'computing' || !running ? ' indeterminee' : ''}`} style={{ '--avance': share } as CSSProperties}>
+          <div className={`jauge${step === 'committing' || !running ? ' indeterminee' : ''}`} style={{ '--avance': share } as CSSProperties}>
             <span />
           </div>
         </div>
@@ -370,6 +382,11 @@ function TapFixBox({ bar }: { bar: number }) {
       {step === 'check' && (
         <>
           <p className="tapes-texte">{t('tapFix.checkIntro')}</p>
+          {readingLine && (
+            <p className="tapes-lecture" data-testid="tapes-lecture">
+              {readingLine}
+            </p>
+          )}
           <button className={`bouton-cadre tapes-ecoute${verifying ? ' actif' : ''}`} data-premier data-testid="tapes-verifier" aria-pressed={verifying} onClick={toggleVerify}>
             {verifying ? t('tapFix.stopListening') : t('tapFix.verify')}
           </button>
