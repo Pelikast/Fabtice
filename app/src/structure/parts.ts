@@ -74,30 +74,49 @@ export function leadFromStems(stems: Partial<Record<StemId, Float32Array>>, n: n
   const ids = LEAD_STEMS.filter((s) => stems[s] && stems[s]!.length === n);
   if (!ids.length) return null;
   const eps = 1e-5;
-  const ref = new Map<StemId, number>();
-  let loudest = 0;
+  // levels per bar
+  const lv = new Map<StemId, Float64Array>();
   for (const s of ids) {
     const v = stems[s]!;
-    const sorted = Array.from(v).sort((a, b) => a - b);
+    lv.set(s, Float64Array.from(v));
+  }
+  const ref = new Map<StemId, number>();
+  const intermittent = new Set<StemId>();
+  let loudest = 0;
+  for (const s of ids) {
+    const sorted = Array.from(lv.get(s)!).sort((a, b) => a - b);
     const q90 = sorted[Math.floor(0.9 * (sorted.length - 1))] ?? 0;
     loudest = Math.max(loudest, q90);
     const active = sorted.filter((x) => x > 0.3 * q90);
-    ref.set(s, Math.max(eps, median(active.length ? active : sorted)));
+    const r = Math.max(eps, median(active.length ? active : sorted));
+    // a track silent much of the time (a voice, a horn) leads when it plays; one always there (a comping piano) when it stands out
+    if (!RHYTHM_STEMS.has(s) && sorted.filter((x) => x > 0.25 * r).length < INTERMITTENT * n) {
+      intermittent.add(s);
+      ref.set(s, r);
+    } else {
+      // its usual level is its comping level: a low quantile (its solo may last half the piece)
+      const base = active.length ? active : sorted;
+      ref.set(s, Math.max(eps, base[Math.floor(0.25 * (base.length - 1))]!));
+    }
   }
   const silent = 0.02 * loudest;
   const labels: Lead[] = [...ids, 'none'];
   const cost: Float64Array[] = [];
   for (let i = 0; i < n; i++) {
-    const present = ids.map((s) => stems[s]![i]!).filter((x) => x > silent);
+    const present = ids.map((s) => lv.get(s)![i]!).filter((x) => x > silent);
     const band = Math.max(eps, present.length ? median(present) : silent);
     const scores = ids.map((s) => {
-      const l = stems[s]![i]! + eps;
+      const l = lv.get(s)![i]! + eps;
       if (l <= silent) return -3;
       const own = Math.log(l / ref.get(s)!);
-      const above = Math.log(l / band);
-      const sc = own + above;
-      // bass and drums always play: they lead only well above their usual level
-      if (RHYTHM_STEMS.has(s)) return own >= 0.4 ? sc - 0.3 : Math.min(sc, LEAD_FLOOR - 0.5);
+      if (intermittent.has(s)) return l > 0.25 * ref.get(s)! ? PRESENT_LEAD + 0.5 * Math.min(0, own) : -2;
+      const sc = own + Math.log(l / band);
+      // bass and drums always play: they lead only well above their usual level, the band stepping back (a fill is not a solo)
+      if (RHYTHM_STEMS.has(s)) {
+        const others = ids.filter((x) => x !== s && !intermittent.has(x)).map((x) => lv.get(x)![i]! / ref.get(x)!);
+        const bandBack = others.length === 0 || median(others) < 0.75;
+        return own >= 0.4 && bandBack ? sc - 0.3 : Math.min(sc, LEAD_FLOOR - 0.5);
+      }
       return sc;
     });
     scores.push(LEAD_FLOOR);
@@ -108,6 +127,11 @@ export function leadFromStems(stems: Partial<Record<StemId, Float32Array>>, n: n
   }
   return { labels, cost };
 }
+
+/** A track heard in fewer bars than this share is « intermittent » (it plays when it leads). */
+const INTERMITTENT = 0.8;
+/** The score of an intermittent track that plays: above a comping track at its usual level, below one that clearly stands out. */
+const PRESENT_LEAD = 1.3;
 
 /**
  * Who leads each bar without separation: the timbre of the mix cut into
@@ -426,26 +450,32 @@ export function melodyRecurrence(input: PartsInput, lead: Lead): Float64Array | 
       if (ib === ia || b.letter !== a.letter) return;
       const len = Math.min(a.end - a.first, b.end - b.first);
       const shift = transpose(b) - transpose(a);
-      let same = 0;
-      let both = 0;
-      for (let k = 0; k < len * S; k++) {
-        const x = track[(a.first * S) + k];
-        const y = track[(b.first * S) + k];
-        if (x === undefined || y === undefined || x === NO_PITCH || y === NO_PITCH) continue;
-        both++;
-        if ((x - y + shift + 120) % 12 === 0) same++;
+      // a beat early or late tolerated (the grid of the analysis is not exact), at a small cost
+      for (let d = -MELODY_DRIFT; d <= MELODY_DRIFT; d++) {
+        let same = 0;
+        let both = 0;
+        for (let k = 0; k < len * S; k++) {
+          const x = track[a.first * S + k];
+          const y = track[b.first * S + k + d];
+          if (x === undefined || y === undefined || x === NO_PITCH || y === NO_PITCH) continue;
+          both++;
+          if ((x - y + shift + 120) % 12 === 0) same++;
+        }
+        if (both < 0.25 * len * S) continue;
+        const v = same / both - 0.02 * Math.abs(d);
+        if (!(v <= best)) best = v;
       }
-      if (both < 0.25 * len * S) return;
-      const v = same / both;
-      if (!(v <= best)) best = v;
     });
     out[ia] = best;
   });
   return out;
 }
 
-/** A section whose melody recurs this well is the theme (chance is about 0.2 for a solo over the same chords). */
-const THEME_RECURRENCE = 0.45;
+/** Slots of drift tried when comparing two melodies (2 slots: a beat of a 4/4 bar). */
+const MELODY_DRIFT = 2;
+
+/** A chorus whose sections' melody recurs this well on average is the theme (a solo over the same chords: about 0.15). */
+const THEME_RECURRENCE = 0.35;
 
 /**
  * The stretches the « Autres » track leads, cut at chorus starts: where the
@@ -524,16 +554,10 @@ export function jazzParts(input: PartsInput): BarPart[] {
     let k = 0;
     while (k < choruses.length && choruses[k]!.end <= head.end + 1 && chorusRec(k) >= THEME_RECURRENCE) k++;
     themeEnd = k > 0 ? Math.min(head.end, choruses[k - 1]!.end) : Math.min(head.end, choruses[Math.min(choruses.length, headChoruses) - 1]!.end);
-    // closing theme: the trailing sections of the last stretch, by the head lead, whose melody recurs
+    // closing theme: as without the melody (an out-head is often shortened or varied: its melody is not asked to recur)
     if (st.length > 1 && last.lead === head.lead && sameSoloist(last.instrument, head.instrument) && last.end >= formEnd - 1) {
-      let first: number | null = null;
-      for (let i = secs.length - 1; i >= 0; i--) {
-        const x = secs[i]!;
-        if (x.first < Math.max(last.first, themeEnd)) break;
-        if (recOf(i) >= THEME_RECURRENCE) first = x.first;
-        else break;
-      }
-      if (first !== null && formEnd - first >= 4) closingFirst = first;
+      const first = Math.max(last.first, formEnd - (themeEnd - formFirst), themeEnd);
+      if (formEnd - first >= 4) closingFirst = first;
     }
   } else {
     // opening theme: the first lead, for one chorus (two for a short form) unless it stops earlier

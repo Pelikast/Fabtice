@@ -40,6 +40,13 @@ export function readAnalysis(id: string, condition: string): DetectedAnalysis | 
   return existsSync(f) ? (JSON.parse(readFileSync(f, 'utf8')) as DetectedAnalysis) : null;
 }
 
+/** The evidence measured again on the renders (the app's `structure/evidence.ts`), keeping the analysis: no network runs. */
+export function remeasure(a: DetectedAnalysis, mixPath: string, stemPaths: Partial<Record<StemId, string>>): DetectedAnalysis {
+  const full: DetectedAnalysis = { ...a, evidence: measureEvidence(barsFromAnalysis(a), mixPath, stemPaths) };
+  writeFileSync(analysisPath(a.id, a.condition), JSON.stringify(full) + '\n');
+  return full;
+}
+
 const r3 = (x: number) => Math.round(x * 1000) / 1000;
 
 export async function analyse(id: string, title: string, condition: string, mixPath: string, stemPaths: Partial<Record<StemId, string>>, timeScale: number): Promise<DetectedAnalysis> {

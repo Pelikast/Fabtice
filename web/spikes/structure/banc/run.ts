@@ -5,6 +5,7 @@
 //   node dist/run.mjs                              # every piece with an analysis (analyses/) or a render (data/)
 //   node dist/run.mjs --only autumn-leaves --conditions disque
 //   node dist/run.mjs --analyse                    # run the app's analysis again on the renders (slow)
+//   node dist/run.mjs --measure                    # measure the evidence again on the renders (app's evidence.ts), keep the analysis
 //   node dist/run.mjs --evidence stems,mix,none --known false,true --out resultats
 //
 // Writes resultats/rendu.md (and rendu.json: the counts). With no audio in
@@ -19,7 +20,7 @@ import { addCounts, emptyCounts, sameFamily } from '../../../../app/src/structur
 import { markdownReport, runInput, type Row } from '../../../../app/src/structure/bench/run';
 import { oracleDetectors } from '../../../../app/src/structure/bench/oracle';
 import type { EvidenceKind } from '../../../../app/src/structure/bench/simEvidence';
-import { analyse, readAnalysis, type DetectedAnalysis } from './analyse';
+import { analyse, readAnalysis, remeasure, type DetectedAnalysis } from './analyse';
 import { barsFromAnalysis, harmonyInput } from './adapter';
 import { CORPUS, ROOT, VERITES } from './paths';
 
@@ -87,6 +88,13 @@ async function main(): Promise<void> {
         for (const s of info.stems) stems[s as StemId] = join(dir, condition, `${s}.flac`);
         process.stderr.write(`analyse ${piece.id} ${condition}…\n`);
         a = await analyse(piece.id, piece.title, condition, join(dir, condition, 'mix.flac'), stems, info.conditions[condition]!.timeScale);
+      }
+      if (opt.measure && rendered) {
+        const info = JSON.parse(readFileSync(join(dir, 'rendu.json'), 'utf8')) as { stems: string[] };
+        const stems: Partial<Record<StemId, string>> = {};
+        for (const s of info.stems) stems[s as StemId] = join(dir, condition, `${s}.flac`);
+        process.stderr.write(`mesure ${piece.id} ${condition}…\n`);
+        a = remeasure(a, join(dir, condition, 'mix.flac'), stems);
       }
       const q = analysisQuality(piece, a);
       const qa = quality.get(condition) ?? { chords: [0, 0], downbeats: [0, 0], pieces: 0 };
