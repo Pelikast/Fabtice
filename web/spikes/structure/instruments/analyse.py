@@ -17,6 +17,10 @@ import numpy as np
 WINDS = ["trumpet", "trombone", "saxophone", "clarinet", "flute"]
 OTHERS = ["piano", "guitar", "vibraphone", "violin", "organ", "voice"]
 NAMED = WINDS + OTHERS
+# The non-winds the recogniser may name. Piano, guitar and voice compete (they are often what
+# plays) but are never named here: they have separated tracks of their own, and under the
+# « vieux disque » chain guitar and voice are read as piano (bench, synthetic leads).
+NAMEABLE_OTHERS = ["vibraphone", "violin", "organ"]
 SHORT = {"trumpet": "tpt", "trombone": "tbn", "saxophone": "sax", "clarinet": "cla", "flute": "flu", "piano": "pia",
          "guitar": "gui", "vibraphone": "vib", "violin": "vln", "organ": "org", "voice": "voi", "winds": "VENTS",
          None: "rien"}
@@ -46,7 +50,7 @@ def decide(g, groups, rule=RULE):
     wind_ev = max(max(s[k] for k in WINDS), s["brass"], s["woodwind"])
     if top in WINDS:
         return (top, margin) if sure and margin >= rule["threshold"] else ("winds", margin)
-    if sure and margin >= rule["other_threshold"]:
+    if top in NAMEABLE_OTHERS and sure and margin >= rule["other_threshold"]:
         return top, margin
     if wind_ev >= rule["winds_family"] and wind_ev >= 0.5 * named[i]:
         return "winds", margin
