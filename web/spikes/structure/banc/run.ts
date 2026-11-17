@@ -17,6 +17,7 @@ import type { StemId } from '../../../../app/src/model/separation';
 import { beatTime, chordOf, type TruthPiece } from '../../../../app/src/structure/bench/cases';
 import { addCounts, emptyCounts, sameFamily } from '../../../../app/src/structure/bench/score';
 import { markdownReport, runInput, type Row } from '../../../../app/src/structure/bench/run';
+import { oracleDetectors } from '../../../../app/src/structure/bench/oracle';
 import type { EvidenceKind } from '../../../../app/src/structure/bench/simEvidence';
 import { analyse, readAnalysis, type DetectedAnalysis } from './analyse';
 import { barsFromAnalysis, harmonyInput } from './adapter';
@@ -104,7 +105,7 @@ async function main(): Promise<void> {
             row = { label: `${condition} / ${ev} / ${known ? 'grille connue' : 'sans grille'}`, level: condition, evidence: kind, known, cases: 0, counts: emptyCounts(), ms: 0, runs: [] };
             rows.set(key, row);
           }
-          const r = runInput(piece, harmonyInput(piece, a, a.evidence, kind, known));
+          const r = runInput(piece, harmonyInput(piece, a, a.evidence, kind, known), opt.oracle ? oracleDetectors(piece) : undefined);
           addCounts(row.counts, r.counts);
           row.ms += r.ms;
           row.cases++;
@@ -130,9 +131,9 @@ async function main(): Promise<void> {
     skipped.length ? `Sans analyse ni rendu (ignorés) : ${skipped.join(', ')}.\n` : '',
   ];
   const report = `${head.join('\n')}\n${markdownReport(list, 'Tier R')}\n`;
-  mkdirSync(outDir, { recursive: true });
-  writeFileSync(join(outDir, 'rendu.md'), report);
-  writeFileSync(join(outDir, 'rendu.json'), JSON.stringify(list.map((r) => ({ label: r.label, cases: r.cases, counts: r.counts })), null, 1) + '\n');
+  const base = opt.oracle ? 'rendu-oracle' : 'rendu';
+  writeFileSync(join(outDir, `${base}.md`), report);
+  writeFileSync(join(outDir, `${base}.json`), JSON.stringify(list.map((r) => ({ label: r.label, cases: r.cases, counts: r.counts })), null, 1) + '\n');
   process.stdout.write(report);
 }
 
