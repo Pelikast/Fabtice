@@ -142,6 +142,40 @@ jobs:
           echo "######## Intel"
           ci/inspect-app.sh "$RUNNER_TEMP/x64/Fabtice.app"
 
+      # The two .dmg files are what people download and open: each one is mounted
+      # read-only and its app inspected like the zips' (inspect-app.sh only reads the
+      # bundle, it never runs it: the Intel app is fine on this Mac), then required:
+      # Fabtice.app present, a valid signature, this version, the chip of the file.
+      # The volume is detached in every case. Required.
+      - name: Inspect the two dmg files (mounted read-only)
+        id: inspect-dmg
+        run: |
+          source "$GITHUB_WORKSPACE/desktop/ci/log-step.sh" 07b-inspect-dmg
+          VERSION=$(node -p "require('./package.json').version")
+          MOUNTED=""
+          trap '[ -z "$MOUNTED" ] || hdiutil detach "$MOUNTED" -force || true' EXIT
+          for pair in apple-silicon:arm64 intel:x86_64; do
+            name="${pair%%:*}"; arch="${pair##*:}"
+            dmg="dist/Fabtice-mac-$name.dmg"
+            mnt="$RUNNER_TEMP/dmg-$name"
+            echo "######## $dmg"
+            mkdir -p "$mnt"
+            hdiutil attach -nobrowse -readonly -noautoopen -mountpoint "$mnt" "$dmg"
+            MOUNTED="$mnt"
+            ls -la "$mnt"
+            app="$mnt/Fabtice.app"
+            if [ ! -d "$app" ]; then echo "ERREUR : pas de Fabtice.app dans $dmg"; exit 1; fi
+            ci/inspect-app.sh "$app"
+            if ! codesign --verify --deep --strict "$app"; then echo "ERREUR : la signature de Fabtice.app ne tient pas dans $dmg"; exit 1; fi
+            got=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Contents/Info.plist")
+            if [ "$got" != "$VERSION" ]; then echo "ERREUR : $dmg contient la version $got, pas $VERSION"; exit 1; fi
+            archs=$(lipo -archs "$app/Contents/MacOS/Fabtice")
+            if [ "$archs" != "$arch" ]; then echo "ERREUR : $dmg contient une app pour « $archs », pas « $arch »"; exit 1; fi
+            echo "$dmg : Fabtice.app $got, $archs, signature valide"
+            hdiutil detach "$mnt"
+            MOUNTED=""
+          done
+
       - name: End-to-end test (stub yt-dlp, packaged app, arm64)
         id: e2e
         run: |

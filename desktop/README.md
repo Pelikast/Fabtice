@@ -747,8 +747,10 @@ fabrique rien), et à la main (« Run workflow ») sur n’importe quelle branch
    `build:desktop` dans `app/`), puis les tests unitaires de l’app Mac.
 3. **Les deux apps** construites sur un Mac à puce Apple : `.dmg` (ce qu’on
    télécharge) et `.zip` (ce que télécharge la mise à jour automatique), puis
-   essayées : bout en bout avec le faux yt-dlp, essai complet de la mise à
-   jour… L’app Intel est essayée ensuite sur un Mac Intel (tâche `intel`).
+   essayées : chaque `.dmg` monté en lecture seule et son app inspectée
+   (présente, signature valide, bon numéro, bonne puce ; journal
+   `07b-inspect-dmg`), bout en bout avec le faux yt-dlp, essai complet de la
+   mise à jour… L’app Intel est essayée ensuite sur un Mac Intel (tâche `intel`).
 4. **Publication** (tâche `publish`), seulement sur `main` et seulement si
    les deux puces sont vertes, avec les fichiers fabriqués à l’étape 3, par
    `ci/publish-release.js` :
