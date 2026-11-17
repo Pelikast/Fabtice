@@ -28,12 +28,25 @@ export interface KeyPassage {
   confidence: number | null;
 }
 
-let memo: { analysis: KeySlice['analysis']; key: KeySlice['corrections']['key']; changes: KeySlice['corrections']['keyChanges']; value: KeyPassage[] } | null = null;
+type Analysis = NonNullable<KeySlice['analysis']>;
+let memo: {
+  analysedKey: Analysis['key'] | undefined;
+  analysedChanges: Analysis['keyChanges'] | undefined;
+  key: KeySlice['corrections']['key'];
+  changes: KeySlice['corrections']['keyChanges'];
+  value: KeyPassage[];
+} | null = null;
 
-/** Every passage in force, ascending, the first one from 0 (memoised on what it reads, for React selectors). */
+/**
+ * Every passage in force, ascending, the first one from 0 (memoised on what it reads, for React
+ * selectors: the analysed key and modulations, not the whole result, so that a refresh of the
+ * structure alone keeps the same passages).
+ */
 export function keyPassages(s: KeySlice): KeyPassage[] {
   const { analysis, corrections } = s;
-  if (memo && memo.analysis === analysis && memo.key === corrections.key && memo.changes === corrections.keyChanges) return memo.value;
+  if (memo && memo.analysedKey === analysis?.key && memo.analysedChanges === analysis?.keyChanges && memo.key === corrections.key && memo.changes === corrections.keyChanges) {
+    return memo.value;
+  }
   const main = keyInForce(s);
   const first: KeyPassage = { time: 0, key: main.key, origin: main.origin, confidence: main.confidence };
   const later: KeyPassage[] =
@@ -41,7 +54,7 @@ export function keyPassages(s: KeySlice): KeyPassage[] {
       ? corrections.keyChanges.map((c) => ({ time: c.time, key: c.key, origin: 'manual', confidence: null }))
       : (analysis?.keyChanges ?? []).map((c) => ({ time: c.time, key: c.key, origin: 'analysis', confidence: c.key.confidence }));
   const value = [first, ...later];
-  memo = { analysis, key: corrections.key, changes: corrections.keyChanges, value };
+  memo = { analysedKey: analysis?.key, analysedChanges: analysis?.keyChanges, key: corrections.key, changes: corrections.keyChanges, value };
   return value;
 }
 
@@ -61,9 +74,13 @@ export function keyAt(s: KeySlice, time: Seconds): Key | null {
   return keyPassageAt(s, time).key;
 }
 
-/** The later passages in force (modulations) as plain changes: what a hand edit starts from. */
+let changesMemo: { passages: KeyPassage[]; value: KeyChange[] } | null = null;
+
+/** The later passages in force (modulations) as plain changes: what a hand edit starts from (memoised on the passages). */
 export function keyChangesInForce(s: KeySlice): KeyChange[] {
-  return keyPassages(s)
-    .slice(1)
-    .map((p) => ({ time: p.time, key: { tonic: p.key!.tonic, mode: p.key!.mode } }));
+  const passages = keyPassages(s);
+  if (changesMemo && changesMemo.passages === passages) return changesMemo.value;
+  const value = passages.slice(1).map((p) => ({ time: p.time, key: { tonic: p.key!.tonic, mode: p.key!.mode } }));
+  changesMemo = { passages, value };
+  return value;
 }

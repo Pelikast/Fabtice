@@ -18,7 +18,7 @@ import { ChordPartsView, ChordSymbol, withAccidentals } from '../harmony/ChordSy
 import { formatBarNumber } from '../grid/format';
 import { t, type MessageKey } from '../i18n';
 import type { ChordExtension, ChordQuality, PitchClass } from '../model/harmony';
-import { selectChartBars, selectDisplayContext } from '../store/chartSelectors';
+import { selectBarContext, selectChartBars } from '../store/chartSelectors';
 import { confirmBar, mergeBar, moveChord, removeChord, replaceChord, replaceDisplayedChord, resetBar, setSection, splitBar, writeChordText } from '../store/harmonyActions';
 import { useApp } from '../store/store';
 import { entriesOf, hasBarEdit, movableBeats, SECTION_LABEL_MAX } from './edits';
@@ -50,7 +50,8 @@ export function ChordEditor({ state, dispatch, grid, scroller, onClose, onTyped 
   const field = useRef<HTMLInputElement>(null);
   const sectionField = useRef<HTMLInputElement>(null);
   const bars = useApp(selectChartBars);
-  const ctx = useApp(selectDisplayContext);
+  // C10: the bar is written in the key of its passage.
+  const ctx = useApp((s) => selectBarContext(s, target.bar));
   const edited = useApp((s) => hasBarEdit(s.corrections, s.tempoMap, target.bar));
   const bar = bars.find((b) => b.bar === target.bar);
   const chords = bar?.chords ?? [];

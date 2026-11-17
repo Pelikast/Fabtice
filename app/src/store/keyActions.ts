@@ -6,14 +6,19 @@
 //
 // The first edit copies the modulations in force (the analysed ones) into
 // `corrections.keyChanges`; from then on that list is the user's and a new
-// analysis does not change it (`store/keySelectors.ts`). Each command returns
-// false, and changes nothing, when it cannot apply.
+// analysis (or a refresh of the detected modulations, `structure/refresh.ts`)
+// does not change it (`store/keySelectors.ts`). A key changes on a bar line:
+// a time given to `addKeyChange` or `moveKeyChange` goes to the nearest bar
+// line of the grid in force (C10: a change of key in the middle of a bar,
+// never). Each command returns false, and changes nothing, when it cannot apply.
 
 import { sameKey } from '../harmony/key';
 import type { Key, KeyChange } from '../model/harmony';
 import type { Seconds } from '../model/project';
+import { sectionBar } from '../chart/layout';
+import { barStartTime } from '../grid/tempoMap';
 import { keyAt, keyChangesInForce } from './keySelectors';
-import { appStore } from './store';
+import { appStore, gridInForce } from './store';
 
 /** Two key changes closer than this are the same one (the times come from bar lines of the grid). */
 export const KEY_CHANGE_SAME: Seconds = 1e-3;
@@ -32,6 +37,12 @@ function edit(fn: (list: KeyChange[]) => KeyChange[] | null): boolean {
   return true;
 }
 
+/** The bar line nearest to `time` on the grid in force. */
+export function keyChangeLine(time: Seconds): Seconds {
+  const map = gridInForce(appStore.getState());
+  return barStartTime(map, sectionBar(map, time));
+}
+
 /** A time a modulation may be at: after 0, inside the piece. */
 function placeable(time: Seconds): boolean {
   const s = appStore.getState();
@@ -39,11 +50,13 @@ function placeable(time: Seconds): boolean {
 }
 
 /**
- * A modulation to `key` from `time` on. At the time of an existing one, it
+ * A modulation to `key` from the bar line nearest `near` on. At the time of an existing one, it
  * changes its key. Refused when the key is already the one in force there
  * (no modulation) or the time is not inside the piece.
  */
-export function addKeyChange(time: Seconds, key: Key): boolean {
+export function addKeyChange(near: Seconds, key: Key): boolean {
+  if (!placeable(near)) return false;
+  const time = keyChangeLine(near);
   if (!placeable(time)) return false;
   return edit((list) => {
     const i = at(list, time);
@@ -62,8 +75,10 @@ export function setKeyChangeKey(time: Seconds, key: Key): boolean {
   });
 }
 
-/** Moves the modulation at `from` to `to` (refused onto another one, or outside the piece). */
-export function moveKeyChange(from: Seconds, to: Seconds): boolean {
+/** Moves the modulation at `from` to the bar line nearest `toTime` (refused onto another one, or outside the piece). */
+export function moveKeyChange(from: Seconds, toTime: Seconds): boolean {
+  if (!placeable(toTime)) return false;
+  const to = keyChangeLine(toTime);
   if (!placeable(to)) return false;
   return edit((list) => {
     const i = at(list, from);

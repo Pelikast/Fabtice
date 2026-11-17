@@ -12,7 +12,7 @@ const part = (start: number, end: number) => ({ start, end });
 function bars(from = 0, to = LAST): ChartBar[] {
   const out: ChartBar[] = [];
   for (let bar = from; bar <= to; bar++) {
-    out.push({ bar, start: bar * 2, end: bar * 2 + 2, beats: 4, meter: { numerator: 4, denominator: 4 }, signature: null, chords: [], repeat: false, section: null, doubleBar: bar % 4 === 2 && bar > from });
+    out.push({ bar, start: bar * 2, end: bar * 2 + 2, beats: 4, meter: { numerator: 4, denominator: 4 }, signature: null, chords: [], repeat: false, section: null, doubleBar: bar % 4 === 2 && bar > from, keyChange: null });
   }
   return out;
 }

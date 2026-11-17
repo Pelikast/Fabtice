@@ -14,7 +14,7 @@ import { tempoFixBars } from '../components/TempoFixMenu';
 import { isMenuKey, openTempoMenu } from '../ui/tempoMenu';
 import { displayChordText, type DisplayContext } from '../harmony/display';
 import { t } from '../i18n';
-import { selectDisplayContext } from '../store/chartSelectors';
+import { selectBarContexts, selectDisplayContext } from '../store/chartSelectors';
 import { useApp } from '../store/store';
 import { ChordEditor } from './ChordEditor';
 import { CLOSED, reduceEditor, startsChordSymbol, type EditorFocus, type OpenedBy } from './editor';
@@ -30,6 +30,8 @@ const ARROWS: Record<string, StopMove> = { ArrowLeft: 'left', ArrowRight: 'right
 export function ChartGrid({ bars, scroller }: { bars: ChartBar[]; scroller: RefObject<HTMLElement | null> }) {
   const root = useRef<HTMLDivElement>(null);
   const ctx = useApp(selectDisplayContext);
+  // C10: each bar spelled in the key of its passage (the same map while nothing it reads changes).
+  const contexts = useApp(selectBarContexts);
   // As one string: a new object each time would re-render forever.
   const loopText = useApp((s) => loopKey(loopBars(s.tempoMap, s.loop.region, s.loop.enabled)));
   const loop = loopFromKey(loopText);
@@ -42,7 +44,7 @@ export function ChartGrid({ bars, scroller }: { bars: ChartBar[]; scroller: RefO
 
   usePlayheadBar(root);
   // The chords are written where their beat is; a long symbol makes its bar's chords smaller (fit.ts).
-  useFitChords(root, [bars, ctx]);
+  useFitChords(root, [bars, contexts]);
   const follow = useFollowLine(scroller, root);
 
   const focusStop = useCallback((stop: Stop) => {
@@ -128,7 +130,7 @@ export function ChartGrid({ bars, scroller }: { bars: ChartBar[]; scroller: RefO
             <BarCell
               key={b.bar}
               bar={b}
-              ctx={ctx}
+              ctx={contexts.get(b.bar) ?? ctx}
               looped={loopedPart(loop, b.bar)}
               final={b.bar === last}
               tempoFixed={fixed.has(b.bar)}

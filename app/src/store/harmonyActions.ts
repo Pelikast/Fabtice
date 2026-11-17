@@ -177,9 +177,13 @@ export function setInstrument(instrument: Instrument): void {
   set((s) => ({ view: { ...s.view, instrument } }));
 }
 
-/** Everything done by hand on the harmony goes (the user asked), modulations included; sections and structure stay. */
+/**
+ * Everything done by hand on the chords, the key and the tuning goes (the user asked). Stage 5: the
+ * modulations, the section letters and the structure stay — each has its own « Revenir à l'analyse »
+ * (`keyActions.ts#resetKeyChanges`, `structureActions.ts#resetStructure`, `resetSectionLetters`).
+ */
 export function resetHarmonyCorrections(): void {
-  edit((c) => ({ ...emptyCorrections(), sections: c.sections, structure: c.structure }));
+  edit((c) => ({ ...emptyCorrections(), sections: c.sections, structure: c.structure, keyChanges: c.keyChanges }));
 }
 
 // ---------------------------------------------------------------- helpers

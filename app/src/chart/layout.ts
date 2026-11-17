@@ -18,7 +18,7 @@ import { barBeatToBeat, barStartTime, barToBeat, beatToBar, beatToTime, meterAtB
 import { loopCoverage, type LoopCoverage } from '../grid/loops';
 import type { AnalysedChord } from '../model/analysis';
 import type { Corrections, SectionMark } from '../model/corrections';
-import type { ChordSymbol } from '../model/harmony';
+import type { ChordSymbol, Key, KeyChange } from '../model/harmony';
 import type { Seconds, TimeRange } from '../model/project';
 import type { Meter, TempoMap } from '../model/tempoMap';
 
@@ -111,6 +111,12 @@ export interface ChartBar {
   section: string | null;
   /** A double bar line before this bar: a section starts here and it is not the first bar of the chart. */
   doubleBar: boolean;
+  /**
+   * C10: a later key passage in force starts at this bar (the bar line nearest the change, as for a
+   * section): the new key, as stored (concert pitch, original key); null elsewhere. The chart, the
+   * ruler and the print write it above the bar; the bars from here on are spelled in it.
+   */
+  keyChange: Key | null;
 }
 
 export interface ChartInput {
@@ -119,6 +125,8 @@ export interface ChartInput {
   sections: readonly SectionMark[];
   /** Length of the piece: the chart goes to the bar that contains its end. */
   duration: Seconds;
+  /** C10: the modulations in force (`store/keySelectors.ts#keyChangesInForce`), ascending; none when absent. */
+  keyChanges?: readonly KeyChange[];
 }
 
 /** The bar a section mark belongs to: the bar line nearest to its time. */
@@ -132,7 +140,7 @@ export function sectionBar(map: TempoMap, time: Seconds): number {
  * chord or a section) to the bar containing the end of the piece (or the last
  * chord, if later).
  */
-export function chartBars({ map, chords, sections, duration }: ChartInput): ChartBar[] {
+export function chartBars({ map, chords, sections, duration, keyChanges = [] }: ChartInput): ChartBar[] {
   const byBar = new Map<number, BarChord[]>();
   let first = 0;
   let last = Math.max(0, timeToBar(map, Math.max(0, duration - 1e-6)).bar);
@@ -150,6 +158,9 @@ export function chartBars({ map, chords, sections, duration }: ChartInput): Char
     sectionAt.set(bar, s.label);
     first = Math.min(first, bar);
   }
+  // A modulation belongs to the bar line nearest to it (the last one wins when two land on the same bar).
+  const keyAt = new Map<number, Key>();
+  for (const k of keyChanges) keyAt.set(sectionBar(map, k.time), k.key);
   // The chord going on when the chart starts (a chord before the first bar shown cannot exist: `first` covers them).
   let going: ChordSymbol | null | undefined;
   const out: ChartBar[] = [];
@@ -172,6 +183,7 @@ export function chartBars({ map, chords, sections, duration }: ChartInput): Char
       repeat: own.length === 0 && going !== undefined && going !== null,
       section,
       doubleBar: section !== null && bar !== first,
+      keyChange: bar > first ? (keyAt.get(bar) ?? null) : null,
     });
     if (own.length) going = own[own.length - 1]!.chord;
   }

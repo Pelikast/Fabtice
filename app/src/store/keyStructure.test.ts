@@ -157,21 +157,28 @@ describe('key per passage', () => {
     applyAnalysis(result());
     addKeyChange(12, k(5));
     expect(keyAt(get(), 15)).toEqual(k(5));
+    // 35 s is inside bar 17 (34 → 36 s): a key changes on a bar line, the nearest one.
     moveKeyChange(12, 35);
-    expect(keyChangesInForce(get())).toEqual([{ time: 30, key: k(11) }, { time: 35, key: k(5) }]);
+    expect(keyChangesInForce(get())).toEqual([{ time: 30, key: k(11) }, { time: 34, key: k(5) }]);
+    addKeyChange(21.2, k(2));
+    expect(keyChangesInForce(get()).map((c) => c.time)).toEqual([22, 30, 34]);
   });
 
-  it('« start again from the analysis » and « reset the harmony » drop the hand modulations, not the structure', () => {
+  it('« start again from the analysis » and « reset the harmony » keep the hand modulations and the structure (they have their own resets)', () => {
     applyAnalysis(result());
     addKeyChange(20, k(7));
     setStructureMode('pop');
+    setKey(k(3));
     resetHarmonyCorrections();
-    expect(get().corrections.keyChanges).toBeNull();
+    expect(get().corrections.key).toBeNull();
+    expect(get().corrections.keyChanges).toEqual([{ time: 12, key: k(4) }, { time: 20, key: k(7) }, { time: 30, key: k(11) }]);
     expect(get().corrections.structure.mode).toBe('pop');
-    addKeyChange(20, k(7));
     applyAnalysis(result(), { replaceCorrections: true });
-    expect(get().corrections.keyChanges).toBeNull();
+    expect(get().corrections.keyChanges).toHaveLength(3);
     expect(get().corrections.structure.mode).toBe('pop');
+    resetKeyChanges();
+    expect(get().corrections.keyChanges).toBeNull();
+    expect(keyChangesInForce(get()).map((c) => c.time)).toEqual([12, 30]);
   });
 });
 

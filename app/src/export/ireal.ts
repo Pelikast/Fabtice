@@ -14,6 +14,8 @@
 // applied by `chartForExport`); iReal Pro transposes for instruments itself.
 
 import { chordParts } from '../harmony/chord';
+import { keyTonicName } from '../harmony/key';
+import { noteTextFr } from '../harmony/pitch';
 import { sameMeter } from '../grid/tempoMap';
 import { t } from '../i18n';
 import type { Key } from '../model/harmony';
@@ -156,6 +158,12 @@ function sectionToken(label: string): string {
   return `<${clean}>`;
 }
 
+/** « Ton : La♭ », « Ton : Fa mineur »: a modulation as a comment of the chart (no `<`, `>`, `*`, `=` in it). */
+export function keyChangeComment(key: Key): string {
+  const tonic = noteTextFr(keyTonicName(key));
+  return t('export.ireal.keyChange', { key: key.mode === 'minor' ? `${tonic} ${t('export.ireal.minor')}` : tonic }).replace(/[<>*=]/g, '');
+}
+
 /** Cells of one bar: `beats` tokens, one per beat. */
 function barCells(bar: ExportBar, beats: number, ctx: BarContext): string[] {
   const cells: string[] = new Array<string>(beats).fill(' ');
@@ -221,6 +229,9 @@ export function iRealMusic(chart: ExportChart): string {
     out += signature ? iRealMeterToken(target.meter) : '';
     out += signature && !target.exact ? `<${m.numerator}/${m.denominator}>` : '';
     out += section.startsWith('<') ? section : '';
+    // C10: one key per chart in iReal Pro; a later passage is written as a comment on its bar, and its chords in its key.
+    if (bar.keyChange) out += `<${keyChangeComment(bar.keyChange)}>`;
+    ctx.key = bar.key === undefined ? chart.key : bar.key;
     const cells = barCells(bar, beats, ctx);
     out += joinCells(cells);
     // What goes on into the next bar.

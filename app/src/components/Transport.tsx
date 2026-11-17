@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { getEngine } from '../audio';
 import { formatClock, formatPosition, formatSigned } from '../grid/format';
 import { formatLoop } from '../grid/loopText';
@@ -18,7 +18,7 @@ import {
 } from '../store/actions';
 import { withAccidentals } from '../harmony/ChordSymbol';
 import { keyLabel, transposeKey } from '../harmony/key';
-import { keyInForce } from '../store/chartSelectors';
+import { keyPassages, type KeyPassage } from '../store/keySelectors';
 import { SEMITONES, TEMPO_RATIO, targetBpm } from '../store/derived';
 import { appStore, useApp } from '../store/store';
 import { useFrame } from '../ui/frameLoop';
@@ -202,7 +202,10 @@ function KeyControl() {
   useOutsideClose(open, refs, useCallback(() => closePanel(), []));
 
   // With a known key, as in the mockup: « A♭ · original », « A♭ → D♭ » (concert pitch, the instrument is the chart's business).
-  const key = useApp((s) => keyInForce(s).key);
+  // C10: the key of the place being played; the frame loop only re-renders when the playhead crosses a modulation.
+  const passages = useApp(keyPassages);
+  const passage = usePassageAtPlayhead(passages);
+  const key = passages[passage]?.key ?? passages[0]?.key ?? null;
   const minor = useApp((s) => s.settings.minorNotation);
   const keyDetail = key
     ? semitones === 0
@@ -226,7 +229,7 @@ function KeyControl() {
         onClick={() => togglePanel('tuning')}
       >
         <strong data-testid="ton">{formatSigned(semitones)}</strong>
-        <small>{withAccidentals(detail)}</small>
+        <small data-testid="ton-detail">{withAccidentals(detail)}</small>
       </button>
       <button className="pas" aria-label={t('key.up')} disabled={semitones >= SEMITONES.max} onClick={() => stepSemitones(1)}>
         +
@@ -234,6 +237,35 @@ function KeyControl() {
       {open && <TuningPanel ref={panelRef} />}
     </div>
   );
+}
+
+/** Index in `passages` of the passage at the playhead, followed on every frame (state changes only on a crossing). */
+function usePassageAtPlayhead(passages: readonly KeyPassage[]): number {
+  const [index, setIndex] = useState(() => passageIndexAt(passages, getEngine().getPosition()));
+  const current = useRef(index);
+  const list = useRef(passages);
+  list.current = passages;
+  useFrame(() => {
+    const i = passageIndexAt(list.current, getEngine().getPosition());
+    if (i === current.current) return;
+    current.current = i;
+    setIndex(i);
+  });
+  // Read again at each render too (a modulation added or moved under the playhead shows at once).
+  void index;
+  const now = passageIndexAt(passages, getEngine().getPosition());
+  current.current = now;
+  return now;
+}
+
+/** The passage heard at `time` (the first one before its start). */
+export function passageIndexAt(passages: readonly KeyPassage[], time: number): number {
+  let found = 0;
+  for (let i = 1; i < passages.length; i++) {
+    if (passages[i]!.time <= time + 1e-6) found = i;
+    else break;
+  }
+  return found;
 }
 
 function TempoControl() {

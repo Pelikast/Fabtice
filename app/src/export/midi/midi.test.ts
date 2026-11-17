@@ -165,6 +165,36 @@ describe('the MIDI file of a session, read back by an independent reader', () =>
     ]);
   });
 
+  it('C10: a detected modulation off its bar line gets its key signature and a marker on the nearest bar line', () => {
+    const map = constantTempoMap({ bpm: 120, firstDownbeat: 0, meter: { numerator: 4, denominator: 4 }, origin: 'manual' });
+    const analysis = demoAnalysis(map, 54);
+    // Bar 9 starts at 16 s; the change found at 16.3 s (a little late) belongs to it; back to the main key at bar 13 (24 s).
+    const detected = {
+      ...analysis,
+      key: { tonic: 10, mode: 'major' as const, confidence: 0.9, alternatives: [] },
+      keyChanges: [
+        { time: 16.3, key: { tonic: 8, mode: 'major' as const, confidence: 0.8, alternatives: [] } },
+        { time: 24, key: { tonic: 10, mode: 'major' as const, confidence: 0.8, alternatives: [] } },
+      ],
+    };
+    const session = buildSession(state(map, { analysis: detected, corrections: emptyCorrections() }, 54));
+    const file = sessionToMidi(session);
+    const r = read(file.bytes);
+    const keys = r.tracks[0]!.filter((e) => e.type === 'keySignature') as unknown as { tick: number; key: number; scale: number }[];
+    // B♭ (two flats), A♭ (four flats) from bar 9, B♭ again from bar 13.
+    expect(keys.map((k) => [k.tick / 960, k.key, k.scale])).toEqual([
+      [0, -2, 0],
+      [32, -4, 0],
+      [48, -2, 0],
+    ]);
+    const marks = file.markers.filter((m) => m.text.includes('Ton'));
+    expect(marks.map((m) => [m.tick / 960, m.text.replace(/^.*\(/, '(')])).toEqual([
+      [32, '(Ton : Ab)'],
+      [48, '(Ton : Bb)'],
+    ]);
+    expect(markerText({ section: 'B', chord: 'Em7', key: 'D' })).toBe('[B] Em7 (Ton : D)');
+  });
+
   it('markers: a part, a section and the chord at their places, a chord written again only when it changes', () => {
     const map = demoTempoMap('fixed');
     const base = state(map, { analysis: demoAnalysis(map, 54), corrections: demoCorrections(map) }, 54);

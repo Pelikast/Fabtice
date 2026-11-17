@@ -123,7 +123,7 @@ function PrintBar({ bar, chart, final }: { bar: ChartBar; chart: PrintChart; fin
       <span className="pp-numero">{formatBarNumber(bar.bar)}</span>
       {bar.chords.map((c, i) => (
         <span key={i} className="pp-accord" data-debut={c.beatInBar} data-rang={i % 2} style={{ '--debut': c.beatInBar / bar.beats } as CSSProperties}>
-          <ChordSymbol chord={c.chord} ctx={chart.ctx} />
+          <ChordSymbol chord={c.chord} ctx={chart.contexts.get(bar.bar) ?? chart.ctx} />
         </span>
       ))}
       {n === 0 && bar.repeat && (

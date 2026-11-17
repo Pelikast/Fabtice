@@ -14,7 +14,7 @@ import { keyLabel } from '../harmony/key';
 import { formatNumber, t } from '../i18n';
 import type { Instrument } from '../model/harmony';
 import type { Meter } from '../model/tempoMap';
-import { keyInForce, selectChartBars } from '../store/chartSelectors';
+import { barContextsOf, keyInForce, selectChartBars } from '../store/chartSelectors';
 import { isTempoKnown, shownBpm } from '../store/derived';
 import { useApp } from '../store/store';
 import { chartLines, type ChartBar, type ChartLine } from './layout';
@@ -29,7 +29,10 @@ export interface PrintChart {
   bpm: number | null;
   /** The lines of bars to print. */
   lines: ChartLine[];
+  /** The main key's context (the title row). */
   ctx: DisplayContext;
+  /** C10: each bar's context, by bar number (spelled in the key of its passage); `ctx` for a bar not in it. */
+  contexts: ReadonlyMap<number, DisplayContext>;
 }
 
 /** The lines to print. Today the full chart; a simplified chart or a section will be another list (C14). */
@@ -49,8 +52,10 @@ export function usePrintChart(instrument: Instrument): PrintChart | null {
   const bpm = useApp((s) => (isTempoKnown(s.tempoMap) ? shownBpm(s.tempoMap, nominalBpm(s.tempoMap, s.project?.duration), s.project?.duration) : null));
   return useMemo(() => {
     if (title === null) return null;
-    const ctx = displayContext(keyInForce({ analysis, corrections }).key, semitones, instrument, minor);
-    return { title, key: ctx.key ? keyLabel(ctx.key, minor) : null, meter, bpm, lines: printLines(bars), ctx };
+    const main = keyInForce({ analysis, corrections }).key;
+    const ctx = displayContext(main, semitones, instrument, minor);
+    const contexts = barContextsOf(bars, main, semitones, instrument, minor);
+    return { title, key: ctx.key ? keyLabel(ctx.key, minor) : null, meter, bpm, lines: printLines(bars), ctx, contexts };
   }, [title, bars, analysis, corrections, semitones, minor, meter, bpm, instrument]);
 }
 
