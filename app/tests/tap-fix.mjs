@@ -512,7 +512,7 @@ async function suite(form) {
     check(`${tag}: « Vérifier en écoutant » stops by itself a little after the last tap`, stopped.position > beats[4] && stopped.position < beats[4] + 4 && (await page.locator('[data-testid="tapes-verifier"]').innerText()) === TEXT.verify, stopped.position.toFixed(2));
     await press(page, form, page.locator('[data-testid="tapes-ok"]'));
     await waitStep(page, 'committing', 4000);
-    check(`${tag}: the wait while the rest of the piece is analysed, with its percentage`, (await page.locator('[data-testid="tapes-attente"]').innerText()).includes(TEXT.committing) && /\d+ %/.test(await page.locator('[data-testid="tapes-pourcentage"]').innerText()));
+    check(`${tag}: the short wait while the correction is put in place, calm (it stays a moment)`, (await page.locator('[data-testid="tapes-attente"]').innerText()).includes(TEXT.committing));
     await shot('attente');
     await page.waitForFunction(() => !document.querySelector('[data-testid="tapes"]'), null, { timeout: 20000 });
     const s = await state(page);

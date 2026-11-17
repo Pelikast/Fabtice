@@ -60,6 +60,7 @@
   line-height: 1.45;
 }
 .tapes-attente { margin: 8px 0 2px; }
+.tapes-attente .phase span:last-child { flex: none; white-space: nowrap; }
 .tapes-attente .jauge span { transition-duration: 0.4s; }
 
 /* While tapping: a calm pulse, what to do now, the count of taps. */
