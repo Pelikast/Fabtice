@@ -25,9 +25,9 @@ const meterText = (m: Meter) => `${m.numerator}/${m.denominator}`;
 /** What to do when Live says files are missing: the steps, as the end of the export says them too. */
 export function abletonMissingSteps(folder: string): string[] {
   return [
-    'Live affiche un message en bas de sa fenêtre (« … fichiers manquants », missing files) : cliquez dessus. Le gestionnaire de fichiers (File Manager) s’ouvre sur les fichiers manquants.',
-    `Choisissez la recherche dans un dossier (Search Folder / Set Folder), indiquez ce dossier-ci, « ${folder} », puis lancez la recherche (Go). Live retrouve les pistes par leur nom et leur taille.`,
-    'Enregistrez ensuite le Live Set (Fichier > Enregistrer le Live Set) : Live s’en souviendra.',
+    'Cliquez sur le message de Live qui annonce des fichiers manquants (missing files), en bas de sa fenêtre : le gestionnaire de fichiers (File Manager) s’ouvre.',
+    `Choisissez de chercher dans un dossier (Search Folder), indiquez ce dossier-ci, « ${folder} », puis lancez la recherche (Go) : Live retrouve les pistes par leur nom.`,
+    'Enregistrez le Live Set (Fichier > Enregistrer le Live Set) : Live s’en souviendra.',
   ];
 }
 

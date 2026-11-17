@@ -11,11 +11,11 @@ import { logicBarOfFirstBar } from '../export/logic';
 import { t } from '../i18n';
 import { SequencerExportBox, type SequencerExport } from './SequencerExportDialog';
 
-function TrialNotice() {
+function TrialNotice({ short = false }: { short?: boolean }) {
   return (
     <p className="avis-essai" data-testid="essai-ableton">
       <span className="pastille-essai">{t('exportAbleton.trial')}</span>
-      {t('exportAbleton.trialNote')}
+      {short ? t('exportAbleton.trialShort', { name: ABLETON_README_NAME }) : t('exportAbleton.trialNote')}
     </p>
   );
 }
@@ -67,7 +67,7 @@ const ABLETON: SequencerExport<AbletonFolderPlan> = {
     const bar = plan ? logicBarOfFirstBar(plan.session) : null;
     return (
       <>
-        <TrialNotice />
+        <TrialNotice short />
         <h3>{t('exportAbleton.openTitle')}</h3>
         <ul className="ouvrir-ableton" data-testid="ouvrir-ableton">
           <li>{t('exportAbleton.open11', { set: plan?.setName ?? '' })}</li>
@@ -80,7 +80,6 @@ const ABLETON: SequencerExport<AbletonFolderPlan> = {
           ))}
         </ol>
         {bar !== null && bar !== 1 && <p className="export-resume">{t('exportAbleton.firstBar', { n: bar })}</p>}
-        <p className="export-resume">{t('exportAbleton.readmeNote', { name: ABLETON_README_NAME })}</p>
       </>
     );
   },

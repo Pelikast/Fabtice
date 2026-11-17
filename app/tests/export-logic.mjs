@@ -19,6 +19,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { startServer } from './serve.mjs';
 import { menuCommand, menuEntry, menuOpenTo, closeMenu } from './lib/menu.mjs';
+import { midiClock, readZip, wavInfo } from './lib/sequencer.mjs';
 
 const require = createRequire(process.env.PLAYWRIGHT_MODULE_DIR || '/opt/node-tools/');
 const { chromium } = require('playwright');
@@ -36,61 +37,6 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const { srv, url } = await startServer(0);
 const browser = await chromium.launch({ args: ['--no-sandbox'], env: { ...process.env, LANG: process.env.LANG || 'C.UTF-8' } });
-
-function readZip(buf) {
-  let end = buf.length - 22;
-  while (end >= 0 && buf.readUInt32LE(end) !== 0x06054b50) end--;
-  if (end < 0) throw new Error('no end of central directory');
-  const count = buf.readUInt16LE(end + 10);
-  let at = buf.readUInt32LE(end + 16);
-  const files = [];
-  for (let i = 0; i < count; i++) {
-    const size = buf.readUInt32LE(at + 24);
-    const nameLen = buf.readUInt16LE(at + 28);
-    const extraLen = buf.readUInt16LE(at + 30);
-    const commentLen = buf.readUInt16LE(at + 32);
-    const local = buf.readUInt32LE(at + 42);
-    const name = buf.toString('utf8', at + 46, at + 46 + nameLen);
-    const dataAt = local + 30 + buf.readUInt16LE(local + 26) + buf.readUInt16LE(local + 28);
-    files.push({ name, data: buf.subarray(dataAt, dataAt + size) });
-    at += 46 + nameLen + extraLen + commentLen;
-  }
-  return files;
-}
-
-function wavInfo(buf) {
-  return {
-    riff: buf.toString('ascii', 0, 4) === 'RIFF' && buf.toString('ascii', 8, 12) === 'WAVE',
-    channels: buf.readUInt16LE(22),
-    rate: buf.readUInt32LE(24),
-    bits: buf.readUInt16LE(34),
-    frames: buf.readUInt32LE(40) / (2 * buf.readUInt16LE(22)),
-    declared: buf.readUInt32LE(4) + 8 === buf.length,
-  };
-}
-
-/** Seconds of each tick, from the file's own tempo events (independent of the writer). */
-function midiClock(midi) {
-  const ppq = midi.header.ticksPerBeat;
-  const abs = midi.tracks.map((events) => {
-    let tick = 0;
-    return events.map((e) => ({ ...e, tick: (tick += e.deltaTime) }));
-  });
-  const tempos = abs[0].filter((e) => e.type === 'setTempo');
-  const seconds = (tick) => {
-    let t = 0;
-    let at = 0;
-    let us = 500000;
-    for (const e of tempos) {
-      if (e.tick > tick) break;
-      t += ((e.tick - at) / ppq) * us * 1e-6;
-      at = e.tick;
-      us = e.microsecondsPerBeat;
-    }
-    return t + ((tick - at) / ppq) * us * 1e-6;
-  };
-  return { ppq, abs, tempos, seconds };
-}
 
 async function open(viewport, touch) {
   const context = await browser.newContext({ viewport, hasTouch: touch, isMobile: touch, acceptDownloads: true });

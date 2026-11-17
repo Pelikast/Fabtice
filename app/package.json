@@ -23,6 +23,7 @@
     "test:print": "node tests/print.mjs",
     "test:export": "node tests/export.mjs",
     "test:export-logic": "node tests/export-logic.mjs",
+    "test:export-ableton": "node tests/export-ableton.mjs",
     "test:export-audio": "node tests/export-audio.mjs",
     "test:export-memory": "node tests/export-memory.mjs",
     "test:analysis": "node tests/analysis.mjs",

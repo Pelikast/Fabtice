@@ -206,7 +206,7 @@ describe('the folder for Ableton Live', () => {
       expect(readme).toContain('« Blues du dimanche.als »');
       expect(readme).toContain('« Blues du dimanche (Live 10).als »');
       expect(readme).toContain('fichiers manquants');
-      expect(readme).toContain('« Blues du dimanche Project »');
+      expect(readme).toContain('\u00a0Blues du dimanche Project\u00a0');
       expect(readme).toContain('01 Voix.wav');
       expect(readme).toContain('Warp');
     });

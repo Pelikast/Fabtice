@@ -1069,7 +1069,7 @@ export const fr = {
   'exportAbleton.open10': 'Live 10 : ouvrez « {set10} » ; Live annoncera des fichiers manquants.',
   'exportAbleton.missingTitle': 'Si Live dit que des fichiers manquent',
   'exportAbleton.firstBar': 'Dans Live, la mesure 1 de Fabtice est la mesure {n} : la première est une mesure d’attente, qui dure exactement le temps qui précède la musique.',
-  'exportAbleton.readmeNote': 'Tout cela est aussi dans le dossier (« {name} »), avec le repli par le fichier MIDI.',
+  'exportAbleton.trialShort': 'Personne n’a encore pu l’ouvrir dans Live. Si quelque chose ne va pas, le fichier MIDI et les pistes du dossier marchent dans tous les cas : voir « {name} ».',
   'exportAbleton.error.failed': 'Le dossier n’a pas pu être créé.',
   'exportAbleton.error.memory': 'L’appareil a manqué de mémoire pendant la préparation des pistes.',
   'exportAbleton.error.nothing': 'Rien à exporter : ce morceau n’a pas de piste.',
