@@ -161,6 +161,13 @@ export interface WrittenSection {
   bars: number[];
   /** `[ … ]xN` when the same written passage is played N times in a row inside one chorus (AA → x2); 1 otherwise. */
   times: number;
+  /**
+   * Added by the structure pass (optional): 2, 3… when the same letter is
+   * written again because its last bars differ (first and second endings:
+   * rhythm changes write A, then A2 ending on the tonic). Absent for the
+   * first way a letter is written. The heading may show it (« A2 »).
+   */
+  variant?: number;
 }
 
 /** Where a played bar is written. */
