@@ -914,16 +914,25 @@ export function continueAfter(act: BeatActivations | null, ev: Evidence, end: nu
     const g = gridFromBeats(found, downAt, undefined, undefined, undefined, [Math.min(Math.max(m, 2), 12)]).grid;
     fresh = g.beats.filter((t) => t > end + 0.4 * q);
   }
+  // It joins when its first two bars hold no beat more or less: each beat about one beat after the one
+  // before (a beat added or dropped there, to meet the network's downbeats, would move the bar phase the
+  // taps carried: measured on a recorded old record whose downbeats sit on another beat for whole choruses).
+  const need = 2 * Math.max(2, m);
   const joins = (b: readonly number[]) => {
     if (b.length < 2) return false;
-    const a = (b[0]! - end) / q;
-    const c = (b[1]! - b[0]!) / q;
-    return a >= 0.7 && a <= 1.4 && c >= 0.7 && c <= 1.4;
+    let prev = end;
+    let d = q;
+    for (let e = 0; e < Math.min(b.length, need); e++) {
+      const r = (b[e]! - prev) / d;
+      if (r < 0.7 || r > 1.4) return false;
+      d = b[e]! - prev;
+      prev = b[e]!;
+    }
+    return true;
   };
   if (joins(fresh)) return fresh;
   // Followed at the tapped tempo until it meets the fresh analysis for two bars, then the fresh analysis.
   const tracked = followBeats(act, end, last, q).slice(1);
-  const need = 2 * Math.max(2, m);
   const near = (t: number) => {
     let lo = 0;
     let hi = fresh.length - 1;
