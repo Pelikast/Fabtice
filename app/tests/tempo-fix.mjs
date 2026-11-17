@@ -258,6 +258,55 @@ try {
     check('no console error (phone)', errors.length === 0, errors.join(' | '));
     await context.close();
   }
+  // ------------------------------------------------------------ the tapped correction (C12), through its contract
+  {
+    const { context, page, errors } = await launch();
+    await page.waitForFunction(() => window.__fabtice.store.getState().project && window.__fabtice.store.getState().analysis, null, { timeout: 30000 });
+    await plant(page);
+    const planted = await grid(page);
+    const i0 = planted.first + BAR * planted.m;
+    const t0 = planted.times[i0];
+    const t1 = analysed.times[analysed.first + (BAR + BARS) * analysed.m];
+    // A tapper 40 ms late, ±30 ms, one tap forgotten, from bar 5 to one bar after the planted passage.
+    const want = analysed.times.filter((t) => t >= t0 - 0.01 && t <= t1 + (analysed.m * (t1 - t0)) / (BARS * analysed.m) + 0.01);
+    let seed = 3;
+    const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647 - 0.5;
+    const taps = want.map((t) => t + 0.04 + 0.06 * rnd()).filter((_, i) => i !== 7);
+    const modifiedBefore = await page.evaluate(() => window.__fabtice.history.isModified());
+    const preview = await page.evaluate(([bar, x]) => window.__fabtice.tapFix.previewTappedFix(bar, x).then((p) => ('refused' in p ? p : { end: p.end, from: p.from, reading: p.reading, ok: true })), [BAR, taps]);
+    check('tapped: the passage is computed from the taps', preview.ok === true, JSON.stringify(preview));
+    await waitIdle(page);
+    const shown = await page.evaluate(async ([bar, x]) => {
+      const t = window.__fabtice.tapFix;
+      const p = await t.previewTappedFix(bar, x);
+      if ('refused' in p) return null;
+      window.__tapped = p;
+      t.showTappedPreview(p);
+      const s = window.__fabtice.store.getState();
+      return { candidate: s.tempoMap === p.tempoMap, canUndo: window.__fabtice.history.canUndo(), modified: window.__fabtice.history.isModified() };
+    }, [BAR, taps]);
+    const candidate = await grid(page);
+    check('tapped: shown for listening, the candidate grid is the grid the views read', shown?.candidate === true);
+    check('tapped: listening is no undo step and marks nothing modified', shown?.modified === modifiedBefore, JSON.stringify(shown));
+    check('tapped: nothing before bar 5 moved', planted.times.slice(0, i0).every((t, i) => t === candidate.times[i]));
+    const back = found(analysed.times, candidate.times, t0, t1);
+    check('tapped: the beats of bars 5–8 are back (70 ms)', back >= 0.95, `${(100 * back).toFixed(0)} %, offset ${(1000 * preview.reading.offset).toFixed(0)} ms, filled ${preview.reading.filled}`);
+    const worst = Math.min(...candidate.tempi) / Math.max(...candidate.tempi);
+    check('tapped: the curve has no dip any more', worst > 0.8, worst.toFixed(2));
+    await page.evaluate(() => window.__fabtice.tapFix.discardTappedPreview());
+    const discarded = await grid(page);
+    check('tapped: discarded, the grid in force is back beat for beat', discarded.times.length === planted.times.length && discarded.times.every((t, i) => t === planted.times[i]));
+    await page.evaluate(() => window.__fabtice.tapFix.commitTappedFix(window.__tapped));
+    const kept = await grid(page);
+    check('tapped: kept as one manual tempo action at bar 5', kept.fixes.length === 1 && kept.fixes[0][1] === 'tapped' && near(kept.fixes[0][0], t0, 1e-3), JSON.stringify(kept.fixes));
+    const undone = await page.evaluate(() => {
+      window.__fabtice.history.undo();
+      return window.__fabtice.store.getState().corrections.tempoFixes.length;
+    });
+    check('tapped: one undo gives the grid before back', undone === 0 && (await grid(page)).times.every((t, i) => t === planted.times[i]));
+    check('no console error (tapped correction)', errors.length === 0, errors.join(' | '));
+    await context.close();
+  }
 } catch (e) {
   failed++;
   console.log(`FAIL  ${e.stack || e}`);

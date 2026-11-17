@@ -13,7 +13,7 @@ import type { Key } from '../model/harmony';
 import type { Seconds } from '../model/project';
 import type { Meter } from '../model/tempoMap';
 import type { KnownCharts } from './engine/chart';
-import type { TempoFixRequest } from './engine/tempoFix';
+import type { ManualTempoFix, TappedInfo } from './engine/tapGrid';
 import type { ChordModelChoice } from './models';
 
 /** One downloadable model (shown to the user before and during the first download). */
@@ -152,6 +152,8 @@ export interface ResultChordModel {
 export interface ListenedResult extends AnalysisResult {
   evidence?: AnalysisEvidence;
   chordModel?: ResultChordModel;
+  /** The tapped correction (C12): what was found about the taps. Not kept with the analysis (`analysis/tapFix.ts`). */
+  tapped?: TappedInfo;
 }
 
 /** The chord model of a result (CREMA for results stored before the choice existed). */
@@ -205,7 +207,7 @@ export interface AnalysisRequest {
    * in force, kept before `from`), and the chords are decoded on it. The
    * result's `beats` is that new grid.
    */
-  tempoFix?: TempoFixRequest | null;
+  tempoFix?: ManualTempoFix | null;
 }
 
 export type AnalysisErrorCode =

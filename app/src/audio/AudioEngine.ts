@@ -209,6 +209,13 @@ export interface AudioEngine {
   getPosition(): Seconds;
 
   /**
+   * Seconds (of the clock, not of the source) between the moment `getPosition()` is reported and
+   * the moment that sound reaches the ears: the output latency of the device (C12, a tap means
+   * what was heard). Absent or 0 when unknown.
+   */
+  getOutputLatency?(): Seconds;
+
+  /**
    * Loop region, or null for no loop. While the playhead is before `end`,
    * playback wraps from `end` to `start` (with a short crossfade); once past
    * `end` (after a seek), it plays on to the end of the piece.

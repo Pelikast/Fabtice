@@ -19,7 +19,7 @@ import { TSUMUGI_WEIGHTS_LOCATION, runTsumugi, tsumugiAudio, tsumugiChordFrames,
 import type { AnalysisResult } from '../../model/analysis';
 import type { ChordFrames } from '../engine/chords';
 import { resultFromOutputs } from '../engine/analyse';
-import { applyTempoFix, type TempoFixRequest } from '../engine/tempoFix';
+import { manualTempoGrid, tappedInfoOf, type ManualTempoFix } from '../engine/tapGrid';
 import type { KnownCharts } from '../engine/chart';
 import { runNetworks, type NetworkOutputs, type Sessions, type StepControl } from '../engine/pipeline';
 import { resampleRatioAsync } from '../engine/resample';
@@ -93,8 +93,8 @@ function decode(outputs: NetworkOutputs, grid: GridHint | null, key: Key | null,
 }
 
 /** The grid the chords are decoded on: the user's, or the one a manual tempo action computes from the outputs. */
-function gridFor(outputs: NetworkOutputs, grid: GridHint | null, fix: TempoFixRequest | null | undefined): GridHint | null {
-  return fix ? applyTempoFix(outputs.act, fix) : grid;
+function gridFor(outputs: NetworkOutputs, grid: GridHint | null, fix: ManualTempoFix | null | undefined): GridHint | null {
+  return fix ? manualTempoGrid(outputs.act, fix) : grid;
 }
 
 /** The piece at 22.05 kHz (Beat This!) and 44.1 kHz (CREMA); the 48 kHz mono copy is dropped on the way. */
@@ -214,6 +214,8 @@ async function analyse(msg: AnalyseRequestMessage): Promise<void> {
     await yieldNow();
     const result: ListenedResult = decode(outputs, msg.grid, msg.key, msg.known, { duration: msg.duration, models });
     if (fine) result.chordModel = fallback ? { id: CHORD_MODEL_ID.crema, fallback } : { id: CHORD_MODEL_ID.fine };
+    const tapped = tappedInfoOf(msg.grid);
+    if (tapped) result.tapped = tapped;
     post({ type: 'result', result, outputs, models });
   } finally {
     await Promise.all(sessions.splice(0).map((s) => s.release().catch(() => {})));
@@ -281,7 +283,10 @@ async function fineChords(
 async function decodeOnly(msg: DecodeRequestMessage): Promise<void> {
   const ctl = control();
   ctl.step('finish');
-  const result = decode(msg.outputs, gridFor(msg.outputs, msg.grid, msg.tempoFix), msg.key, msg.known, { duration: msg.duration, models: msg.models });
+  const grid = gridFor(msg.outputs, msg.grid, msg.tempoFix);
+  const result: ListenedResult = decode(msg.outputs, grid, msg.key, msg.known, { duration: msg.duration, models: msg.models });
+  const tapped = tappedInfoOf(grid);
+  if (tapped) result.tapped = tapped;
   post({ type: 'result', result, outputs: null, models: msg.models });
 }
 

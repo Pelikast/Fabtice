@@ -55,6 +55,7 @@ import * as gridActions from '../store/gridActions';
 import * as harmonyActions from '../store/harmonyActions';
 import * as historyModule from '../store/history';
 import * as projectModules from '../project/debug';
+import * as tapFixModule from '../analysis/tapFix';
 import { demoAnalysis, demoCorrections } from './demoAnalysis';
 import * as audioJournal from '../audio/journal';
 import { demoProject } from './demoProject';
@@ -79,6 +80,8 @@ declare global {
       history?: typeof historyModule;
       /** « Enregistrer », the file of the project and the alert (`project/debug.ts`). */
       project?: typeof projectModules;
+      /** C12, the tapped tempo correction (`analysis/tapFix.ts`): preview, show, discard, commit. */
+      tapFix?: typeof tapFixModule;
       ready: Promise<void>;
     };
   }
@@ -168,6 +171,6 @@ export function startDemo(params: URLSearchParams): Promise<void> {
     else if (separation === 'lente' || separation === 'repli' || separation === 'echec') void separationRunner.startSeparation();
     if (params.get('export') === 'ouvert') exportActions.openExportAudio();
   })();
-  window.__fabtice = { store: appStore, engine: getEngine(), actions, lot2: lot2Actions, lot3: lot3Handle, lot4: lot4Handle, audioJournal, history: historyModule, project: projectModules, ready };
+  window.__fabtice = { store: appStore, engine: getEngine(), actions, lot2: lot2Actions, lot3: lot3Handle, lot4: lot4Handle, audioJournal, history: historyModule, project: projectModules, tapFix: tapFixModule, ready };
   return ready;
 }

@@ -38,6 +38,12 @@ export interface TempoFixRequest {
   from: number;
   /** The grid in force (beats, first downbeat, metre). */
   grid: GridHint;
+  /**
+   * The chosen bar starts between two beats of the grid in force (after a bar with an odd number
+   * of eighths) and was added to `grid` as a beat: it stays where it is, and « Corriger » tracks the
+   * beats from it instead of from the beat before it.
+   */
+  anchored?: boolean;
 }
 
 export interface TempoFixOptions {
@@ -356,7 +362,7 @@ export function applyTempoFix(act: BeatActivations, req: TempoFixRequest, o: Tem
     if (!(held > 0)) return grid;
     // Track from the chosen bar; hand back to the grid in force where they agree for `rejoinBars` bars; take the
     // tracking again at the next bar of the grid in force that is away from the tempo held, and so on.
-    let out = prefix.slice();
+    let out = req.anchored ? [...prefix, t0] : prefix.slice();
     let start = fromIdx;
     let t = t0;
     for (let round = 0; round < 32; round++) {

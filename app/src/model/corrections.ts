@@ -54,9 +54,12 @@ export interface AnalysedTempoFix extends TempoFixBase {
 export interface TappedTempoFix extends TempoFixBase {
   kind: 'tapped';
   /**
-   * Every tap as heard, in source seconds, ascending (equal times allowed),
-   * before any compensation (the user's usual advance or delay, the output
-   * latency) and before snapping to the onsets. The count-in is not kept.
+   * Every tap as heard (`analysis/tapFix.ts#tapNow` takes the output latency
+   * off), in source seconds, ascending (equal times allowed), before
+   * compensating the user's usual advance or delay and before snapping to
+   * the network's beats. Taps made along the count-in on the last two bars
+   * before `time` are kept too (they tell the user's usual advance); earlier
+   * ones are not.
    */
   taps: Seconds[];
   /** Source time where the tapped passage ends (its last beat placed from the taps), after `time`. */

@@ -7,7 +7,7 @@ import { defaultMetronome } from '../model/metronome';
 import { emptySeparation } from '../model/separation';
 import { emptyStructureCorrections } from '../model/structure';
 import { PROJECT_DOCUMENT_VERSION, type ProjectDocument } from '../model/document';
-import type { AppState } from './store';
+import { gridInForce, type AppState } from './store';
 
 /** The document of the open project, or null when none is open. */
 export function toProjectDocument(s: AppState, now = new Date()): ProjectDocument | null {
@@ -17,7 +17,8 @@ export function toProjectDocument(s: AppState, now = new Date()): ProjectDocumen
     version: PROJECT_DOCUMENT_VERSION,
     project: s.project,
     tracks: s.tracks,
-    tempoMap: s.tempoMap,
+    // Never a candidate grid shown for listening (C12): the grid in force.
+    tempoMap: gridInForce(s),
     loop: s.loop,
     playback: s.playback,
     view,

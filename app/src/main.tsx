@@ -20,6 +20,7 @@ import * as historyModule from './store/history';
 import { installProjectWindow } from './project/windowState';
 import { installMenuBar } from './ui/menuBar';
 import * as projectModules from './project/debug';
+import * as tapFixModule from './analysis/tapFix';
 import './styles/index.css';
 
 setLanguage('fr');
@@ -68,7 +69,7 @@ if (params.has('demo')) {
 } else {
   // `?debug`: the same handle as `?demo` (store, engine, actions) for the browser checks, without the demo piece.
   if (params.has('debug')) {
-    window.__fabtice = { store: appStore, engine: getEngine(), actions, standards: standardsLibrary, audioJournal, history: historyModule, project: projectModules, ready: Promise.resolve() };
+    window.__fabtice = { store: appStore, engine: getEngine(), actions, standards: standardsLibrary, audioJournal, history: historyModule, project: projectModules, tapFix: tapFixModule, ready: Promise.resolve() };
     void import('./demo/start').then((m) => {
       if (window.__fabtice) {
         window.__fabtice.lot3 = m.lot3Handle;
