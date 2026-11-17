@@ -227,7 +227,43 @@ Divers
 
 ## Vérifications
 
-À compléter ci-dessous (commit de fin, fabrication sur les Mac de GitHub).
+- Commit vérifié : `dfb1535` sur `v1` (les commits suivants n'ajoutent que ce
+  bilan et la table du plan).
+- Fabrication sur les Mac de GitHub, lancée à la main sur `v1` : **verte au
+  premier lancement** (run 44041028597, commit `dfb1535`) : vérification de
+  l'interface, adresses des recueils, tests unitaires, construction pour puce
+  Apple et Intel, e2e sur les deux (avec le nouveau
+  `tempo-by-hand.test.js`), analyse, séparation, yt-dlp. Rien n'a été publié.
+- `app/` : `npm run typecheck` sans erreur ; `npm test` : 1 639 tests
+  réussis, 42 sautés (dont le sous-ensemble rapide du banc des tapes, avec
+  ses seuils).
+- Vérifications Chromium après `npm run build`, l'une après l'autre, au
+  calme, toutes vertes au premier passage : `smoke`, `menu`, `settings`,
+  `print`, `new-project`, `standards`, `undo`, `alert`, `project-file`,
+  `chart`, `timeline`, `import`, `export`, `export-audio`, `export-memory`,
+  `export-logic`, `export-ableton`, `analysis`, `separation`, `render`,
+  `memory`, `metronome`, `markers`, `tempo-fix` (cas réels, attentes
+  inchangées), `tap-fix` (deux formes, analyseur simulé et réel), `meter`
+  (deux formes), `offline`, `engine`.
+- `desktop/` : `npm test` : 122 réussis ; après `npm run build:desktop`,
+  `FABTICE_NO_POPPLER=1 xvfb-run -a npm run test:e2e` : 36 tests, 33 réussis,
+  3 sautés (ceux qui téléchargent) ; puis `tempo-by-hand.test.js`, ajouté
+  ensuite : 4 sur 4, trois passages de suite chez l'agent, un chez moi.
+- Les tests de l'analyse automatique passent sans changement de leurs
+  attentes : ses règles n'ont pas été touchées.
+- `npm run captures` relancé en entier à la fin, sans échec ; captures de
+  l'étape regardées dans les deux formes (menu de la mesure, chaque moment
+  de la correction en tapant, fenêtre de signature, règle et grille avec un
+  changement, métronome à plusieurs signatures, éditeur d'accord en 13/8 et
+  64/32) : rien d'assombri à tort, aucun texte coupé. Un défaut vu en cours
+  de route et corrigé (numéro de mesure manquant après la signature sur la
+  règle).
+- Aucun fichier de brouillon dans le dépôt (commande du plan) ; aucun nom
+  d'assistant en dehors des lignes d'attribution des commits.
+- À savoir : avec un décompte de 0 mesure, une tape faite pile sur le premier
+  temps de la mesure choisie est datée juste avant elle (latence de sortie
+  retirée) et n'entre pas dans le nombre affiché ; le calcul n'en souffre
+  pas (le début de la mesure est fixe).
 
 ## Pour l'étape suivante
 
