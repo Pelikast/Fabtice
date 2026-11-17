@@ -10,6 +10,7 @@ import { accelerationStatus, COMMON_METERS, firstMeter, groupingChoices, groupin
 import { t } from '../i18n';
 import { ACCELERATION_LIMITS, COUNT_IN_BARS, type AccelerationPlan, type BeatLevel } from '../model/metronome';
 import type { Meter } from '../model/tempoMap';
+import { selectMeterChanges } from '../store/meterActions';
 import { closePanel, openSettings, toggleMetronome, togglePanel } from '../store/actions';
 import { targetBpm } from '../store/derived';
 import {
@@ -91,6 +92,7 @@ function MetronomePanel({ ref }: { ref: Ref<HTMLDivElement> }) {
  */
 export function MetronomeSettingsBody() {
   const volume = useApp((s) => s.metronome.volume);
+  const edited = useEditedMeter();
   const countIn = useApp((s) => s.metronome.countInBars);
   return (
     <>
@@ -122,19 +124,42 @@ export function MetronomeSettingsBody() {
         <p className="panneau-note">{t('metronome.countInHint')}</p>
       </div>
 
-      <MeterChoice />
-      <BeatLevels />
+      <MeterChoice edited={edited} />
+      <BeatLevels edited={edited} />
       <Acceleration />
     </>
   );
 }
 
-function MeterChoice() {
-  const meter = useApp((s) => firstMeter(s.tempoMap));
+/** The signature whose grouping and accents are being set, among those of the piece. */
+interface EditedMeter {
+  /** Distinct signatures of the piece, in order of appearance (one when the piece has a single signature). */
+  all: Meter[];
+  meter: Meter;
+  choose: (m: Meter) => void;
+}
+
+function useEditedMeter(): EditedMeter {
+  const changes = useApp(selectMeterChanges);
+  const [picked, setPicked] = useState<string | null>(null);
+  const all = useMemo(() => {
+    const seen = new Set<string>();
+    const out: Meter[] = [];
+    for (const c of changes) if (!seen.has(meterKey(c.meter))) (seen.add(meterKey(c.meter)), out.push(c.meter));
+    return out;
+  }, [changes]);
+  // A choice that is no longer in the piece (the change was undone, removed) falls back on the first signature.
+  const meter = all.find((m) => meterKey(m) === picked) ?? all[0]!;
+  return { all, meter, choose: (m) => setPicked(meterKey(m)) };
+}
+
+function MeterChoice({ edited }: { edited: EditedMeter }) {
+  const first = useApp((s) => firstMeter(s.tempoMap));
+  const meter = edited.meter;
   const patterns = useApp((s) => s.metronome.patterns);
   const pattern = useMemo(() => patternFor(patterns, meter), [patterns, meter]);
-  const key = meterKey(meter);
-  const list = COMMON_METERS.some((m) => meterKey(m) === key) ? COMMON_METERS : [...COMMON_METERS, meter];
+  const key = meterKey(first);
+  const list = COMMON_METERS.some((m) => meterKey(m) === key) ? COMMON_METERS : [...COMMON_METERS, first];
   const choices = groupingChoices(meter);
   const current = groupingText(pattern.grouping);
   return (
@@ -156,6 +181,18 @@ function MeterChoice() {
           ))}
         </select>
       </label>
+      {edited.all.length > 1 && (
+        <div className="metro-ligne" role="group" aria-label={t('metronome.edited')}>
+          <span>{t('metronome.edited')}</span>
+          <div className="metro-choix" data-testid="signature-reglee">
+            {edited.all.map((m) => (
+              <button key={meterKey(m)} aria-pressed={meterKey(m) === meterKey(meter)} data-meter={meterKey(m)} onClick={() => edited.choose(m)}>
+                {meterKey(m)}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       {choices.length > 1 && (
         <div className="metro-ligne" role="group" aria-label={t('metronome.grouping')}>
           <span>{t('metronome.grouping')}</span>
@@ -168,7 +205,7 @@ function MeterChoice() {
           </div>
         </div>
       )}
-      <p className="panneau-note">{t('metronome.meterHint')}</p>
+      <p className="panneau-note">{t(edited.all.length > 1 ? 'metronome.editedHint' : 'metronome.meterHint')}</p>
     </div>
   );
 }
@@ -176,12 +213,12 @@ function MeterChoice() {
 const LEVEL_MARK: Record<BeatLevel, string> = { accent: '>', normal: '•', soft: '·', silent: '' };
 
 /** « Temps forts et faibles », folded (an advanced setting). */
-function BeatLevels() {
+function BeatLevels({ edited }: { edited: EditedMeter }) {
   const [open, setOpen] = useState(false);
-  const meter = useApp((s) => firstMeter(s.tempoMap));
+  const meter = edited.meter;
   const patterns = useApp((s) => s.metronome.patterns);
   const pattern = useMemo(() => patternFor(patterns, meter), [patterns, meter]);
-  const custom = useApp((s) => s.metronome.patterns[meterKey(firstMeter(s.tempoMap))] !== undefined);
+  const custom = patterns[meterKey(meter)] !== undefined;
   return (
     <div className="avance">
       <button className="option avance-titre" aria-expanded={open} data-testid="temps-forts" onClick={() => setOpen((o) => !o)}>

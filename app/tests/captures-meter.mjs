@@ -70,4 +70,36 @@ export async function meterCaptures(form, deps) {
     await snap(page, form, 'signature-grille-une-mesure');
     await context.close();
   }
+
+  // 4. The metronome panel of a piece with two signatures: the one whose accents are being set is chosen.
+  {
+    const { context, page } = await demo(form, deps, '?demo&moteur=factice');
+    await page.evaluate(() => window.__fabtice.lot2.meter.setMeterFrom(2, { numerator: 7, denominator: 8 }));
+    await sleep(200);
+    await press(page, page.locator('[data-testid="clic-reglages"]'));
+    await press(page, page.locator('[data-testid="temps-forts"]'));
+    await press(page, page.locator('[data-testid="signature-reglee"] button[data-meter="7/8"]'));
+    await sleep(500);
+    await snap(page, form, 'metronome-signatures');
+    await context.close();
+  }
+
+  // 5. The chord editor on a very long bar (13/8, 32/16, 64/32): the beats wrap in rows.
+  for (const [n, d] of [[13, 8], [64, 32]]) {
+    const { context, page } = await demo(form, deps, '?demo&moteur=factice&vue=grille');
+    await page.waitForSelector('.vue-grille .case .ch');
+    await page.evaluate(([nn, dd]) => {
+      const f = window.__fabtice;
+      f.lot2.meter.setMeterFrom(8, { numerator: nn, denominator: dd });
+      const c = { root: 0, quality: 'min7', extensions: [], bass: null };
+      f.lot2.harmony.setBarChords(8, [{ beatInBar: 0, chord: c }, { beatInBar: Math.floor(nn / 2), chord: { ...c, root: 5 } }]);
+    }, [n, d]);
+    await sleep(400);
+    await page.locator('.case[data-mesure="8"] .accord-case[data-accord="1"]').scrollIntoViewIfNeeded();
+    await press(page, page.locator('.case[data-mesure="8"] .accord-case[data-accord="1"]'));
+    await page.waitForSelector('[data-testid="editeur"]');
+    await sleep(400);
+    await snap(page, form, `accord-longue-mesure-${n}-${d}`);
+    await context.close();
+  }
 }

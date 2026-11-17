@@ -41,6 +41,9 @@ interface Props {
   onTyped: () => void;
 }
 
+/** Above this many beats the beat buttons wrap in rows under their label instead of sitting in one line. */
+export const LONG_BAR_BEATS = 8;
+
 export function ChordEditor({ state, dispatch, grid, scroller, onClose, onTyped }: Props) {
   const target = state.target!;
   const root = useRef<HTMLDivElement>(null);
@@ -255,7 +258,7 @@ export function ChordEditor({ state, dispatch, grid, scroller, onClose, onTyped 
       {!current && going && <p className="editeur-note">{t('editor.goesOn')}</p>}
 
       {beatChoices.length > 0 && current && (
-        <div className="editeur-temps">
+        <div className={`editeur-temps${bar.beats > LONG_BAR_BEATS ? ' longue' : ''}`}>
           <span className="libelle" id="editeur-temps-nom" title={t('editor.beatHint')}>
             {t('editor.beat')}
           </span>

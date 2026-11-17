@@ -183,6 +183,57 @@ try {
     await page.close();
   }
 
+  // ------------------------------------------------------------ several signatures: the accents of each one (C13)
+  for (const vp of [{ width: 1280, height: 800 }, { width: 390, height: 844 }]) {
+    const phone = vp.width < 500;
+    const { page, errors } = await open('?demo&moteur=factice', vp);
+    await ready(page);
+    await page.evaluate(() => document.fonts.ready);
+    const tag = phone ? 'phone' : 'computer';
+    const press = (sel) => page.click(sel);
+    await press('[data-testid="clic-reglages"]');
+    check(`${tag}: a single signature: no signature choice in the panel`, (await page.locator('[data-testid="signature-reglee"]').count()) === 0);
+    await press('[data-testid="clic-reglages"]');
+    await page.evaluate(() => window.__fabtice.lot2.meter.setMeterFrom(2, { numerator: 7, denominator: 8 }));
+    await sleep(200);
+    await press('[data-testid="clic-reglages"]');
+    await press('[data-testid="temps-forts"]');
+    await sleep(200);
+    const names = await page.locator('[data-testid="signature-reglee"] button').allInnerTexts();
+    check(`${tag}: two signatures: the choice lists 4/4 and 7/8, once each, in order`, names.join() === '4/4,7/8', names.join());
+    check(`${tag}: the first one is chosen`, (await page.locator('[data-testid="signature-reglee"] button[aria-pressed="true"]').innerText()) === '4/4' && (await page.locator('[data-testid="temps-rangee"] button').count()) === 4);
+    await page.click('[data-testid="signature-reglee"] button[data-meter="7/8"]');
+    await sleep(150);
+    check(`${tag}: choosing 7/8 shows its seven beats`, (await page.locator('[data-testid="temps-rangee"] button').count()) === 7);
+    // beat 2 of the 7/8 is soft by default: one press makes it silent
+    await page.click('[data-testid="temps-rangee"] button >> nth=1');
+    const st = await state(page);
+    const p78 = st.metronome.patterns['7/8'];
+    check(`${tag}: the accents are kept for 7/8 only`, p78 && p78.levels[1] === 'silent' && st.metronome.patterns['4/4'] === undefined, JSON.stringify(st.metronome.patterns));
+    const clicks = await page.evaluate(() => {
+      const f = window.__fabtice;
+      const s = f.store.getState();
+      const t = f.lot4.metronome.metronomeClickTrack(s.tempoMap, 0, 12, s.metronome.patterns);
+      const bar = (b) => [f.lot4.tempoMap.barStartTime(s.tempoMap, b), f.lot4.tempoMap.barStartTime(s.tempoMap, b + 1)];
+      const inBar = (b) => {
+        const [a, z] = bar(b);
+        return [...t.times].filter((x) => x >= a - 1e-9 && x < z - 1e-9).length;
+      };
+      return { bar1: inBar(1), bar2: inBar(2), bar3: inBar(3) };
+    });
+    check(`${tag}: the click really drops that beat in the 7/8 bars only (4 clicks in 4/4, 6 in 7/8)`, clicks.bar1 === 4 && clicks.bar2 === 6 && clicks.bar3 === 6, JSON.stringify(clicks));
+    await page.screenshot({ path: path.join(out, `metronome-signatures-${vp.width}.png`) });
+    const f = await fits(page, '[data-testid="panneau-metronome"]');
+    check(`${tag}: the panel stays inside the window with two signatures`, f.ok, f.r.join(','));
+    await page.evaluate(() => window.__fabtice.history.undo());
+    check(`${tag}: undo takes the accents back (the metronome settings are undoable)`, (await state(page)).metronome.patterns['7/8']?.levels[1] !== 'silent');
+    await page.evaluate(() => window.__fabtice.history.undo());
+    await sleep(200);
+    check(`${tag}: back to one signature, the choice is gone`, (await page.locator('[data-testid="signature-reglee"]').count()) === 0);
+    check(`no page errors (signatures, ${tag})`, errors.length === 0, errors.join(' | '));
+    await page.close();
+  }
+
   // ------------------------------------------------------------ kept with the piece (persistent profile, reload)
   {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fabtice-metronome-profile-'));

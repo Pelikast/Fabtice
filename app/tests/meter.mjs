@@ -347,6 +347,17 @@ async function suite(form) {
   await fill(h, 7, 8);
   await page.keyboard.press('Enter');
   await sleep(300);
+
+  // A loop whose edge sits exactly on the bar line of the signature: the signature and the bar number stay.
+  await page.evaluate(() => {
+    const f = window.__fabtice;
+    const s = f.store.getState();
+    const bar = f.lot4.tempoMap.barStartTime;
+    f.store.setState({ loop: { ...s.loop, enabled: true, region: { start: bar(s.tempoMap, 2), end: bar(s.tempoMap, 4) } } });
+  });
+  await sleep(300);
+  check(`${tag}: a loop edge exactly on the bar line of a signature: the signature is still written`, (await signatures(page)) === '1:4/4 3:7/8', await signatures(page));
+  await shot('ruler-loop-on-signature');
   const width = await page.evaluate(() => {
     const f = document.querySelector('.frise');
     return { pps: Number(f.dataset.pps), w: f.getBoundingClientRect().width };
@@ -399,6 +410,43 @@ async function suite(form) {
   await chart.evaluate(() => window.__fabtice.lot2.meter.setMeterFrom(2, { numerator: 7, denominator: 8 }));
   await sleep(400);
   check(`${tag}: the chord chart writes 7/8 at the bar, where the ruler does`, (await chart.locator('.case[data-mesure="2"] .signature[data-signature="7/8"]').count()) === 1, String(await chart.locator('.case .signature').count()));
+  // The chord editor on a very long bar: one button per beat, wrapped in rows inside the editor.
+  for (const [n, d] of [[13, 8], [32, 16], [64, 32]]) {
+    await chart.evaluate(([nn, dd]) => {
+      const f = window.__fabtice;
+      f.lot2.meter.setMeterFrom(8, { numerator: nn, denominator: dd });
+      const c = { root: 0, quality: 'min7', extensions: [], bass: null };
+      f.lot2.harmony.setBarChords(8, [{ beatInBar: 0, chord: c }, { beatInBar: Math.floor(nn / 2), chord: { ...c, root: 5 } }]);
+    }, [n, d]);
+    await sleep(400);
+    await chart.locator('.case[data-mesure="8"] .accord-case[data-accord="1"]').scrollIntoViewIfNeeded();
+    await press(h, chart.locator('.case[data-mesure="8"] .accord-case[data-accord="1"]'));
+    await chart.waitForSelector('[data-testid="editeur"]');
+    await sleep(300);
+    const r = await chart.evaluate(() => {
+      const ed = document.querySelector('[data-testid="editeur"]');
+      const er = ed.getBoundingClientRect();
+      const row = ed.querySelector('.editeur-temps .duo');
+      const btns = [...ed.querySelectorAll('.editeur-temps button')];
+      const rects = btns.map((b) => b.getBoundingClientRect());
+      return {
+        count: btns.length,
+        rows: new Set(rects.map((q) => Math.round(q.top))).size,
+        minH: Math.min(...rects.map((q) => q.height)),
+        minW: Math.min(...rects.map((q) => q.width)),
+        outsideEditor: rects.filter((q) => q.left < er.left - 0.5 || q.right > er.right + 0.5).length,
+        inScreen: er.left >= 0 && er.right <= innerWidth && er.top >= 0 && er.bottom <= innerHeight,
+        overflowX: ed.scrollWidth - ed.clientWidth,
+        rowOverflow: row.scrollWidth - row.clientWidth,
+      };
+    });
+    check(`${tag}: the chord editor of a ${n}/${d} bar has ${n} beat buttons, wrapped in rows inside the editor`, r.count === n && r.outsideEditor === 0 && r.overflowX <= 0 && r.rowOverflow <= 0 && (n <= 8 || r.rows > 1), JSON.stringify(r));
+    check(`${tag}: ${n}/${d}: the editor is inside the screen`, r.inScreen, JSON.stringify(r));
+    if (P) check(`${tag}: ${n}/${d}: touch targets of 40 px or more`, r.minH >= 40 && r.minW >= 40, `${r.minW} x ${r.minH}`);
+    await chart.screenshot({ path: path.join(out, `${tag}-chord-editor-${n}-${d}.png`) });
+    await chart.keyboard.press('Escape');
+    await sleep(200);
+  }
   await chart.close();
 
   check(`${tag}: no console error`, h.errors.length === 0, h.errors.join(' | '));
