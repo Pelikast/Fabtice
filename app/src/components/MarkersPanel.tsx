@@ -24,6 +24,7 @@ import {
   saveCurrentLoop,
 } from '../store/markerActions';
 import { useApp } from '../store/store';
+import { sectionsInForce } from '../store/structureSelectors';
 import { MarkerIcon } from '../ui/icons';
 import { useFitPanel } from '../ui/useFitPanel';
 import { useOutsideClose } from '../ui/useOutsideClose';
@@ -32,7 +33,7 @@ import { useOutsideClose } from '../ui/useOutsideClose';
 export function MarkersControl() {
   const open = useApp((s) => s.ui.panel === 'markers');
   const hasProject = useApp((s) => s.project !== null);
-  const count = useApp((s) => s.markers.loops.length + s.corrections.sections.length);
+  const count = useApp((s) => s.markers.loops.length + sectionsInForce(s).length);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const refs = useRef([buttonRef, panelRef]).current;
@@ -147,7 +148,7 @@ function LoopRow({ loop, first, last, editing, bars, current }: { loop: NamedLoo
 
 function SectionList({ editing }: { editing: boolean }) {
   const map = useApp((s) => s.tempoMap);
-  const sections = useApp((s) => s.corrections.sections);
+  const sections = useApp(sectionsInForce);
   const duration = useApp((s) => s.project?.duration ?? 0);
   const region = useApp((s) => (s.loop.enabled ? s.loop.region : null));
   const ranges = useMemo(() => sectionRanges(map, sections, duration), [map, sections, duration]);

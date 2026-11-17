@@ -7,6 +7,7 @@ import { chartBars, resolveChords, sectionBar, type BarChord, type ChartBar, typ
 import { displayContext, type DisplayContext } from '../harmony/display';
 import type { Key } from '../model/harmony';
 import type { AppState } from './store';
+import { sectionsInForce } from './structureSelectors';
 
 /** Where a value in force comes from. */
 export type Provenance = 'analysis' | 'manual' | 'none';
@@ -103,9 +104,9 @@ export function selectHasChords(s: AppState): boolean {
   return selectChords(s).length > 0;
 }
 
-/** Lot 4: the piece has a section or a named loop (the ruler then shows its « Repères » row). */
+/** Lot 4: the piece has a section letter (the user's, or the detected ones in force) or a named loop (the ruler then shows its « Repères » row). */
 export function selectHasMarkers(s: AppState): boolean {
-  return s.corrections.sections.length > 0 || s.markers.loops.length > 0;
+  return sectionsInForce(s).length > 0 || s.markers.loops.length > 0;
 }
 
 const barsMemo = memoN((chords: ChartChord[], map: AppState['tempoMap'], sections: AppState['corrections']['sections'], duration: number) =>
@@ -114,7 +115,7 @@ const barsMemo = memoN((chords: ChartChord[], map: AppState['tempoMap'], section
 
 /** Every bar of the chart (stored chords, not yet transposed: write them with `selectDisplayContext`). */
 export function selectChartBars(s: AppState): ChartBar[] {
-  return barsMemo(selectChords(s), s.tempoMap, s.corrections.sections, s.project?.duration ?? 0);
+  return barsMemo(selectChords(s), s.tempoMap, sectionsInForce(s), s.project?.duration ?? 0);
 }
 
 /**
@@ -127,9 +128,9 @@ export function selectBarChords(s: AppState, bar: number): { chords: BarChord[];
   return { chords: found?.chords ?? [], ctx: selectDisplayContext(s), repeat: found?.repeat ?? false };
 }
 
-/** Section label at a bar, if any. */
+/** Section label at a bar, if any (the letters in force). */
 export function selectSectionAt(s: AppState, bar: number): string | null {
-  for (const m of s.corrections.sections) if (sectionBar(s.tempoMap, m.time) === bar) return m.label;
+  for (const m of sectionsInForce(s)) if (sectionBar(s.tempoMap, m.time) === bar) return m.label;
   return null;
 }
 

@@ -23,6 +23,7 @@ import { newId } from '../util/id';
 import { enterLoop, setLoopRegion } from './actions';
 import { setSection } from './harmonyActions';
 import { appStore, type AppState } from './store';
+import { sectionsInForce } from './structureSelectors';
 
 const get = () => appStore.getState();
 const set = (patch: Partial<AppState> | ((s: AppState) => Partial<AppState>)) => appStore.setState(patch);
@@ -71,9 +72,9 @@ export function moveLoop(id: string, direction: -1 | 1): void {
   update((m) => withLoopMoved(m, id, direction));
 }
 
-/** The sections as ranges on the grid in force. */
+/** The sections (the letters in force) as ranges on the grid in force. */
 export function currentSections(s: AppState = get()) {
-  return sectionRanges(s.tempoMap, s.corrections.sections, s.project?.duration ?? 0);
+  return sectionRanges(s.tempoMap, sectionsInForce(s), s.project?.duration ?? 0);
 }
 
 /**
@@ -86,7 +87,7 @@ export function addSection(label?: string): number | null {
   if (!s.project) return null;
   const at = s.loop.region ? s.loop.region.start : getEngine().getPosition();
   const bar = barForNewSection(s.tempoMap, at);
-  setSection(bar, label ?? nextSectionLetter(s.corrections.sections));
+  setSection(bar, label ?? nextSectionLetter(sectionsInForce(s)));
   return bar;
 }
 

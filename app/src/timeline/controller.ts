@@ -25,6 +25,7 @@ import { applyAutoFit, enterLoop, seek, setLoopRegion, setZoom } from '../store/
 import { selectChartBars, selectDisplayContext, selectHasChords } from '../store/chartSelectors';
 import { selectMeterChanges } from '../store/meterActions';
 import { appStore, type AppState } from '../store/store';
+import { sectionsInForce } from '../store/structureSelectors';
 import { onFrame } from '../ui/frameLoop';
 import { isPhoneLayout } from '../util/media';
 import { PHONE_BAR_WIDTH, clampScale } from '../view/zoom';
@@ -286,7 +287,7 @@ export class TimelineController {
     const region = s.loop.enabled ? s.loop.region : null;
     const same = (a: number, b: number) => Math.abs(a - b) < 1e-6;
     const spans: MarkerSpan[] = [];
-    for (const r of sectionRanges(s.tempoMap, s.corrections.sections, this.duration)) {
+    for (const r of sectionRanges(s.tempoMap, sectionsInForce(s), this.duration)) {
       const bars = formatLoop(s.tempoMap, r).text;
       spans.push({ kind: 'section', ref: String(r.bar), text: r.label, title: t('markers.sectionTitle', { label: r.label, bars }), start: r.start, end: r.end, current: region !== null && same(region.start, r.start) && same(region.end, r.end) });
     }
@@ -642,7 +643,7 @@ export class TimelineController {
       this.watchChords(s);
       if (s.loop !== prev.loop) this.invalidate(RULER | LOOP | MARKERS);
       if (s.corrections.tempoFixes !== prev.corrections.tempoFixes) this.invalidate(RULER);
-      if (s.markers !== prev.markers || s.corrections.sections !== prev.corrections.sections || s.tempoMap !== prev.tempoMap) this.invalidate(MARKERS);
+      if (s.markers !== prev.markers || sectionsInForce(s) !== sectionsInForce(prev) || s.tempoMap !== prev.tempoMap) this.invalidate(MARKERS);
       if (s.view.subdivision !== prev.view.subdivision || s.view.triplets !== prev.view.triplets) this.invalidate(GRID);
       if (s.view.pxPerSecond !== prev.view.pxPerSecond) this.scaleFromStore(s.view.pxPerSecond);
       if (s.view.trackHeight !== prev.view.trackHeight) this.invalidate(ALL);

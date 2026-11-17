@@ -15,6 +15,7 @@ import type { Meter } from '../model/tempoMap';
 import { keyInForce } from '../store/chartSelectors';
 import { isTempoKnown } from '../store/derived';
 import type { AppState } from '../store/store';
+import { sectionsInForce } from '../store/structureSelectors';
 
 export interface ExportChord {
   /** 0-based beat in the bar where the chord starts. */
@@ -108,7 +109,7 @@ export function buildExportChart({ title, bars, key, semitones, tempo }: ExportC
 export function chartForExport(s: AppState): ExportChart | null {
   if (!s.project) return null;
   const chords = resolveChords(s.tempoMap, s.analysis?.chords ?? null, s.corrections);
-  const bars = chartBars({ map: s.tempoMap, chords, sections: s.corrections.sections, duration: s.project.duration });
+  const bars = chartBars({ map: s.tempoMap, chords, sections: sectionsInForce(s), duration: s.project.duration });
   return buildExportChart({
     title: s.project.title,
     bars,

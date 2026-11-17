@@ -6,10 +6,11 @@ import { barBeatToBeat, barStartTime, barToBeat, beatToBar, beatToTime, bpmAt, m
 import { chordParts, chordText, NO_CHORD_TEXT, transposeChord } from '../../harmony/chord';
 import { keyNameFr, keyTonicName, NEUTRAL_KEY, transposeKey } from '../../harmony/key';
 import type { NoteName } from '../../harmony/pitch';
-import { t, type MessageKey } from '../../i18n';
+import { t } from '../../i18n';
 import type { ChordQuality, ChordSymbol, Key } from '../../model/harmony';
 import type { Meter, TempoMap } from '../../model/tempoMap';
 import type { StructurePart } from '../../model/structure';
+import { partName } from '../../model/structureLabels';
 import { keyPassages } from '../../store/keySelectors';
 import { structureInForce } from '../../store/structureSelectors';
 import type { AppState } from '../../store/store';
@@ -90,39 +91,9 @@ export function asciiKey(key: Key): string {
   return `${asciiNote(keyTonicName(key))}${key.mode === 'minor' ? 'm' : ''}`;
 }
 
-const PART_KEYS: Record<StructurePart['type'], MessageKey> = {
-  intro: 'session.part.intro',
-  theme: 'session.part.theme',
-  solo: 'session.part.solo',
-  bridge: 'session.part.bridge',
-  special: 'session.part.special',
-  outro: 'session.part.outro',
-  verse: 'session.part.verse',
-  chorus: 'session.part.chorus',
-};
-
-const INSTRUMENT_KEYS: Record<string, MessageKey> = {
-  voice: 'session.instrument.voice',
-  guitar: 'session.instrument.guitar',
-  piano: 'session.instrument.piano',
-  bass: 'session.instrument.bass',
-  drums: 'session.instrument.drums',
-  winds: 'session.instrument.winds',
-  trumpet: 'session.instrument.trumpet',
-  saxophone: 'session.instrument.saxophone',
-  trombone: 'session.instrument.trombone',
-  clarinet: 'session.instrument.clarinet',
-  flute: 'session.instrument.flute',
-  violin: 'session.instrument.violin',
-  vibraphone: 'session.instrument.vibraphone',
-  organ: 'session.instrument.organ',
-};
-
-/** « Intro », « Thème 1 », « Solo (Guitare) », « Solo 2 (Vents) ». An unknown instrument is left out. */
+/** « Intro », « Thème 1 », « Solo (Guitare) », « Solo 2 (Vents) »: the one naming of the parts, shared with the structure column. */
 export function partLabel(p: Pick<StructurePart, 'type' | 'number' | 'instrument'>): string {
-  const name = t(PART_KEYS[p.type]) + (p.number !== null ? ` ${p.number}` : '');
-  const inst = p.instrument !== null ? INSTRUMENT_KEYS[p.instrument] : undefined;
-  return inst ? `${name} (${t(inst)})` : name;
+  return partName(p, t);
 }
 
 /** « 01 Morceau », « 02 Voix »: numbered in order, safe, unique. */
