@@ -133,7 +133,10 @@ export function mockTappedFix(fix: TappedFixRequest): TappedGrid {
   const idx = Math.max(0, grid.times.findIndex((t) => t >= from - 1e-6));
   const t0 = grid.times[idx] ?? from;
   const beats = [t0];
-  for (const t of [...fix.taps].sort((a, b) => a - b)) if (t - beats[beats.length - 1]! >= 0.15) beats.push(t);
+  // The taps of the passage: those along the count-in (before the bar) are not the passage's, kept or dropped.
+  const beat = idx > 0 ? t0 - grid.times[idx - 1]! : 0.5;
+  const passage = [...fix.taps].sort((a, b) => a - b).filter((t) => t >= t0 - 0.5 * beat);
+  for (const t of passage) if (t - beats[beats.length - 1]! >= 0.15) beats.push(t);
   const end = beats[beats.length - 1]!;
   const step = beats.length >= 2 ? end - beats[beats.length - 2]! : 0.5;
   const times = [...grid.times.slice(0, idx), ...beats, ...grid.times.filter((t) => t > end + 0.5 * step)];
@@ -142,7 +145,7 @@ export function mockTappedFix(fix: TappedFixRequest): TappedGrid {
     times,
     downbeat: grid.downbeat < idx ? grid.downbeat : idx,
     meter: grid.meter,
-    tapped: { end, offset: 0, jitter: 0, used: n - 1, dropped: fix.taps.length - (n - 1), filled: 0, held: 0, snapped: 0, level: 1, beats: n, irregular: false },
+    tapped: { end, offset: 0, jitter: 0, used: n - 1, dropped: passage.length - (n - 1) - (passage.some((t) => Math.abs(t - t0) < 0.15) ? 1 : 0), filled: 0, held: 0, snapped: 0, level: 1, beats: n, irregular: false },
   };
 }
 

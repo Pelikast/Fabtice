@@ -155,6 +155,14 @@ describe('the tapped correction', () => {
     expect(get().corrections.tempoFixes.map((f) => f.kind)).toEqual(['fresh']);
   });
 
+  it('the taps along the count-in are not counted as taps left out', async () => {
+    const countIn = tapsFrom(2, 2, 1).filter((t) => t < barStartTime(get().tempoMap, 4) - 0.05);
+    const p = await preview(4, [...countIn, ...tapsFrom(4, 3)]);
+    expect(countIn.length).toBeGreaterThan(4);
+    expect(p.reading.dropped).toBe(0);
+    expect(p.reading.filled).toBe(0);
+  });
+
   it('says why it cannot compute', async () => {
     expect(await previewTappedFix(4, tapsFrom(4, 3).slice(0, MIN_TAPS - 1))).toEqual({ refused: 'tooFewTaps' });
     expect(await previewTappedFix(4, [1, 2, 3])).toEqual({ refused: 'tooFewTaps' });

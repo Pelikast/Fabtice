@@ -298,9 +298,14 @@ export interface Tapper {
   /** Constant offset (s; negative: early), and a drift from `offset` to `offset + drift` over the passage. */
   offset: number;
   drift: number;
-  /** Share of forgotten taps, and of those followed by a second forgotten one. */
+  /**
+   * Share of forgotten taps, and of those followed by a second forgotten one. With `runs` false
+   * (the default, as a person forgets) a tap always comes after one or two forgotten; true: the
+   * harsher variant, runs of three and more.
+   */
   forget: number;
   forgetRun: number;
+  runs: boolean;
   /** Share of beats with a doubled tap, and of stray taps between beats. */
   doubled: number;
   stray: number;
@@ -312,7 +317,7 @@ export interface Tapper {
   every: number;
 }
 
-const T0: Tapper = { name: 'precise', sigma: 0.004, offset: 0, drift: 0, forget: 0, forgetRun: 0, doubled: 0, stray: 0, rate: 1, countIn: false, every: 1 };
+const T0: Tapper = { name: 'precise', sigma: 0.004, offset: 0, drift: 0, forget: 0, forgetRun: 0, runs: false, doubled: 0, stray: 0, rate: 1, countIn: false, every: 1 };
 
 export function tappers(): Tapper[] {
   const t = (name: string, p: Partial<Tapper>): Tapper => ({ ...T0, ...p, name });
@@ -326,6 +331,7 @@ export function tappers(): Tapper[] {
     t('drift −40→+60 ms ±30', { sigma: 0.015, offset: -0.04, drift: 0.1 }),
     t('forgets 10 % ±30', { sigma: 0.015, forget: 0.1, forgetRun: 0.3 }),
     t('forgets 20 % ±30', { sigma: 0.015, forget: 0.2, forgetRun: 0.3 }),
+    t('forgets 20 % ±30, runs of 3+', { sigma: 0.015, forget: 0.2, forgetRun: 0.3, runs: true }),
     t('extra 10 % ±30', { sigma: 0.015, doubled: 0.06, stray: 0.04 }),
     t('count-in, late +120 ±60', { sigma: 0.03, offset: 0.12, countIn: true }),
     t('¾ speed ±60', { sigma: 0.03, offset: -0.03, rate: 0.75 }),
@@ -343,6 +349,7 @@ export function simulateTaps(c: TapCase, tapper: Tapper, seed: number): number[]
   const first = tapper.countIn ? Math.max(0, c.fromK - 2 * c.truth.m) : c.fromK;
   const span = Math.max(1, b[c.endK]! - b[c.fromK]!);
   let skipNext = false;
+  let after = false;
   for (let k = first; k <= c.endK; k++) {
     if ((k - c.fromK) % tapper.every !== 0) continue;
     const u = Math.max(0, (b[k]! - b[c.fromK]!) / span);
@@ -351,10 +358,14 @@ export function simulateTaps(c: TapCase, tapper: Tapper, seed: number): number[]
     if (k > c.fromK && k < c.endK) {
       if (skipNext) {
         skipNext = false;
+        after = true;
         continue;
       }
-      if (r() < tapper.forget) {
+      // After one or two forgotten taps, a tap (unless the harsher variant).
+      if (after && !tapper.runs) after = false;
+      else if (r() < tapper.forget) {
         skipNext = r() < tapper.forgetRun;
+        after = !skipNext;
         continue;
       }
     }

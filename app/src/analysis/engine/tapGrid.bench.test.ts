@@ -124,18 +124,18 @@ describe('the tapped correction on the bench', () => {
   it('places the passage’s beats close to the true ones, with the count and the bars right', () => {
     // The thresholds hold for the subset's tappers (the full bench adds the hardest ones: see its table).
     const all = summarise(runs.filter((r) => FAST_TAPPERS.includes(r.tapper.name)).map((r) => r.s));
-    expect(all.median).toBeLessThan(20);
-    expect(all.within70).toBeGreaterThan(FULL ? 0.85 : 0.9);
-    expect(all.count).toBeGreaterThan(0.85);
-    expect(all.phase).toBeGreaterThan(0.85);
-    expect(all.junction).toBeGreaterThan(0.85);
+    expect(all.median).toBeLessThan(12);
+    expect(all.within70).toBeGreaterThan(0.9);
+    expect(all.count).toBeGreaterThan(0.88);
+    expect(all.phase).toBeGreaterThan(0.9);
+    expect(all.junction).toBeGreaterThan(0.95);
   });
 
   it('precise and moderately jittery tappers get the passage right almost always', () => {
     for (const name of ['precise', '±60 ms']) {
       const r = summarise(runs.filter((x) => x.tapper.name === name).map((x) => x.s));
-      expect(r.count, name).toBeGreaterThan(0.9);
-      expect(r.within70, name).toBeGreaterThan(0.95);
+      expect(r.count, name).toBeGreaterThan(0.98);
+      expect(r.within70, name).toBeGreaterThan(0.98);
     }
   });
 });

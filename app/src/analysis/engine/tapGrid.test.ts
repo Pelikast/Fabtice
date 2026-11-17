@@ -47,6 +47,16 @@ describe('the tapped correction', () => {
     expect(out.times.length).toBe(truth.length);
   });
 
+  it('taps along the count-in say the offset and are not the passage’s: neither dropped nor filled', () => {
+    const late = (t: number) => t + 0.07;
+    const taps = [...truth.slice(32, 40), ...truth.slice(40, 77)].map(late);
+    const out = tapped(taps);
+    expect(out.tapped.dropped).toBe(0);
+    expect(out.tapped.filled).toBe(0);
+    expect(out.tapped.used).toBe(37);
+    expect(out.tapped.offset).toBeCloseTo(0.07, 2);
+  });
+
   it('fills forgotten taps, drops doubled ones, and keeps the count', () => {
     const taps = truth.slice(40, 77).filter((_, i) => i % 7 !== 3 && i % 11 !== 5);
     taps.push(truth[50]! + 0.05, truth[61]! + 0.07);
@@ -85,6 +95,35 @@ describe('the tapped correction', () => {
     for (let k = 40; k <= 76; k++) expect(Math.abs(out.times[k]! - held[k]!)).toBeLessThan(0.02);
     expect(out.tapped.held).toBe(1);
     expect(out.tapped.filled).toBe(0);
+  });
+
+  it('a regular tap series wins over network downbeats a beat off after the passage, and the bars after keep its count', () => {
+    // After the passage the network's downbeats sit on beat 2 (as on a recorded old record).
+    const shifted = (t: number) => (truth.some((b, i) => (i < 77 ? i % 4 === 0 : i % 4 === 1) && Math.abs(b - t) < 0.04) ? 0.98 : 0.01);
+    const a = activationsFrom(truth, shifted, 82, 13);
+    let seed = 5;
+    const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647 - 0.5) * 0.06;
+    const out = tapped(truth.slice(40, 77).map((t) => t + rnd()), a);
+    for (let k = 40; k <= 76; k++) expect(Math.abs(out.times[k]! - truth[k]!)).toBeLessThan(0.03);
+    expect(out.tapped.held + out.tapped.dropped + out.tapped.filled).toBe(0);
+    // The two bars after the passage: no beat added or dropped.
+    for (let k = 77; k < 85; k++) expect(Math.abs(out.times[k]! - truth[k]!)).toBeLessThan(0.03);
+  });
+
+  it('a brief accelerando with a forgotten tap in it keeps the count (no held beat read)', () => {
+    // Beats shorten to 0.7 of a beat over eight beats and come back over eight.
+    const acc: number[] = [0.5];
+    for (let i = 1; i < 160; i++) {
+      const u = i - 44;
+      const f = u >= 0 && u < 16 ? 1 - 0.3 * Math.sin((Math.PI * u) / 16) : 1;
+      acc.push(acc[i - 1]! + P * f);
+    }
+    const a = activationsFrom(acc.filter((_, i) => i < 41 || i > 70), downs(acc), 84, 17);
+    const g = hint(halfFrom(acc, 40, 72));
+    const taps = acc.slice(40, 77).filter((_, i) => i !== 12 && i !== 13);
+    const out = applyTappedFix(a, { kind: 'tapped', from: acc[40]!, grid: g, taps });
+    expect(out.tapped.held).toBe(0);
+    for (let k = 40; k <= 76; k++) expect(Math.abs(out.times[k]! - acc[k]!)).toBeLessThan(0.04);
   });
 
   it('taps in half notes fill the beats between (taps every two beats of the grid)', () => {
