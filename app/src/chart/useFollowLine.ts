@@ -29,7 +29,19 @@ export interface FollowLine {
   resume: () => void;
 }
 
-export function useFollowLine(scroller: RefObject<HTMLElement | null>, grid: RefObject<HTMLElement | null>): FollowLine {
+/** The line to keep in view for the played bar `bar`: a key that changes when the line does, and how to find its cell. */
+export type FollowTarget = (bar: number) => { key: number; selector: string } | null;
+
+const FULL_CHART: FollowTarget = (bar) => ({ key: bar, selector: `[data-mesure="${bar}"]` });
+
+/**
+ * `target` says which cell is the played bar's: the bar itself on the full chart (the default), its written bar on the
+ * simplified chart. The same written bar becomes current again at each chorus: the sheet only moves when that line is
+ * out of view, and then glides (it never jumps).
+ */
+export function useFollowLine(scroller: RefObject<HTMLElement | null>, grid: RefObject<HTMLElement | null>, target: FollowTarget = FULL_CHART): FollowLine {
+  const targetRef = useRef(target);
+  targetRef.current = target;
   const s = useRef({
     suspended: false,
     lastUser: -1e9,
@@ -86,22 +98,27 @@ export function useFollowLine(scroller: RefObject<HTMLElement | null>, grid: Ref
     }
     if (performance.now() - st.lastUser < GRACE_MS) return;
     const { bar } = barProgress(app.tempoMap, getEngine().getPosition());
-    if (!st.cell || st.cell.bar !== bar || !st.cell.el.isConnected) {
-      const el = host.querySelector<HTMLElement>(`[data-mesure="${bar}"]`);
-      st.cell = el ? { bar, el } : null;
+    const wanted = targetRef.current(bar);
+    if (!wanted) {
+      st.cell = null;
+      return;
+    }
+    if (!st.cell || st.cell.bar !== wanted.key || !st.cell.el.isConnected) {
+      const el = host.querySelector<HTMLElement>(wanted.selector);
+      st.cell = el ? { bar: wanted.key, el } : null;
     }
     if (!st.cell) return;
     const top = st.cell.el.getBoundingClientRect().top - sc.getBoundingClientRect().top;
     const height = st.cell.el.offsetHeight;
-    const target = followTarget({ top, height, viewHeight: sc.clientHeight, scrollTop: sc.scrollTop, scrollMax: sc.scrollHeight - sc.clientHeight });
-    if (target === null) {
+    const goal = followTarget({ top, height, viewHeight: sc.clientHeight, scrollTop: sc.scrollTop, scrollMax: sc.scrollHeight - sc.clientHeight });
+    if (goal === null) {
       // The line is in view (the user scrolled back to it, or it came by itself): following resumes.
       st.suspended = false;
       return;
     }
     if (st.suspended) return;
-    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) sc.scrollTop = target;
-    else st.glide = { from: sc.scrollTop, to: target, start: now };
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) sc.scrollTop = goal;
+    else st.glide = { from: sc.scrollTop, to: goal, start: now };
   });
 
   return { resume: () => { s.current.suspended = false; s.current.lastUser = -1e9; } };

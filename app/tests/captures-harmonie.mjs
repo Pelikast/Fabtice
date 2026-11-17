@@ -5,14 +5,18 @@
 // `modulationCaptures` (C10): the modulations on screen, named `<form>-modulations-…`: the chart with two modulations
 // found by the analysis, then with the user's list (a bar with a letter, a signature and a modulation), the window, the
 // bar menu, the ruler of « Pistes », the print window, and the settings tab « Détection des accords ».
+// `simplifiedCaptures` (C14, fourth batch): « Grille complète simplifiée » of the owner's example piece, named
+// `<form>-simplifiee-…`: on screen, while playing in the second pass of A (the lit bar and the repeat tag), a loop
+// dragged over written bars, a modulation in the last chorus, the print window (one page) and the printed page itself.
 //
 // It is not run on its own: `tests/captures.mjs` calls it for each form, giving what its own sections use
 // (the same `browser`, `openPage`, `snap`, `contextOptions`, `press` as in that file):
 //
-//   import { harmonyCaptures, modulationCaptures } from './captures-harmonie.mjs';
+//   import { harmonyCaptures, modulationCaptures, simplifiedCaptures } from './captures-harmonie.mjs';
 //   ...
 //   ['structure du morceau', (form) => harmonyCaptures(form, { browser, openPage, snap, contextOptions, press })],
 //   ['modulations de la grille', (form) => modulationCaptures(form, { browser, openPage, snap, contextOptions, press })],
+//   ['grille simplifiée', (form) => simplifiedCaptures(form, { browser, openPage, snap, contextOptions, press })],
 
 import { menuCommand } from './lib/menu.mjs';
 import { openSettingsTab } from './lib/settings.mjs';
@@ -290,6 +294,134 @@ export async function modulationCaptures(form, deps) {
     await openSettingsTab(page, 'chords');
     await sleep(400);
     await snap(page, form, 'modulations-reglages');
+    await context.close();
+  }
+}
+
+// ---------------------------------------------------------------- C14, the simplified chart
+
+/** The made-up piece of the owner's example (`demo/demoAutumn.ts`), the simplified chart on screen. */
+async function feuilles(form, { browser, openPage, contextOptions }, query = '?demo&piece=feuilles&moteur=factice&vue=grille') {
+  const context = await browser.newContext(contextOptions(form));
+  const page = await openPage(context, query);
+  await page.evaluate(() => document.fonts.ready);
+  await page.waitForSelector('.vue-grille .case .ch', { timeout: 20000 });
+  await page.evaluate(() => window.__fabtice.structure.display.showSimplifiedChart());
+  await page.waitForSelector('[data-testid="grille-simplifiee"]');
+  await sleep(600);
+  return { context, page };
+}
+
+const barSeconds = (bar) => 0.5 + 2 * bar;
+
+export async function simplifiedCaptures(form, deps) {
+  const { snap, press } = deps;
+  const top = (page) => page.evaluate(() => (document.querySelector('.vue-grille').scrollTop = 0));
+
+  // 1. The simplified chart on screen: the form line, the blocks, the repeat signs, the final double bar.
+  {
+    const { context, page } = await feuilles(form, deps);
+    await top(page);
+    await page.evaluate((t) => window.__fabtice.actions.seek(t), barSeconds(0));
+    await sleep(300);
+    await snap(page, form, 'simplifiee-ecran');
+    await page.evaluate(() => (document.querySelector('.vue-grille').scrollTop = document.querySelector('.vue-grille').scrollHeight));
+    await sleep(300);
+    await snap(page, form, 'simplifiee-ecran-fin');
+    if (form.phone) {
+      await top(page);
+      await press(page, page.locator('[data-testid="structure-barre"]'));
+      await page.waitForSelector('[data-testid="structure-feuille"]');
+      await sleep(450);
+      await snap(page, form, 'simplifiee-feuille');
+    }
+    await context.close();
+  }
+
+  // 2. While playing, in the second pass of A: the lit bar and the repeat tag (« reprise 2/6 »).
+  {
+    const { context, page } = await feuilles(form, deps);
+    await page.evaluate((t) => window.__fabtice.actions.seek(t), barSeconds(9) + 0.4);
+    await page.evaluate(() => window.__fabtice.actions.play());
+    await sleep(900);
+    await snap(page, form, 'simplifiee-lecture-2e-passage');
+    await page.evaluate(() => window.__fabtice.actions.pause());
+    // The same bars heard in the piano solo: another time, another tag.
+    await page.evaluate((t) => window.__fabtice.actions.seek(t), barSeconds(49) + 0.7);
+    await page.evaluate(() => document.querySelector('[data-testid="grille-simplifiee"] [data-bloc="B"]').scrollIntoView({ block: 'center' }));
+    await sleep(500);
+    await snap(page, form, 'simplifiee-lecture-solo');
+    await context.close();
+  }
+
+  // 3. A loop dragged over written bars: the veil on the bars, the played bars of the next occurrence.
+  {
+    const { context, page } = await feuilles(form, deps);
+    await page.evaluate((t) => window.__fabtice.actions.seek(t), barSeconds(33) + 0.4);
+    const cell = (i) =>
+      page.evaluate((k) => {
+        const e = document.querySelector(`[data-testid="grille-simplifiee"] [data-ecrite="${k}"]`);
+        e.scrollIntoView({ block: 'center' });
+        const r = e.getBoundingClientRect();
+        return { x: r.left + r.width * 0.55, y: r.top + r.height * 0.7 };
+      }, i);
+    const a = await cell(1);
+    const b = await page.evaluate(() => {
+      const r = document.querySelector('[data-testid="grille-simplifiee"] [data-ecrite="3"]').getBoundingClientRect();
+      return { x: r.left + r.width * 0.55, y: r.top + r.height * 0.7 };
+    });
+    if (form.phone) {
+      const cdp = await page.context().newCDPSession(page);
+      const t = (type, x, y) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y, id: 1 }] });
+      await t('touchStart', a.x, a.y);
+      await sleep(650);
+      for (let k = 1; k <= 6; k++) {
+        await t('touchMove', a.x + ((b.x - a.x) * k) / 6, a.y + ((b.y - a.y) * k) / 6);
+        await sleep(40);
+      }
+      await t('touchEnd');
+      await cdp.detach();
+    } else {
+      await page.mouse.move(a.x, a.y);
+      await page.mouse.down();
+      for (let k = 1; k <= 8; k++) {
+        await page.mouse.move(a.x + ((b.x - a.x) * k) / 8, a.y + ((b.y - a.y) * k) / 8);
+        await sleep(20);
+      }
+      await page.mouse.up();
+    }
+    await sleep(400);
+    await snap(page, form, 'simplifiee-boucle');
+    await context.close();
+  }
+
+  // 4. The last chorus a tone higher (`&modulation=oui`, the analysis found the modulation at bar 82): the new key above the block.
+  {
+    const { context, page } = await feuilles(form, deps, '?demo&piece=feuilles&modulation=oui&moteur=factice&vue=grille');
+    await sleep(300);
+    await page.evaluate(() => {
+      const marks = [...document.querySelectorAll('[data-testid="grille-simplifiee"] .modulation-lue')];
+      (marks[0] ?? document.querySelector('[data-testid="grille-simplifiee"] .bloc:last-child')).scrollIntoView({ block: 'center' });
+    });
+    await sleep(400);
+    await snap(page, form, 'simplifiee-modulation');
+    await context.close();
+  }
+
+  // 5. The print window on the simplified chart: one page; then the page itself, at life size, large enough to read.
+  {
+    const { context, page } = await feuilles(form, deps);
+    await page.evaluate(() => window.__fabtice.store.setState((s) => ({ ui: { ...s.ui, printOpen: true, panel: 'none' } })));
+    await page.waitForSelector('[data-testid="impression"]');
+    await press(page, page.locator('[data-testid="impression"] [data-choix="a4"]'));
+    await sleep(500);
+    await snap(page, form, 'simplifiee-impression');
+    // The paper: print media puts the sheet back to its size (the preview only shrinks it).
+    await page.setViewportSize({ width: 900, height: 1250 });
+    await page.emulateMedia({ media: 'print' });
+    await sleep(500);
+    await snap(page, form, 'simplifiee-papier', page.locator('.pp-papier').first());
+    await page.emulateMedia({ media: 'screen' });
     await context.close();
   }
 }

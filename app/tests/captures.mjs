@@ -14,7 +14,10 @@
 //   impression-* (the print window: une-page, plusieurs-pages),
 //   export-audio-* (« Exporter » ▸ « Audio… »: wave, wave-96-khz, flac, mp3, des-pistes, des-pistes-un-seul-fichier),
 //   chargement-* (the ember text of the top bar: separation, analyse),
-//   structure-* (the structure column of « Grille d'accords »: complet, partie, fenetre, corrigee, pop, simplifiee, vide; on a phone also feuille).
+//   structure-* (the structure column of « Grille d'accords »: complet, partie, fenetre, corrigee, pop, simplifiee, vide; on a phone also feuille),
+//   modulations-* (a modulation on the chart: the mark, its window, the bar menu, the ruler of « Pistes », the paper, the settings),
+//   simplifiee-* (« Grille complète simplifiée »: ecran, ecran-fin, lecture-2e-passage, lecture-solo, boucle, modulation,
+//   impression, papier; on a phone also feuille).
 //
 // Each screen is reached the way the browser checks reach it (`lib/menu.mjs`, `lib/settings.mjs`; the states of
 // `new-project.mjs`, `standards.mjs`, `print.mjs`). Playwright and Chromium are expected preinstalled
@@ -28,7 +31,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { closeMenu, menuCommand, menuOpenTo, openMenu } from './lib/menu.mjs';
 import { SETTINGS_TABS, openSettings, openSettingsTab } from './lib/settings.mjs';
-import { harmonyCaptures, modulationCaptures } from './captures-harmonie.mjs';
+import { harmonyCaptures, modulationCaptures, simplifiedCaptures } from './captures-harmonie.mjs';
 import { meterCaptures } from './captures-meter.mjs';
 import { tapFixCaptures } from './captures-tap.mjs';
 import { startServer } from './serve.mjs';
@@ -109,11 +112,12 @@ async function press(page, locator) {
 }
 
 /** A picture of the page as it is, once the fonts are in and a moment has passed for the last animation. */
-async function snap(page, form, name) {
+async function snap(page, form, name, target = page) {
   await page.evaluate(() => document.fonts.ready);
   await sleep(350);
   const file = path.join(out, `${form.name}-${name}.png`);
-  await page.screenshot({ path: file });
+  // `target`: a locator, for the picture of one element (a printed sheet at life size).
+  await target.screenshot({ path: file });
   written.push(file);
 }
 
@@ -428,9 +432,10 @@ try {
       ['signature rythmique', (form) => meterCaptures(form, { browser, openPage, snap, contextOptions, press })],
       ['structure du morceau', (form) => harmonyCaptures(form, { browser, openPage, snap, contextOptions, press })],
       ['modulations de la grille', (form) => modulationCaptures(form, { browser, openPage, snap, contextOptions, press })],
+      ['grille simplifiée', (form) => simplifiedCaptures(form, { browser, openPage, snap, contextOptions, press })],
     ]) {
-      // FABTICE_CAPTURES_ONLY=structure: only the sections whose name contains that text.
-      if (process.env.FABTICE_CAPTURES_ONLY && !label.includes(process.env.FABTICE_CAPTURES_ONLY)) continue;
+      // FABTICE_CAPTURES_ONLY=structure,modulations,simplifi: only the sections whose name contains one of these texts.
+      if (process.env.FABTICE_CAPTURES_ONLY && !process.env.FABTICE_CAPTURES_ONLY.split(',').some((only) => label.includes(only))) continue;
       try {
         console.log(`${form.name} : ${label}…`);
         await run(form);

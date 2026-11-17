@@ -33,11 +33,30 @@ export interface GestureOptions {
   onSelect?: () => void;
   /** The bar menu, at a viewport point (right click, or a long hold of a finger). */
   onMenu?: (bar: number, x: number, y: number) => void;
+  /**
+   * The simplified chart (C14): the cells are the WRITTEN bars (`data-ecrite`), a click is a seek, a drag a selection, and
+   * nothing else happens (no chord editor, no bar menu, no modulation window: they act on played bars).
+   */
+  written?: WrittenGestures | null;
+}
+
+/** What the simplified chart does with the gestures; `bar` is the index of a written bar. */
+export interface WrittenGestures {
+  /** A gesture begins: remember where the playhead is (the next occurrence is taken from there for the whole gesture). */
+  begin: () => void;
+  /** A click or tap: go to the written bar's next occurrence. */
+  seek: (written: number) => void;
+  /** A drag over written bars (either order): sets the loop to the played bars; false when they are not contiguous in time. */
+  select: (first: number, last: number) => boolean;
 }
 
 /** What is under the pointer, read from the markup (`data-mesure`, `.accord-case`, `.section`). */
-function hitOf(grid: HTMLElement, target: EventTarget | null): Hit | null {
+function hitOf(grid: HTMLElement, target: EventTarget | null, written = false): Hit | null {
   if (!(target instanceof Element)) return null;
+  if (written) {
+    const cell = target.closest<HTMLElement>('[data-ecrite]');
+    return cell && grid.contains(cell) ? { target: 'bar', bar: Number(cell.dataset.ecrite) } : null;
+  }
   const cell = target.closest<HTMLElement>('[data-mesure]');
   if (!cell || !grid.contains(cell)) return null;
   const bar = Number(cell.dataset.mesure);
@@ -70,9 +89,10 @@ export function useChartGestures(opts: GestureOptions): void {
 
     const measure = (): CellBox[] => {
       const origin = grid.getBoundingClientRect();
-      return [...grid.querySelectorAll<HTMLElement>('[data-mesure]')].map((el) => {
+      const written = !!latest.current.written;
+      return [...grid.querySelectorAll<HTMLElement>(written ? '[data-ecrite]' : '[data-mesure]')].map((el) => {
         const r = el.getBoundingClientRect();
-        return { bar: Number(el.dataset.mesure), x: r.left - origin.left, y: r.top - origin.top, w: r.width, h: r.height };
+        return { bar: Number(written ? el.dataset.ecrite : el.dataset.mesure), x: r.left - origin.left, y: r.top - origin.top, w: r.width, h: r.height };
       });
     };
     /** The bar under a viewport point; the boxes are in the grid's own coordinates, so scrolling does not matter. */
@@ -82,10 +102,30 @@ export function useChartGestures(opts: GestureOptions): void {
       return barAtPoint(boxes, clientX - origin.left, clientY - origin.top);
     };
 
+    /** Written chart: did this gesture set a loop? (A drag that cannot be one leaves the loop alone.) */
+    let selected = false;
     const run = (effects: Effect[]) => {
-      const { onEdit, onKey, onSeek, onSelect, onMenu } = latest.current;
+      const { onEdit, onKey, onSeek, onSelect, onMenu, written } = latest.current;
       for (const e of effects) {
         const { tempoMap } = appStore.getState();
+        if (written) {
+          // The simplified chart: only seeking and selecting exist.
+          if (e.type === 'seek') {
+            written.seek(e.bar);
+            onSeek?.();
+          } else if (e.type === 'select') {
+            onSelect?.();
+            if (written.select(e.first, e.last)) selected = true;
+          } else if (e.type === 'commit') {
+            if (selected) {
+              onSeek?.();
+              enterLoop();
+            }
+          } else if (e.type === 'unselect') {
+            appStore.setState({ loop: loopBefore });
+          }
+          continue;
+        }
         switch (e.type) {
           case 'seek':
             seek(Math.max(0, barStartTime(tempoMap, e.bar)));
@@ -177,7 +217,9 @@ export function useChartGestures(opts: GestureOptions): void {
       last = { x: e.clientX, y: e.clientY };
       loopBefore = appStore.getState().loop;
       boxes = null;
-      feed({ type: 'down', pointerId: e.pointerId, touch, x: e.clientX, y: e.clientY, at: e.timeStamp, hit: hitOf(grid, e.target) });
+      selected = false;
+      latest.current.written?.begin();
+      feed({ type: 'down', pointerId: e.pointerId, touch, x: e.clientX, y: e.clientY, at: e.timeStamp, hit: hitOf(grid, e.target, !!latest.current.written) });
       if ((state as GestureState).kind !== 'press') return;
       window.addEventListener('pointermove', onMove);
       window.addEventListener('pointerup', onUp);
@@ -199,10 +241,11 @@ export function useChartGestures(opts: GestureOptions): void {
         e.preventDefault();
         return;
       }
-      const hit = hitOf(grid, e.target);
+      const hit = hitOf(grid, e.target, !!latest.current.written);
       if (!hit) return;
       e.preventDefault();
-      latest.current.onMenu?.(hit.bar, e.clientX, e.clientY);
+      // On the simplified chart a right click does nothing (the menu acts on played bars).
+      if (!latest.current.written) latest.current.onMenu?.(hit.bar, e.clientX, e.clientY);
     };
 
     grid.addEventListener('pointerdown', onDown);

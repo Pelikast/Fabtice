@@ -224,13 +224,16 @@ export function iRealMusic(chart: ExportChart): string {
     const section = bar.section ? sectionToken(bar.section) : '';
     const signature = i === 0 || bar.timeSignature;
     // A double bar line closes the bar before a section and opens this one; the first bar opens the chart.
-    out += i === 0 || bar.doubleBarBefore ? '[' : '';
+    // C14: a repeat sign opens the bar instead (`{`).
+    out += bar.repeatStart ? '{' : i === 0 || bar.doubleBarBefore ? '[' : '';
     out += section.startsWith('*') ? section : '';
     out += signature ? iRealMeterToken(target.meter) : '';
     out += signature && !target.exact ? `<${m.numerator}/${m.denominator}>` : '';
     out += section.startsWith('<') ? section : '';
     // C10: one key per chart in iReal Pro; a later passage is written as a comment on its bar, and its chords in its key.
     if (bar.keyChange) out += `<${keyChangeComment(bar.keyChange)}>`;
+    // C14: a note on the bar (« A2 », « 3x »): a comment, none of `<`, `>`, `*`, `=` in it.
+    if (bar.note) out += `<${bar.note.replace(/[<>*=]/g, '')}>`;
     ctx.key = bar.key === undefined ? chart.key : bar.key;
     const cells = barCells(bar, beats, ctx);
     out += joinCells(cells);
@@ -243,7 +246,9 @@ export function iRealMusic(chart: ExportChart): string {
       ctx.going = false;
       ctx.lastBarSingle = false;
     }
-    out += bar.final || !next ? 'Z' : next.doubleBarBefore ? ']' : '|';
+    // The end of a repeat is `}`; the end of the chart is `Z` (after the `}` when a repeat ends there).
+    const end = bar.final || !next;
+    out += end ? (bar.repeatEnd ? '}Z' : 'Z') : bar.repeatEnd ? '}' : next.doubleBarBefore || next.repeatStart ? ']' : '|';
   });
   return out;
 }

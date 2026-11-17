@@ -69,6 +69,7 @@ import { demoStructure, demoStructureKind, withDemoStructure, withoutHandLetters
 import * as audioJournal from '../audio/journal';
 import { harmonyHandle, suspendHarmonyRefresh } from '../structure/refresh';
 import { demoProject } from './demoProject';
+import { autumnProject } from './demoAutumn';
 
 declare global {
   interface Window {
@@ -164,7 +165,15 @@ export function startDemo(params: URLSearchParams): Promise<void> {
   // A known computer, so that estimates and the automatic choice are the same on every run.
   setDevice({ phone: false, gpu: 'apple', browser: 'chromium', memoryGB: 8, cores: 8, desktopApp: false });
   const ready = (async () => {
-    if (mode === 'aucune') {
+    if (params.get('piece') === 'feuilles') {
+      // `&piece=feuilles`: the made-up piece of the simplified chart (demoAutumn.ts), already analysed, its structure detected.
+      // The harmony pass would replace that structure: its automatic runs stop for that piece.
+      suspendHarmonyRefresh();
+      // `&modulation=oui`: the last chorus a tone higher, with the modulation found by the analysis.
+      const input = autumnProject(params.get('modulation') === 'oui');
+      replaceAnalyzer(new MockAnalyzer({ durationMs: 0, downloadMs: 0, fixture: () => input.analysis! }));
+      await actions.openProject(input);
+    } else if (mode === 'aucune') {
       const input = demoProject('fixed');
       const duration = audioSeconds(input.tracks[0]!.audio);
       // Not analysed by itself; « Analyser le morceau » finds the demo's chords on the grid entered by hand.

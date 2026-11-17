@@ -1439,8 +1439,9 @@ colonne, la fenêtre et les marqueurs des exports (`export/session/build.ts#part
 (`setLoopRegion` puis `enterLoop`), `changePart`, `deletePart`. Pur :
 `chart/structureDisplay.ts` (`partBars`, `limitsFromNumbers`,
 `defaultNewLimits`…). `store/simplifiedSelectors.ts` :
-`selectSimplifyInput`, `selectSimplifiedChart` (appelle `simplifyChart`, nul
-aujourd'hui : la grille complète s'affiche avec une note discrète).
+`selectSimplifyInput`, `selectSimplifiedChart` (appelle `simplifyChart` ; nul
+quand le morceau n'a pas de forme à replier : la grille complète s'affiche avec
+la phrase « Ce morceau n'a pas de forme à replier… »).
 
 **Écran.** `chart/StructureColumn.tsx` (colonne de 20 % à l'ordinateur ;
 barre `StructureBar` et feuille au téléphone), `chart/usePlayingPart.ts` (la
@@ -1466,13 +1467,12 @@ npm run captures -- /dossier` (`tests/captures-harmonie.mjs`).
 lignes de plus (`part`, `form`) et `headerHeightMm({ title, info, part?, form? })`.
 `chart/printChart.ts` : `usePrintChart(instrument, what: ChartDisplay)` rend
 `PrintChart` avec `form`, `partLabel` (« Thème 1 · mesures 3–10 »), `simplified`
-(porté, pas encore dessiné : tant que `simplifyChart` ne rend rien, ou que son
-rendu n'existe pas, `lines` est la grille complète), `lines` ;
+(les lignes écrites de la grille simplifiée sont dans `rows`, voir plus bas),
+`lines` ;
 `printLines(bars, range?)`, `partCaption`, `headerForm`, `headerPart`. La
 fenêtre (`components/PrintDialog.tsx`) s'ouvre sur `ui.chartDisplay` et propose
 « Grille complète simplifiée » seulement si `selectSimplifiedChart` rend une
-grille. **Pour la troisième lot** : fournir les lignes écrites de la grille
-simplifiée à `PrintSheets` à partir de `chart.simplified`.
+grille. La grille simplifiée écrite est imprimée (quatrième lot, plus bas).
 Vérification : `tests/print.mjs` (bloc « Ce qu'on imprime », deux formes, PDF
 identique à l'aperçu pour une section).
 
@@ -1490,6 +1490,60 @@ d'accords garde le coin de la lettre (`.case.lettree[data-rangs="2"]`,
 `--haut: 26px`) ; `.voile.voile-signature` / `.accueil.fenetre-signature` (la
 feuille du téléphone de « Changer la signature ») ont deux classes pour passer
 devant `.voile` et `.accueil` de `dialog.css`, qui viennent après dans la feuille.
+
+### Étape 5 de la 1.0.0 : « Grille complète simplifiée » à l'écran, au suivi, sur le papier et dans les exports (C14, quatrième lot)
+
+**Le dessin écrit.** `chart/simplifiedLayout.ts` (pur, testé) : `writtenBlocks(chart)`
+(un bloc par section : titre, `times`, lignes de quatre mesures), `printRows`,
+`formItems` / `formLineText` (la ligne « Forme : … »), `placeOf`, `repeatTag`
+(« 2ᵉ fois » jusqu'à quatre passages, « reprise n/total » au delà), `nextOccurrence`,
+`seekTarget`, `loopRange` (la boucle d'un glissement : les mesures jouées de la
+prochaine occurrence où les mesures écrites se suivent, sinon `null`).
+Écran : `chart/SimplifiedGrid.tsx` (branché dans `ChartSheet` quand
+`ui.chartDisplay.kind === 'simplified'` et que `selectSimplifiedChart` rend une
+grille ; sinon `ShownNote` écrit la phrase calme et la grille complète s'affiche) ;
+les cases sont celles de la grille (`.case`, `.accord-case`, `ChordSymbol`,
+`useFitChords`), marquées `data-ecrite` ; `styles/simplified.css` (blocs, signes de
+reprise dessinés en dégradés, « ×2 »).
+
+**Le suivi.** `chart/useWrittenPlayhead.ts` (même approche que `usePlayheadBar` :
+`.jouee` et `--avance` écrits dans le DOM par la boucle d'images ; la mesure
+jouée → `places` ; le texte de la fois dans `.bloc-fois`, `data-fois`) ;
+`useFollowLine(scroller, grid, target?)` : le troisième paramètre dit quelle case
+suit la mesure jouée (la grille complète par défaut). **Les gestes** :
+`useChartGestures({ written })` : en mode « écrit » les cases sont `data-ecrite`,
+seuls le clic (prochaine occurrence) et le glissement (boucle) existent ; le clic
+droit, l'appui long et les accords n'ouvrent rien.
+
+**Le papier.** `PrintChart.rows` (`PrintRow` : titre du bloc sur sa première
+ligne, `times`, la ligne) ; `PrintSheets.tsx` (`PrintWrittenRow`,
+`PrintWrittenBar`, `RepeatSign` : les signes de reprise sont faits de bordures
+car un navigateur n'imprime pas les fonds) ; `printLayout.ts` : `HEADING_MM`,
+`paginate(lines, options, headerMm, extras?)` (les lignes ont des hauteurs
+différentes : `breakRows`), `formRowsFor` (la ligne de forme passe sur plusieurs
+rangs), `printBarGeometry(layout, signed, { opens, closes, final })`.
+
+**iReal Pro.** `export/simplifiedExport.ts#buildSimplifiedExportChart` (les
+sections une fois, `{ … }` autour d'un passage joué deux fois de suite, `x` pour
+un « % », `*A`/`*i`, `Z`, une note `<3x>` au delà de deux) ; `ExportBar` gagne
+`repeatStart`, `repeatEnd`, `note` ; `chartExport.ts#chartForExportShown` choisit
+la grille simplifiée quand c'est l'affichage ; « Ouvrir dans iReal Pro » et
+« Fichier iReal Pro… » (`ui/commands.ts`) l'utilisent. Le lecteur des standards
+(`standards/irealRead.ts`) relit le lien aux mêmes mesures (test
+`simplifiedExport.test.ts`). MIDI, Logic et Ableton restent la ligne du temps
+complète (ils suivent l'audio).
+
+**La pièce de l'exemple.** `?demo&piece=feuilles` (`demo/demoAutumn.ts`, aussi
+lue par les tests) : Intro, Thème (AABC), Solo Piano (AABC), Solo Trompette (AA),
+Thème 2 (BC), 97 mesures en si mineur, des variantes entre les reprises, silence ;
+structure détectée donnée par l'état (les passes automatiques sont suspendues).
+
+Vérification : `npm run test:simplified` (`tests/simplified.mjs`, deux formes :
+les blocs et leurs textes, les signes, la ligne de forme, la lecture à plusieurs
+positions et la fois, le défilement, les clics, la boucle, ce qui ne s'ouvre pas,
+l'impression, le PDF, le téléphone), `tests/print.mjs`, `tests/structure.mjs` ;
+captures : `FABTICE_CAPTURES_ONLY=simplifi node tests/captures.mjs <dossier>`
+(`tests/captures-harmonie.mjs#simplifiedCaptures`, `<forme>-simplifiee-…`).
 
 ### Étape 5 de la 1.0.0 : modulations à l'écran (C10, troisième lot)
 

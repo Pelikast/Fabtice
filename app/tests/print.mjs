@@ -98,7 +98,8 @@ const sheets = (page) =>
     els.map((el) => {
       const st = getComputedStyle(el);
       return {
-        text: el.textContent,
+        // innerText: what the style sheet sets in capitals (the name of a part, « Intro ») is as the PDF has it.
+        text: el.innerText,
         lines: el.querySelectorAll('.pp-ligne').length,
         bars: el.querySelectorAll('.pp-case').length,
         w: parseFloat(st.getPropertyValue('--pl')),
@@ -647,7 +648,7 @@ try {
     const groups = await page.$$eval(`${DIALOG} .imp-groupe h3`, (els) => els.map((e) => e.textContent));
     check(`${tag}: « Ce qu’on imprime » is a group of the window, before « Marges »`, groups.includes('Ce qu’on imprime') && groups.indexOf('Ce qu’on imprime') < groups.indexOf('Marges'), groups.join('|'));
     const choices = await page.$$eval(`${DIALOG} [data-choix="full"], ${DIALOG} [data-choix="simplified"], ${DIALOG} [data-choix="part"]`, (els) => els.map((e) => `${e.dataset.choix}:${e.textContent.trim()}`));
-    check(`${tag}: « Grille complète » and « Une section »; no simplified chart to offer yet`, choices.join('|') === 'full:Grille complète|part:Une section', choices.join('|'));
+    check(`${tag}: « Grille complète », « Grille complète simplifiée » (the piece has a form to fold) and « Une section »`, choices.join('|') === 'full:Grille complète|simplified:Grille complète simplifiée|part:Une section', choices.join('|'));
     check(`${tag}: the screen shows the whole chart: « Grille complète » is chosen, all 25 bars are on the paper`, (await checked()).includes('full') && (await barsOnPaper()).length === 25, (await checked()).join());
     check(`${tag}: the first sheet says the form under the key and tempo: « Forme : AABC »`, (await textOf('.pp-forme')) === 'Forme : AABC' && (await textOf('.pp-infos')) !== null);
     const order = await page.$$eval('.pp-tete > *', (els) => els.map((e) => e.className));
@@ -702,7 +703,11 @@ try {
     await page.evaluate(() => window.__fabtice.structure.display.showSimplifiedChart());
     await sleep(200);
     await openIt();
-    check(`${tag}: the screen shows the simplified chart, not offered yet: the window opens on the whole chart`, (await checked()).includes('full') && (await barsOnPaper()).length === 25, (await checked()).join());
+    check(`${tag}: the screen shows the simplified chart: the window opens on it (its written bars, no bar numbers; see simplified.mjs)`, (await checked()).includes('simplified') && (await barsOnPaper()).length === 0 && (await page.locator('.pp-case[data-ecrite]').count()) > 0, (await checked()).join());
+    // The PDF is the preview for the simplified chart too (headings, repeat signs, « ×2 », the form line in full).
+    await comparePdf(page, `${tag}, the simplified chart`, { paper: 'a4', orientation: 'portrait', pages: 1 }, null);
+    check(`${tag}: the form line is written in full (the parts and their letters)`, ((await textOf('.pp-forme')) ?? '').startsWith('Forme : Intro, Thème 1 (AABC)'), String(await textOf('.pp-forme')));
+    check(`${tag}: everything on the simplified page stays inside its sheet`, (await layoutProblems(page)).length === 0, (await layoutProblems(page)).join(' ; '));
     await closeDialog(page);
 
     // A part deleted while it is chosen: the list follows.

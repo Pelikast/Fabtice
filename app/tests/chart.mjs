@@ -1029,7 +1029,8 @@ try {
     await page.getByRole('radio', { name: 'A', exact: true }).click();
     const edits = await edited(page);
     const wanted = JSON.stringify({ chords: edits.chords, sections: edits.sections, key: edits.key });
-    check('edits made: one chord, one section letter, a key', edits.chords.length === 1 && edits.sections.length === 1 && edits.key !== null, wanted);
+    check('edits made: one chord, one section letter, a key', edits.chords.length === 1 && edits.sections.length >= 1 && edits.key !== null, wanted);
+    // (Once a letter is edited the user's list is in force: the letters the detection had found are in it too.)
     await sleep(2500); // autosave is debounced
     await page.reload();
     await page.waitForFunction(() => window.__fabtice.store.getState().project !== null && window.__fabtice.store.getState().analysis !== null, null, { timeout: 20000 });

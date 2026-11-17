@@ -332,6 +332,69 @@
 .pp-case.pp-modulee[data-rangs="2"] { --haut: calc(29 * var(--u)); }
 .pp-case.pp-double { border-left: calc(1.6mm * var(--e)) double var(--encre); }
 .pp-case.pp-signee { --pg: calc(30 * var(--u)); }
+/* ---------------------------------------------------------------- the simplified chart on paper (C14) */
+/* A heading band over the first line of each block (« A », « Intro »): the boxed letter of the chart, or the part's name. */
+.pp-bloc-tete { display: flex; align-items: flex-end; height: calc(9mm * var(--e)); padding-bottom: calc(1.4mm * var(--e)); }
+.pp-bloc-lettre {
+  min-width: calc(5mm * var(--e));
+  padding: 0 calc(1.2mm * var(--e));
+  border: calc(0.35mm * var(--e)) solid var(--encre);
+  font-family: var(--texte);
+  font-size: calc(10pt * var(--e));
+  font-weight: 620;
+  line-height: calc(4.6mm * var(--e));
+  text-align: center;
+}
+.pp-bloc-nom {
+  font-family: var(--texte);
+  font-size: calc(8.5pt * var(--e));
+  font-weight: 620;
+  letter-spacing: 0.09em;
+  line-height: calc(4.6mm * var(--e));
+  text-transform: uppercase;
+}
+/* Repeat signs, drawn: thick bar, thin bar, two dots at the start and at the end of a passage played several times in a
+   row; the final double bar (thin, thick) at the very end. Made of borders, not backgrounds: a browser leaves the
+   backgrounds out of a print unless asked, a border always prints. */
+.pp-rep { position: absolute; top: 0; bottom: 0; width: calc(6mm * var(--e)); }
+.pp-rep b { position: absolute; display: block; width: 0; }
+.pp-rep .gros { top: 0; bottom: 0; border-left: calc(1.3mm * var(--e)) solid var(--encre); }
+.pp-rep .fin { top: 0; bottom: 0; border-left: calc(0.4mm * var(--e)) solid var(--encre); }
+.pp-rep .pt { height: 0; border: calc(0.8mm * var(--e)) solid var(--encre); border-radius: 50%; }
+.pp-rep .pt.pt-a { top: calc(50% - 2.4mm * var(--e)); }
+.pp-rep .pt.pt-b { top: calc(50% + 0.8mm * var(--e)); }
+.pp-rep-debut { left: 0; }
+.pp-rep-debut .gros { left: 0; }
+.pp-rep-debut .fin { left: calc(2.5mm * var(--e)); }
+.pp-rep-debut .pt { left: calc(3.7mm * var(--e)); }
+.pp-rep-fin { right: 0; }
+.pp-rep-fin .gros { right: 0; }
+.pp-rep-fin .fin { right: calc(2.5mm * var(--e)); }
+.pp-rep-fin .pt { right: calc(3.7mm * var(--e)); }
+.pp-rep-final { right: 0; width: calc(4mm * var(--e)); }
+.pp-rep-final .gros { right: 0; }
+.pp-rep-final .fin { right: calc(2.5mm * var(--e)); }
+.pp-case.pp-rep-ouvre { --pg: calc(40 * var(--u)); }
+.pp-case.pp-rep-ouvre.pp-signee { --pg: calc(54 * var(--u)); }
+.pp-case.pp-rep-ferme { --pd: calc(30 * var(--u)); }
+.pp-case.pp-finale-ecrite { --pd: calc(18 * var(--u)); }
+/* « ×2 », at the top of the last bar of the passage, before the closing repeat sign. */
+.pp-rep-fois {
+  position: absolute;
+  top: calc(1.4mm * var(--e));
+  right: calc(7mm * var(--e));
+  font-family: var(--texte);
+  font-size: calc(9pt * var(--e));
+  font-weight: 640;
+  line-height: 1;
+  color: var(--encre-douce);
+}
+/* The form line of the simplified chart is written in full, on as many rows as it needs. */
+.pp-forme[data-lignes] {
+  height: calc(5mm * var(--e) * var(--lignes, 1));
+  white-space: normal;
+  text-overflow: clip;
+}
 .pp-numero {
   position: absolute;
   top: calc(1.4mm * var(--e));

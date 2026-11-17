@@ -1,0 +1,142 @@
+/* ---------- « Grille complète simplifiée » (C14): the written chart ---------- */
+
+/* The form line and the quiet line that says where the chart is corrected. */
+.ecrite-forme {
+  margin: 0 0 4px;
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--encre-douce);
+}
+.ecrite-forme .forme-mot { font-weight: 600; color: var(--encre); }
+.ecrite-forme .forme-partie {
+  display: inline;
+  margin: 0 -3px;
+  padding: 1px 3px;
+  border-radius: var(--rayon);
+  color: var(--encre);
+  font: inherit;
+  text-align: left;
+  transition: background var(--vite) var(--courbe);
+}
+@media (hover: hover) {
+  .ecrite-forme .forme-partie:hover { background: var(--papier-fonce); }
+}
+.ecrite-aide { margin: 0 0 6px; font-size: 13px; font-style: italic; color: var(--encre-douce); }
+
+/* One block per written section: a heading row, then the bars four to a line. */
+.grille-ecrite { margin-top: 4px; }
+.bloc { margin-top: 20px; }
+.bloc:first-child { margin-top: 12px; }
+.bloc-tete { display: flex; align-items: center; gap: 12px; min-height: 26px; margin-bottom: 8px; }
+/* The boxed letter of the chart, as a heading (« A », « A2 »). */
+.bloc-lettre {
+  min-width: 22px;
+  padding: 0 6px;
+  border: 1.5px solid var(--encre);
+  font-size: 14px;
+  font-weight: 620;
+  line-height: 19px;
+  text-align: center;
+}
+/* What lies outside the letters (intro, outro, a special): its name, in the label style. */
+.bloc-nom {
+  font-size: 12px;
+  font-weight: 620;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--encre-douce);
+}
+/* While a passage played more than once plays: which time it is, written by the frame loop (useWrittenPlayhead). */
+.bloc-fois {
+  margin-left: auto;
+  min-height: 1.3em;
+  font-size: 13px;
+  color: var(--encre-douce);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.bloc-fois:empty { display: none; }
+
+/* A written bar: the chart's own cell, with no number. Chords are shown, not edited here. */
+.ecrite-case .accord-case.lue { cursor: pointer; pointer-events: none; }
+.ecrite-case .modulation-lue { pointer-events: none; cursor: inherit; }
+.ecrite-case:hover .modulation-lue { background: none; color: var(--encre-douce); }
+
+/* Repeat signs, drawn: thick bar, thin bar, two dots — at the start and at the end of a passage played several times in a
+   row, and the final double bar (thin, thick) at the very end. */
+.ecrite-case .rep {
+  --d: radial-gradient(circle at center, var(--encre) 0 2.3px, transparent 2.9px);
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 18px;
+  pointer-events: none;
+  z-index: 2;
+}
+.ecrite-case .rep-debut {
+  left: 0;
+  background:
+    linear-gradient(var(--encre), var(--encre)) left 0 top 0 / 4px 100% no-repeat,
+    linear-gradient(var(--encre), var(--encre)) left 7px top 0 / 1.5px 100% no-repeat,
+    var(--d) left 11px top calc(50% - 10px) / 6px 6px no-repeat,
+    var(--d) left 11px top calc(50% + 4px) / 6px 6px no-repeat;
+}
+.ecrite-case .rep-ferme {
+  right: 0;
+  background:
+    linear-gradient(var(--encre), var(--encre)) right 0 top 0 / 4px 100% no-repeat,
+    linear-gradient(var(--encre), var(--encre)) right 7px top 0 / 1.5px 100% no-repeat,
+    var(--d) right 11px top calc(50% - 10px) / 6px 6px no-repeat,
+    var(--d) right 11px top calc(50% + 4px) / 6px 6px no-repeat;
+}
+.ecrite-case .rep-final {
+  right: 0;
+  width: 12px;
+  background:
+    linear-gradient(var(--encre), var(--encre)) right 0 top 0 / 4px 100% no-repeat,
+    linear-gradient(var(--encre), var(--encre)) right 7px top 0 / 1.5px 100% no-repeat;
+}
+.ecrite-case.rep-ouvre { --pg: 30px; }
+.ecrite-case.rep-clot { --pd: 22px; }
+.ecrite-case.finale-ecrite { --pd: 16px; }
+.ecrite-case.rep-ouvre.signee { --pg: 44px; }
+/* « ×2 », written after the closing repeat sign, at the top of the last bar of the passage. */
+.ecrite-case .rep-fois {
+  position: absolute;
+  top: 5px;
+  right: 24px;
+  font-family: var(--texte);
+  font-size: 12.5px;
+  font-weight: 640;
+  color: var(--encre-douce);
+  pointer-events: none;
+}
+
+@media (max-width: 760px) {
+  .ecrite-forme { font-size: 13.5px; }
+  .bloc { margin-top: 16px; }
+  .bloc-lettre { font-size: 13px; line-height: 17px; }
+  .ecrite-case.rep-ouvre { --pg: 20px; }
+  .ecrite-case.rep-clot { --pd: 16px; }
+  .ecrite-case.finale-ecrite { --pd: 12px; }
+  .ecrite-case.rep-ouvre.signee { --pg: 34px; }
+  .ecrite-case .rep { width: 15px; }
+  .ecrite-case .rep-debut, .ecrite-case .rep-ferme {
+    --d: radial-gradient(circle at center, var(--encre) 0 1.9px, transparent 2.4px);
+  }
+  .ecrite-case .rep-debut {
+    background:
+      linear-gradient(var(--encre), var(--encre)) left 0 top 0 / 3px 100% no-repeat,
+      linear-gradient(var(--encre), var(--encre)) left 5px top 0 / 1.5px 100% no-repeat,
+      var(--d) left 8px top calc(50% - 8px) / 5px 5px no-repeat,
+      var(--d) left 8px top calc(50% + 3px) / 5px 5px no-repeat;
+  }
+  .ecrite-case .rep-ferme {
+    background:
+      linear-gradient(var(--encre), var(--encre)) right 0 top 0 / 3px 100% no-repeat,
+      linear-gradient(var(--encre), var(--encre)) right 5px top 0 / 1.5px 100% no-repeat,
+      var(--d) right 8px top calc(50% - 8px) / 5px 5px no-repeat,
+      var(--d) right 8px top calc(50% + 3px) / 5px 5px no-repeat;
+  }
+  .ecrite-case .rep-fois { top: 4px; right: 18px; font-size: 11.5px; }
+}

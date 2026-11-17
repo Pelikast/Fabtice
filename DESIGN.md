@@ -367,9 +367,10 @@ disent rien. Le nom d'une partie tient sur une ligne quand la colonne le permet
 (14,5 px) ; « Boucle » et le crayon restent à droite.
 
 **Au-dessus des mesures**, quand elles ne sont pas toute la grille, une ligne
-discrète (13,5 px, encre douce) : « Thème 1 · mesures 3–10 », ou, pour la
-grille simplifiée tant qu'elle n'est pas écrite, « La grille simplifiée
-arrive avec la structure du morceau. ».
+discrète (13,5 px, encre douce) : « Thème 1 · mesures 3–10 », ou, quand le
+morceau n'a pas de forme à replier (la grille simplifiée n'existe pas), « Ce
+morceau n'a pas de forme à replier : la grille est affichée en entier. »
+Quand elle existe, c'est la section « Grille complète simplifiée » ci-dessous.
 
 **Fenêtre « Modifier la partie » / « Ajouter une partie ».** Une fenêtre de
 la famille (papier clair, titre en Fraunces, bouton principal **à l'encre**),
@@ -389,6 +390,75 @@ voile habituel) avec la même liste ; choisir un affichage ou une partie, ou
 toucher « Boucle » ou le crayon, la referme. Cibles d'au moins 40 px
 (boutons de 42 à 46 px). La fenêtre d'une partie est, elle aussi, une feuille
 posée en bas, boutons sur toute la largeur.
+
+## Grille complète simplifiée
+
+L'affichage « Grille complète simplifiée » écrit le morceau sur une page, comme
+un Real Book : chaque section une seule fois, les reprises repliées. Il remplace
+les mesures de la grille, sous le même titre, et garde le langage de la grille :
+mêmes cases (`.case`), accords à la place de leur temps, **une seule taille
+pour tous les accords** de la page, signatures aux changements, pastille de
+modulation (« Ton : A♭ », qu'on lit sans qu'elle s'ouvre).
+**Les mesures n'ont pas de numéro** : une mesure écrite en représente
+plusieurs jouées.
+
+**La ligne de forme** d'abord, en Instrument Sans 14,5 px, encre douce, qui
+passe à la ligne sans bruit : « **Forme :** Intro, Thème 1 (AABC), Solo (Piano)
+(AABC), Solo (Trompette) (AA), Thème 2 (BC) » (noms de `partName`, lettres de
+la forme). Chaque partie est un texte cliquable (encre, papier foncé au
+survol) qui place la tête de lecture au début de la partie, sans rien changer
+d'autre. Dessous, une ligne en italique, encre douce, 13 px : « Pour corriger un
+accord, passez par l'affichage complet. » : c'est dit une fois, il n'y a ni
+avertissement ni fenêtre quand on essaie, simplement rien ne s'ouvre.
+
+**Un bloc par section écrite.** Son titre d'abord : la lettre encadrée comme
+sur la grille (« A », « B », « A2 » pour une section dont la fin diffère), ou,
+pour ce qui est hors des lettres, le nom de la partie dans le style des
+étiquettes (INTRO, OUTRO, SPÉCIAL : 12 px, capitales espacées, encre douce) ;
+puis les mesures, quatre par ligne ; une section plus courte (une intro d'une
+mesure) n'écrit que ses mesures. Une mesure qui continue l'accord d'avant porte
+le signe de répétition de la grille (𝄎, le même glyphe, le même style : c'est
+le « % » du Real Book), jamais un accord recopié.
+
+**Les reprises, dessinées** (CSS, jamais une image) : quand un passage est joué
+deux fois de suite, une double barre de reprise épaisse-fine suivie des deux
+points ouvre sa première mesure, les deux points suivis de fine-épaisse
+ferment sa dernière, et « ×2 » (12,5 px, 640, encre douce) est écrit en haut
+de cette dernière mesure. La dernière mesure du morceau se ferme par la double
+barre finale (fine, épaisse). Sur le papier les mêmes signes sont faits de
+bordures (un navigateur n'imprime pas les fonds : une bordure s'imprime
+toujours).
+
+**Le suivi.** La mesure écrite qui correspond à l'audio se remplit du même filet
+de braise que la mesure jouée de la grille complète (le trait qui avance dans
+la mesure) ; la mesure jouée est cherchée dans la grille simplifiée, et ce qui
+n'y est pas ne s'allume pas. Tant qu'un passage joué plusieurs fois se joue, **le
+titre de son bloc dit quelle fois c'est**, à droite, en encre douce 13 px,
+chiffres tabulaires : « 2ᵉ fois » (jusqu'à quatre passages), « reprise 3/6 » au
+delà (la même mesure écrite joue à chaque chorus) ; rien pour une mesure jouée
+une seule fois. La feuille suit la ligne qui joue et, quand le même passage
+revient, glisse en douceur (pas de saut). La partie jouée est marquée dans la
+colonne, comme avant.
+
+**Les gestes.** Un clic ou un toucher sur une mesure écrite va à **sa prochaine
+occurrence** après la tête de lecture (la première quand il n'y en a plus) ; on
+l'entend aussitôt en lecture. Glisser sur plusieurs mesures écrites (au doigt :
+appuyer, tenir, glisser) sélectionne en boucle les mesures jouées de la
+prochaine occurrence où elles se suivent dans le jeu, voilées en laiton sur les
+mesures écrites ; sur un passage dont les mesures ne se suivent pas dans le
+temps la sélection par glissement ne fait rien (la boucle reste ce qu'elle
+était). Clic droit, appui long, clic sur un accord ou sur une pastille : rien
+ne s'ouvre (l'éditeur d'accord, le menu de la mesure et la fenêtre des
+modulations agissent sur des mesures jouées : c'est dans « Affichage complet »).
+
+**Au téléphone** les mesures ont la taille de la grille du téléphone (76 px de
+haut) et la feuille de la structure s'ouvre par-dessus, comme avant.
+
+**Sur le papier** (« Ce qu'on imprime ▸ Grille complète simplifiée ») : le même
+dessin, noir sur blanc ; un bandeau de 9 mm au-dessus de la première ligne de
+chaque bloc porte son titre ; la ligne « Forme : … » est écrite en entier sous
+le titre, sur autant de lignes qu'il faut ; le morceau de l'exemple tient sur
+une page A4 à 100 %. L'aperçu est la page.
 
 ## Modulations
 

@@ -14,13 +14,15 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { PrintSheets } from '../chart/PrintSheets';
-import { headerForm, headerInfo, headerPart, headerTitle, hasChords, usePrintChart } from '../chart/printChart';
+import { headerForm, headerInfo, headerPart, headerTitle, hasChords, printRowCount, usePrintChart } from '../chart/printChart';
 import {
   PRINT_MARGINS,
   PRINT_ORIENTATIONS,
   PRINT_PAPERS,
+  HEADING_MM,
   SCALES,
   type PrintWhat,
+  formRowsFor,
   headerHeightMm,
   paginate,
   previewScale,
@@ -136,9 +138,12 @@ function PrintBox() {
   const info = chart ? headerInfo(chart, options.header, instrument) : [];
   const partLine = chart ? headerPart(chart) : null;
   const formLine = chart ? headerForm(chart, options.header) : null;
+  const rowCount = chart ? printRowCount(chart) : 0;
+  const extras = useMemo(() => (chart?.rows ? chart.rows.map((r) => (r.heading ? HEADING_MM : 0)) : undefined), [chart?.rows]);
   const layout = useMemo(
-    () => paginate(chart?.lines.length ?? 0, options, headerHeightMm({ title: title !== null, info: info.length > 0, part: partLine !== null, form: formLine !== null })),
-    [chart?.lines.length, options, title, info.length, partLine, formLine],
+    () =>
+      paginate(rowCount, options, headerHeightMm({ title: title !== null, info: info.length > 0, part: partLine !== null, form: formLine !== null, formRows: formLine ? formRowsFor(formLine) : 1 }), extras),
+    [rowCount, extras, options, title, info.length, partLine, formLine],
   );
   usePageRule(printable ? pageRule(layout) : null);
 
