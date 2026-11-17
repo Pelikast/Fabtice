@@ -166,10 +166,6 @@ Rien ne manque au cahier.
   « Nouveau projet ».
 - Listes déroulantes du système (modèle d'accords, outil de séparation,
   numéro, instrument) : aspect natif, non redessiné.
-- Captures : toutes celles du téléphone (92) ont été regardées par un agent ;
-  celles de l'ordinateur (96) l'ont été aux deux tiers par un agent et pour une
-  douzaine par la session d'étape. Les familles « menu », « nouveau projet »,
-  « grilles », « export audio » de l'ordinateur n'ont été vues qu'en partie.
 - Parcours non rejoués : séparation et import par lien dans l'app Mac, export
   Ableton dans l'app Mac, boucle par glissé au toucher, reprises numérotées de
   la grille simplifiée sur un vrai morceau à forme AABA.
@@ -190,7 +186,66 @@ Rien ne manque au cahier.
 
 ## Vérifications
 
-RESULTATS_A_REMPLIR
+- **Commit vérifié** : `4557436` sur `v1` (dernier commit qui touche au code).
+  Les commits suivants n'ajoutent que des documents (`PASSATION.md`, ce
+  bilan, la table du plan).
+- `app/` : `npm run typecheck` sans erreur ; `npm test` : 2 002 tests
+  réussis, 43 sautés. Bancs relancés : tapes
+  (`src/analysis/engine/tapGrid.bench.test.ts`, 4 réussis) et structure
+  (`src/structure/bench.test.ts`, 6 réussis).
+- Vérifications Chromium après `npm run build`, l'une après l'autre, toutes
+  vertes au premier passage : `smoke`, `menu`, `settings`, `print`,
+  `new-project`, `ease`, `update`, `undo`, `alert`, `project-file`, `chart`,
+  `timeline`, `import`, `export`, `export-audio`, `export-memory`,
+  `export-logic`, `export-ableton`, `analysis`, `separation`, `standards`,
+  `markers`, `metronome`, `tempo-fix`, `tap-fix`, `meter`, `structure`,
+  `harmony`, `simplified`, `offline`, `engine`, `render`, `memory`.
+- `desktop/` : `npm test` : 191 réussis ; après `npm run build:desktop`,
+  `FABTICE_NO_POPPLER=1 xvfb-run -a npm run test:e2e` : 41 tests, 38 réussis,
+  3 sautés (ceux qui téléchargent), aucun échec.
+- **Relecture indépendante** des quatre chemins à risque (modèle fort, effort
+  élevé, lecture seule) : aucun défaut critique ; trois importants et dix
+  mineurs, tous corrigés sauf ceux listés plus haut. Chemins jugés sains :
+  écriture du `.fab` (temporaire à côté, `fsync`, renommage, nettoyage qui ne
+  touche que ses fichiers), enregistrement rapide (identifiants neufs à chaque
+  séparation et rendu, contrôle CRC), migration 5 → 6 (tous les champs
+  gardés), vérification de l'archive avant tout déballage, retour en arrière
+  du remplacement, publication en brouillon puis publiée après relecture.
+- **Parcours rejoués comme un utilisateur**, tout en vrai (moteur, analyse,
+  séparation, rendu, encodeurs), à l'adresse simple : ordinateur (les dix pas),
+  téléphone au toucher, app Mac sous `xvfb-run`. Aucun défaut bloquant, trois
+  gênants (deux corrigés, un voulu par le cahier), une vingtaine de mineurs
+  (voir « Pas fait, ou fragile »). Tout revient après enregistrement,
+  fermeture et réouverture, et à l'ouverture du `.fab` dans un profil vide.
+  Le modèle d'accords détaillé montre sa progression, sa source et sa
+  licence ; un téléchargement bloqué retombe sur le modèle rapide et le dit.
+  Fichiers exportés relus (MP3 320, Wave 44,1 kHz 24 bits, Flac, archive de
+  pistes, MIDI du dossier Logic, les deux `.als`). Durées sur la machine de
+  travail (4 cœurs, sans carte graphique), morceau de 38 s : import avec
+  séparation et modèle détaillé 74 s ; premier enregistrement 0,6 s, suivant
+  0,2 s ; réouverture 0,4 s ; `.fab` dans un profil vide 3 s.
+- **Captures** (`npm run captures`, 188 images, 96 ordinateur et 92
+  téléphone), refaites après les corrections. Regardées en entier par des
+  agents : les 92 du téléphone, et 96 de l'ordinateur en deux passes ; une
+  quinzaine par la session d'étape (menus, Réglages, Nouveau projet,
+  structure, mise à jour, export audio, impression, métronome). Aucun défaut
+  net restant. Relevés et laissés (mineurs) : la phrase de fin du
+  téléchargement des grilles reste lourde ; « Regroupement » dans le panneau
+  du métronome et « groupement » dans sa phrase d'aide ; l'écart entre
+  « Outro » et « Couplet » dans la fenêtre d'une partie (séparation Jazz /
+  Pop).
+- **Dossiers d'essai** (`npm run essais`) : fabriqués et relus (deux
+  variantes, dossier Logic, projet Ableton, chaque format audio, mode
+  d'emploi).
+- **Dépôt public** : sur tout ce que `v1` ajoute à `main` (236 commits et
+  ceux de l'étape), aucun fichier de brouillon (commande du plan), aucun
+  secret, aucune information personnelle, aucun nom de modèle ou d'assistant
+  hors des lignes d'attribution des commits.
+- **Étiquette `v1.0.0`** : absente (`git ls-remote --tags origin` ne montre
+  que `desktop-dev`).
+- **Fabrication sur les Mac de GitHub**, lancée à la main sur `v1`, deux
+  fois :
+  (résultats ajoutés au commit suivant)
 
 ## Pour la suite
 
