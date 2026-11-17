@@ -426,6 +426,10 @@ async function chartStillWorks(form) {
     const ed = await $(page, '[data-testid="editeur"]').boundingBox();
     const sc = await $(page, '[data-testid="grille-feuille"]').boundingBox();
     check(`${tag}: the chord editor opens inside the chart's area, not over the column`, ed.x >= sc.x - 1 && ed.x + ed.width <= sc.x + sc.width + 1, `${ed.x}..${ed.x + ed.width} in ${sc.x}..${sc.x + sc.width}`);
+    const cell = await $(page, '.grille .case[data-mesure="3"]').boundingBox();
+    const gapX = Math.max(cell.x - (ed.x + ed.width), ed.x - (cell.x + cell.width));
+    const gapY = Math.max(cell.y - (ed.y + ed.height), ed.y - (cell.y + cell.height));
+    check(`${tag}: …and right next to its bar (placed from the offsets inside the chart's scroller)`, Math.max(gapX, gapY) >= 0 && Math.max(gapX, gapY) < 20, `gap ${gapX}, ${gapY}`);
     await page.keyboard.press('Escape');
   }
   // Following the playback in the chart's own scroller: play from the last bars, the sheet follows.
