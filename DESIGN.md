@@ -271,6 +271,24 @@ tonalité et le tempo choisis, à droite « Exporter ». Sur téléphone, une fe
 posée en bas, une colonne, cibles d'au moins 44 px, le bouton collé au pied sur
 toute la largeur ; la liste des pistes se déroule en entier, la feuille défile.
 
+## Fenêtres « Dossier pour Logic Pro… » et « Projet Ableton Live… »
+
+Une même fenêtre pour les deux exports vers un séquenceur, de la famille
+(papier clair, titre en Fraunces, bouton principal à l'encre). Avant
+l'export : une phrase qui dit ce qu'est le dossier, puis son contenu en
+lignes séparées par des filets fins (les pistes, le fichier MIDI, le mode
+d'emploi), un avis sur un filet de laiton (« Le volume, le muet et le solo ne
+s'appliquent pas »), la tonalité et le tempo choisis, « Annuler » et « Créer
+le dossier ». Pendant : la jauge et son pourcentage, la piste en cours,
+« Annuler ». À la fin : où est le dossier (app Mac : « Afficher dans le
+Finder » ; app web : « Enregistrer l'archive »), puis le mode d'emploi en
+gestes numérotés, chaque numéro dans un petit cercle au trait d'encre.
+**« À l'essai »** : une pastille en braise, petites capitales, en tête d'un
+encadré au filet de braise à gauche ; c'est la seule autre exception, avec le
+texte de chargement, à « la braise reste à ce qui joue », et elle est réservée
+à ce qui n'a pu être essayé par personne. Sur téléphone, une feuille posée en
+bas, une colonne, boutons sur toute la largeur.
+
 ## Téléphone
 
 Sous 760 px de large : la colonne des pistes se réduit à 92 px (nom, M, S), la

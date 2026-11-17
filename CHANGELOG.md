@@ -73,6 +73,22 @@ en français simple.
 - Export iReal Pro : un morceau en 6/8 ou en 12/8 sort avec la bonne
   signature.
 
+### Exports
+- **Exporter → Audio…** : une nouvelle fenêtre. On choisit le format (Wave
+  avec sa fréquence et sa quantification, Flac, ou MP3 de 96 à 320 kbit/s,
+  320 par défaut), ce qu'on exporte (le mix complet comme on l'entend, ou les
+  pistes que l'on coche), et si l'on veut un fichier par piste ou un seul
+  fichier. « La boucle seulement » reste proposé. Comme avant, le son sort
+  dans la tonalité et le tempo choisis.
+- **Exporter → Dossier pour Logic Pro…** : un dossier avec toutes les pistes
+  en audio (dans la tonalité et le tempo choisis, alignées au début), un
+  fichier MIDI qui porte le tempo exact du morceau, ses signatures, ses
+  armures et ses accords en marqueurs (sections comprises), et un mode
+  d'emploi en trois gestes. Dans l'app Mac, c'est un vrai dossier à l'endroit
+  que vous choisissez ; dans l'app web, une archive à décompresser.
+- Le volume, le muet et le solo ne s'appliquent pas aux pistes de ces
+  dossiers : chaque piste sort entière, pour être mixée dans le séquenceur.
+
 ### Projet Ableton Live (à l'essai)
 - **Exporter → Projet Ableton Live…** crée un dossier à ouvrir dans Ableton
   Live : les pistes en audio, posées au début et jouées telles quelles, la

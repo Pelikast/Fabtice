@@ -306,7 +306,7 @@ Fonctionnement :
   Fabtice (À propos, Réglages… cmd + ,, Quitter), Fichier (Nouveau projet → À
   partir d’un lien YouTube… / d’un fichier audio…, Ouvrir…, Ouvrir un projet
   récent, Enregistrer, Enregistrer sous…, Exporter → Audio… / iReal Pro /
-  PDF… / Dossier pour Logic Pro…, Imprimer…), Édition (Annuler, Rétablir, puis couper, copier, coller),
+  PDF… / Dossier pour Logic Pro… / Projet Ableton Live…, Imprimer…), Édition (Annuler, Rétablir, puis couper, copier, coller),
   Présentation, Fenêtre, Aide (Diagnostic…). Les commandes sont **celles du
   menu Fabtice de la page** (`app/src/ui/commands.ts`), sous les mêmes
   identifiants (`MENU_COMMANDS`, `LABELS`, `ACCELERATORS`).
