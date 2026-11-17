@@ -116,6 +116,20 @@ async function screens(viewport, tag) {
     check(`${tag}: « Séparer les instruments » is unticked, no instrument is listed`, (await page.locator(BOX).count()) === 1 && !(await page.locator(BOX).isChecked()) && (await chips(page)) === 0 && (await stems(page)).length === 0);
     const button = await page.evaluate(() => getComputedStyle(document.querySelector('.voile-projet.ouverte .plein')).backgroundColor);
     check(`${tag}: the main button is in ink, never in ember`, button === 'rgb(43, 31, 23)', button);
+    // Every part of the window stays inside it: a part taking a whole-screen style by mistake would veil the window itself.
+    const astray = await page.evaluate(() => {
+      const panel = document.querySelector('.voile-projet.ouverte .accueil');
+      const box = panel.getBoundingClientRect();
+      return [...panel.querySelectorAll('*')]
+        .filter((e) => {
+          const c = getComputedStyle(e);
+          const r = e.getBoundingClientRect();
+          if (c.display === 'none' || e.matches('input[type="file"]') || r.width === 0 || r.height === 0) return false;
+          return c.position === 'fixed' || r.left < box.left - 1 || r.right > box.right + 1 || r.top < box.top - 1 || r.bottom > box.bottom + 1;
+        })
+        .map((e) => `${e.tagName.toLowerCase()}.${e.className}`);
+    });
+    check(`${tag}: every part of the window lies inside it, none over the whole screen`, astray.length === 0, astray.join(' | '));
     await shot(page, `1-lancement-${tag}`);
 
     // Ticked: every instrument selected; a click unselects; none left is unticked.
