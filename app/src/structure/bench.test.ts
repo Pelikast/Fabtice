@@ -65,8 +65,9 @@ describe('structure bench: the scorer', () => {
     }
   });
 
-  it('gives the stubs « nothing found » without error', () => {
-    const rows = runTierS({ pieces: ['autumn-leaves', 'pont-autre-ton'], levels: ['realiste'], evidence: ['stems'], known: [true] });
+  it('gives « nothing found » a zero score without error', () => {
+    const nothing = { detectKeyChanges: () => [], detectStructure: () => null, simplifyChart: () => null };
+    const rows = runTierS({ pieces: ['autumn-leaves', 'pont-autre-ton'], levels: ['realiste'], evidence: ['stems'], known: [true], detectors: nothing });
     expect(rows[0]!.runs.every((r) => !r.error && r.structure === null)).toBe(true);
     expect(rowMetric(rows[0]!, 'formExact')).toBe(0);
   });
