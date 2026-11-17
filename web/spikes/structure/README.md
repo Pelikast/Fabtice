@@ -306,8 +306,8 @@ grille connue du standard trouvée par le titre) :
 | Instrument juste (piano, guitare, basse, batterie, voix) | 96,1 % | 96,1 % | 91,6 % | 91,6 % | 65,6 % | 67,5 % |
 | Instrument nommé faux | 0,9 % | 0,9 % | 4,8 % | 5,1 % | 12,0 % | 12,0 % |
 | Instrument nommé sans séparation | 0 % | 0 % | 0 % | 0 % | 0 % | 0 % |
-| Grille simplifiée, structure vraie : accords | 96,6 % | 99,4 % | 78,3 % | 87,7 % | 56,8 % | 73,3 % |
-| Grille simplifiée, chaîne complète : accords | 88,9 % | 94,5 % | 51,9 % | 77,5 % | 17,9 % | 67,9 % |
+| Grille simplifiée, structure vraie : accords | 96,6 % | 99,7 % | 78,9 % | 89,6 % | 57,6 % | 75,0 % |
+| Grille simplifiée, chaîne complète : accords | 88,9 % | 94,8 % | 51,9 % | 79,5 % | 18,0 % | 68,4 % |
 | *Autumn Leaves* : grille écrite (structure vraie) | passe | passe | échoue | passe | échoue | échoue |
 | *Autumn Leaves* : forme et grille (chaîne complète) | passe | passe | échoue | 1 tirage sur 2 | échoue | échoue |
 
@@ -319,15 +319,15 @@ standard, pistes séparées (rendus séparés, séparation parfaite) :
 | Longueur du chorus exacte | 82,8 % | 93,1 % | 75,0 % | 75,0 % |
 | Forme exacte | 79,3 % | 93,1 % | 62,5 % | 75,0 % |
 | Modulations : précision / rappel | 100 % / 58,3 % | 100 % / 66,7 % | – | – |
-| Limites de parties (F), pistes | 88,0 % | 86,3 % | 71,5 % | 72,1 % |
-| Limites de parties (F), sans séparation | 72,9 % | 76,7 % | 54,5 % | 65,8 % |
-| Type de partie, pistes | 93,1 % | 87,8 % | 80,0 % | 82,0 % |
+| Limites de parties (F), pistes | 88,0 % | 87,7 % | 71,5 % | 72,1 % |
+| Limites de parties (F), sans séparation | 72,9 % | 77,7 % | 54,5 % | 65,8 % |
+| Type de partie, pistes | 93,1 % | 89,4 % | 80,0 % | 82,0 % |
 | Solos voisins séparés, pistes | 77,8 % | 75,6 % | 81,8 % | 81,8 % |
 | Solos voisins séparés, sans séparation | 17,8 % | 22,2 % | 9,1 % | 27,3 % |
 | Instrument juste, pistes | 84,4 % | 84,4 % | 95,0 % | 95,0 % |
 | Instrument nommé faux | 6,6 % | 6,0 % | 4,8 % | 4,8 % |
-| Grille simplifiée (structure vraie) : accords | 77,6 % | 93,4 % | 62,3 % | 78,1 % |
-| Grille simplifiée (chaîne complète) : accords | 61,6 % | 70,5 % | 37,9 % | 57,9 % |
+| Grille simplifiée (structure vraie) : accords | 77,7 % | 94,0 % | 62,3 % | 78,1 % |
+| Grille simplifiée (chaîne complète) : accords | 61,6 % | 73,5 % | 37,9 % | 57,9 % |
 | *Autumn Leaves* : grille écrite / chaîne complète, pistes | échoue / échoue | **passe / passe** | échoue / échoue | **passe / passe** |
 | *Autumn Leaves* : chaîne complète, sans séparation | échoue | échoue (le dernier thème lu « Solo ») | échoue | échoue (idem) |
 
@@ -341,14 +341,17 @@ détaillé a analysés (14 propres, 2 vieux disques ; pistes séparées) :
 | Forme exacte (sans grille / + grille) | 58,3 % / 83,3 % | 83,3 % / 91,7 % | 50 % / 100 % | 50 % / 100 % |
 | Limites de parties (F), sans grille | 86,0 % | 88,7 % | 100 % | 100 % |
 | Grille simplifiée, structure vraie (sans grille / + grille) | 72,6 % / 95,0 % | **92,9 % / 99,6 %** | 68,8 % / 98,8 % | 88,8 % / 100 % |
-| Grille simplifiée, chaîne complète (sans grille / + grille) | 49,9 % / 67,4 % | 71,4 % / 63,5 % | 53,8 % / 98,8 % | 75,0 % / 100 % |
+| Grille simplifiée, chaîne complète (sans grille / + grille) | 49,9 % / 74,0 % | 71,4 % / 76,2 % | 53,8 % / 98,8 % | 75,0 % / 100 % |
 | *Autumn Leaves*, sans grille (erreurs relevées) | échoue (11) | échoue (5) | échoue (13) | échoue (8) |
 | *Autumn Leaves*, + grille, pistes | passe | passe | passe | passe |
 
-(Sur si peu de morceaux, un morceau fait plusieurs points. Une chose est à
-regarder : avec le modèle détaillé, la chaîne complète des rendus propres
-est plus basse avec la grille connue que sans, alors qu'elle monte avec le
-modèle standard.)
+(Sur si peu de morceaux, un morceau fait plusieurs points.) La grille connue
+faisait baisser la chaîne complète avec le modèle détaillé (71 → 64 %) : sur
+deux morceaux, elle était alignée un chorus trop tard (le premier chorus lu
+comme une intro) et l'emportait quand même sur les reprises qui, elles,
+trouvaient tous les choruses. Corrigé dans `form.ts` (la grille connue ne
+gagne plus quand les reprises trouvent plus de choruses de même longueur et
+qu'elle commence par une « intro » d'un demi-chorus ou plus) : 71 → 76 %.
 
 Le banc lui-même est vérifié : l'oracle (`bench/oracle.ts`, réponses lues
 dans la vérité) a 100 % partout sur les cas sans erreur du Tier S (test
@@ -416,8 +419,8 @@ l'app sur nos rendus (Tier R).
   connue) ; aucune fausse modulation jusqu'au niveau réaliste. Rendus
   propres : précision 100 %, rappel 58 %.
 - **Grille complète simplifiée.** Sur la structure vraie, accords écrits
-  justes : 97 %, 78 %, 57 % ; avec la grille connue du standard **99 %, 88 %,
-  73 %** (rendus propres : 78 % → **93 %** ; vieux disque : 62 % → 78 %).
+  justes : 97 %, 79 %, 58 % ; avec la grille connue du standard **99,7 %, 90 %,
+  75 %** (rendus propres : 78 % → **94 %** ; vieux disque : 62 % → 78 %).
   Avec le modèle d'accords détaillé, sans grille connue : 93 % (propre) et
   89 % (vieux disque) sur les 16 rendus qu'il a lus, contre 73 % et 69 %
   avec le modèle standard : le meilleur moyen de se passer du livre.
