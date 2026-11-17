@@ -1,0 +1,1298 @@
+[
+ {
+  "label": "propre / pistes (rendus séparés) / sans grille",
+  "cases": 14,
+  "counts": {
+   "chorusLength": [
+    9,
+    12
+   ],
+   "chorusP": [
+    54,
+    59
+   ],
+   "chorusR": [
+    54,
+    62
+   ],
+   "sectionP": [
+    130,
+    137
+   ],
+   "sectionR": [
+    130,
+    153
+   ],
+   "sectionF": [
+    11.875,
+    14
+   ],
+   "sectionPairs": [
+    11.733911127973949,
+    14
+   ],
+   "formExact": [
+    10,
+    12
+   ],
+   "introExact": [
+    10,
+    14
+   ],
+   "outroExact": [
+    12,
+    14
+   ],
+   "mode": [
+    14,
+    14
+   ],
+   "partP": [
+    75,
+    90
+   ],
+   "partR": [
+    75,
+    83
+   ],
+   "partF": [
+    12.422652785810682,
+    14
+   ],
+   "partType": [
+    65,
+    69
+   ],
+   "partNumber": [
+    51,
+    69
+   ],
+   "longSolo": [
+    6,
+    9
+   ],
+   "soloSplit": [
+    13,
+    21
+   ],
+   "instStem": [
+    22,
+    30
+   ],
+   "instWindExact": [
+    22,
+    34
+   ],
+   "instWindUnsure": [
+    2,
+    34
+   ],
+   "instWrong": [
+    3,
+    64
+   ],
+   "instNamedNoStems": [
+    0,
+    0
+   ],
+   "modP": [
+    2,
+    2
+   ],
+   "modR": [
+    2,
+    2
+   ],
+   "modPos": [
+    0,
+    2
+   ],
+   "modKey": [
+    1,
+    2
+   ],
+   "modFalseAlarms": [
+    0,
+    0
+   ],
+   "modFalsePieces": [
+    0,
+    12
+   ],
+   "simpNull": [
+    1,
+    1
+   ],
+   "simpChord": [
+    903,
+    972
+   ],
+   "simpSections": [
+    13,
+    13
+   ],
+   "simpTimes": [
+    30,
+    31
+   ],
+   "simpPlaces": [
+    1333,
+    1350
+   ],
+   "chainChord": [
+    694,
+    972
+   ],
+   "chainSections": [
+    10,
+    13
+   ],
+   "chainPlaces": [
+    964,
+    1350
+   ],
+   "autumnChart": [
+    0,
+    1
+   ],
+   "autumnChain": [
+    0,
+    1
+   ]
+  }
+ },
+ {
+  "label": "propre / pistes (rendus séparés) / grille connue",
+  "cases": 14,
+  "counts": {
+   "chorusLength": [
+    11,
+    12
+   ],
+   "chorusP": [
+    43,
+    50
+   ],
+   "chorusR": [
+    43,
+    62
+   ],
+   "sectionP": [
+    108,
+    131
+   ],
+   "sectionR": [
+    108,
+    153
+   ],
+   "sectionF": [
+    9.922619047619047,
+    14
+   ],
+   "sectionPairs": [
+    10.623234609410511,
+    14
+   ],
+   "formExact": [
+    11,
+    12
+   ],
+   "introExact": [
+    8,
+    14
+   ],
+   "outroExact": [
+    8,
+    14
+   ],
+   "mode": [
+    14,
+    14
+   ],
+   "partP": [
+    69,
+    85
+   ],
+   "partR": [
+    69,
+    83
+   ],
+   "partF": [
+    11.625641025641027,
+    14
+   ],
+   "partType": [
+    58,
+    69
+   ],
+   "partNumber": [
+    46,
+    69
+   ],
+   "longSolo": [
+    6,
+    9
+   ],
+   "soloSplit": [
+    12,
+    21
+   ],
+   "instStem": [
+    22,
+    30
+   ],
+   "instWindExact": [
+    16,
+    34
+   ],
+   "instWindUnsure": [
+    2,
+    34
+   ],
+   "instWrong": [
+    3,
+    64
+   ],
+   "instNamedNoStems": [
+    0,
+    0
+   ],
+   "modP": [
+    2,
+    2
+   ],
+   "modR": [
+    2,
+    2
+   ],
+   "modPos": [
+    0,
+    2
+   ],
+   "modKey": [
+    1,
+    2
+   ],
+   "modFalseAlarms": [
+    0,
+    0
+   ],
+   "modFalsePieces": [
+    0,
+    12
+   ],
+   "simpNull": [
+    1,
+    1
+   ],
+   "simpChord": [
+    968,
+    972
+   ],
+   "simpSections": [
+    13,
+    13
+   ],
+   "simpTimes": [
+    30,
+    31
+   ],
+   "simpPlaces": [
+    1333,
+    1350
+   ],
+   "chainChord": [
+    617,
+    972
+   ],
+   "chainSections": [
+    8,
+    13
+   ],
+   "chainPlaces": [
+    709,
+    1350
+   ],
+   "autumnChart": [
+    1,
+    1
+   ],
+   "autumnChain": [
+    1,
+    1
+   ]
+  }
+ },
+ {
+  "label": "propre / sans séparation / sans grille",
+  "cases": 14,
+  "counts": {
+   "chorusLength": [
+    10,
+    12
+   ],
+   "chorusP": [
+    55,
+    59
+   ],
+   "chorusR": [
+    55,
+    62
+   ],
+   "sectionP": [
+    131,
+    137
+   ],
+   "sectionR": [
+    131,
+    153
+   ],
+   "sectionF": [
+    12,
+    14
+   ],
+   "sectionPairs": [
+    11.703944534789327,
+    14
+   ],
+   "formExact": [
+    10,
+    12
+   ],
+   "introExact": [
+    11,
+    14
+   ],
+   "outroExact": [
+    13,
+    14
+   ],
+   "mode": [
+    14,
+    14
+   ],
+   "partP": [
+    56,
+    60
+   ],
+   "partR": [
+    56,
+    83
+   ],
+   "partF": [
+    10.9515873015873,
+    14
+   ],
+   "partType": [
+    56,
+    69
+   ],
+   "partNumber": [
+    36,
+    69
+   ],
+   "longSolo": [
+    9,
+    9
+   ],
+   "soloSplit": [
+    5,
+    21
+   ],
+   "instStem": [
+    0,
+    0
+   ],
+   "instWindExact": [
+    0,
+    0
+   ],
+   "instWindUnsure": [
+    0,
+    0
+   ],
+   "instWrong": [
+    0,
+    0
+   ],
+   "instNamedNoStems": [
+    0,
+    46
+   ],
+   "modP": [
+    2,
+    2
+   ],
+   "modR": [
+    2,
+    2
+   ],
+   "modPos": [
+    0,
+    2
+   ],
+   "modKey": [
+    1,
+    2
+   ],
+   "modFalseAlarms": [
+    0,
+    0
+   ],
+   "modFalsePieces": [
+    0,
+    12
+   ],
+   "simpNull": [
+    1,
+    1
+   ],
+   "simpChord": [
+    903,
+    972
+   ],
+   "simpSections": [
+    13,
+    13
+   ],
+   "simpTimes": [
+    30,
+    31
+   ],
+   "simpPlaces": [
+    1333,
+    1350
+   ],
+   "chainChord": [
+    740,
+    972
+   ],
+   "chainSections": [
+    10,
+    13
+   ],
+   "chainPlaces": [
+    917,
+    1350
+   ],
+   "autumnChart": [
+    0,
+    1
+   ],
+   "autumnChain": [
+    0,
+    1
+   ]
+  }
+ },
+ {
+  "label": "propre / sans séparation / grille connue",
+  "cases": 14,
+  "counts": {
+   "chorusLength": [
+    11,
+    12
+   ],
+   "chorusP": [
+    43,
+    50
+   ],
+   "chorusR": [
+    43,
+    62
+   ],
+   "sectionP": [
+    108,
+    131
+   ],
+   "sectionR": [
+    108,
+    153
+   ],
+   "sectionF": [
+    9.922619047619047,
+    14
+   ],
+   "sectionPairs": [
+    10.623234609410511,
+    14
+   ],
+   "formExact": [
+    11,
+    12
+   ],
+   "introExact": [
+    8,
+    14
+   ],
+   "outroExact": [
+    8,
+    14
+   ],
+   "mode": [
+    14,
+    14
+   ],
+   "partP": [
+    56,
+    65
+   ],
+   "partR": [
+    56,
+    83
+   ],
+   "partF": [
+    10.607456922162804,
+    14
+   ],
+   "partType": [
+    49,
+    69
+   ],
+   "partNumber": [
+    29,
+    69
+   ],
+   "longSolo": [
+    7,
+    9
+   ],
+   "soloSplit": [
+    7,
+    21
+   ],
+   "instStem": [
+    0,
+    0
+   ],
+   "instWindExact": [
+    0,
+    0
+   ],
+   "instWindUnsure": [
+    0,
+    0
+   ],
+   "instWrong": [
+    0,
+    0
+   ],
+   "instNamedNoStems": [
+    0,
+    51
+   ],
+   "modP": [
+    2,
+    2
+   ],
+   "modR": [
+    2,
+    2
+   ],
+   "modPos": [
+    0,
+    2
+   ],
+   "modKey": [
+    1,
+    2
+   ],
+   "modFalseAlarms": [
+    0,
+    0
+   ],
+   "modFalsePieces": [
+    0,
+    12
+   ],
+   "simpNull": [
+    1,
+    1
+   ],
+   "simpChord": [
+    968,
+    972
+   ],
+   "simpSections": [
+    13,
+    13
+   ],
+   "simpTimes": [
+    30,
+    31
+   ],
+   "simpPlaces": [
+    1333,
+    1350
+   ],
+   "chainChord": [
+    617,
+    972
+   ],
+   "chainSections": [
+    8,
+    13
+   ],
+   "chainPlaces": [
+    709,
+    1350
+   ],
+   "autumnChart": [
+    1,
+    1
+   ],
+   "autumnChain": [
+    0,
+    1
+   ]
+  }
+ },
+ {
+  "label": "disque / pistes (rendus séparés) / sans grille",
+  "cases": 2,
+  "counts": {
+   "chorusLength": [
+    2,
+    2
+   ],
+   "chorusP": [
+    13,
+    13
+   ],
+   "chorusR": [
+    13,
+    13
+   ],
+   "sectionP": [
+    22,
+    22
+   ],
+   "sectionR": [
+    22,
+    22
+   ],
+   "sectionF": [
+    2,
+    2
+   ],
+   "sectionPairs": [
+    1.7446808510638299,
+    2
+   ],
+   "formExact": [
+    1,
+    2
+   ],
+   "introExact": [
+    2,
+    2
+   ],
+   "outroExact": [
+    2,
+    2
+   ],
+   "mode": [
+    2,
+    2
+   ],
+   "partP": [
+    13,
+    13
+   ],
+   "partR": [
+    13,
+    13
+   ],
+   "partF": [
+    2,
+    2
+   ],
+   "partType": [
+    11,
+    11
+   ],
+   "partNumber": [
+    11,
+    11
+   ],
+   "longSolo": [
+    2,
+    2
+   ],
+   "soloSplit": [
+    4,
+    4
+   ],
+   "instStem": [
+    6,
+    7
+   ],
+   "instWindExact": [
+    3,
+    3
+   ],
+   "instWindUnsure": [
+    0,
+    3
+   ],
+   "instWrong": [
+    0,
+    10
+   ],
+   "instNamedNoStems": [
+    0,
+    0
+   ],
+   "modP": [
+    0,
+    0
+   ],
+   "modR": [
+    0,
+    0
+   ],
+   "modPos": [
+    0,
+    0
+   ],
+   "modKey": [
+    0,
+    0
+   ],
+   "modFalseAlarms": [
+    0,
+    0
+   ],
+   "modFalsePieces": [
+    0,
+    2
+   ],
+   "simpNull": [
+    0,
+    0
+   ],
+   "simpChord": [
+    142,
+    160
+   ],
+   "simpSections": [
+    2,
+    2
+   ],
+   "simpTimes": [
+    5,
+    5
+   ],
+   "simpPlaces": [
+    221,
+    232
+   ],
+   "chainChord": [
+    120,
+    160
+   ],
+   "chainSections": [
+    1,
+    2
+   ],
+   "chainPlaces": [
+    196,
+    232
+   ],
+   "autumnChart": [
+    0,
+    1
+   ],
+   "autumnChain": [
+    0,
+    1
+   ]
+  }
+ },
+ {
+  "label": "disque / pistes (rendus séparés) / grille connue",
+  "cases": 2,
+  "counts": {
+   "chorusLength": [
+    2,
+    2
+   ],
+   "chorusP": [
+    13,
+    13
+   ],
+   "chorusR": [
+    13,
+    13
+   ],
+   "sectionP": [
+    22,
+    22
+   ],
+   "sectionR": [
+    22,
+    22
+   ],
+   "sectionF": [
+    2,
+    2
+   ],
+   "sectionPairs": [
+    2,
+    2
+   ],
+   "formExact": [
+    2,
+    2
+   ],
+   "introExact": [
+    2,
+    2
+   ],
+   "outroExact": [
+    2,
+    2
+   ],
+   "mode": [
+    2,
+    2
+   ],
+   "partP": [
+    13,
+    13
+   ],
+   "partR": [
+    13,
+    13
+   ],
+   "partF": [
+    2,
+    2
+   ],
+   "partType": [
+    11,
+    11
+   ],
+   "partNumber": [
+    11,
+    11
+   ],
+   "longSolo": [
+    2,
+    2
+   ],
+   "soloSplit": [
+    4,
+    4
+   ],
+   "instStem": [
+    6,
+    7
+   ],
+   "instWindExact": [
+    3,
+    3
+   ],
+   "instWindUnsure": [
+    0,
+    3
+   ],
+   "instWrong": [
+    0,
+    10
+   ],
+   "instNamedNoStems": [
+    0,
+    0
+   ],
+   "modP": [
+    0,
+    0
+   ],
+   "modR": [
+    0,
+    0
+   ],
+   "modPos": [
+    0,
+    0
+   ],
+   "modKey": [
+    0,
+    0
+   ],
+   "modFalseAlarms": [
+    0,
+    0
+   ],
+   "modFalsePieces": [
+    0,
+    2
+   ],
+   "simpNull": [
+    0,
+    0
+   ],
+   "simpChord": [
+    160,
+    160
+   ],
+   "simpSections": [
+    2,
+    2
+   ],
+   "simpTimes": [
+    5,
+    5
+   ],
+   "simpPlaces": [
+    221,
+    232
+   ],
+   "chainChord": [
+    160,
+    160
+   ],
+   "chainSections": [
+    2,
+    2
+   ],
+   "chainPlaces": [
+    221,
+    232
+   ],
+   "autumnChart": [
+    1,
+    1
+   ],
+   "autumnChain": [
+    1,
+    1
+   ]
+  }
+ },
+ {
+  "label": "disque / sans séparation / sans grille",
+  "cases": 2,
+  "counts": {
+   "chorusLength": [
+    2,
+    2
+   ],
+   "chorusP": [
+    13,
+    13
+   ],
+   "chorusR": [
+    13,
+    13
+   ],
+   "sectionP": [
+    22,
+    22
+   ],
+   "sectionR": [
+    22,
+    22
+   ],
+   "sectionF": [
+    2,
+    2
+   ],
+   "sectionPairs": [
+    1.7362774897192919,
+    2
+   ],
+   "formExact": [
+    1,
+    2
+   ],
+   "introExact": [
+    1,
+    2
+   ],
+   "outroExact": [
+    2,
+    2
+   ],
+   "mode": [
+    2,
+    2
+   ],
+   "partP": [
+    12,
+    13
+   ],
+   "partR": [
+    12,
+    13
+   ],
+   "partF": [
+    1.8571428571428572,
+    2
+   ],
+   "partType": [
+    10,
+    11
+   ],
+   "partNumber": [
+    7,
+    11
+   ],
+   "longSolo": [
+    2,
+    2
+   ],
+   "soloSplit": [
+    3,
+    4
+   ],
+   "instStem": [
+    0,
+    0
+   ],
+   "instWindExact": [
+    0,
+    0
+   ],
+   "instWindUnsure": [
+    0,
+    0
+   ],
+   "instWrong": [
+    0,
+    0
+   ],
+   "instNamedNoStems": [
+    0,
+    11
+   ],
+   "modP": [
+    0,
+    0
+   ],
+   "modR": [
+    0,
+    0
+   ],
+   "modPos": [
+    0,
+    0
+   ],
+   "modKey": [
+    0,
+    0
+   ],
+   "modFalseAlarms": [
+    0,
+    0
+   ],
+   "modFalsePieces": [
+    0,
+    2
+   ],
+   "simpNull": [
+    0,
+    0
+   ],
+   "simpChord": [
+    142,
+    160
+   ],
+   "simpSections": [
+    2,
+    2
+   ],
+   "simpTimes": [
+    5,
+    5
+   ],
+   "simpPlaces": [
+    221,
+    232
+   ],
+   "chainChord": [
+    74,
+    160
+   ],
+   "chainSections": [
+    0,
+    2
+   ],
+   "chainPlaces": [
+    76,
+    232
+   ],
+   "autumnChart": [
+    0,
+    1
+   ],
+   "autumnChain": [
+    0,
+    1
+   ]
+  }
+ },
+ {
+  "label": "disque / sans séparation / grille connue",
+  "cases": 2,
+  "counts": {
+   "chorusLength": [
+    2,
+    2
+   ],
+   "chorusP": [
+    13,
+    13
+   ],
+   "chorusR": [
+    13,
+    13
+   ],
+   "sectionP": [
+    22,
+    22
+   ],
+   "sectionR": [
+    22,
+    22
+   ],
+   "sectionF": [
+    2,
+    2
+   ],
+   "sectionPairs": [
+    2,
+    2
+   ],
+   "formExact": [
+    2,
+    2
+   ],
+   "introExact": [
+    2,
+    2
+   ],
+   "outroExact": [
+    2,
+    2
+   ],
+   "mode": [
+    2,
+    2
+   ],
+   "partP": [
+    12,
+    12
+   ],
+   "partR": [
+    12,
+    13
+   ],
+   "partF": [
+    1.923076923076923,
+    2
+   ],
+   "partType": [
+    10,
+    11
+   ],
+   "partNumber": [
+    7,
+    11
+   ],
+   "longSolo": [
+    2,
+    2
+   ],
+   "soloSplit": [
+    3,
+    4
+   ],
+   "instStem": [
+    0,
+    0
+   ],
+   "instWindExact": [
+    0,
+    0
+   ],
+   "instWindUnsure": [
+    0,
+    0
+   ],
+   "instWrong": [
+    0,
+    0
+   ],
+   "instNamedNoStems": [
+    0,
+    10
+   ],
+   "modP": [
+    0,
+    0
+   ],
+   "modR": [
+    0,
+    0
+   ],
+   "modPos": [
+    0,
+    0
+   ],
+   "modKey": [
+    0,
+    0
+   ],
+   "modFalseAlarms": [
+    0,
+    0
+   ],
+   "modFalsePieces": [
+    0,
+    2
+   ],
+   "simpNull": [
+    0,
+    0
+   ],
+   "simpChord": [
+    160,
+    160
+   ],
+   "simpSections": [
+    2,
+    2
+   ],
+   "simpTimes": [
+    5,
+    5
+   ],
+   "simpPlaces": [
+    221,
+    232
+   ],
+   "chainChord": [
+    160,
+    160
+   ],
+   "chainSections": [
+    2,
+    2
+   ],
+   "chainPlaces": [
+    221,
+    232
+   ],
+   "autumnChart": [
+    1,
+    1
+   ],
+   "autumnChain": [
+    0,
+    1
+   ]
+  }
+ }
+]

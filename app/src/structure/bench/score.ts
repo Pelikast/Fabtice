@@ -46,7 +46,7 @@ export const METRICS: readonly Metric[] = [
   { key: 'partR', group: 'Parties', label: 'Limites de parties ±1 : rappel', kind: 'rate' },
   { key: 'partF', group: 'Parties', label: 'Limites de parties ±1 : mesure F', kind: 'rate' },
   { key: 'partType', group: 'Parties', label: 'Type de partie juste (thème, solo, intro…)', kind: 'rate' },
-  { key: 'partNumber', group: 'Parties', label: 'Numéro juste (vide lu comme 1)', kind: 'rate' },
+  { key: 'partNumber', group: 'Parties', label: 'Numéro juste (vide lu comme 1 ; vide juste pour un soliste nommé qui ne revient pas)', kind: 'rate' },
   { key: 'longSolo', group: 'Parties', label: 'Long solo d’un seul instrument non coupé', kind: 'rate' },
   { key: 'soloSplit', group: 'Parties', label: 'Solos voisins d’instruments différents séparés', kind: 'rate' },
   { key: 'instStem', group: 'Instruments', label: 'Instrument juste : piano, guitare, basse, batterie, voix', kind: 'rate' },
@@ -271,7 +271,11 @@ export function scoreStructure(piece: TruthPiece, a: StructureAnswers, withStems
   for (const tp of piece.parts) {
     const m = bestOverlap(spans, tp.firstBar, tp.endBar);
     inc(c, 'partType', !!m && m.part.type === tp.type);
-    inc(c, 'partNumber', !!m && m.part.type === tp.type && (m.part.number ?? 1) === tp.number);
+    // the app numbers no solo when every soloist is named and plays once (« Solo (Piano) »): an empty number is
+    // right for a named soloist the truth has once
+    const lone = tp.type === 'solo' && !!tp.instrument && piece.parts.filter((x) => x.type === 'solo' && x.instrument === tp.instrument).length === 1;
+    const named = !!m && m.part.instrument !== null && m.part.instrument !== 'winds';
+    inc(c, 'partNumber', !!m && m.part.type === tp.type && (m.part.number === null && lone && named ? true : (m.part.number ?? 1) === tp.number));
     if (tp.instrument && withStems) {
       const got = m?.part.instrument ?? null;
       if (STEM_INSTRUMENTS.has(tp.instrument)) inc(c, 'instStem', got === tp.instrument);

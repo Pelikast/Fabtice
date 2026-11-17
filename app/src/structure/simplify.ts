@@ -31,13 +31,26 @@
 //     triads), and the minor tonic as a plain minor chord (« Bm »).
 //  6. A tag (the last bars of the form repeated after the last chorus) is
 //     written once with its number of repeats; an intro is written in full.
+//  7. The known chart of the standard, when it fits the piece (its letters
+//     line up with the played ones, `KNOWN_FITS`), is leaned on where the
+//     reading is weak, as a Real Book would be, the chord really played
+//     staying the goal:
+//       - nothing heard (an empty bar, N.C.) inside the form: the known chord;
+//       - the same root in another family (D7 read for the book's D△): the
+//         book's family, unless the reading is strong (agreed by nearly all
+//         repeats, none doubtful, and written or confirmed by hand somewhere);
+//       - another root: kept when at least two repeats agree clearly
+//         (`CLEAR_SHARE`), else the book's chord;
+//       - the bar's rhythm (one chord or two): the book's when the repeats do
+//         not agree clearly with each other.
+//     A chart that does not fit is not used at all.
 //
 // Pure, deterministic, fast (linear in the bars).
 
 import type { ChordQuality, ChordSymbol, Key } from '../model/harmony';
 import type { PartType } from '../model/structure';
 import { sameMeter } from '../grid/tempoMap';
-import { DIM, DOM, familyOf, FAMILY_OF, HDIM, MAJ, MIN, NONE, rootOf, SUS, AUG, tokenOf, makeToken } from './grid';
+import { barSimShift, barTokens, DIM, DOM, familyOf, FAMILY_OF, HDIM, MAJ, MIN, NONE, rootOf, SUS, AUG, tokenOf, makeToken, type BarTokens } from './grid';
 import { knownBody } from './form';
 import type { FormEntry, HarmonyBar, SimplifiedChart, SimplifyInput, WrittenBar, WrittenChord, WrittenPlace, WrittenSection } from './types';
 
@@ -79,23 +92,53 @@ const labelKey = (l: Occurrence['label']) => (isLetter(l) ? `L:${l.letter}` : `P
 // ---------------------------------------------------------------- beats
 
 /** The chord sounding on each beat of a bar (with how much it is trusted). */
-function beatChords(b: HarmonyBar): { chord: ChordSymbol | null; w: number }[] {
+interface BeatChord {
+  chord: ChordSymbol | null;
+  w: number;
+  hand: boolean;
+  doubtful: boolean;
+}
+
+function beatChords(b: HarmonyBar): BeatChord[] {
   const n = Math.max(1, Math.round(b.beats) || 1);
-  const out: { chord: ChordSymbol | null; w: number }[] = [];
+  const out: BeatChord[] = [];
   let cur = b.carried;
   let w = 1;
+  let hand = false;
+  let doubtful = false;
   let ci = 0;
   const chords = [...b.chords].sort((x, y) => x.beat - y.beat);
   for (let k = 0; k < n; k++) {
     while (ci < chords.length && chords[ci]!.beat <= k + 1e-6) {
       const c = chords[ci++]!;
       cur = c.chord;
+      hand = c.byHand;
+      doubtful = !c.byHand && c.doubtful;
       w = c.byHand ? 4 : c.doubtful ? 0.5 : 1;
     }
-    out.push({ chord: cur, w });
+    out.push({ chord: cur, w, hand, doubtful });
   }
   return out;
 }
+
+/** One reading of one beat for the consensus: the chord, its weight, and which repeat read it. */
+interface Entry {
+  chord: ChordSymbol | null;
+  w: number;
+  hand: boolean;
+  doubtful: boolean;
+  /** Index of the repeat (the played bar) it comes from. */
+  occ: number;
+}
+
+/** Share of the weight a reading needs, given by two repeats at least, to stand against the known chart's root. */
+const CLEAR_SHARE = 0.75;
+/** Share of the weight a reading needs (with a hand chord, none doubtful) to stand against the known chart's family. */
+const STRONG_SHARE = 0.9;
+/** Mean similarity of the played letters with the known chart's (best key, `barSimShift`) under which it does not fit the piece. */
+const KNOWN_FITS = 0.45;
+/** How much above the background (the chart's bars at other places) that similarity must be. */
+const KNOWN_CONTRAST = 0.2;
 
 /** Family tokens of a bar, per beat (for comparing occurrences). */
 function barTok(b: HarmonyBar): number[] {
@@ -135,7 +178,48 @@ interface Vote {
  * from the beat before wins.
  */
 function consensusChord(
-  entries: readonly { chord: ChordSymbol | null; w: number }[],
+  entries: readonly Entry[],
+  known: ChordSymbol | null,
+  tonicMinor: number | null,
+  previous: ChordSymbol | null,
+  lean = false,
+): { chord: ChordSymbol | null; alt: number | null } {
+  const found = consensusOf(entries, known, tonicMinor, previous);
+  if (!lean || !known) return found;
+  // the known chart where the reading is weak (see the header, step 7)
+  const book = { chord: knownWritten(known, tonicMinor), alt: null };
+  const v = found.chord;
+  if (!v) return book;
+  const vTok = makeToken(v.root, FAMILY_OF[v.quality]);
+  // the same chord: written as the book writes it within its family (D△ for a D triad read)
+  if (vTok === makeToken(known.root, FAMILY_OF[known.quality])) return { chord: book.chord, alt: found.alt };
+  let total = 0;
+  let forV = 0;
+  let doubt = false;
+  let hand = false;
+  const occs = new Set<number>();
+  for (const e of entries) {
+    total += e.w;
+    if (!e.chord || makeToken(e.chord.root, FAMILY_OF[e.chord.quality]) !== vTok) continue;
+    forV += e.w;
+    occs.add(e.occ);
+    doubt ||= e.doubtful;
+    hand ||= e.hand;
+  }
+  const share = total > 0 ? forV / total : 0;
+  if (v.root === known.root) return share >= STRONG_SHARE && !doubt && hand ? found : book;
+  return share >= CLEAR_SHARE && occs.size >= 2 ? found : book;
+}
+
+/** The known chart's chord as the simplified chart writes it (its family). */
+function knownWritten(known: ChordSymbol, tonicMinor: number | null): ChordSymbol {
+  const v: Vote = { root: known.root, family: FAMILY_OF[known.quality], weight: 1, qualities: new Map([[known.quality, 1]]) };
+  return { root: known.root, quality: writtenQuality(v, tonicMinor), extensions: [], bass: null };
+}
+
+/** The consensus of the readings alone (the known chart half a repeat). */
+function consensusOf(
+  entries: readonly Entry[],
   known: ChordSymbol | null,
   tonicMinor: number | null,
   previous: ChordSymbol | null,
@@ -480,7 +564,7 @@ function simplify(input: SimplifyInput): SimplifiedChart | null {
   } else letterOcc.forEach((o) => (o.chorus = 0));
   // ---- 2. groups: letter × key, the same chords in two keys being one group
   const tonic: number | null = null; // the minor tonic is written after the consensus (`writeMinorTonic`)
-  const known = knownLookup(input, bars, letterOcc);
+  const known = knownLookup(input, bars, letterOcc, keys);
   const groups: Group[] = [];
   const groupOf = new Map<Occurrence, Group>();
   const newGroup = (o: Occurrence, variant: number): Group => {
@@ -578,8 +662,10 @@ function simplify(input: SimplifyInput): SimplifiedChart | null {
       const beats = Math.max(1, Math.round(ref.beats) || 1);
       // the bar's rhythm first (one chord, or a second one on the middle of the bar), voted over the repeats
       const half = beats >= 4 && beats % 2 === 0 ? beats / 2 : -1;
-      const readings = played.map(({ bar, i }) => {
-        const bc = beatChords(bar);
+      // a part played once (an intro, an outro) has nothing to vote with: a doubt between twice the same chord is that chord
+      const lone = !isLetter(g.label) && g.occ.length === 1;
+      const readings = played.map(({ bar, i }, occ) => {
+        const bc = beatChords(lone ? smoothDoubt(bars, i) : bar);
         const p = partAt(i);
         // the theme's harmony is the written one: solos reharmonise
         const wt = p && (p.type === 'theme' || p.type === 'verse' || p.type === 'chorus') ? THEME_WEIGHT : 1;
@@ -593,7 +679,7 @@ function simplify(input: SimplifyInput): SimplifiedChart | null {
           const next = i + 1 < bars.length ? beatChords(bars[i + 1]!)[0]!.chord : null;
           split = !sameChordish(a, b) && !sameChordish(b, next) && (sameChordish(at(half - 1).chord, a) || sameChordish(at(half + 1 < beats ? half + 1 : half).chord, b));
         }
-        return { at, wt, split };
+        return { at, wt, split, occ };
       });
       let splitW = 0;
       let wholeW = 0;
@@ -601,24 +687,29 @@ function simplify(input: SimplifyInput): SimplifiedChart | null {
         if (r.split) splitW += r.wt;
         else wholeW += r.wt;
       }
-      // the known chart is one more voice, half a repeat
-      const knownBar = isLetter(g.label) ? known(g.label.letter, pos) : null;
+      // the known chart is one more voice, half a repeat; it decides when the repeats do not agree clearly
+      const knownBar = isLetter(g.label) ? known.at(g.label.letter, pos, g.key) : null;
       if (knownBar && half > 0) {
-        if (sameChordish(knownBar[0] ?? null, knownBar[Math.floor((half * knownBar.length) / beats)] ?? null)) wholeW += 0.5;
-        else splitW += 0.5;
+        const knownSplit = !sameChordish(knownBar[0] ?? null, knownBar[Math.floor((half * knownBar.length) / beats)] ?? null);
+        // (the repeats are judged where the book's bar would change: its second half)
+        if (known.fits && (readings.length < 2 || agreementOf(readings, knownSplit ? half : 0, beats) < CLEAR_SHARE)) {
+          splitW = knownSplit ? 1 : 0;
+          wholeW = knownSplit ? 0 : 1;
+        } else if (knownSplit) splitW += 0.5;
+        else wholeW += 0.5;
       }
       const segments = half > 0 && splitW > wholeW ? [[0, half], [half, beats]] : [[0, beats]];
       const chords: WrittenChord[] = [];
       let last: ChordSymbol | null | undefined;
       for (const [from, to] of segments as [number, number][]) {
         // each reading votes for what sounds in the segment, beat by beat (a chord a beat off still votes mostly right)
-        const entries: { chord: ChordSymbol | null; w: number }[] = [];
+        const entries: Entry[] = [];
         for (const r of readings) for (let k = from; k < to; k++) {
           const x = r.at(k);
-          entries.push({ chord: x.chord, w: (x.w * r.wt) / (to - from) });
+          entries.push({ chord: x.chord, w: (x.w * r.wt) / (to - from), hand: x.hand, doubtful: x.doubtful, occ: r.occ });
         }
         const kb = knownBar?.[Math.floor((from * knownBar.length) / beats)] ?? null;
-        const { chord: c, alt } = consensusChord(entries, kb, tonic, last ?? lastWritten);
+        const { chord: c, alt } = consensusChord(entries, kb, tonic, last ?? lastWritten, known.fits);
         const same = last !== undefined && (c === null ? last === null : last !== null && last.root === c.root && last.quality === c.quality);
         if (!same) {
           const wc = { beat: from, chord: c };
@@ -825,51 +916,120 @@ function timesOf(g: Group, groupOf: ReadonlyMap<Occurrence, Group>, letterOcc: r
   return times;
 }
 
+/** How much the repeats of a bar agree with each other over beats [from, to): per beat, the weight share of the most voted family, averaged. */
+function agreementOf(readings: readonly { at: (k: number) => BeatChord; wt: number }[], from: number, to: number): number {
+  let sum = 0;
+  for (let k = from; k < to; k++) {
+    const w = new Map<number, number>();
+    let total = 0;
+    for (const r of readings) {
+      const x = r.at(k);
+      const t = tokenOf(x.chord);
+      const ww = x.w * r.wt;
+      total += ww;
+      w.set(t, (w.get(t) ?? 0) + ww);
+    }
+    sum += total > 0 ? Math.max(...w.values()) / total : 1;
+  }
+  return to > from ? sum / (to - from) : 1;
+}
+
+/**
+ * A bar read only as doubtful between the same chord before and after (Bm7 | F♯7? | Bm7) is written as
+ * that chord in a part played once: the simplified chart does not keep a lone doubt (the chart bar by bar does).
+ */
+function smoothDoubt(bars: readonly HarmonyBar[], i: number): HarmonyBar {
+  const b = bars[i]!;
+  if (!b.chords.length || !b.chords.every((c) => c.doubtful && !c.byHand) || i === 0 || i + 1 >= bars.length) return b;
+  const before = beatChords(bars[i - 1]!);
+  const after = beatChords(bars[i + 1]!)[0];
+  const around = before[before.length - 1]?.chord ?? null;
+  if (!around || !after || !sameChordish(around, after.chord)) return b;
+  return { ...b, carried: null, chords: [{ beat: 0, chord: around, doubtful: true, byHand: false }] };
+}
+
 /** Same root and family (or both N.C.). */
 function sameChordish(a: ChordSymbol | null, b: ChordSymbol | null): boolean {
   if (!a || !b) return a === b;
   return a.root === b.root && FAMILY_OF[a.quality] === FAMILY_OF[b.quality];
 }
 
-/** The known chart's chord per beat at a position of a letter, in the recording's key (null when none fits). */
-function knownLookup(input: SimplifyInput, bars: readonly HarmonyBar[], letterOcc: readonly Occurrence[]): (letter: string, pos: number) => (ChordSymbol | null)[] | null {
+/** The known chart as the consensus reads it: its chords at a position of a letter, and whether it fits the piece. */
+interface KnownLookup {
+  /** The chart's chord per beat at a position of a letter, in the key of the group (`keys` index, −1 the main key; null: no chart, or past its section). */
+  at: (letter: string, pos: number, key: number) => (ChordSymbol | null)[] | null;
+  /** Its letters line up with the played ones (`KNOWN_FITS`): it may decide where the reading is weak (step 7). */
+  fits: boolean;
+}
+
+/** The known chart, in the key that best matches the played bars of the letters (the chart's key alone is not trusted). */
+function knownLookup(input: SimplifyInput, bars: readonly HarmonyBar[], letterOcc: readonly Occurrence[], keys: readonly Key[]): KnownLookup {
   const k = input.known[0];
-  const none = () => null;
+  const none: KnownLookup = { at: () => null, fits: false };
   if (!k) return none;
   const body = knownBody(k.chart);
   if (!body) return none;
-  const first = new Map<string, number>();
-  for (const s of body.sections) if (!first.has(s.letter)) first.set(s.letter, s.start);
-  // transposition: the one that best matches the played bars of the letters (the chart's key alone is not trusted)
-  let bestT = 0;
-  let bestV = -1;
-  for (let t = -5; t <= 6; t++) {
-    let v = 0;
-    for (const o of letterOcc.slice(0, 16)) {
-      const s = first.get((o.label as { letter: string }).letter);
-      if (s === undefined) continue;
-      for (let j = 0; j < Math.min(8, o.end - o.first); j++) {
-        const kb = body.toks[s + j];
-        if (!kb) break;
-        const kt = Array.from(kb.slots, (x) => (x < 0 ? x : makeToken(rootOf(x) + t, familyOf(x))));
-        v += agreement(barTok(bars[o.first + j]!), kt);
-      }
-    }
-    if (v > bestV) {
-      bestV = v;
-      bestT = t;
-    }
+  const span = new Map<string, { start: number; end: number }>();
+  for (const sec of body.sections) if (!span.has(sec.letter)) span.set(sec.letter, { start: sec.start, end: sec.end });
+  // the played bars of the letters, against the chart's bars at the same place (and, for the background, at
+  // other places of the same section: a standard's bars share chords, so « fits » is judged above that)
+  // Two transpositions: the main key's, and the modulations' (their intervals to each other are the keys'), each
+  // the best match of its own bars (the main key itself is not in the input).
+  const firstMod = keys[0]?.tonic ?? 0;
+  const delta = (k: number) => (k < 0 ? 0 : (keys[k]!.tonic - firstMod + 12) % 12);
+  const pairs: { played: BarTokens; at: number; len: number; start: number; mod: boolean; delta: number }[] = [];
+  for (const o of letterOcc.slice(0, 32)) {
+    const sp = span.get((o.label as { letter: string }).letter);
+    if (!sp) continue;
+    const len = Math.min(sp.end - sp.start, o.end - o.first);
+    for (let j = 0; j < len; j++) pairs.push({ played: barTokens([bars[o.first + j]!])[0]!, at: j, len: sp.end - sp.start, start: sp.start, mod: o.key >= 0, delta: delta(o.key) });
   }
-  return (letter, pos) => {
-    const s = first.get(letter);
-    if (s === undefined) return null;
-    const kb = body.toks[s + pos];
-    if (!kb) return null;
-    return Array.from(kb.slots, (x) => (x < 0 ? null : { root: (rootOf(x) + bestT + 12) % 12, quality: familyQuality(familyOf(x)), extensions: [], bass: null }));
+  if (!pairs.length) return none;
+  const known = body.toks;
+  const bestOf = (mod: boolean): { t: number; v: number; c: number } => {
+    let best = { t: 0, v: -1, c: 0 };
+    for (let t = -5; t <= 6; t++) {
+      let v = 0;
+      let c = 0;
+      for (const p of pairs) {
+        if (p.mod !== mod) continue;
+        const x = barSimShift(known[p.start + p.at]!, p.played, -(t + p.delta));
+        if (Number.isNaN(x)) continue;
+        v += x;
+        c++;
+      }
+      if (c && v / c > best.v) best = { t, v: v / c, c };
+    }
+    return best;
+  };
+  const main = bestOf(false);
+  const mod = bestOf(true);
+  const compared = main.c + mod.c;
+  if (!compared) return none;
+  const fit = (Math.max(0, main.v) * main.c + Math.max(0, mod.v) * mod.c) / compared;
+  const tOf = (p: { mod: boolean; delta: number }) => (p.mod ? mod.t + p.delta : main.t);
+  let bg = 0;
+  let bc = 0;
+  for (const p of pairs) for (const d of [3, 5]) {
+    if (p.len <= d) continue;
+    const x = barSimShift(known[p.start + ((p.at + d) % p.len)]!, p.played, -tOf(p));
+    if (Number.isNaN(x)) continue;
+    bg += x;
+    bc++;
+  }
+  bg = bc ? bg / bc : 0;
+  const fits = fit >= Math.max(KNOWN_FITS, bg + KNOWN_CONTRAST);
+  return {
+    fits,
+    at: (letter, pos, key) => {
+      const sp = span.get(letter);
+      if (!sp || pos >= sp.end - sp.start) return null;
+      const row = body.chords[sp.start + pos];
+      if (!row) return null;
+      const t = tOf({ mod: key >= 0, delta: delta(key) });
+      const shift = (x: number) => (((x + t) % 12) + 12) % 12;
+      return row.map((c) => (c ? { ...c, root: shift(c.root), bass: c.bass === null ? null : shift(c.bass) } : null));
+    },
   };
 }
 
-/** A quality standing for a family (only the family of the known chord is compared). */
-function familyQuality(f: number): ChordQuality {
-  return f === MAJ ? 'maj7' : f === MIN ? 'min7' : f === DOM ? '7' : f === HDIM ? 'hdim7' : f === DIM ? 'dim7' : f === SUS ? '7sus4' : 'aug';
-}

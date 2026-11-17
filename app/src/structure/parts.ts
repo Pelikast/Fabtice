@@ -515,20 +515,22 @@ const THEME_RECURRENCE = 0.35;
  * The stretches the « Autres » track leads, cut at chorus starts: where the
  * wind recogniser should listen (`evidence.ts#windsExcerpts`).
  */
-export function windsStretches(input: PartsInput): { first: number; end: number }[] {
+export function windsStretches(input: PartsInput): { first: number; end: number; lead: StemId }[] {
   const l = input.layout;
   const from = l ? l.introEnd : 0;
   const to = l ? l.outroStart : input.n;
   const found = input.evidence?.stems ? formStretches({ ...input, evidence: { ...input.evidence, winds: null } }, from, to) : null;
   if (!found) return [];
   const grid = gridStrength(l, input.n);
-  const out: { first: number; end: number }[] = [];
+  const out: { first: number; end: number; lead: StemId }[] = [];
   for (const s of found.stretches) {
-    if (s.lead !== 'other' && s.lead !== 'winds' && s.lead !== 'brass' && s.lead !== 'saxophone') continue;
+    // the saxophone part of a detailed separation names itself: no need to ask
+    if (s.lead !== 'other' && s.lead !== 'winds' && s.lead !== 'brass') continue;
+    const lead = s.lead;
     let first = s.first;
     for (let i = s.first + 1; i <= s.end; i++) {
       if (i === s.end || grid[i]! >= 3) {
-        if (i - first >= 2) out.push({ first, end: i });
+        if (i - first >= 2) out.push({ first, end: i, lead });
         first = i;
       }
     }

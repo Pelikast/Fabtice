@@ -181,7 +181,8 @@ async function suite(form) {
   await press(h, $(page, '[data-testid="structure-affichage-simplifie"]'));
   await sleep(300);
   await closeList(h);
-  check(`${tag}: « Grille complète simplifiée » is selectable and shows the whole chart with its quiet note`, (await display(page)) === 'simplified' && (await cellBars(page)).length === ALL && (await $(page, '[data-testid="structure-note"]').textContent()) === 'La grille simplifiée arrive avec la structure du morceau.');
+  // (the demo's structure now has its simplified chart, `structure/simplify.ts`: no « arrive » note any more)
+  check(`${tag}: « Grille complète simplifiée » is selectable and shows the whole chart, without the « not written yet » note`, (await display(page)) === 'simplified' && (await cellBars(page)).length === ALL && (await $(page, '[data-testid="structure-note"]').count()) === 0);
   await shot('simplified');
   await openList(h);
   await press(h, $(page, '[data-testid="structure-affichage-complet"]'));
