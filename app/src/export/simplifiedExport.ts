@@ -15,6 +15,7 @@ import type { Key } from '../model/harmony';
 import type { Meter } from '../model/tempoMap';
 import { PART_TYPE_KEYS } from '../model/structureLabels';
 import type { SimplifiedChart } from '../structure';
+import { writtenNext } from '../chart/simplifiedLayout';
 import type { ExportBar, ExportChart } from './chartExport';
 
 export interface SimplifiedExportInput {
@@ -63,7 +64,9 @@ export function buildSimplifiedExportChart({ title, chart, key, semitones, tempo
         timeSignature: changed ? m : null,
         chords: b.chords.map((c) => {
           const chord = c.chord ? transposeChord(c.chord, semitones) : null;
-          return { beat: c.beat, chord, text: chordText(chord, { key: spelling }), doubtful: false };
+          const target = writtenNext(chart, c);
+          const next = target ? transposeChord(target, semitones) : null;
+          return { beat: c.beat, chord, text: chordText(chord, { key: spelling, next }), doubtful: false, next };
         }),
         repeat: b.simile,
         final: bars.length === total - 1,

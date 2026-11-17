@@ -10,7 +10,7 @@
 // section letter of the bar.
 
 import { useEffect, useLayoutEffect, useRef, useState, type Dispatch, type KeyboardEvent, type RefObject } from 'react';
-import { chordParts, extensionText } from '../harmony/chord';
+import { chordParts, extensionText, transposeChord } from '../harmony/chord';
 import { displayChord, spellingKey } from '../harmony/display';
 import { noteText } from '../harmony/pitch';
 import { parseChord } from '../harmony/parse';
@@ -59,7 +59,11 @@ export function ChordEditor({ state, dispatch, grid, scroller, onClose, onTyped 
   const going = chordGoingOn(bars, target.bar);
   // The chord the clicks start from, as stored: the one being edited, or the one that goes on in this bar.
   const base = current ? current.chord : going;
+  // What it goes to (its spelling, as on the chart: « B♭7 » before Am7): the chord being edited's, or the going one's.
+  const goingNext = current ? null : (bars.filter((b) => b.bar < target.bar).flatMap((b) => b.chords).pop()?.next ?? null);
+  const baseNext = current ? (current.next ?? null) : goingNext;
   const shown = base ? displayChord(base, ctx).chord : base;
+  const shownNext = baseNext ? transposeChord(baseNext, ctx.shift) : null;
   const fallbackRoot = ctx.key?.tonic ?? 0;
   const keyForSpelling = spellingKey(ctx);
 
@@ -201,7 +205,9 @@ export function ChordEditor({ state, dispatch, grid, scroller, onClose, onTyped 
   };
 
   const noChord = current ? current.chord === null : false;
-  const roots = noteChoices(ctx);
+  // the root of the chord being edited spelled as the chart writes it (a half step above its target: « B♭ », not « A♯ »)
+  const shownRoot = shown ? chordParts(shown, { key: keyForSpelling, next: shownNext }).root : null;
+  const roots = noteChoices(ctx).map((r) => (shown && shownRoot && r.pc === shown.root ? { ...r, note: shownRoot } : r));
   const canSplit = chords.length < 2 && (chords.length > 0 || going !== undefined);
   const section = bar.section;
   // Where in the bar the chord starts: offered when the bar holds several chords or this one is not on the bar line.
@@ -231,7 +237,7 @@ export function ChordEditor({ state, dispatch, grid, scroller, onClose, onTyped 
           </div>
         )}
         <span className="editeur-apercu" aria-hidden="true">
-          {current ? <ChordSymbol chord={current.chord} ctx={ctx} /> : going ? <span className="continue"><ChordSymbol chord={going} ctx={ctx} /></span> : <span className="aucun">—</span>}
+          {current ? <ChordSymbol chord={current.chord} ctx={ctx} next={baseNext} /> : going ? <span className="continue"><ChordSymbol chord={going} ctx={ctx} next={baseNext} /></span> : <span className="aucun">—</span>}
         </span>
         <button className="fermer" aria-label={t('editor.close')} onClick={() => onClose(true)}>
           <CloseIcon />
@@ -322,7 +328,7 @@ export function ChordEditor({ state, dispatch, grid, scroller, onClose, onTyped 
       <Group label={t('editor.quality')} columns={4} className="editeur-natures">
         {QUALITY_CHOICES.map((q: ChordQuality) => (
           <Choice key={q} checked={shown?.quality === q} title={t(`quality.${q}` as MessageKey)} onPick={() => apply({ quality: q })}>
-            <ChordPartsView parts={chordParts({ root: shown?.root ?? fallbackRoot, quality: q, extensions: [], bass: null }, { key: keyForSpelling, minor: ctx.minor })} />
+            <ChordPartsView parts={chordParts({ root: shown?.root ?? fallbackRoot, quality: q, extensions: [], bass: null }, { key: keyForSpelling, minor: ctx.minor, next: shownNext })} />
           </Choice>
         ))}
       </Group>

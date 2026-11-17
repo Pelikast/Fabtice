@@ -20,7 +20,7 @@ import type { Instrument } from '../model/harmony';
 import { fitChart, type BarFit, type ChartBar as FitBar, type FitChord } from './fit';
 import type { ChartBar, ChartLine } from './layout';
 import { headerForm, headerInfo, headerPart, headerTitle, type PrintChart } from './printChart';
-import { headingLetterText, lastWrittenIndex, type PrintRow } from './simplifiedLayout';
+import { headingLetterText, lastWrittenIndex, writtenNext, type PrintRow } from './simplifiedLayout';
 import { PART_TYPE_KEYS } from '../model/structureLabels';
 import type { WrittenBar } from '../structure';
 import { formRowsFor, printBarGeometry, sheetNumberShown, type PrintHeader, type PrintLayout } from './printLayout';
@@ -147,7 +147,7 @@ function PrintBar({ bar, chart, final }: { bar: ChartBar; chart: PrintChart; fin
       <span className="pp-numero">{formatBarNumber(bar.bar)}</span>
       {bar.chords.map((c, i) => (
         <span key={i} className="pp-accord" data-debut={c.beatInBar} data-rang={i % 2} style={{ '--debut': c.beatInBar / bar.beats } as CSSProperties}>
-          <ChordSymbol chord={c.chord} ctx={chart.contexts.get(bar.bar) ?? chart.ctx} />
+          <ChordSymbol chord={c.chord} ctx={chart.contexts.get(bar.bar) ?? chart.ctx} next={c.next ?? null} />
         </span>
       ))}
       {n === 0 && bar.repeat && (
@@ -229,7 +229,7 @@ function PrintWrittenBar({ bar, chart, opens, closes, times, final }: { bar: Wri
       )}
       {bar.chords.map((c, i) => (
         <span key={i} className="pp-accord" data-debut={c.beat} data-rang={i % 2} style={{ '--debut': c.beat / bar.beats } as CSSProperties}>
-          <ChordSymbol chord={c.chord} ctx={ctx} />
+          <ChordSymbol chord={c.chord} ctx={ctx} next={chart.simplified ? writtenNext(chart.simplified, c) : null} />
         </span>
       ))}
       {n === 0 && bar.simile && (

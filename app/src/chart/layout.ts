@@ -14,6 +14,7 @@
 // written in the bar where it changes, and in the first bar when the piece
 // has more than one.
 
+import { approachTargets } from '../harmony/chord';
 import { barBeatToBeat, barStartTime, barToBeat, beatToBar, beatToTime, meterAtBar, sameMeter, timeToBar, timeToBeat } from '../grid/tempoMap';
 import { loopCoverage, type LoopCoverage } from '../grid/loops';
 import type { AnalysedChord } from '../model/analysis';
@@ -86,6 +87,12 @@ export function resolveChords(map: TempoMap, analysed: readonly AnalysedChord[] 
 export interface BarChord extends ChartChord {
   /** 0-based beat in the bar where it starts (0 = on the bar line). */
   beatInBar: number;
+  /**
+   * The chord it goes to, when one is known (`harmony/chord.ts#approachTargets`: the next chord of
+   * another root, across bar lines; absent at the end and before a « N.C. »): what spells a chord that
+   * slides down a half step to it (« B♭7 » before Am7).
+   */
+  next?: ChordSymbol;
 }
 
 export interface ChartBar {
@@ -144,10 +151,12 @@ export function chartBars({ map, chords, sections, duration, keyChanges = [] }: 
   const byBar = new Map<number, BarChord[]>();
   let first = 0;
   let last = Math.max(0, timeToBar(map, Math.max(0, duration - 1e-6)).bar);
-  for (const c of chords) {
+  const targets = approachTargets(chords.map((c) => c.chord));
+  for (const [i, c] of chords.entries()) {
     const pos = beatToBar(map, c.beat);
     const list = byBar.get(pos.bar) ?? [];
-    list.push({ ...c, beatInBar: Math.round(pos.beatInBar) });
+    const next = targets[i];
+    list.push({ ...c, beatInBar: Math.round(pos.beatInBar), ...(next ? { next } : {}) });
     byBar.set(pos.bar, list);
     first = Math.min(first, pos.bar);
     last = Math.max(last, pos.bar);

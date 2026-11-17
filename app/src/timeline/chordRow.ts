@@ -51,6 +51,8 @@ export interface RowChord {
   /** Stable identity: « bar:beat ». */
   id: string;
   chord: ChordSymbol | null;
+  /** The chord it goes to (`BarChord.next`): its spelling. */
+  next: ChordSymbol | null;
   doubtful: boolean;
   bar: number;
   /** 0-based beat in the bar. */
@@ -81,6 +83,7 @@ export function rowChords(bars: readonly ChartBar[], map: TempoMap): RowChord[] 
       kept.push({
         id: `${bar.bar}:${c.beatInBar}`,
         chord: c.chord,
+        next: c.next ?? null,
         doubtful: c.doubtful,
         bar: bar.bar,
         beatInBar: c.beatInBar,

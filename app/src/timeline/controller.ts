@@ -451,7 +451,7 @@ export class TimelineController {
     this.chordItems = rowChords(selectChartBars(s), s.tempoMap);
     const widest = ROW_SIZES_PX.map(() => 0);
     for (const item of this.chordItems) {
-      const html = chordMarkup(item.chord, contexts.get(item.bar) ?? main, item.doubtful);
+      const html = chordMarkup(item.chord, contexts.get(item.bar) ?? main, item.doubtful, item.next);
       this.chordHtml.set(item, html);
       for (let size = 0; size < widest.length; size++) widest[size] = Math.max(widest[size]!, layer.measure(html, item.small, size));
     }

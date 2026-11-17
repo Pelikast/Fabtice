@@ -160,7 +160,7 @@ async function suite(form) {
   check(`${tag}: Intro: Bm`, (await cellTexts(page, 'intro')).join('|') === 'Bm', (await cellTexts(page, 'intro')).join('|'));
   check(`${tag}: A, 8 bars, the last one %`, (await cellTexts(page, 'A')).join('|') === 'Em7|A7|D△|G△|C♯m7♭5|F♯7|Bm|%', (await cellTexts(page, 'A')).join('|'));
   check(`${tag}: B, 8 bars, % after the first Bm`, (await cellTexts(page, 'B')).join('|') === 'C♯m7♭5|F♯7|Bm|%|Em7|A7|D△|G△', (await cellTexts(page, 'B')).join('|'));
-  check(`${tag}: C, with its two-chord bars (the key spells them with sharps) and its %`, (await cellTexts(page, 'C')).join('|') === 'C♯m7♭5|F♯7|Bm A♯7|Am7 G♯7|C♯m7♭5|F♯7|Bm|%', (await cellTexts(page, 'C')).join('|'));
+  check(`${tag}: C, with its two-chord bars (B♭7 named after the Am7 it slides to, G♯7 as the key spells it) and its %`, (await cellTexts(page, 'C')).join('|') === 'C♯m7♭5|F♯7|Bm B♭7|Am7 G♯7|C♯m7♭5|F♯7|Bm|%', (await cellTexts(page, 'C')).join('|'));
   check(`${tag}: the variations of the repeats are not written (A13, F♯7♭9, the tritone C7: none on the page)`, !(await page.locator(GRID).innerText()).match(/A13|♭9|♯9|C7|Em9|Dmaj9|Bm6/));
   check(`${tag}: a bar that goes on has the repeat sign of the chart (the same glyph), labelled`, (await page.locator(`${GRID} .repete`).count()) === 3 && (await page.locator(`${GRID} .repete`).first().getAttribute('aria-label')) === 'Même accord que la mesure précédente');
   check(`${tag}: no bar numbers on the written bars`, (await page.locator(`${GRID} .numero`).count()) === 0);

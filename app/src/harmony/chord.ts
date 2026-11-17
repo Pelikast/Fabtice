@@ -14,7 +14,7 @@ import {
 } from '../model/harmony';
 import type { MinorNotation } from '../model/project';
 import { keyTonicName, NEUTRAL_KEY } from './key';
-import { FLAT, noteText, pc, SHARP, spellInKey, type NoteName } from './pitch';
+import { FLAT, noteText, pc, SHARP, spellInKey, upperNeighbour, type NoteName } from './pitch';
 
 /** Chord tones (semitones above the root), as in the prototype's `QUAL_PCS`. */
 export const QUALITY_INTERVALS: Record<ChordQuality, readonly number[]> = {
@@ -81,6 +81,12 @@ export interface ChordDisplayOptions {
   /** Key in which the chord is read (already transposed); spells the root and bass. Default: C major. */
   key?: Key | null;
   minor?: MinorNotation;
+  /**
+   * The chord it goes to (`approachTargets`, transposed like this one; null or absent: none known). A
+   * chord whose root is a semitone above its target's is spelled as the target's upper neighbour,
+   * whatever the key (« Bm B♭7 | Am7 », not « A♯7 »): see `rootName`.
+   */
+  next?: ChordSymbol | null;
 }
 
 const tri: QualityPart = { kind: 'triangle' };
@@ -112,10 +118,47 @@ export function extensionText(e: ChordExtension): string {
   return e.replace('b', FLAT).replace('#', SHARP);
 }
 
+const diminished = (q: ChordQuality) => q === 'dim7' || q === 'dim';
+
+/**
+ * The root as written: the key's spelling (a diminished chord as a passing chord, `spellInKey`), except
+ * for a chord that slides down a half step to the next one (a tritone substitute, a chromatic approach
+ * from above): it is named after its target, the letter above it (B♭7 → Am7, D7 → C♯m7♭5, F7 → E),
+ * unless that needs a double accidental or C♭, F♭, E♯, B♯ (then the key's spelling). A chord a fifth
+ * above its target, or a semitone below it, keeps the key's spelling.
+ */
+export function rootName(c: ChordSymbol, tonic: NoteName, next: ChordSymbol | null | undefined): NoteName {
+  if (next && pc(c.root - next.root) === 1) {
+    const target = spellInKey(next.root, tonic, { passingDiminished: diminished(next.quality) });
+    const name = upperNeighbour(c.root, target);
+    if (name) return name;
+  }
+  return spellInKey(c.root, tonic, { passingDiminished: diminished(c.quality) });
+}
+
+/**
+ * The chord each chord of a sequence goes to, for `ChordDisplayOptions.next`: the next chord with
+ * another root (the same chord repeated, or the same root in another colour, looks further on), none
+ * at the end or before a « N.C. » (null entries).
+ */
+export function approachTargets(seq: readonly (ChordSymbol | null)[]): (ChordSymbol | null)[] {
+  const out: (ChordSymbol | null)[] = new Array<ChordSymbol | null>(seq.length).fill(null);
+  let target: ChordSymbol | null = null;
+  for (let i = seq.length - 1; i >= 0; i--) {
+    const c = seq[i]!;
+    const after = seq[i + 1];
+    // the target of i: the chord after it, or (the same root again) that chord's own target
+    if (after === undefined || after === null || c === null) target = null;
+    else if (after.root !== c.root) target = after;
+    out[i] = c === null ? null : target;
+  }
+  return out;
+}
+
 export function chordParts(c: ChordSymbol, opts: ChordDisplayOptions = {}): ChordParts {
   const tonic = keyTonicName(opts.key ?? NEUTRAL_KEY);
   return {
-    root: spellInKey(c.root, tonic, { passingDiminished: c.quality === 'dim7' || c.quality === 'dim' }),
+    root: rootName(c, tonic, opts.next),
     quality: qualityParts(c.quality, opts.minor ?? 'm'),
     extensions: c.extensions.map(extensionText),
     bass: c.bass === null ? null : spellInKey(c.bass, tonic),

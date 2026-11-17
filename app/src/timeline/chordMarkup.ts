@@ -41,10 +41,10 @@ export function chordPartsMarkup(parts: ChordParts, className?: string, title?: 
   return `<span class="${cls}"${title === undefined ? '' : ` title="${escape(title)}"`}>${note(parts.root)}${quality}${extensions}${bass}</span>`;
 }
 
-/** The markup of `<ChordSymbol chord ctx doubtful />`. */
-export function chordMarkup(chord: ChordSymbol | null, ctx: DisplayContext, doubtful: boolean): string {
+/** The markup of `<ChordSymbol chord ctx doubtful next />`. */
+export function chordMarkup(chord: ChordSymbol | null, ctx: DisplayContext, doubtful: boolean, next: ChordSymbol | null = null): string {
   if (chord === null) return `<span class="ch sans-accord"><span class="q">${NO_CHORD_TEXT}</span></span>`;
-  const { parts } = displayChord(chord, ctx);
-  const title = doubtful ? t('chord.doubtful', { chord: displayChordText(chord, ctx) }) : undefined;
+  const { parts } = displayChord(chord, ctx, next);
+  const title = doubtful ? t('chord.doubtful', { chord: displayChordText(chord, ctx, next) }) : undefined;
   return chordPartsMarkup(parts, doubtful ? 'douteux' : undefined, title);
 }

@@ -78,8 +78,8 @@ export function iRealKey(key: Key | null): string {
 // ---------------------------------------------------------------- chords
 
 /** `Bb`, `C^7`, `G7b9`, `D-7/G`: the chord as iReal Pro writes it. */
-export function iRealChordText(chord: NonNullable<ExportChord['chord']>, key: Key | null): string {
-  const parts = chordParts(chord, { key });
+export function iRealChordText(chord: NonNullable<ExportChord['chord']>, key: Key | null, next: ExportChord['next'] = null): string {
+  const parts = chordParts(chord, { key, next });
   return `${iRealNote(parts.root)}${iRealQualityFor(chord).text}${parts.bass ? `/${iRealNote(parts.bass)}` : ''}`;
 }
 
@@ -183,7 +183,7 @@ function barCells(bar: ExportBar, beats: number, ctx: BarContext): string[] {
   const first = written[0]!;
   // The chord of the previous bar sounds on until this bar's first chord: slashes, so iReal Pro keeps the beats.
   if (first.beat > 0 && ctx.going) for (let b = 0; b < first.beat; b++) cells[b] = 'p';
-  for (const c of written) cells[c.beat] = c.chord === null ? 'n' : iRealChordText(c.chord, ctx.key);
+  for (const c of written) cells[c.beat] = c.chord === null ? 'n' : iRealChordText(c.chord, ctx.key, c.next ?? null);
   return cells;
 }
 
