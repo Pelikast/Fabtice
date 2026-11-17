@@ -233,7 +233,7 @@ function ExportLogicBox() {
           <>
             <p data-testid="fin-logic">{t('exportLogic.doneZip', { name: phase.folderName })}</p>
             <a className="plein fichier-pret" data-testid="fichier-logic" href={phase.file.href} download={phase.file.name}>
-              {t('exportLogic.save', { name: phase.file.name })}
+              {t('exportLogic.save')}
             </a>
             {gestures}
             <div className="import-actions">

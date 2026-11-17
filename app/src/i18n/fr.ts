@@ -1001,7 +1001,7 @@ export const fr = {
   'exportLogic.trackOf': 'Piste {i} sur {n} : {name}',
   'exportLogic.doneFolder': 'Le dossier « {name} » est enregistré dans {where}.',
   'exportLogic.doneZip': 'L’archive est prête. Une fois décompressée, elle donne le dossier « {name} ».',
-  'exportLogic.save': 'Enregistrer « {name} »',
+  'exportLogic.save': 'Enregistrer l’archive',
   'exportLogic.reveal': 'Afficher dans le Finder',
   'exportLogic.gesturesTitle': 'Dans Logic Pro, en trois gestes',
   'exportLogic.firstBar': 'Dans Logic, la mesure 1 de Fabtice est la mesure {n} : la première est une mesure d’attente, qui dure exactement le temps qui précède la musique.',

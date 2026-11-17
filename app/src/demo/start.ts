@@ -23,6 +23,9 @@ import { getEngine } from '../audio';
 import { pcmFromChannels, readPcm } from '../audio/pcm';
 import { audioSeconds, getAudio, registryBytes, type DecodedAudio } from '../audio/registry';
 import { exportWithApp, getEncoder, planAudioExport } from '../export/audio';
+import { planLogicFolder } from '../export/logic';
+import { sessionToMidi } from '../export/midi';
+import { buildSession } from '../export/session';
 import * as renderController from '../render/controller';
 import * as renderModule from '../render';
 import * as renderBudget from '../render/budget';
@@ -94,6 +97,8 @@ export const lot3Handle = {
   render: renderController,
   renderer: { ...renderModule, ...renderBudget },
   exportAudio: { ...exportActions, planAudioExport, exportWithApp, getEncoder },
+  /** C15.4: the session model, its MIDI file and the plan of the folder for Logic Pro (`test:export-logic`). */
+  sequencer: { buildSession, sessionToMidi, planLogicFolder },
   registry: { getAudio, registryBytes },
   pcm: { pcmFromChannels, readPcm },
   storage: getProjectStorage,
