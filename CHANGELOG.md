@@ -203,6 +203,42 @@ en français simple.
 - **Les tonalités s'écrivent en lettres américaines partout**, y compris dans
   la note d'une modulation exportée vers iReal Pro (« Ton : Ab »).
 
+### Mise à jour automatique et numéro de version
+- **Fabtice porte maintenant un numéro de version : 1.0.0.** On le voit dans
+  le menu Fabtice de la barre du Mac → « À propos de Fabtice » et dans
+  Réglages → Général.
+- **Mise à jour automatique** (app Mac) : à l'ouverture, Fabtice regarde s'il
+  existe une version plus récente. Si oui, un message montre le numéro actuel,
+  le nouveau, ce qui change, et un seul bouton met l'app à jour : elle se
+  ferme et se rouvre toute seule dans la nouvelle version. Rien ne s'affiche
+  si elle est à jour. La 1.0.0 est la première version à savoir le faire :
+  vous le verrez à la version suivante.
+- « Rechercher une mise à jour… » dans le menu Fabtice de la barre du Mac et
+  dans Réglages → Général, avec la case « Vérifier à chaque ouverture ».
+- Le fichier téléchargé est vérifié avant de remplacer quoi que ce soit ; en
+  cas de souci, l'ancienne version reste en place et l'app le dit simplement.
+- Si l'app est ouverte depuis Téléchargements ou depuis l'image disque, elle
+  explique comment faire : la glisser dans le dossier Applications, ou
+  télécharger la nouvelle version à la main.
+- **Version web** : quand une nouvelle version du site est prête, un message
+  propose de recharger la page tout de suite (le morceau reste gardé).
+- La page de téléchargement n'est plus une « version de test » : chaque
+  version a sa propre page, avec ses nouveautés. Le lien
+  https://github.com/pelikast/fabtice/releases/latest mène toujours à la
+  dernière.
+
+### Alléger le travail pour l'appareil
+- Nouvelle case « Alléger le travail pour l'appareil » : l'ordinateur ou le
+  téléphone chauffe et souffle moins pendant la séparation, l'analyse et
+  « Appliquer meilleure qualité », au prix d'un travail plus long. Fabtice
+  fait une pause après chaque tranche de calcul.
+- Vous la trouvez dans « Nouveau projet », dans Réglages → Général et quand
+  vous lancez une séparation plus tard ; le dernier choix est retenu.
+- Dans Réglages → Avancé, un curseur règle la part des capacités utilisée, de
+  20 à 99 % (75 % par défaut). C'est une moyenne : sur une longue tranche de
+  calcul, le ventilateur peut quand même monter par moments.
+- Les durées annoncées tiennent compte de ce réglage.
+
 ## Version du 16 novembre 2026
 
 Depuis la version du 15 novembre (8 h 54).
