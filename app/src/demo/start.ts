@@ -7,6 +7,8 @@
 //   ?demo&analyse=echec     not analysed yet: the (mock) analysis fails
 //   ?demo&analyse=aucune    lot 1 as it was: fixed 110 BPM grid entered by hand, no analysis
 //   &vue=grille             opens on the chord chart
+//   &structure=demo         a made-up detected structure (Jazz: Intro, Thème 1, Solo (Guitare)…) and no hand letters;
+//                           &structure=pop for Couplet, Refrain… (see `demoStructure.ts`)
 //
 // Lot 3 (the four demo instruments mixed into ONE whole-piece track first):
 //   &separation=entier      not separated: « Séparer les instruments » to try
@@ -56,7 +58,14 @@ import * as harmonyActions from '../store/harmonyActions';
 import * as historyModule from '../store/history';
 import * as projectModules from '../project/debug';
 import * as tapFixModule from '../analysis/tapFix';
+import * as chartDisplayModule from '../store/chartDisplay';
+import * as simplifiedSelectors from '../store/simplifiedSelectors';
+import * as structureActions from '../store/structureActions';
+import * as structureSelectors from '../store/structureSelectors';
+import * as partDialogModule from '../ui/partDialog';
+import type { DetectedStructure } from '../model/structure';
 import { demoAnalysis, demoCorrections } from './demoAnalysis';
+import { demoStructure, demoStructureKind, withDemoStructure, withoutHandLetters } from './demoStructure';
 import * as audioJournal from '../audio/journal';
 import { demoProject } from './demoProject';
 
@@ -82,10 +91,26 @@ declare global {
       project?: typeof projectModules;
       /** C12, the tapped tempo correction (`analysis/tapFix.ts`): preview, show, discard, commit. */
       tapFix?: typeof tapFixModule;
+      /** C14, the structure column: the commands, what is in force, the display, the window; `setDetected` stands in for the detection. */
+      structure?: typeof structureHandle;
       ready: Promise<void>;
     };
   }
 }
+
+/** C14 handles for the browser checks (`?demo`, `?debug`): the structure of the piece and what the chart shows of it. */
+export const structureHandle = {
+  actions: structureActions,
+  selectors: { ...structureSelectors, ...simplifiedSelectors },
+  display: chartDisplayModule,
+  dialog: partDialogModule,
+  /** The made-up detected structure of the demo piece (`demoStructure.ts`), on the grid in force. */
+  demo: (kind: 'jazz' | 'pop' = 'jazz'): DetectedStructure => demoStructure(appStore.getState().tempoMap, kind),
+  /** Stands in for the detection: the structure the analysis found (null: none). Like a new analysis, it clears the undo history. */
+  setDetected(structure: DetectedStructure | null): void {
+    appStore.setState((s) => (s.analysis ? { analysis: { ...s.analysis, structure } } : {}));
+  },
+};
 
 export const lot2Actions = { analysis: analysisActions, grid: gridActions, harmony: harmonyActions, meter: meterActions, key: keyActions };
 
@@ -144,13 +169,16 @@ export function startDemo(params: URLSearchParams): Promise<void> {
       const map = input.tempoMap!;
       const duration = audioSeconds(input.tracks[0]!.audio);
       const analysedAlready = mode === null || mode === 'factice';
+      // `&structure=demo`: a made-up detected structure, and the hand letters removed so that its letters show.
+      const structureKind = demoStructureKind(params.get('structure'));
+      const analysisOf = () => (structureKind ? withDemoStructure(demoAnalysis(map, duration), map, structureKind) : demoAnalysis(map, duration));
       // The mock analyser answers with the demo's own analysis, at the pace asked.
       replaceAnalyzer(
         new MockAnalyzer({
           durationMs: mode === 'lente' ? 8000 : mode === 'instant' ? 0 : 900,
           downloadMs: mode === 'lente' ? 5000 : 0,
           failWith: mode === 'echec' ? 'failed' : undefined,
-          fixture: () => demoAnalysis(map, duration),
+          fixture: analysisOf,
         }),
       );
       await actions.openProject({
@@ -160,8 +188,8 @@ export function startDemo(params: URLSearchParams): Promise<void> {
         // Not analysed yet: the grid is unknown until the analysis has run.
         tempoMap: analysedAlready ? map : undefined,
         loop: analysedAlready ? input.loop : null,
-        analysis: analysedAlready ? demoAnalysis(map, duration) : null,
-        corrections: demoCorrections(map),
+        analysis: analysedAlready ? analysisOf() : null,
+        corrections: structureKind ? withoutHandLetters(demoCorrections(map)) : demoCorrections(map),
       });
       if (input.loop && analysedAlready) actions.seek(input.loop.start);
     }
@@ -171,6 +199,6 @@ export function startDemo(params: URLSearchParams): Promise<void> {
     else if (separation === 'lente' || separation === 'repli' || separation === 'echec') void separationRunner.startSeparation();
     if (params.get('export') === 'ouvert') exportActions.openExportAudio();
   })();
-  window.__fabtice = { store: appStore, engine: getEngine(), actions, lot2: lot2Actions, lot3: lot3Handle, lot4: lot4Handle, audioJournal, history: historyModule, project: projectModules, tapFix: tapFixModule, ready };
+  window.__fabtice = { store: appStore, engine: getEngine(), actions, lot2: lot2Actions, lot3: lot3Handle, lot4: lot4Handle, audioJournal, history: historyModule, project: projectModules, tapFix: tapFixModule, structure: structureHandle, ready };
   return ready;
 }

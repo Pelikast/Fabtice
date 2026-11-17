@@ -7,22 +7,29 @@
 // instrument choice) and the empty states. The bars and everything done on
 // them are in ChartGrid.tsx; the editors in ChordEditor.tsx and KeyEditor.tsx.
 
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { nominalBpm } from '../grid/tempoMap';
+import { formatBarNumber, RANGE_DASH } from '../grid/format';
 import { withAccidentals } from '../harmony/ChordSymbol';
 import { keyLabel } from '../harmony/key';
 import { formatNumber, t } from '../i18n';
 import { INSTRUMENTS, type Instrument } from '../model/harmony';
+import { partName } from '../model/structureLabels';
 import { setViewMode } from '../store/actions';
 import { selectAnalysisStatus, selectChartBars, selectDisplayContext } from '../store/chartSelectors';
+import { selectChartDisplay, selectShownBars, selectShownPart } from '../store/chartDisplay';
 import { openPrint } from '../store/exportActions';
+import { selectSimplifiedChart } from '../store/simplifiedSelectors';
 import { setInstrument } from '../store/harmonyActions';
 import { isTempoKnown, shownBpm } from '../store/derived';
 import { useApp } from '../store/store';
 import { runAnalysis } from '../analysis/runner';
 import { AnalysisProgressNote } from '../components/AnalysisStatus';
 import { PrinterIcon } from '../ui/icons';
+import { usePhoneLayout } from '../util/media';
+import type { ChartBar } from './layout';
 import { ChartGrid } from './ChartGrid';
+import { StructureBar, StructureColumn } from './StructureColumn';
 import { KeyEditor } from './KeyEditor';
 
 const EMPTY_BARS = 8;
@@ -31,23 +38,61 @@ export function ChartSheet() {
   const project = useApp((s) => s.project);
   const status = useApp(selectAnalysisStatus);
   const bars = useApp(selectChartBars);
+  const shown = useApp(selectShownBars);
+  const display = useApp(selectChartDisplay);
+  const phone = usePhoneLayout();
   const hasChords = bars.some((b) => b.chords.length > 0);
   const scroller = useRef<HTMLDivElement>(null);
+  // Another display starts at the top of the sheet.
+  const displayKey = display.kind === 'part' ? `part:${display.id}` : display.kind;
+  useEffect(() => {
+    if (scroller.current) scroller.current.scrollTop = 0;
+  }, [displayKey]);
   return (
-    <div className="vue vue-grille" ref={scroller}>
-      <div className="feuille">
-        {project && <ChartHeader canPrint={hasChords} />}
-        {!project ? (
-          <div className="vide-message">
-            <p>{t('chart.noPiece')}</p>
-          </div>
-        ) : hasChords ? (
-          <ChartGrid bars={bars} scroller={scroller} />
-        ) : (
-          <EmptyChart status={status} />
-        )}
+    <div className="vue vue-structure" data-affichage={displayKey}>
+      {project && !phone && <StructureColumn />}
+      <div className="vue-grille" ref={scroller} data-testid="grille-feuille">
+        <div className="feuille">
+          {project && <ChartHeader canPrint={hasChords} />}
+          {project && phone && <StructureBar />}
+          {!project ? (
+            <div className="vide-message">
+              <p>{t('chart.noPiece')}</p>
+            </div>
+          ) : hasChords ? (
+            <>
+              <ShownNote shown={shown} />
+              <ChartGrid bars={shown} scroller={scroller} />
+            </>
+          ) : (
+            <EmptyChart status={status} />
+          )}
+        </div>
       </div>
     </div>
+  );
+}
+
+/** A quiet line above the bars when they are not the whole chart: the part shown, or the simplified chart that is not written yet. */
+function ShownNote({ shown }: { shown: ChartBar[] }) {
+  const display = useApp(selectChartDisplay);
+  const part = useApp(selectShownPart);
+  const simplified = useApp(selectSimplifiedChart);
+  if (display.kind === 'simplified' && simplified === null) {
+    return (
+      <p className="structure-note" data-testid="structure-note">
+        {t('structure.simplifiedSoon')}
+      </p>
+    );
+  }
+  const first = shown[0];
+  const last = shown[shown.length - 1];
+  if (display.kind !== 'part' || !part || !first || !last) return null;
+  const bars = first.bar === last.bar ? formatBarNumber(first.bar) : `${formatBarNumber(first.bar)}${RANGE_DASH}${formatBarNumber(last.bar)}`;
+  return (
+    <p className="structure-note" data-testid="structure-note">
+      {t('structure.shown', { name: partName(part, t), bars })}
+    </p>
   );
 }
 

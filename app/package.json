@@ -44,6 +44,7 @@
     "test:settings": "node tests/settings.mjs",
     "test:menu": "node tests/menu.mjs",
     "test:meter": "node tests/meter.mjs",
+    "test:structure": "node tests/structure.mjs",
     "test:new-project": "node tests/new-project.mjs",
     "captures": "vite build && node tests/captures.mjs",
     "essais": "vite build && node tests/essais.mjs"

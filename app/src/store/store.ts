@@ -102,7 +102,16 @@ export type SettingsTab = (typeof SETTINGS_TABS)[number];
 /** What « Nouveau projet ▸ » was asked from: « À partir d'un lien YouTube », « À partir d'un fichier audio », or neither. */
 export type NewPieceFrom = 'link' | 'file' | null;
 
+/**
+ * What the « Grille d'accords » shows (C14), chosen in the structure column: the whole chart (the default), the
+ * simplified chart, or the bars of one part (`id` is a `PartInForce.id`; when the part is gone the chart shows in
+ * full again: `chart/structureDisplay.ts#resolveDisplay`). Interface state: not saved, not undoable.
+ */
+export type ChartDisplay = { kind: 'full' } | { kind: 'simplified' } | { kind: 'part'; id: string };
+
 export interface UiState {
+  /** What the chart shows (see `ChartDisplay`). */
+  chartDisplay: ChartDisplay;
   /**
    * « Réglages » (C7): a wide window with tabs; `tab` is kept while the app stays open. `direct`: it was
    * opened on a named tab (a « Tous les réglages… » link), so the phone form goes straight to that tab
@@ -232,6 +241,7 @@ export function initialState(): AppState {
     settings: defaultAppSettings(),
     transport: { engine: 'empty', error: null },
     ui: {
+      chartDisplay: { kind: 'full' },
       settings: { open: false, tab: 'general', direct: false },
       newPieceOpen: true,
       newPieceFrom: null,

@@ -1,0 +1,45 @@
+/* « Modifier la partie » / « Ajouter une partie » (C14): a small window on the usual veil and paper;
+   the main button is ink. On a phone it is a sheet at the bottom of the screen. */
+.fenetre-partie { width: min(480px, 100%); padding: 26px 30px 22px; }
+.fenetre-partie h2 { font-size: 26px; }
+.fenetre-partie p { margin: 0; }
+.fenetre-partie .partie-main { margin: 0 0 14px; font-size: 13.5px; color: var(--encre-douce); }
+
+.partie-groupe { margin: 14px 0 0; }
+.partie-groupe > .libelle { display: block; margin-bottom: 7px; }
+.partie-puces { display: flex; flex-wrap: wrap; gap: 6px; }
+.partie-puces .puce { min-width: 0; min-height: 38px; padding: 0 13px; font-size: 14.5px; font-weight: 560; }
+/* The kinds of the other mode come after a small gap. */
+.partie-sep { flex: 0 0 10px; }
+
+.partie-ligne { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px; }
+.partie-champ { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+.partie-champ select, .partie-limites input {
+  width: 100%;
+  min-width: 0;
+  height: 42px;
+  padding: 0 10px;
+  border: 1px solid var(--trait);
+  border-radius: var(--rayon);
+  background: #fff;
+  font-size: 15px;
+  color: var(--encre);
+}
+.partie-limites { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.partie-limites label { display: flex; flex-direction: column; gap: 5px; font-size: 13.5px; color: var(--encre-douce); }
+.partie-limites input { font-variant-numeric: tabular-nums; }
+.partie-limites input[aria-invalid="true"] { border-color: var(--laiton); background: var(--laiton-voile); }
+.fenetre-partie .partie-erreur { min-height: 20px; margin: 8px 0 4px; font-size: 13.5px; color: var(--encre-douce); }
+.partie-supprimer { display: block; min-height: 40px; margin-top: 4px; font-size: 13.5px; text-align: left; }
+.fenetre-partie .import-actions { margin-top: 18px; }
+.fenetre-partie .import-actions .plein:disabled { opacity: 0.5; cursor: default; }
+.fenetre-partie .import-actions .plein:disabled:hover { background: var(--encre); }
+
+@media (max-width: 760px) {
+  .voile-partie { padding: 0; place-items: end stretch; }
+  .fenetre-partie { width: 100%; max-height: 100dvh; padding: 22px 18px calc(18px + env(safe-area-inset-bottom)); border-width: 1px 0 0; border-radius: var(--rayon-fenetre) var(--rayon-fenetre) 0 0; }
+  .partie-puces .puce { min-height: 44px; }
+  .partie-champ select, .partie-limites input { height: 46px; }
+  .partie-supprimer { min-height: 44px; }
+  .fenetre-partie .import-actions .bouton-cadre, .fenetre-partie .import-actions .plein { flex: 1; min-height: 46px; }
+}

@@ -1,0 +1,219 @@
+/* The structure of the piece beside « Grille d'accords » (C14, DESIGN.md « Colonne de la structure »).
+   A column of 20 % on the left of the chart: the same paper, no card, a hairline between it and the sheet.
+   Ink for what is chosen and for the part being played; brass for a loop; the ember stays with play. */
+
+/* The view: the column on the left, the chart's own scroller on the right. */
+.vue-structure {
+  display: grid;
+  grid-template-columns: minmax(196px, 20%) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+}
+.vue-structure > .vue-grille { min-width: 0; min-height: 0; }
+/* The sheet may use the room the column leaves it. */
+.vue-structure .feuille { width: min(1100px, 100%); }
+
+.structure {
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--trait) transparent;
+  /* The top lines up with the sheet's title (.feuille: 30 px). */
+  padding: 30px 16px 40px 24px;
+  border-right: 1px solid var(--trait-fin);
+}
+
+/* « Forme globale : AABC »: a heading, in the face of the title; the letters a little apart. */
+.structure-forme {
+  margin: 0 0 16px;
+  font-family: var(--titre);
+  font-size: 19px;
+  font-weight: 480;
+  font-variation-settings: "opsz" 36, "SOFT" 50;
+  line-height: 1.25;
+  letter-spacing: -0.005em;
+}
+
+/* « Mode : [Jazz | Pop]  Auto » */
+.structure-mode { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: 0 0 18px; }
+.structure-mode .libelle { flex: 0 0 100%; }
+.structure-mode .duo button { min-height: 34px; padding: 3px 14px; font-family: var(--texte); font-size: 14px; font-weight: 560; }
+/* « Auto »: quiet; ringed in ink when the app chooses the mode. */
+.structure-auto {
+  min-width: 0;
+  min-height: 34px;
+  padding: 0 11px;
+  border-color: transparent;
+  background: none;
+  color: var(--encre-douce);
+  font-size: 13.5px;
+  font-weight: 560;
+}
+.structure-auto:hover { background: var(--papier-fonce); }
+.structure-auto[aria-pressed="true"] { border-color: var(--encre); background: none; color: var(--encre); }
+
+/* The two displays. The one shown is ringed in ink. */
+.structure-affichages, .structure-parties { list-style: none; margin: 0; padding: 0; }
+.structure-affichages { margin-bottom: 20px; }
+.structure-affichage {
+  display: block;
+  width: 100%;
+  min-height: 36px;
+  padding: 6px 9px;
+  border: 1px solid transparent;
+  border-radius: var(--rayon);
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.25;
+  text-align: left;
+  color: var(--encre);
+  transition: background var(--vite) var(--courbe), border-color var(--vite) var(--courbe);
+}
+.structure-affichage:hover { background: var(--papier-fonce); }
+.structure-affichage[aria-current="true"] { border-color: var(--encre); font-weight: 600; }
+
+.structure-titre { margin: 0 0 6px 9px; }
+.structure-vide { margin: 8px 9px 6px; font-size: 14px; color: var(--encre-douce); }
+
+/* A part: its name (a click shows it and goes to its start), « Boucle », the pencil. */
+.structure-partie {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  column-gap: 4px;
+  padding: 2px 0;
+  border-radius: var(--rayon);
+}
+.structure-partie + .structure-partie { border-top: 1px solid var(--trait-fin); }
+.structure-nom {
+  min-width: 0;
+  min-height: 40px;
+  padding: 6px 9px;
+  border: 1px solid transparent;
+  border-radius: var(--rayon);
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.25;
+  text-align: left;
+  color: var(--encre);
+  transition: background var(--vite) var(--courbe), border-color var(--vite) var(--courbe);
+}
+.structure-nom:hover { background: var(--papier-fonce); }
+.structure-nom[aria-current="true"] { border-color: var(--encre); font-weight: 600; }
+.structure-lettres { color: var(--encre-douce); font-size: 13px; font-weight: 500; letter-spacing: 0.03em; white-space: nowrap; }
+
+.structure-boucle {
+  min-width: 0;
+  min-height: 30px;
+  padding: 0 9px;
+  border: 1px solid var(--trait);
+  border-radius: var(--rayon);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--encre-douce);
+  transition: background var(--vite) var(--courbe), border-color var(--vite) var(--courbe), color var(--vite) var(--courbe);
+}
+.structure-boucle:hover { background: var(--papier-fonce); color: var(--encre); }
+/* The loop is on this part: brass, text in ink. */
+.structure-boucle[aria-pressed="true"] { border-color: var(--laiton); background: var(--laiton-voile); color: var(--encre); }
+.structure-crayon {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--rayon);
+  color: var(--encre-douce);
+  transition: background var(--vite) var(--courbe), color var(--vite) var(--courbe);
+}
+.structure-crayon:hover { background: var(--papier-fonce); color: var(--encre); }
+.structure-crayon svg { width: 16px; height: 16px; }
+/* A part corrected by hand says so, quietly (the analysis' ones say nothing). */
+.structure-main { grid-column: 1; margin: -4px 0 4px 9px; font-size: 12px; font-style: italic; color: var(--encre-douce); }
+
+/* The part being played: an ink bar in the margin and a bolder name (set by usePlayingPart). */
+.structure-partie[data-jouee]::before {
+  content: "";
+  position: absolute;
+  left: -13px;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--encre);
+}
+.structure-partie[data-jouee] .structure-nom-texte { font-weight: 640; }
+
+.structure-actions { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; margin: 16px 0 0 9px; }
+.structure-actions .lien-encre { min-height: 34px; text-align: left; font-size: 13.5px; line-height: 1.3; }
+
+/* A line above the bars when they are not the whole chart (a part; the simplified chart not written yet). */
+.structure-note {
+  margin: 0 0 14px;
+  font-size: 13.5px;
+  color: var(--encre-douce);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Phone: a quiet bar under the title, and a sheet from the bottom ---------- */
+
+.structure-barre { display: none; }
+
+@media (max-width: 760px) {
+  .vue-structure { grid-template-columns: minmax(0, 1fr); }
+
+  .structure-barre {
+    position: sticky;
+    top: -1px;
+    z-index: 6;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    width: calc(100% + 24px);
+    min-height: 48px;
+    margin: 0 -12px 12px;
+    padding: 6px 14px;
+    border-top: 1px solid var(--trait-fin);
+    border-bottom: 1px solid var(--trait);
+    background: var(--papier);
+    font-size: 14px;
+    line-height: 1.3;
+    text-align: left;
+    color: var(--encre-douce);
+  }
+  .structure-barre-texte { min-width: 0; }
+  .structure-barre-texte strong { color: var(--encre); font-weight: 600; }
+  .structure-barre .chevron { flex: none; width: 14px; height: 10px; }
+  .structure-barre[aria-expanded="true"] .chevron { transform: rotate(180deg); }
+
+  .structure-voile { position: fixed; inset: 0; z-index: 41; background: rgba(43, 31, 23, 0.34); }
+  .structure-feuille {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    max-height: 82dvh;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 8px 16px calc(20px + env(safe-area-inset-bottom)) 22px;
+    background: var(--papier-clair);
+    border-top: 1px solid var(--trait);
+    border-radius: var(--rayon-fenetre) var(--rayon-fenetre) 0 0;
+    box-shadow: var(--ombre-fenetre);
+    animation: monte var(--pose) var(--courbe);
+  }
+  .structure-feuille-tete { display: flex; align-items: center; justify-content: space-between; min-height: 44px; margin: 0 -6px 4px 0; }
+  .structure-fermer { display: grid; place-items: center; width: 44px; height: 44px; border-radius: var(--rayon); color: var(--encre-douce); }
+  .structure-fermer .chevron { width: 14px; height: 10px; }
+
+  /* Touch targets of 40 px (DESIGN.md). */
+  .structure-forme { margin-top: 2px; font-size: 20px; }
+  .structure-mode .duo button, .structure-auto { min-height: 42px; }
+  .structure-affichage { min-height: 44px; padding: 10px 10px; }
+  .structure-nom { min-height: 46px; padding: 10px 10px; }
+  .structure-boucle { min-height: 42px; min-width: 62px; font-size: 14px; }
+  .structure-crayon { width: 42px; height: 42px; }
+  .structure-actions .lien-encre { min-height: 44px; }
+}

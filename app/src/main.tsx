@@ -74,6 +74,7 @@ if (params.has('demo')) {
       if (window.__fabtice) {
         window.__fabtice.lot3 = m.lot3Handle;
         window.__fabtice.lot4 = m.lot4Handle;
+        window.__fabtice.structure = m.structureHandle;
       }
     });
   }
