@@ -247,7 +247,7 @@ try {
     check('phone: every entry is at least 40 px high', heights.every((h) => h >= 40), heights.join(','));
     // A submenu: its own list, with « Retour ».
     await page.tap('.feuille-menu [data-sous-menu="export"]');
-    check('phone: « Exporter » shows its list, titled, with « Retour »', (await page.locator('.feuille-menu-titre').innerText()) === 'Exporter' && (await labels(page, '.feuille-menu-liste')).join('|') === 'Audio…|iReal Pro|PDF…' && (await page.locator('.feuille-menu-retour').isVisible()));
+    check('phone: « Exporter » shows its list, titled, with « Retour »', (await page.locator('.feuille-menu-titre').innerText()) === 'Exporter' && (await labels(page, '.feuille-menu-liste')).join('|') === 'Audio…|iReal Pro|PDF…|Dossier pour Logic Pro…' && (await page.locator('.feuille-menu-retour').isVisible()));
     await page.tap('.feuille-menu-retour');
     check('phone: « Retour » goes back to the whole menu', (await labels(page, '.feuille-menu-liste'))[0] === 'Annuler');
     check('phone: the close button of the sheet is wholly inside the screen', (await page.locator('.feuille-menu .fermer').boundingBox()).x + 44 <= 390);
