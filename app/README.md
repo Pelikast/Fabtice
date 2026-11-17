@@ -1416,6 +1416,78 @@ ferait doublon.
 
 ## Contrats pour la suite
 
+### Étape 4 de la 1.0.0 : tempo à la main
+
+**Menu de la mesure** (`components/TempoFixMenu.tsx`) : quatre entrées. Les
+deux dernières ouvrent une petite fenêtre (`ui/barDialogs.ts` : `openTapFix`,
+`openMeterDialog`).
+
+**Correction de la courbe en tapant le tempo (C12).**
+- Contrat entre l'écran et le calcul : `analysis/tapFix.ts` : `tapNow(at?)`
+  (position entendue à l'instant de la tape : position du moteur moins la
+  latence de sortie, `AudioEngine.getOutputLatency?()`, et moins le retard du
+  gestionnaire si on passe `event.timeStamp`), `previewTappedFix(bar, taps)`
+  → `TappedPreview` (`reading` : `offset`, `spread`, `dropped`, `filled`,
+  `held`…) ou `{ refused }` (`tooFewTaps`, `notABar`, `noAnalysis`,
+  `irregular`, `failed`), `showTappedPreview`, `discardTappedPreview`,
+  `commitTappedFix`. Tous les instants sont en temps source.
+- Calcul : `analysis/engine/tapGrid.ts` (pur ; dans le worker, sur les sorties
+  des réseaux gardées, sinon les réseaux tournent de nouveau, avec le
+  pourcentage habituel). Il estime l'avance ou le retard habituel (premières
+  tapes contre le tempo d'avant, tapes du décompte sur les temps connus,
+  faiblement les temps du réseau ; borné à 0,3 temps), choisit par
+  programmation dynamique quelles tapes sont des temps (tapes oubliées
+  comblées, en trop écartées, point d'orgue lu comme un seul temps long,
+  tolérance élargie là où le tempo bouge), puis place les temps par moindres
+  carrés robustes (lissage choisi sur les tapes elles-mêmes, temps posés sur
+  les attaques proches). Une série de tapes régulière l'emporte sur les
+  premiers temps du réseau. Après la dernière tape, la suite est réanalysée
+  comme « Réanalyser le tempo » (`runner.ts#runTappedFix`), dès l'aperçu : ce
+  qu'on écoute est ce qui sera gardé. **Les règles de l'analyse automatique
+  ne sont pas touchées.**
+- Aperçu : la grille candidate est dans `tempoMap` (règle, grille et clic la
+  suivent) et `AppState.tempoPreview` dit laquelle est en vigueur ;
+  l'historique, la sauvegarde automatique et le `.fab` lisent `gridInForce()`.
+  « C'est bon » en fait un `TappedTempoFix` (une étape d'annulation ;
+  « Revenir à l'analyse » sur la mesure revient à `previous`).
+- Écran : `components/TapFixDialog.tsx`, `ui/tapFixSession.ts` (lecteur piloté
+  directement : métronome forcé, clic coupé à la mesure choisie, boucle mise
+  de côté, tout rendu à la fermeture sans toucher au store),
+  `grid/tapFixPlan.ts` (règles pures : départ, clic, tapes gardées depuis deux
+  mesures avant), `ui/tapFixReading.ts` (la ligne « c'est compensé »).
+- Mesures qui commencent entre deux temps analysés (après un 7/8) :
+  `runner.ts#gridForFix` et `tempoFixActions.ts#tempoMapForFix` ; les trois
+  corrections de tempo y marchent.
+- Banc : `FABTICE_TAP_FULL=1 npx vitest run src/analysis/engine/tapGrid.bench.test.ts`
+  (2 448 essais ; chiffres dans `v1/bilan-etape-4.md`) ; un sous-ensemble
+  rapide tourne dans `npm test` avec des seuils. Vérifications :
+  `npm run test:tap-fix` (deux formes, analyseur simulé puis réel),
+  `npm run test:tempo-fix`. Poignée de test : `window.__fabtice.tapFix`.
+
+**Changer la signature rythmique (C13).** `components/MeterDialog.tsx`,
+`ui/meterForm.ts` (validation, phrase sur la noire) ; elle appelle
+`setMeterFrom`, `setMeterForBar` ou `removeMeterChange` (une étape
+d'annulation). Sur la règle : `timeline/meterMarks.ts` (`layoutMeterMarks`,
+`numberFitsAfter`) ; ce qui est dessiné se lit dans `data-signatures` sur
+`.frise`. Vérification : `npm run test:meter`.
+
+**Métronome.** `MetronomePanel.tsx#useEditedMeter` : avec plusieurs
+signatures, un choix « Réglage des temps pour la signature » ; les accents
+restent rangés par clé de signature dans `metronome.patterns` (format
+inchangé, version 6).
+
+**Éditeur d'accord.** Au-delà de 8 temps (`LONG_BAR_BEATS`), les boutons de
+place dans la mesure passent en grille (`.editeur-temps.longue`).
+
+**Barre d'espace et fenêtres.** `ui/useGlobalKeys.ts#windowOpen` est la seule
+définition de « une fenêtre est ouverte » (dialogue modal, alerte ou menu
+affiché, ou touche pressée sur un contrôle d'un panneau non modal) : l'espace
+fait alors ce que fait le contrôle, jamais lecture ou pause. Pendant les
+tapes, la fenêtre prend l'espace pour elle.
+
+**Captures.** `npm run captures` appelle aussi `tests/captures-tap.mjs` et
+`tests/captures-meter.mjs`.
+
 ### Étape 3 de la 1.0.0 : exports
 
 **Fichiers d'essai pour le propriétaire.** `npm run essais -- /un/dossier/hors/du/depot`

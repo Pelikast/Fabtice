@@ -96,6 +96,14 @@ aucune technique de contournement des protections de YouTube.
      cette mesure » : relancer une analyse vierge à partir de cette mesure,
      sans rien signaler. Cela permet de résoudre à la main les rares erreurs
      de détection.
+     Depuis la 1.0.0, le même menu propose aussi « Correction de la courbe en
+     tapant le tempo » (l'utilisateur tape les temps du passage difficile à
+     la barre d'espace ou en touchant l'écran ; l'app compense son avance ou
+     son retard habituel, tolère les tapes oubliées ou en trop, lui fait
+     vérifier à l'oreille, puis réanalyse la suite du morceau) et « Changer
+     la signature rythmique » (1 à 64 sur 4, 8, 16 ou 32, à partir de la
+     mesure ou pour elle seule ; la noire garde sa durée). Les quatre actions
+     s'annulent et sont gardées avec le projet.
    - **Attente** : toute étape longue montre un pourcentage qui avance
      régulièrement, pas quelques paliers.
    - **Accords, à améliorer en priorité** (décisions du propriétaire après ses

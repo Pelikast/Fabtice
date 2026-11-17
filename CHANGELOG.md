@@ -100,6 +100,37 @@ en français simple.
   Live. Le dossier contient aussi un fichier MIDI et les pistes, qui marchent
   dans tous les cas, et un mode d'emploi.
 
+### Tempo et signature, à la main
+- **Corriger le tempo en tapant** : un clic droit sur une mesure (un appui
+  long sur téléphone) propose « Correction de la courbe en tapant le tempo ».
+  Une petite fenêtre lance un décompte au métronome (une mesure par défaut),
+  puis vous tapez la barre d'espace (ou touchez l'écran) sur chaque temps du
+  passage que l'analyse a mal compris : point d'orgue, ralenti, vieux disque.
+  « Ok, j'ai fini », puis « Vérifier en écoutant » fait entendre le passage
+  avec le clic sur la nouvelle grille. « C'est bon, c'est corrigé » la garde,
+  et la suite du morceau est réanalysée ; « Ce n'est pas bon, réessayer »
+  recommence.
+- Pas besoin de taper parfaitement : l'app compense d'elle-même votre avance
+  ou votre retard habituel, cale les temps sur les attaques de la musique,
+  rajoute un temps oublié et écarte une tape en trop. On peut taper en
+  lecture ralentie. La correction s'annule comme les autres.
+- **Changer la signature rythmique** : dans le même menu. Deux cases l'une sur
+  l'autre, comme une signature écrite (1 à 64, sur 4, 8, 16 ou 32), et le
+  choix « Changement permanent à partir de cette mesure » ou « Changement
+  uniquement pour cette mesure ». La noire garde sa durée : une mesure en 6/8
+  dure trois noires.
+- La signature s'écrit maintenant aussi sur la règle des mesures, là où elle
+  change.
+- **Métronome** : quand le morceau a plusieurs signatures, on choisit celle
+  dont on règle les temps forts et faibles.
+- Les corrections de tempo à la main marchent aussi après une mesure en 7/8
+  ou 7/16.
+- Sur une très longue mesure (13/8, 64/32…), la fenêtre d'un accord range les
+  temps sur plusieurs lignes.
+- **Barre d'espace** : quand une fenêtre ou un menu est ouvert, elle ne lance
+  plus la lecture ; elle actionne le bouton ou la case en cours.
+- Téléphone : le tempo affiché en haut à gauche n'est plus coupé.
+
 ## Version du 16 novembre 2026
 
 Depuis la version du 15 novembre (8 h 54).

@@ -289,6 +289,35 @@ texte de chargement, à « la braise reste à ce qui joue », et elle est réser
 à ce qui n'a pu être essayé par personne. Sur téléphone, une feuille posée en
 bas, une colonne, boutons sur toute la largeur.
 
+## Fenêtres du menu de la mesure
+
+**« Correction du tempo en tapant »** : une petite fenêtre de la famille
+(papier clair, titre en Fraunces, bouton principal à l'encre), **posée
+au-dessus du transport sans rien assombrir** : la règle des mesures et la tête
+de lecture restent visibles et vivantes, car l'utilisateur les regarde en
+tapant. Pendant les tapes : un anneau en trait d'encre qui bat d'un voile de
+laiton à chaque tape, la consigne du moment (« Écoutez le décompte… » puis
+« À vous : tapez sur chaque temps »), le nombre de tapes et « Ok, j'ai fini ».
+Le refus est une phrase calme sur un filet de laiton, avec « Réessayer » ; à
+la vérification, une ligne dit sans chiffres inutiles ce qui a été compensé.
+Sur téléphone, une feuille posée en bas (62 % de la hauteur pendant les tapes)
+dont la zone à toucher remplit presque toute la feuille, boutons de 48 px sur
+toute la largeur, le principal en premier ; la règle reste en vue au-dessus.
+
+**« Changer la signature rythmique »** : petite fenêtre sur le voile habituel ;
+deux cases de 64 px en Fraunces 40 px, séparées par un trait d'encre de 3 px
+qui dépasse un peu, comme une signature écrite ; le bouton principal est
+d'encre ; la phrase sur la noire a le filet de laiton des notes ; aucune
+erreur en rouge, une ligne calme réservée sous les cases. Sur téléphone, une
+feuille en bas.
+
+**Sur la règle** : la signature en chiffres superposés (Fraunces 600, 12 px,
+encre), à droite de la barre de la mesure où elle change, le numéro de mesure
+poussé après elle ; omise plutôt que de chevaucher. **Métronome** : le choix
+de la signature réglée est une rangée de boutons de la famille « duo »,
+au-dessus du groupement ; les temps d'une longue mesure sont de petits boutons
+séparés, en grille.
+
 ## Téléphone
 
 Sous 760 px de large : la colonne des pistes se réduit à 92 px (nom, M, S), la
