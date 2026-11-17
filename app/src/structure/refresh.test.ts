@@ -30,7 +30,7 @@ import { appStore, initialState } from '../store/store';
 import { applyTempoFix } from '../store/tempoFixActions';
 import { withBarChords } from '../chart/edits';
 import { knownStandardsFor } from './knownCache';
-import { HarmonyRefresh, harmonyBarsOf, withStableIds, type EvidenceGatherer, type KnownProvider } from './refresh';
+import { BARS_AFTER_LAST_CHORD, HarmonyRefresh, harmonyBarsOf, withStableIds, type EvidenceGatherer, type KnownProvider } from './refresh';
 import type { HarmonyInput, KnownStandard, StructureEvidence } from './types';
 import { detectKeyChanges } from './keys';
 
@@ -479,4 +479,15 @@ describe('the real detectors on the demo piece', () => {
       [Math.round(barStartTime(map, 16) * 1000) / 1000, 8, 'major'],
     ]);
   });
+
+  it('a piece stretched far past its chords: the pass reads up to 256 bars after the last chord, no more', () => {
+    const map = demoTempoMap('variable');
+    const long = 60000 * 4 * (60 / 110);
+    const s = { ...initialState(), project: { id: 'p', title: 'Blues du dimanche', source: { kind: 'demo' as const }, duration: long, sampleRate: 48000, createdAt: '' }, tempoMap: map, analysis: demoAnalysis(map, 54), corrections: demoCorrections(map) };
+    const bars = harmonyBarsOf(s);
+    const lastChord = bars.reduce((a, b, i) => (b.chords.length ? i : a), -1);
+    expect(bars.length).toBe(lastChord + 1 + BARS_AFTER_LAST_CHORD);
+    expect(bars.length).toBeLessThan(300);
+  });
 });
+
