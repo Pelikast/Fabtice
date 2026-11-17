@@ -19,7 +19,10 @@ import {
   HEADER_ROWS_MM,
   LINE_MM,
   MARGIN_MM,
+  HEADING_MM,
   MIN_FIT_SCALE,
+  breakRows,
+  formRowsFor,
   PAPER_MM,
   defaultPrintOptions,
   fitScale,
@@ -391,5 +394,49 @@ describe('the choices kept on the device', () => {
   it('the page rule has the sheet size and no margin', () => {
     expect(pageRule(paginate(1, base(), 0))).toBe('@page { size: 210mm 297mm; margin: 0; }');
     expect(pageRule(paginate(1, base({ paper: 'lettre', orientation: 'paysage' }), 0))).toBe('@page { size: 279.4mm 215.9mm; margin: 0; }');
+  });
+});
+
+describe('the simplified chart on paper (rows with a heading band)', () => {
+  // intro (1 line), A, B, C (2 lines each): four headings over seven lines
+  const extras = [HEADING_MM, HEADING_MM, 0, HEADING_MM, 0, HEADING_MM, 0];
+
+  it('is one A4 page at 100 %: seven lines, four headings and a title block with its form line', () => {
+    const header = headerHeightMm({ title: true, info: true, form: true, formRows: 1 });
+    const layout = paginate(extras.length, base({ paper: 'a4' }), header, extras);
+    expect(layout.sheets).toEqual([{ first: 0, count: 7 }]);
+    expect(7 * LINE_MM.portrait + 4 * HEADING_MM + header).toBeLessThan(layout.content.h);
+  });
+
+  it('a heading never leaves its line: the rows break between blocks, and a sheet is never empty', () => {
+    // 3 rows of 24 + heading fit in 72 + 9 ... room for exactly two rows: [h, 0] then [h, 0]
+    expect(breakRows([HEADING_MM, 0, HEADING_MM, 0], 24, 2 * 24 + HEADING_MM + 1, 100)).toEqual([2, 2]);
+    expect(breakRows([HEADING_MM, 0, 0], 24, 10, 100)).toEqual([1, 2]);
+    expect(breakRows([], 24, 100, 100)).toEqual([]);
+  });
+
+  it('« Tenir sur une page » counts the headings too', () => {
+    const header = headerHeightMm({ title: true, info: true });
+    const rows = Array.from({ length: 9 }, () => HEADING_MM);
+    const fit = paginate(9, base({ fitOne: true }), header, rows);
+    expect(fit.fitted).toBe(true);
+    expect(fit.scale).toBeLessThan(1);
+    expect(fit.sheets).toHaveLength(1);
+    expect(9 * (LINE_MM.portrait + HEADING_MM) + header).toBeGreaterThan(fit.content.h);
+  });
+
+  it('the form line takes one row per 88 characters, and the title block grows with it', () => {
+    expect(formRowsFor('Forme : Intro, Thème 1 (AABC)')).toBe(1);
+    expect(formRowsFor('x'.repeat(89))).toBe(2);
+    expect(headerHeightMm({ title: true, info: true, form: true, formRows: 2 })).toBe(headerHeightMm({ title: true, info: true, form: true }) + 5);
+  });
+
+  it('repeat signs and the final bar take room at the ends of a bar', () => {
+    const geometry = (signs: Parameters<typeof printBarGeometry>[2]) => printBarGeometry(paginate(1, base(), 0), false, signs);
+    expect(geometry({}).padLeft).toBe(16);
+    expect(geometry({ opens: true }).padLeft).toBe(40);
+    expect(geometry({ closes: true }).padRight).toBe(30);
+    expect(geometry({ final: true }).padRight).toBe(18);
+    expect(printBarGeometry(paginate(1, base(), 0), true, { opens: true }).padLeft).toBe(54);
   });
 });

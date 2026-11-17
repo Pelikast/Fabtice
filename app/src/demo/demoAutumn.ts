@@ -82,8 +82,9 @@ export function autumnTempoMap(): TempoMap {
   return constantTempoMap({ bpm: AUTUMN_BPM, firstDownbeat: AUTUMN_FIRST_DOWNBEAT, meter: { numerator: 4, denominator: 4 }, origin: 'manual' });
 }
 
+/** The piece ends with its last bar (no tail bar after it: the chart has 97 bars, not 98). */
 export function autumnDuration(map: TempoMap): number {
-  return barStartTime(map, AUTUMN_BAR_COUNT) + 1.5;
+  return barStartTime(map, AUTUMN_BAR_COUNT) - 0.02;
 }
 
 /** What « the analysis » finds in the piece: its chords (the bars above), the key, the structure. */

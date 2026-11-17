@@ -68,7 +68,7 @@ export const LINE_MM: Record<PrintOrientation, number> = { portrait: 24, paysage
 export const HEADER_ROWS_MM = { title: 11, info: 6, part: 5, form: 5, gap: 5 } as const;
 
 /** Height of the heading band over the first line of a block of the simplified chart (« A », « Intro »), in mm. */
-export const HEADING_MM = 7;
+export const HEADING_MM = 9;
 
 /** The smallest scale « Tenir sur une page » will use: below it the chords are too small to read. */
 export const MIN_FIT_SCALE = 0.4;

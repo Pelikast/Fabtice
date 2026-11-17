@@ -334,7 +334,7 @@
 .pp-case.pp-signee { --pg: calc(30 * var(--u)); }
 /* ---------------------------------------------------------------- the simplified chart on paper (C14) */
 /* A heading band over the first line of each block (« A », « Intro »): the boxed letter of the chart, or the part's name. */
-.pp-bloc-tete { display: flex; align-items: flex-end; height: calc(7mm * var(--e)); padding-bottom: calc(1.2mm * var(--e)); }
+.pp-bloc-tete { display: flex; align-items: flex-end; height: calc(9mm * var(--e)); padding-bottom: calc(1.4mm * var(--e)); }
 .pp-bloc-lettre {
   min-width: calc(5mm * var(--e));
   padding: 0 calc(1.2mm * var(--e));

@@ -181,7 +181,17 @@ async function suite(form) {
   await press(h, $(page, '[data-testid="structure-affichage-simplifie"]'));
   await sleep(300);
   await closeList(h);
-  check(`${tag}: « Grille complète simplifiée » is selectable and shows the whole chart with its quiet note`, (await display(page)) === 'simplified' && (await cellBars(page)).length === ALL && (await $(page, '[data-testid="structure-note"]').textContent()) === 'La grille simplifiée arrive avec la structure du morceau.');
+  // The simplified chart is written (C14): the blocks of the form when the piece has one to fold (see `simplified.mjs` for
+  // them), else the whole chart with a calm sentence.
+  const folded = await page.evaluate(() => !!window.__fabtice.structure.selectors.selectSimplifiedChart(window.__fabtice.store.getState()));
+  check(
+    `${tag}: « Grille complète simplifiée » is selectable: ${folded ? 'the written blocks, no bar numbers' : 'no form to fold, the whole chart and a calm sentence'}`,
+    (await display(page)) === 'simplified' &&
+      (folded
+        ? (await page.locator('[data-testid="grille-simplifiee"] [data-testid="bloc"]').count()) > 0 && (await page.locator('[data-testid="grille-simplifiee"] .numero').count()) === 0
+        : (await cellBars(page)).length === ALL && (await $(page, '[data-testid="structure-note"]').textContent()) === 'Ce morceau n’a pas de forme à replier : la grille est affichée en entier.'),
+    String(folded),
+  );
   await shot('simplified');
   await openList(h);
   await press(h, $(page, '[data-testid="structure-affichage-complet"]'));
