@@ -17,7 +17,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { useStore } from 'zustand';
-import { commitTappedFix, discardTappedPreview, previewTappedFix, showTappedPreview, tapNow, type TapFixRefusal, type TappedPreview } from '../analysis/tapFix';
+import { commitTappedFix, previewTappedFix, tapNow, type TapFixRefusal, type TappedPreview } from '../analysis/tapFix';
 import { useAnalysisProgress } from '../analysis/progress';
 import { getEngine } from '../audio';
 import { formatBarNumber } from '../grid/format';
@@ -27,7 +27,7 @@ import { useApp } from '../store/store';
 import { closeTapFix, tapFixDialog } from '../ui/barDialogs';
 import { onFrame } from '../ui/frameLoop';
 import { CloseIcon } from '../ui/icons';
-import { restoreEngineSettings, startTapping, startVerifying, stopPlaying } from '../ui/tapFixSession';
+import { discardPreview, restoreEngineSettings, showPreview, startTapping, startVerifying, stopPlaying } from '../ui/tapFixSession';
 import { usePhoneLayout } from '../util/media';
 import '../styles/tapFix.css';
 
@@ -45,6 +45,9 @@ export function TapFixDialog() {
   if (!at) return null;
   return <TapFixBox key={at.bar} bar={at.bar} />;
 }
+
+/** The wait of « C'est bon, c'est corrigé » is shown at least this long. */
+const COMMIT_MIN_MS = 700;
 
 const percent = (f: number) => Math.round(Math.min(1, Math.max(0, f)) * 100);
 
@@ -81,7 +84,7 @@ function TapFixBox({ bar }: { bar: number }) {
     return () => {
       aliveRef.current = false;
       stopPlaying();
-      discardTappedPreview();
+      discardPreview();
       restoreEngineSettings();
     };
   }, []);
@@ -137,7 +140,7 @@ function TapFixBox({ bar }: { bar: number }) {
       setStep('refused');
       return;
     }
-    showTappedPreview(result);
+    showPreview(result);
     previewRef.current = result;
     setPreview(result);
     setVerifying(false);
@@ -236,7 +239,7 @@ function TapFixBox({ bar }: { bar: number }) {
 
   const retry = () => {
     stopPlaying();
-    discardTappedPreview();
+    discardPreview();
     restoreEngineSettings();
     previewRef.current = null;
     setPreview(null);
@@ -249,10 +252,16 @@ function TapFixBox({ bar }: { bar: number }) {
     const p = previewRef.current;
     if (!p) return;
     stopPlaying();
+    // The grid in force first, so that what is analysed again starts from it (and `commitTappedFix` has nothing left to give back).
+    discardPreview();
     setVerifying(false);
     setStep('committing');
+    const started = Date.now();
     try {
       await commitTappedFix(p);
+      // A work that ends at once must not make the window blink: the wait stays a moment, so that it is read.
+      const rest = COMMIT_MIN_MS - (Date.now() - started);
+      if (rest > 0) await new Promise((resolve) => window.setTimeout(resolve, rest));
     } catch {
       if (!aliveRef.current) return;
       setRefused('failed');

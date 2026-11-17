@@ -36,6 +36,7 @@
     "test:metronome": "node tests/metronome.mjs",
     "test:markers": "node tests/markers.mjs",
     "test:tempo-fix": "node tests/tempo-fix.mjs",
+    "test:tap-fix": "node tests/tap-fix.mjs",
     "test:project-file": "node tests/project-file.mjs",
     "test:offline": "node tests/offline.mjs",
     "test:undo": "node tests/undo.mjs",

@@ -13,8 +13,9 @@
 import { getEngine } from '../audio';
 import { metronomeClickTrack } from '../grid/metronome';
 import { tapFixClicks, tapFixStart, tapFixVerify, type TapFixStart, type TapFixVerify } from '../grid/tapFixPlan';
+import { untracked } from '../store/history';
 import { appStore } from '../store/store';
-import type { TappedPreview } from '../analysis/tapFix';
+import { discardTappedPreview, showTappedPreview, type TappedPreview } from '../analysis/tapFix';
 
 const get = () => appStore.getState();
 
@@ -25,6 +26,18 @@ export function restoreEngineSettings(): void {
   engine.setMetronome(s.playback.metronome);
   engine.setClickTrack(metronomeClickTrack(s.tempoMap, 0, s.project?.duration ?? 0, s.metronome.patterns));
   engine.setLoop(s.loop.enabled ? s.loop.region : null);
+}
+
+/**
+ * The candidate grid in force for listening, and the grid in force given back: neither is a change the user made, so
+ * neither is an undo step nor makes the project « modified » (`store/history.ts#untracked`).
+ */
+export function showPreview(preview: TappedPreview): void {
+  untracked(() => showTappedPreview(preview));
+}
+
+export function discardPreview(): void {
+  untracked(() => discardTappedPreview());
 }
 
 /** Stops whatever plays, and leaves the position where it was heard. */

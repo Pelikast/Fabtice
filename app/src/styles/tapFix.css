@@ -8,8 +8,8 @@
   right: 0;
   bottom: var(--tapes-bas, 120px);
   z-index: 41;
-  width: min(460px, calc(100vw - 32px));
-  max-height: calc(100dvh - 32px);
+  width: min(520px, calc(100vw - 40px));
+  max-height: calc(100dvh - 40px);
   margin: 0 auto;
   overflow: auto;
   padding: 18px 22px 20px;
