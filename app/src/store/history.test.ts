@@ -339,6 +339,34 @@ describe('the history', () => {
     expect(get().tempoMap).toBe(grid);
   });
 
+  it('stage 5: the derived fields of the analysis (modulations, structure) are no step, never clear the history, are not given back by an undo', () => {
+    applyAnalysis(demoSwingResult(DURATION));
+    history.markSaved();
+    setKey({ tonic: 3, mode: 'major' });
+    actions.stepSemitones(1);
+    const label = history.undoLabel();
+    expect(label).not.toBeNull();
+    const a = get().analysis!;
+    const derived = { ...a, keyChanges: [{ time: 8, key: { tonic: 7, mode: 'major' as const, confidence: 0.6, alternatives: [] } }], structure: { mode: 'jazz' as const, form: 'A', sections: [], parts: [] } };
+    appStore.setState({ analysis: derived });
+    // Not cleared, no new step: the last step is still the transposition.
+    expect(history.canUndo()).toBe(true);
+    expect(history.undoLabel()).toBe(label);
+    history.undo();
+    expect(get().playback.semitones).toBe(0);
+    // The undo left the derived fields as they are (the next refresh recomputes them).
+    expect(get().analysis).toBe(derived);
+    history.undo();
+    expect(get().corrections.key).toBeNull();
+    expect(get().analysis).toBe(derived);
+    // Back at the save point but for the derived fields: modified, as they differ from those saved.
+    expect(history.isModified()).toBe(true);
+    appStore.setState({ analysis: { ...derived, keyChanges: a.keyChanges, structure: a.structure } });
+    expect(history.isModified()).toBe(false);
+    history.redo();
+    expect(get().corrections.key).toEqual({ tonic: 3, mode: 'major' });
+  });
+
   it('a separation is not a step; the mix goes back by track id, wherever the track is', async () => {
     const whole = get().tracks[0]!.id;
     actions.setTrackVolume(whole, 0.3);

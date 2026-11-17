@@ -67,6 +67,7 @@ import type { DetectedStructure } from '../model/structure';
 import { demoAnalysis, demoCorrections } from './demoAnalysis';
 import { demoStructure, demoStructureKind, withDemoStructure, withoutHandLetters } from './demoStructure';
 import * as audioJournal from '../audio/journal';
+import { harmonyHandle, suspendHarmonyRefresh } from '../structure/refresh';
 import { demoProject } from './demoProject';
 
 declare global {
@@ -93,6 +94,8 @@ declare global {
       tapFix?: typeof tapFixModule;
       /** C14, the structure column: the commands, what is in force, the display, the window; `setDetected` stands in for the detection. */
       structure?: typeof structureHandle;
+      /** Stage 5, the runner of the harmony pass (`structure/refresh.ts`): `refreshNow()`, `lastInput()`, `pending()`… */
+      harmony?: typeof harmonyHandle;
       ready: Promise<void>;
     };
   }
@@ -106,8 +109,12 @@ export const structureHandle = {
   dialog: partDialogModule,
   /** The made-up detected structure of the demo piece (`demoStructure.ts`), on the grid in force. */
   demo: (kind: 'jazz' | 'pop' = 'jazz'): DetectedStructure => demoStructure(appStore.getState().tempoMap, kind),
-  /** Stands in for the detection: the structure the analysis found (null: none). Like a new analysis, it clears the undo history. */
+  /**
+   * Stands in for the detection: the structure the analysis found (null: none). The automatic runs of the
+   * harmony pass stop from here (they would replace it); `window.__fabtice.harmony.resume()` starts them again.
+   */
   setDetected(structure: DetectedStructure | null): void {
+    suspendHarmonyRefresh();
     appStore.setState((s) => (s.analysis ? { analysis: { ...s.analysis, structure } } : {}));
   },
 };
@@ -170,7 +177,9 @@ export function startDemo(params: URLSearchParams): Promise<void> {
       const duration = audioSeconds(input.tracks[0]!.audio);
       const analysedAlready = mode === null || mode === 'factice';
       // `&structure=demo`: a made-up detected structure, and the hand letters removed so that its letters show.
+      // The harmony pass would replace it: its automatic runs stop for that piece.
       const structureKind = demoStructureKind(params.get('structure'));
+      if (structureKind) suspendHarmonyRefresh();
       const analysisOf = () => (structureKind ? withDemoStructure(demoAnalysis(map, duration), map, structureKind) : demoAnalysis(map, duration));
       // The mock analyser answers with the demo's own analysis, at the pace asked.
       replaceAnalyzer(
@@ -199,6 +208,6 @@ export function startDemo(params: URLSearchParams): Promise<void> {
     else if (separation === 'lente' || separation === 'repli' || separation === 'echec') void separationRunner.startSeparation();
     if (params.get('export') === 'ouvert') exportActions.openExportAudio();
   })();
-  window.__fabtice = { store: appStore, engine: getEngine(), actions, lot2: lot2Actions, lot3: lot3Handle, lot4: lot4Handle, audioJournal, history: historyModule, project: projectModules, tapFix: tapFixModule, structure: structureHandle, ready };
+  window.__fabtice = { store: appStore, engine: getEngine(), actions, lot2: lot2Actions, lot3: lot3Handle, lot4: lot4Handle, audioJournal, history: historyModule, project: projectModules, tapFix: tapFixModule, structure: structureHandle, harmony: harmonyHandle, ready };
   return ready;
 }

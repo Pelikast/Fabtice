@@ -15,6 +15,7 @@ import { formatNumber, t } from '../i18n';
 import { closePanel, openPanel, togglePanel } from '../store/actions';
 import { selectAnalysisStatus } from '../store/chartSelectors';
 import { appStore, useApp, type AnalysisRun } from '../store/store';
+import { instrumentModelInfo, instrumentModelSourceText } from '../structure/instruments';
 import { useOutsideClose } from '../ui/useOutsideClose';
 import { useFitPanel } from '../ui/useFitPanel';
 
@@ -110,6 +111,7 @@ export function AnalysisProgressNote() {
   const windowTotal = useAnalysisProgress((p) => p.chordWindow?.total ?? 0);
   const windowPercent = useAnalysisProgress((p) => windowPercentOf(p.chordWindow));
   const models = useModels();
+  const instruments = useInstrumentModel();
   if (run.status !== 'running') return null;
   const toDownload = models.filter((m) => !m.cached);
   const showSources = run.step === 'download' || toDownload.length > 0;
@@ -123,8 +125,29 @@ export function AnalysisProgressNote() {
         {run.step === 'download' && download && ` · ${t('analysis.downloaded', { loaded: megabytes(download.loaded), total: megabytes(download.total) })}`}
       </p>
       {showSources && models.length > 0 && <ModelSources models={models} />}
+      {/* Stage 5: the small instrument recogniser comes later (after a separation), but is said here, before its first download. */}
+      {showSources && instruments && !instruments.cached && (
+        <p className="analyse-sources" data-testid="source-instruments">
+          {instrumentModelSourceText(`${formatNumber(instruments.bytes / 1e6, 1)} Mo`)}
+        </p>
+      )}
     </div>
   );
+}
+
+/** The instrument recogniser's model (`structure/instruments`), as the list of tools shows it; null until known. */
+function useInstrumentModel(): AnalysisModelInfo | null {
+  const [info, setInfo] = useState<AnalysisModelInfo | null>(null);
+  useEffect(() => {
+    let alive = true;
+    instrumentModelInfo()
+      .then((m) => alive && setInfo(m))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+  return info;
 }
 
 function ModelSources({ models }: { models: AnalysisModelInfo[] }) {

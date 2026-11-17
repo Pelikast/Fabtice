@@ -157,12 +157,24 @@ export interface AppSettings {
   analyseOnImport: boolean;
   /** Per device. « S'appuyer sur les grilles connues des standards »: the chord analysis looks the title up in the library of standards. */
   useKnownCharts: boolean;
+  /** Per device (stage 5). « Détecter les modulations »: off, the detected modulations are emptied (the hand ones stay). */
+  detectModulations: boolean;
+  /** Per device (stage 5). « Structure automatique du morceau »: off, no detected structure (the hand parts and letters stay). */
+  autoStructure: boolean;
 }
 
 export const DEFAULT_ADVANCED: AdvancedSettings = { separationModel: 'auto', formants: false };
 
 export function defaultAppSettings(): AppSettings {
-  return { minorNotation: 'm', advanced: { ...DEFAULT_ADVANCED }, atLaunch: 'lastProject', analyseOnImport: true, useKnownCharts: true };
+  return {
+    minorNotation: 'm',
+    advanced: { ...DEFAULT_ADVANCED },
+    atLaunch: 'lastProject',
+    analyseOnImport: true,
+    useKnownCharts: true,
+    detectModulations: true,
+    autoStructure: true,
+  };
 }
 
 export type { TempoMap };

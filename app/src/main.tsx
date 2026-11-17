@@ -21,6 +21,8 @@ import { installProjectWindow } from './project/windowState';
 import { installMenuBar } from './ui/menuBar';
 import * as projectModules from './project/debug';
 import * as tapFixModule from './analysis/tapFix';
+import { standardsStore } from './standards/offer';
+import { harmonyHandle, startHarmonyRefresh, suspendHarmonyRefresh } from './structure/refresh';
 import './styles/index.css';
 
 setLanguage('fr');
@@ -29,6 +31,9 @@ connectEngine(appStore, getEngine());
 // « Annuler » / « Rétablir » and the « modified » state follow the store; a loop put back while playing is heard
 // at once, like any new loop.
 historyModule.startHistory(appStore, { afterRestore: (s, before) => s.loop !== before.loop && actions.enterLoop() });
+// Stage 5: the harmony pass (modulations, structure) runs again, a moment after any change of what it reads; a
+// download of the library of standards may bring the known chart of the piece.
+startHarmonyRefresh({ onLibraryChange: (listener) => standardsStore.subscribe((st, prev) => st.status !== prev.status && listener()) });
 // The window's title and the Mac app's « modified » dot, the file of the project, closing with changes not saved.
 installProjectWindow();
 // Mac app: the menu bar shows the page's commands, greyed out as in the menu Fabtice, and sends its clicks back.
@@ -48,6 +53,8 @@ installMenuBar();
 }
 
 const params = new URLSearchParams(window.location.search);
+// `?harmonie=non`: the browser checks that stand in for the detection keep what they set.
+if (params.get('harmonie') === 'non') suspendHarmonyRefresh();
 // Lot 3: the list of separation tools is fetched from the repository (the bundled copy stays in use if that
 // fails, silently: a 404, a refused or invalid list). Not fetched, unless `?outils=distant` asks for it: on
 // the test and demo addresses (`?debug`, `?demo`, `?moteur=factice`) and on a page served from this machine
@@ -69,7 +76,7 @@ if (params.has('demo')) {
 } else {
   // `?debug`: the same handle as `?demo` (store, engine, actions) for the browser checks, without the demo piece.
   if (params.has('debug')) {
-    window.__fabtice = { store: appStore, engine: getEngine(), actions, standards: standardsLibrary, audioJournal, history: historyModule, project: projectModules, tapFix: tapFixModule, ready: Promise.resolve() };
+    window.__fabtice = { store: appStore, engine: getEngine(), actions, standards: standardsLibrary, audioJournal, history: historyModule, project: projectModules, tapFix: tapFixModule, harmony: harmonyHandle, ready: Promise.resolve() };
     void import('./demo/start').then((m) => {
       if (window.__fabtice) {
         window.__fabtice.lot3 = m.lot3Handle;
