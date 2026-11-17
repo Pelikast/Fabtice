@@ -60,12 +60,8 @@ export function clocksPerClick(m: Meter): number {
   return Math.round(isCompound(m) ? beat * 3 : beat);
 }
 
-const tickOf = (quarters: number): number => {
-  const t = quarters * MIDI_PPQ;
-  const r = Math.round(t);
-  if (Math.abs(t - r) > 1e-6) throw new RangeError(`not on a tick: ${quarters} quarters`);
-  return r;
-};
+/** The tick of a position of the grid (every one is a whole tick at 960: quarters are multiples of a 32nd). */
+const tickOf = (quarters: number): number => Math.max(0, Math.round(quarters * MIDI_PPQ));
 const nearTick = (quarters: number): number => Math.max(0, Math.round(quarters * MIDI_PPQ));
 
 /** One marker: « Theme 1 - [A] Bbmaj7 »; parts of them can be missing. ASCII. */
