@@ -77,6 +77,24 @@ test('locate: the cases where it cannot update itself', () => {
   }
 });
 
+test('locate: a copy the update itself made (set aside, or in a work folder) is never replaced', () => {
+  const root = tmp();
+  try {
+    const folder = path.join(root, 'Applications');
+    const aside = fakeApp(path.join(folder, place.ASIDE_NAME));
+    const unpacked = fakeApp(path.join(folder, `${place.STAGING_PREFIX}0123456789ab`, 'Fabtice.app'));
+    const named = fakeApp(path.join(folder, `${place.STAGING_PREFIX}x.app`));
+    for (const bundle of [aside, unpacked, named]) {
+      assert.deepEqual(place.locate({ execPath: path.join(bundle, 'Contents', 'MacOS', 'Fabtice'), packaged: true, platform: 'darwin' }), { ok: false, code: 'not-packaged' }, bundle);
+      assert.deepEqual(place.locate({ execPath: '/usr/bin/electron', packaged: false, platform: 'linux', testBundle: bundle }), { ok: false, code: 'not-packaged' }, bundle);
+    }
+    assert.equal(place.isUpdateCopy(path.join(folder, 'Fabtice.app')), false);
+    assert.equal(place.isUpdateCopy(path.join(folder, 'Fabtice-ancienne.app')), false, 'only the hidden name of the update');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('the test seam stands for the bundle, on any system', () => {
   const root = tmp();
   try {

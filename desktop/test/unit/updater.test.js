@@ -319,6 +319,26 @@ test('places where it cannot work: said at the check, refused at the start', asy
   }
 });
 
+test('the app opened from the set-aside copy: refused at the check and at the start, nothing removed', async () => {
+  const w = await world();
+  try {
+    const aside = fakeApp(path.join(w.folder, '.Fabtice-ancienne.app'), { version: '1.0.0', archs: ['x64'], marker: 'running' });
+    w.env.FABTICE_UPDATE_TEST_APP = aside;
+    const { updater, calls } = updaterFor(w);
+    const s = await updater.check('launch');
+    assert.deepEqual(s.blocked, { code: 'not-packaged' });
+    assert.deepEqual(updater.start(), { ok: false, reason: 'not-packaged' });
+    assert.deepEqual(updater.state().error, { code: 'not-packaged', during: 'update' });
+    assert.equal(marker(aside), 'running');
+    assert.equal(marker(w.installed), 'old');
+    assert.deepEqual(leftInFolder(w), ['.Fabtice-ancienne.app', 'Fabtice.app']);
+    assert.ok(!w.seen.some((u) => u.includes('zip')), 'nothing downloaded');
+    assert.equal(calls.quit, 0);
+  } finally {
+    await w.close();
+  }
+});
+
 test('the page of the version, for the manual download: GitHub release pages only', async () => {
   const w = await world();
   try {

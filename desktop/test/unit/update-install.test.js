@@ -243,6 +243,19 @@ test('the swap fails at each step: the installed app is intact where it was', as
   }
 });
 
+test('the swap refuses to run from the set-aside copy itself: nothing is removed', async () => {
+  const s = scene();
+  try {
+    fakeApp(s.aside, { version: '1.0.0', marker: 'running' });
+    await assert.rejects(install.swap({ target: s.aside, unpacked: s.staging.unpacked, version: '1.0.1' }, linux()), (e) => e.step === 'aside');
+    assert.equal(marker(s.aside), 'running');
+    assert.equal(marker(s.target), 'old');
+    assert.equal(marker(s.staging.unpacked), 'new');
+  } finally {
+    fs.rmSync(s.root, { recursive: true, force: true });
+  }
+});
+
 test('at the next start: the old app set aside and the work folders go; nothing else, never the running app', () => {
   const s = scene();
   try {

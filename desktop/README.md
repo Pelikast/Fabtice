@@ -241,7 +241,11 @@ GitHub en change, l’ajouter à `ALLOWED_HOSTS` avant une version.
    l’exécutable, chemin réel. Refus si emplacement protégé
    (`/private/var/folders/…/AppTranslocation/…`), volume en lecture seule
    (`EROFS`), dossier non modifiable (un fichier d’essai y est créé puis
-   effacé), app non empaquetée.
+   effacé), app non empaquetée, et app lancée depuis une copie que la mise à
+   jour fabrique elle-même (`.Fabtice-ancienne.app` ouverte à la main pour se
+   dépanner, ou une app d’un dossier `.Fabtice-maj-…`) : l’échange effacerait
+   l’app en cours. L’app le dit comme pour une copie non empaquetée, avec
+   « Télécharger à la main ».
 2. **Place sur le disque** : environ trois fois l’archive.
 3. **Téléchargement** dans un dossier de travail neuf à côté de l’app
    (`.Fabtice-maj-<hasard>`, même volume), taille exacte exigée, SHA-256
