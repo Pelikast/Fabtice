@@ -32,7 +32,7 @@
 //
 // Pure, deterministic; about O(bars × chorus length × 40).
 
-import type { Key } from '../model/harmony';
+import type { ChordSymbol, Key } from '../model/harmony';
 import type { StandardChart } from '../standards/irealRead';
 import { semitonesBetween } from '../standards/transposeTo';
 import { barSim, barSimShift, barTokens, median, NONE, similarityMatrix, tokenOf, TokenVote, transposeToken, type BarTokens } from './grid';
@@ -810,6 +810,8 @@ function mergeBridge(sections: FormSection[]): FormSection[] {
 interface KnownBody {
   toks: BarTokens[];
   sections: FormSection[];
+  /** The chord sounding on each beat of each bar, as written in the chart (null: N.C. or nothing yet). */
+  chords: (ChordSymbol | null)[][];
 }
 
 /** The known chart without its intro or verse, as tokens and letters. */
@@ -829,21 +831,30 @@ export function knownBody(chart: StandardChart): KnownBody | null {
   if (/^[iv]$/.test(sectionOf(0) ?? '')) while (start < bars.length && !isLetter(sectionOf(start))) start++;
   if (start >= bars.length) return null;
   const toks: BarTokens[] = [];
+  const symbols: (ChordSymbol | null)[][] = [];
   const marks: (string | null)[] = [];
   let cur: number = NONE;
+  let sym: ChordSymbol | null = null;
   for (let i = start; i < bars.length; i++) {
     const b = bars[i]!;
     const sec = sectionOf(i);
     if (i > start && /^[iv]$/.test(sec ?? '')) break; // a later intro or verse: the form is over
     const n = Math.max(1, b.meter.numerator);
     const slots = new Int16Array(n).fill(NONE);
+    const beatSyms: (ChordSymbol | null)[] = [];
     let ci = 0;
     const chords = [...b.chords].sort((x, y) => x.beat - y.beat);
     for (let k = 0; k < n; k++) {
-      while (ci < chords.length && chords[ci]!.beat <= k + 1e-6) cur = tokenOf(chords[ci++]!.chord);
+      while (ci < chords.length && chords[ci]!.beat <= k + 1e-6) {
+        const c = chords[ci++]!;
+        cur = tokenOf(c.chord);
+        sym = c.chord;
+      }
       slots[k] = cur;
+      beatSyms.push(sym);
     }
     toks.push({ slots, weights: new Float32Array(n).fill(1) });
+    symbols.push(beatSyms);
     marks.push(isLetter(sec) ? sec : null);
   }
   const sections: FormSection[] = [];
@@ -851,7 +862,7 @@ export function knownBody(chart: StandardChart): KnownBody | null {
     if (i === 0 || m) sections.push({ start: i, end: i + 1, letter: m ?? 'A' });
     else sections[sections.length - 1]!.end = i + 1;
   });
-  return { toks, sections };
+  return { toks, sections, chords: symbols };
 }
 
 // ---------------------------------------------------------------- phrases

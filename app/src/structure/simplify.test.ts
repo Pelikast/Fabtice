@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { chordText } from '../harmony/chord';
-import { buildCase, loadCorpus } from './bench/cases';
+import { buildCase, knownStandard, loadCorpus } from './bench/cases';
 import { truthSimplifyInput } from './bench/run';
 import { autumnChartFailures } from './bench/score';
 import { simplifyChart } from './simplify';
@@ -143,3 +143,87 @@ describe('simplified chart', () => {
     expect(outroBars.map((b) => b.signature)).toEqual([{ numerator: 3, denominator: 4 }, null]);
   });
 });
+
+describe('simplified chart: leaning on the known chart', () => {
+  const autumn = loadCorpus().find((p) => p.id === 'autumn-leaves')!;
+  const book = knownStandard(autumn)!;
+  const A = 'Em7 | A7 | Dmaj7 | Gmaj7 | C#m7b5 | F#7 | Bm7 | Bm7';
+  const B = 'C#m7b5 | F#7 | Bm7 | Bm7 | Em7 | A7 | Dmaj7 | Gmaj7';
+  const C = 'C#m7b5 | F#7 | Bm7 Bb7 | Am7 G#7 | C#m7b5 | F#7 | Bm7 | Bm7';
+  /** Choruses AABC, each given as its four sections (so that a test can misread one repeat only). */
+  const play = (choruses: [string, string, string, string][]) => {
+    const bars = chartBars(choruses.map((c) => c.join(' | ')).join(' | '));
+    return { bars, sections: marks(bars, 0, 8, 'AABC', choruses.length) };
+  };
+  const chartOf = (p: ReturnType<typeof play>, known = true) => text(simplifyChart({ ...input(p.bars, p.sections), known: known ? [book] : [] })!);
+  const misread = (sec: string, from: string, to: string) => sec.replace(from, to);
+
+  it('the same root in another family, read at every repeat: the book\'s family (D△, not D7)', () => {
+    const A7 = misread(A, 'Dmaj7', 'D7');
+    const p = play([[A7, A7, B, C], [A7, A7, B, C], [A7, A7, B, C]]);
+    expect(chartOf(p, false)[0]).toBe('A x2: Em7 | A7 | D7 | G△ | D♭m7♭5 | F♯7 | Bm | %');
+    expect(chartOf(p)[0]).toBe('A x2: Em7 | A7 | D△ | G△ | D♭m7♭5 | F♯7 | Bm | %');
+  });
+
+  it('but a reading that is strong (every repeat, none doubtful, and written by hand once) stays', () => {
+    const A7 = misread(A, 'Dmaj7', 'D7');
+    const p = play([[A7, A7, B, C], [A7, A7, B, C], [A7, A7, B, C]]);
+    p.bars[2]!.chords = p.bars[2]!.chords.map((c) => ({ ...c, byHand: true }));
+    expect(chartOf(p)[0]).toBe('A x2: Em7 | A7 | D7 | G△ | D♭m7♭5 | F♯7 | Bm | %');
+  });
+
+  it('another root: kept when the repeats agree clearly, the book\'s when one repeat alone says it', () => {
+    const sub = misread(B, 'Em7 | A7', 'Em7 | C7');
+    const all = play([[A, A, sub, C], [A, A, sub, C], [A, A, sub, C]]);
+    expect(chartOf(all)[1]).toBe('B x1: D♭m7♭5 | F♯7 | Bm | % | Em7 | C7 | D△ | G△');
+    const once = play([[A, A, sub, C], [A, A, misread(B, 'Em7 | A7', 'Em7 | F7'), C], [A, A, B, C]]);
+    expect(chartOf(once)[1]).toBe('B x1: D♭m7♭5 | F♯7 | Bm | % | Em7 | A7 | D△ | G△');
+  });
+
+  it('nothing heard inside the form (an empty bar, N.C.): the book\'s chord', () => {
+    const hole = misread(A, 'Gmaj7', 'N.C.');
+    const p = play([[hole, hole, B, C], [hole, hole, B, C], [hole, hole, B, C]]);
+    expect(chartOf(p, false)[0]).toBe('A x2: Em7 | A7 | D△ | NC | D♭m7♭5 | F♯7 | Bm | %');
+    expect(chartOf(p)[0]).toBe('A x2: Em7 | A7 | D△ | G△ | D♭m7♭5 | F♯7 | Bm | %');
+  });
+
+  it('the bar\'s rhythm: the book\'s two chords when the repeats disagree', () => {
+    const p = play([
+      [A, A, B, misread(C, 'Bm7 Bb7', 'F#7')],
+      [A, A, B, misread(C, 'Bm7 Bb7', 'Bm7')],
+      [A, A, B, misread(C, 'Bm7 Bb7', 'D7')],
+    ]);
+    expect(chartOf(p)[2]).toBe('C x1: D♭m7♭5 | F♯7 | Bm B♭7 | Am7 A♭7 | D♭m7♭5 | F♯7 | Bm | %');
+  });
+
+  it('a chart that does not fit the piece is not used', () => {
+    const other = knownStandard(loadCorpus().find((p) => p.id === 'satin-doll-tag')!)!;
+    const A7 = misread(A, 'Dmaj7', 'D7');
+    const p = play([[A7, A7, B, C], [A7, A7, B, C], [A7, A7, B, C]]);
+    expect(text(simplifyChart({ ...input(p.bars, p.sections), known: [other] })!)).toEqual(chartOf(p, false));
+  });
+
+  it('a chorus a semitone up reads the book a semitone up', () => {
+    const names: Record<string, string> = { C: 'C#', 'C#': 'D', D: 'Eb', Db: 'D', Eb: 'E', E: 'F', F: 'F#', 'F#': 'G', Gb: 'G', G: 'Ab', 'G#': 'A', Ab: 'A', A: 'Bb', Bb: 'B', B: 'C' };
+    const up = (sec: string) => sec.replace(/\b([A-G][b#]?)/g, (n) => names[n] ?? n);
+    const A7 = misread(A, 'Dmaj7', 'D7');
+    const p = play([[A, A, B, C], [A7, A7, B, C], [up(A7), up(A7), up(B), up(C)]]);
+    const chart = simplifyChart({ ...input(p.bars, p.sections), known: [book], keyChanges: [{ bar: 64, key: { tonic: 0, mode: 'minor' } }] })!;
+    const t = text(chart);
+    // (the minor tonic is written plain in the last key only: Bm7 here)
+    expect(t[0]).toBe('A x2: Em7 | A7 | D△ | G△ | D♭m7♭5 | F♯7 | Bm7 | %');
+    expect(t[3]).toMatch(/^A@2 x2: Fm7 \| B♭7 \| E♭△ \| A♭△ /);
+    expect(chart.bars[chart.sections[3]!.bars[0]!]!.keyChange).toEqual({ tonic: 0, mode: 'minor' });
+  });
+
+  it('a lone doubt in the intro, between twice the same chord, is that chord', () => {
+    const bars = chartBars(`Bm7 | F#7 | Bm7 | Bm7 | ${repeat(AABA, 2)}`);
+    bars[1]!.chords = bars[1]!.chords.map((c) => ({ ...c, doubtful: true }));
+    const parts: SimplifyInput['parts'] = [{ id: 'i', type: 'intro', firstBar: 0, endBar: 4, letters: [] }];
+    const t = text(simplifyChart(input(bars, marks(bars, 4, 8, 'AABA', 2), parts))!);
+    expect(t[0]).toBe('intro x1: Bm7 | % | % | %');
+    bars[1]!.chords = bars[1]!.chords.map((c) => ({ ...c, doubtful: false }));
+    expect(text(simplifyChart(input(bars, marks(bars, 4, 8, 'AABA', 2), parts))!)[0]).toBe('intro x1: Bm7 | F♯7 | Bm7 | %');
+  });
+});
+

@@ -5,7 +5,8 @@
 // (level, evidence, known chart) and one metric key of `score.ts#METRICS`;
 // `min` for a rate to keep above, `max` for an error to keep below.
 //
-// Locked at the first version of the structure pass (stage 5), a few points
+// Locked at the second version of the structure pass (stage 5: the real
+// modulations, the known chart leaned on in the simplified chart), a few points
 // under what the subset (16 pieces, `npm test`) and the whole corpus
 // (`FABTICE_STRUCTURE_FULL=1`, 2 draws) both reach: a margin for the subset's
 // small counts, not room for a regression.
@@ -57,12 +58,13 @@ export const STRUCTURE_BENCH_THRESHOLDS: readonly Threshold[] = [
     instWrong: { max: 0.03 },
     simpChord: { min: 0.93 },
     simpPlaces: { min: 0.98 },
-    chainChord: { min: 0.75 },
+    chainChord: { min: 0.82 },
     autumnChart: { min: 1 },
     autumnChain: { min: 1 },
   }),
   ...at('parfait', 'mix', false, { instNamedNoStems: { max: 0 }, partF: { min: 0.8 }, autumnChain: { min: 1 } }),
-  ...at('parfait', 'stems', true, { chorusLength: { min: 0.95 }, formExact: { min: 0.95 }, chainChord: { min: 0.82 }, autumnChain: { min: 1 } }),
+  // the known chart leaned on where the reading is weak (`simplify.ts`, step 7)
+  ...at('parfait', 'stems', true, { chorusLength: { min: 0.95 }, formExact: { min: 0.95 }, simpChord: { min: 0.97 }, chainChord: { min: 0.9 }, autumnChart: { min: 1 }, autumnChain: { min: 1 } }),
   // ---- about a quarter of the chords wrong, a beat lost, a bar dropped
   ...at('realiste', 'stems', false, {
     chorusLength: { min: 0.75 },
@@ -78,9 +80,17 @@ export const STRUCTURE_BENCH_THRESHOLDS: readonly Threshold[] = [
     simpChord: { min: 0.72 },
     simpPlaces: { min: 0.95 },
   }),
-  ...at('realiste', 'stems', true, { chorusLength: { min: 0.9 }, formExact: { min: 0.95 }, partF: { min: 0.82 }, chainChord: { min: 0.63 }, chainPlaces: { min: 0.83 } }),
+  ...at('realiste', 'stems', true, {
+    chorusLength: { min: 0.9 },
+    formExact: { min: 0.95 },
+    partF: { min: 0.82 },
+    simpChord: { min: 0.83 },
+    chainChord: { min: 0.72 },
+    chainPlaces: { min: 0.83 },
+    autumnChart: { min: 1 },
+  }),
   ...at('realiste', 'mix', false, { instNamedNoStems: { max: 0 }, partF: { min: 0.65 }, longSolo: { min: 0.85 } }),
   // ---- about half the chords wrong: the known chart is what holds
-  ...at('mauvais', 'stems', true, { chorusLength: { min: 0.88 }, formExact: { min: 0.95 }, partF: { min: 0.72 }, chainChord: { min: 0.48 }, instWrong: { max: 0.16 } }),
+  ...at('mauvais', 'stems', true, { chorusLength: { min: 0.88 }, formExact: { min: 0.95 }, partF: { min: 0.72 }, simpChord: { min: 0.68 }, chainChord: { min: 0.6 }, instWrong: { max: 0.16 } }),
   ...at('mauvais', 'mix', false, { instNamedNoStems: { max: 0 } }),
 ];
