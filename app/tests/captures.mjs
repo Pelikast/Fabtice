@@ -34,6 +34,7 @@ import { SETTINGS_TABS, openSettings, openSettingsTab } from './lib/settings.mjs
 import { harmonyCaptures, modulationCaptures, simplifiedCaptures } from './captures-harmonie.mjs';
 import { meterCaptures } from './captures-meter.mjs';
 import { tapFixCaptures } from './captures-tap.mjs';
+import { updateCaptures } from './captures-maj.mjs';
 import { startServer } from './serve.mjs';
 import { LOGIN_PAGE, link, shrinkList, tunes } from './standards-fixtures.mjs';
 
@@ -433,6 +434,7 @@ try {
       ['structure du morceau', (form) => harmonyCaptures(form, { browser, openPage, snap, contextOptions, press })],
       ['modulations de la grille', (form) => modulationCaptures(form, { browser, openPage, snap, contextOptions, press })],
       ['grille simplifiée', (form) => simplifiedCaptures(form, { browser, openPage, snap, contextOptions, press })],
+      ['mise à jour', (form) => updateCaptures(form, { browser, openPage, snap, contextOptions, press })],
     ]) {
       // FABTICE_CAPTURES_ONLY=structure,modulations,simplifi: only the sections whose name contains one of these texts.
       if (process.env.FABTICE_CAPTURES_ONLY && !process.env.FABTICE_CAPTURES_ONLY.split(',').some((only) => label.includes(only))) continue;

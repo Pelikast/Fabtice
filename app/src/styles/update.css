@@ -5,6 +5,7 @@
 
 .voile-message.voile-maj { z-index: 43; }
 .accueil.message-grilles.message-maj { width: min(540px, 100%); }
+.accueil.message-grilles.message-maj h2 { margin-bottom: 12px; }
 .message-maj .maj-notes-titre { margin: 16px 0 6px; }
 
 /* The notes of the new version: short, scrollable when long. */

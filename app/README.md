@@ -48,6 +48,7 @@ le stockage.
 | `npm run test:settings` | après `build` (étape 2, C7) : Réglages à sept onglets (liste puis page au téléphone), chaque réglage retrouvé à l'identique après déplacement, liens « Tous les réglages… », sous-grille « Noires » par défaut et « Blanches », « Rétablir les réglages d'origine » |
 | `npm run test:print` | après `build` (étape 2, C4) : la fenêtre d'impression (cmd + P, menu, bouton), l'aperçu page par page comparé au PDF produit par Chromium (mêmes pages), options, téléphone |
 | `npm run test:new-project` | après `build` (étape 2, C9 et C1) : la fenêtre « Nouveau projet » (lancement, lien, fichier, case « Séparer les instruments »), le texte de chargement en braise |
+| `npm run test:update` | après `build` (étape 6, C16) : la mise à jour. App Mac (un `window.fabtice` scripté, ordinateur) : le message à l'ouverture (`?maj=message`), les deux numéros, les nouveautés, « Mettre à jour Fabtice », la progression, « Annuler », chaque échec et chaque emplacement impossible avec sa phrase et « Télécharger à la main », la question quand un calcul tourne, « Rechercher une mise à jour… » de la barre des menus, Réglages → Général. App web (les deux formes, vrai service worker, `?horsligne`) : une nouvelle version du site en attente proposée à l'ouverture et par la recherche, « Recharger » la prend aussitôt, le hors-ligne marche encore ensuite. Captures dans `FABTICE_UPDATE_OUT` |
 | `npm run test:standards` | après `build` : le message des grilles au démarrage (les quatre chemins), le téléchargement et son pourcentage, la section des grilles de Réglages → Avancé, « Vérifier les mises à jour de grilles », faux serveurs |
 | `npm run captures -- <dossier>` | après `build` : les captures des écrans de l'étape 2 dans les deux formes, dans un dossier **hors du dépôt** (voir « Étape 2 de la 1.0.0 ») |
 | `npm run test:offline` | après `build` (lot 4) : la version web hors ligne dans Chromium, profil persistant, **vrai moteur** : le service worker s'installe (adresse `?horsligne&debug`), garde les petits fichiers de l'app mais pas les gros WebAssembly d'ONNX Runtime ; un morceau de 5 Mo importé ; réseau coupé (`setOffline`), rechargement : l'app s'ouvre, `crossOriginIsolated` est vrai, le morceau gardé revient et **joue** ; un gros fichier demandé en ligne est gardé et resservi hors ligne avec les en-têtes d'isolation ; la maquette voisine n'est pas touchée ; en ligne, une nouvelle page sur le serveur est celle qu'on voit au chargement suivant ; manifeste et icônes. Captures dans `FABTICE_OFFLINE_OUT` |
@@ -165,6 +166,8 @@ src/
                       fichiers ouverts depuis le Finder (fromDesktop.ts)
   pwa/                version web hors ligne (lot 4) : service worker écrit à la main
                       (sw.js, complété par la construction) et son inscription
+  update/             mise à jour (étape 6, C16) : l'état et le message (updates.ts),
+                      les phrases (texts.ts), les nouveautés en Markdown (notes.tsx)
   settings/           « Place sur cet appareil » (lot 4) : tailles et « Libérer »
   i18n/               tous les textes (fr.ts) et t()
   demo/               le morceau synthétique de ?demo
@@ -3806,6 +3809,51 @@ de même (mesures 1, 5, 9… à une sur quatre). La sous-grille disparaît sous 
 `npm run test:timeline` (après `build`) lance les vérifications dans Chromium
 (`TIMELINE_ONLY=desktop|chords|stress|loops|phone` pour une seule partie ;
 `FABTICE_TIMELINE_OUT` pour le dossier des captures).
+
+## Mise à jour — `src/update/` (étape 6, C16)
+
+Le même message dans les deux formes de l'app, une fenêtre de la famille des
+messages de démarrage (`components/UpdateMessage.tsx`), et la section
+« Version et mises à jour » de Réglages → Général (`settings/UpdateSection.tsx`).
+Une fenêtre à la fois : le message attend que les autres fenêtres (et le
+message des grilles) soient fermées, et compte lui-même parmi les fenêtres
+(`ui/windows.ts`) ; la fenêtre « Nouveau projet » attend derrière lui.
+« Plus tard » le laisse jusqu'à la prochaine ouverture. Comme le message des
+grilles, il n'existe que sur les vraies adresses ; une adresse de test le
+demande par `?maj=message`. Avant une mise à jour (ou un rechargement), un
+calcul en cours (séparation, rendu, import, enregistrement, export, analyse)
+fait poser la question « Continuer quand même » / « Attendre ».
+
+**App Mac.** Tout se fait dans le processus principal
+(`desktop/src/updater.js`, voir `desktop/README.md`, « Mise à jour
+automatique »). Le pont (`platform/desktopBridge.ts`) : `updateStatus()`,
+`checkForUpdate('launch' | 'page')`, `startUpdate()`, `cancelUpdate()`,
+`openUpdatePage()`, `onUpdateState(cb)` ; la page ne donne jamais un chemin ni
+une adresse. L'état (`UpdateState`) : `current` (le numéro de l'app elle-même,
+`app.getVersion()`, affiché dans la section : une fabrication plus récente
+montre son numéro sans nouvelle interface), `phase` (`checking`,
+`up-to-date`, `available`, `downloading`, `preparing`, `closing`,
+`restarting`, `failed`), `origin` (`launch`, `page`, `menu`), `seq` (croît à
+chaque réponse), `available` (version, nouveautés, taille), `blocked`
+(emplacement protégé, image disque, dossier non modifiable, macOS trop
+ancien…), `progress`, `error`. À l'ouverture, si « Vérifier à chaque
+ouverture » est coché, la page demande une recherche 4 s après son
+démarrage : seul « disponible » s'affiche. « Rechercher une mise à jour… » de
+la barre des menus ouvre la fenêtre aussitôt et y montre toute réponse (dans
+la section si Réglages est ouvert, ramené sur « Général »).
+
+**App web.** La construction tire un identifiant par fabrication
+(`vite.config.ts`, `pwa/build.ts`), écrit dans le code de la page et dans son
+`sw.js` (`BUILD`). Le service worker répond à `fabtice-build` (sur le port
+donné) et, seulement sur « Recharger », à `fabtice-skip-waiting`. Quand un
+worker attend avec un autre identifiant que la page, c'est une nouvelle
+version du site : « Une nouvelle version de Fabtice est prête », « Recharger »
+(le worker prend la main, la page se recharge dessus ; au bout de 5 s elle se
+recharge de toute façon) et « Plus tard » (il prend la main à la prochaine
+ouverture, comme avant). La recherche de Réglages appelle
+`registration.update()`. Sans worker (adresses de test, navigateur qui ne le
+permet pas), elle le dit : la page s'ouvre alors toujours dans sa dernière
+version. Le hors-ligne est inchangé (`npm run test:offline`).
 
 ## Saisie et correction de la grille
 

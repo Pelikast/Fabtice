@@ -23,7 +23,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { startServer } from './serve.mjs';
-import { openSettingsTab, closeSettings, press } from './lib/settings.mjs';
+import { closeSettings, press } from './lib/settings.mjs';
 import { openMenu, closeMenu } from './lib/menu.mjs';
 
 const require = createRequire(process.env.PLAYWRIGHT_MODULE_DIR || '/opt/node-tools/');
@@ -138,6 +138,13 @@ async function openDesktop(query = '?debug&maj=message', { answer = AVAILABLE } 
 }
 
 const MSG = '[data-testid="maj-message"]';
+
+/** Réglages on a tab, opened by the app's own action (no piece open: the opening screen covers the logo). */
+async function openSettingsTab(page, tab) {
+  await page.evaluate((t) => window.__fabtice.actions.openSettings(t), tab);
+  await page.waitForSelector(`[data-testid="reglages-panneau"][data-onglet="${tab}"]`);
+  return page.locator('[data-testid="reglages-panneau"]');
+}
 const text = (page, sel) => page.locator(sel).innerText().then((s) => s.replace(/\s+/g, ' ').trim());
 const calls = (page) => page.evaluate(() => window.__maj.calls.slice());
 const emit = (page, patch) => page.evaluate((p) => window.__maj.emit(p), patch);
@@ -273,8 +280,6 @@ async function desktopChecks() {
   // ---------------------------------------------------------------- Réglages → Général
   {
     const { context, page, errors } = await openDesktop('?debug', { answer: { phase: 'up-to-date' } });
-    await page.locator('.voile-projet.ouverte').waitFor({ timeout: 10000 }).catch(() => {});
-    await page.keyboard.press('Escape');
     const body = await openSettingsTab(page, 'general');
     check(`${tag}, Réglages: no search at opening on a test address`, (await calls(page)).length === 0);
     check(`${tag}, Réglages: the app's own number`, (await text(page, '[data-testid="maj-version"]')) === 'Fabtice 1.0.7');
@@ -347,9 +352,8 @@ async function webChecks(form) {
     await sleep(500);
     check(`${tag}: first visit, the worker installs and nothing is offered`, (await page.locator(MSG).count()) === 0);
     // Réglages: the number of this build, the search finds nothing new.
-    await page.keyboard.press('Escape').catch(() => {});
-    if (await page.locator('.voile-projet.ouverte').count()) await page.evaluate(() => window.__fabtice.actions.closeNewPiece?.());
-    let body = await openSettingsTab(page, 'general');
+    await openSettingsTab(page, 'general');
+    const body = await openSettingsTab(page, 'general');
     check(`${tag}, Réglages: the number`, (await text(page, '[data-testid="maj-version"]')) === `Fabtice ${JSON.parse(fs.readFileSync(path.join(here, '..', 'package.json'), 'utf8')).version}`);
     await press(page, '[data-testid="maj-rechercher"]');
     await page.waitForSelector('[data-testid="maj-resultat"][data-etat="up-to-date"]', { timeout: 30000 });
