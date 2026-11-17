@@ -5,8 +5,8 @@
 //
 // What it covers:
 //  - the opening screen at launch (a file, a `.fab` project, in the Mac app the link too), called « Nouveau
-//    projet », with « Séparer les instruments » unticked, no « Aller plus loin », no chart offer, no « Alléger »
-//    (it comes with stage 6);
+//    projet », with « Séparer les instruments » unticked, no « Aller plus loin », no chart offer, and « Alléger le
+//    travail pour l'appareil » unticked under it (its own checks: `npm run test:ease`);
 //  - « Séparer les instruments »: ticked, every instrument selected; a click unselects one; none left is
 //    unticked; the choice is forgotten when the window opens again;
 //  - the window opened from the menu « Nouveau projet ▸ »: from a file, only the file; from a link, only the
@@ -112,7 +112,7 @@ async function screens(viewport, tag) {
     check(`${tag}: the whole opening screen: a file, a project to open`, (await page.getByRole('button', { name: 'Choisir un fichier audio' }).count()) === 1 && (await page.locator('[data-testid="ouvrir-projet"]').count()) === 1 && text.includes('mp3, wav, aiff, m4a ou flac'));
     check(`${tag}: no link field and no sentence for the Mac app on the web launch screen`, (await page.locator('.champ').count()) === 0 && (await page.locator('[data-testid="lien-app-mac"]').count()) === 0);
     check(`${tag}: « Aller plus loin », « Grilles gardées » and the chart offer are gone`, !/Aller plus loin|Grilles gardées|grilles des standards|Télécharger les grilles/.test(text), text);
-    check(`${tag}: no « Alléger le travail pour l’appareil » yet (stage 6)`, !text.includes('Alléger'));
+    check(`${tag}: « Alléger le travail pour l’appareil » is offered right after « Séparer les instruments », unticked`, text.includes('Alléger le travail pour l’appareil') && (await page.locator('[data-testid="alleger-nouveau"]').count()) === 1 && !(await page.locator('[data-testid="alleger-nouveau"]').isChecked()) && text.indexOf('Séparer les instruments') < text.indexOf('Alléger le travail'));
     check(`${tag}: « Séparer les instruments » is unticked, no instrument is listed`, (await page.locator(BOX).count()) === 1 && !(await page.locator(BOX).isChecked()) && (await chips(page)) === 0 && (await stems(page)).length === 0);
     const button = await page.evaluate(() => getComputedStyle(document.querySelector('.voile-projet.ouverte .plein')).backgroundColor);
     check(`${tag}: the main button is in ink, never in ember`, button === 'rgb(43, 31, 23)', button);
