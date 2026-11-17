@@ -10,7 +10,9 @@
 //   node ci/publish-release.js publish --assets <dir> [--dry-run] [--out <dir>]
 //       <dir> holds the four files the build made: Fabtice-mac-apple-silicon.dmg, Fabtice-mac-intel.dmg,
 //       Fabtice-mac-apple-silicon.zip, Fabtice-mac-intel.zip. In order:
-//         1. the check above; the version V and the tag vV;
+//         1. the check above; the version V and the tag vV. The first section of CHANGELOG.md still says
+//            « en préparation »: a real publication stops here (exit 1, before any gh command); a dry run says
+//            it loudly and goes on;
 //         2. already published? the tag vV on the remote (git ls-remote) and every release of the project
 //            (gh api, drafts included). The tag or a published release exists: nothing is published, nothing
 //            is changed, exit 0. A draft of vV exists (a run that stopped in the middle): nothing either,
@@ -28,7 +30,9 @@
 //       commands of 4 and 5 instead of running them. It works on any branch.
 //
 // Environment: GITHUB_REPOSITORY (owner/name, default pelikast/fabtice), GITHUB_SHA (default: git rev-parse
-// HEAD), GITHUB_REF (when set, a real publication needs refs/heads/main), FABTICE_GH (the gh command, default « gh »), FABTICE_RELEASE_REMOTE (the git remote, default origin).
+// HEAD), GITHUB_REF (when set, a real publication needs refs/heads/main), FABTICE_GH (the gh command, default « gh »), FABTICE_RELEASE_REMOTE (the git remote, default origin),
+// FABTICE_RELEASE_ROOT (the tests only: the folder that stands for the repository, with app/package.json,
+// desktop/package.json and CHANGELOG.md; default: this repository).
 // gh reads its token from GH_TOKEN. No dependency.
 
 const crypto = require('node:crypto');
@@ -38,8 +42,8 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { parseVersion } = require('../src/update-version');
 
-const DESKTOP = path.join(__dirname, '..');
-const ROOT = path.join(DESKTOP, '..');
+const ROOT = process.env.FABTICE_RELEASE_ROOT ? path.resolve(process.env.FABTICE_RELEASE_ROOT) : path.join(__dirname, '..', '..');
+const DESKTOP = path.join(ROOT, 'desktop');
 const DMG = ['Fabtice-mac-apple-silicon.dmg', 'Fabtice-mac-intel.dmg'];
 const ZIP = ['Fabtice-mac-apple-silicon.zip', 'Fabtice-mac-intel.zip'];
 const VERSION_FILE = 'fabtice-version.json';
@@ -64,6 +68,23 @@ function checkVersion({ appPackage, desktopPackage, changelog }) {
     problems.push(`la première section de CHANGELOG.md (« ${title} ») ne nomme pas la version ${desktop} : elle doit commencer par « ## Version ${desktop} »`);
   }
   return { version: problems.length ? null : desktop, problems };
+}
+
+/**
+ * The first « ## » section of the changelog (title and body) still says the version is being prepared?
+ * A real publication stops; a dry run warns. Answers null when the notes are ready.
+ * @returns {null | { stop: boolean, message: string }}
+ */
+function preparationVerdict(changelog, dryRun) {
+  const lines = String(changelog || '').replace(/\r\n?/g, '\n').split('\n');
+  const start = lines.findIndex((l) => /^## /.test(l));
+  if (start < 0) return null;
+  let end = lines.findIndex((l, i) => i > start && /^## /.test(l));
+  if (end < 0) end = lines.length;
+  if (!/en préparation/i.test(lines.slice(start, end).join('\n'))) return null;
+  const what = 'la première section de CHANGELOG.md dit encore « En préparation »';
+  if (dryRun) return { stop: false, message: `ATTENTION !!! ${what} : sur main, la publication s’arrêterait ici, en rouge. Écrire les vraies notes de la version avant de pousser sur main.` };
+  return { stop: true, message: `ERREUR : ${what}. Rien n’est publié ni lu sur GitHub. Écrire les vraies notes de la version (ce texte est celui de la page de la version et du message de mise à jour dans l’app), puis pousser sur main.` };
 }
 
 /**
@@ -196,10 +217,15 @@ function publish({ assetsDir, dryRun, outDir }) {
   const mode = dryRun ? 'ESSAI À BLANC (rien n’est écrit sur GitHub)' : 'PUBLICATION';
   log(`== ${mode} — dépôt ${repo}, commit ${sha}`);
 
-  // 1. The number.
+  // 1. The number, and notes that are not « en préparation ».
   const { version } = check();
   if (!version) return 1;
   const tag = `v${version}`;
+  const preparation = preparationVerdict(fs.readFileSync(path.join(ROOT, 'CHANGELOG.md'), 'utf8'), dryRun);
+  if (preparation) {
+    log(preparation.message);
+    if (preparation.stop) return 1;
+  }
 
   // 2. Already published?
   const ls = run('git', ['ls-remote', '--tags', remote, `refs/tags/${tag}`]);
@@ -231,7 +257,6 @@ function publish({ assetsDir, dryRun, outDir }) {
   const make = run(process.execPath, [path.join(__dirname, 'make-version-file.js'), version, tag, path.join(assetsDir, ZIP[0]), path.join(assetsDir, ZIP[1]), path.join(ROOT, 'CHANGELOG.md'), versionFile]);
   log(make.stdout.trim());
   const data = readJson(versionFile);
-  if (/en préparation/i.test(data.notes)) log('ATTENTION : les notes de CHANGELOG.md disent encore « En préparation ».');
   const notesFile = path.join(outDir, 'notes.md');
   fs.writeFileSync(notesFile, releaseNotes({ version, notes: data.notes, sha, repo }));
   log(`Notes de la release : ${notesFile} (${fs.statSync(notesFile).size} octets ; « Nouveautés » = les notes du fichier de version)`);
@@ -262,7 +287,8 @@ function publish({ assetsDir, dryRun, outDir }) {
     ];
     for (const s of steps) log(`  ${s.map(quote).join(' ')}`);
     log('  (en cas d’échec avant la publication : ' + `${gh} api -X DELETE repos/${repo}/releases/<id>, seulement tant que c’est un brouillon)`);
-    log(`ESSAI À BLANC TERMINÉ : la version ${tag} serait publiée.`);
+    if (preparation) log(preparation.message);
+    log(`ESSAI À BLANC TERMINÉ : la version ${tag} serait publiée${preparation ? ' (sauf les notes « En préparation », voir ci-dessus)' : ''}.`);
     return 0;
   }
 
@@ -350,4 +376,4 @@ function main(argv) {
 
 if (require.main === module) process.exitCode = main(process.argv.slice(2));
 
-module.exports = { checkVersion, publishedState, releaseNotes, assetList, checkUploaded, main, ASSETS };
+module.exports = { checkVersion, preparationVerdict, publishedState, releaseNotes, assetList, checkUploaded, main, ASSETS };

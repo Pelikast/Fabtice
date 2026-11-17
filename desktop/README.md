@@ -750,7 +750,9 @@ fabrique rien), et à la main (« Run workflow ») sur n’importe quelle branch
    les deux puces sont vertes, avec les fichiers fabriqués à l’étape 3, par
    `ci/publish-release.js` :
    1. la version `V` est lue dans `desktop/package.json`, l’étiquette est
-      `vV` ;
+      `vV`. Si la première section de `CHANGELOG.md` dit encore « En
+      préparation », tout s’arrête là, en rouge, avant toute commande `gh`
+      (l’essai à blanc le dit en gros, au début et à la fin, et continue) ;
    2. **déjà publiée ?** Si l’étiquette `vV` existe, ou une release `vV`
       publiée : **rien n’est publié ni modifié** (aucun fichier remplacé,
       aucune étiquette déplacée), le journal le dit (« RIEN À PUBLIER ») et

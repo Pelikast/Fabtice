@@ -11,7 +11,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync, execFileSync } = require('node:child_process');
-const { checkVersion, publishedState, releaseNotes, checkUploaded } = require('../../ci/publish-release');
+const { checkVersion, preparationVerdict, publishedState, releaseNotes, checkUploaded } = require('../../ci/publish-release');
 
 const DESKTOP = path.join(__dirname, '..', '..');
 const ROOT = path.join(DESKTOP, '..');
@@ -51,6 +51,20 @@ test('the number: three numbers, the same in both, named by the first « ## » t
   fails('1.0.1', '1.0.1', '### Version 1.0.1\n## Version 1.0.0\n', /ne nomme pas/);
 });
 
+test('notes « en préparation »: a real publication stops, a dry run warns loudly', () => {
+  const ready = '# Nouveautés\n\n## Version 1.0.1\n\n- Une chose.\n\n## Version 1.0.0 (en préparation autrefois)\n';
+  assert.equal(preparationVerdict(ready, false), null, 'only the first section counts');
+  assert.equal(preparationVerdict('# Rien\n', false), null);
+  for (const log of ['## Version 1.0.1\n\nEn préparation.\n', '## Version 1.0.1 (en préparation)\n\n- Une chose.\n', '## Version 1.0.1\r\n\r\n- EN PRÉPARATION\r\n']) {
+    const real = preparationVerdict(log, false);
+    assert.equal(real.stop, true, log);
+    assert.match(real.message, /^ERREUR : .*En préparation/);
+    const dry = preparationVerdict(log, true);
+    assert.equal(dry.stop, false);
+    assert.match(dry.message, /^ATTENTION !!! .*s’arrêterait/);
+  }
+});
+
 test('already published: a published release or the tag means nothing to do; a draft must be looked at', () => {
   const lines = 'abc123\trefs/tags/v1.0.1\n';
   assert.deepEqual(publishedState('v1.0.1', '', []), { state: 'new' });
@@ -87,8 +101,17 @@ test('the draft on GitHub: exactly the five files, the same sizes, all uploaded'
 // ---------------------------------------------------------------------------------------------------------
 // The whole script, with a fake gh and a local remote.
 
-function setup({ releases = [], tagged = false, corrupt, failUpload } = {}) {
+function setup({ releases = [], tagged = false, corrupt, failUpload, changelog } = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fabtice-publish-'));
+  // Another changelog: a copy of the repository's three files that count, in a folder standing for it.
+  const root = changelog === undefined ? null : path.join(dir, 'repo');
+  if (root) {
+    for (const sub of ['app', 'desktop']) {
+      fs.mkdirSync(path.join(root, sub), { recursive: true });
+      fs.writeFileSync(path.join(root, sub, 'package.json'), JSON.stringify({ version: VERSION }));
+    }
+    fs.writeFileSync(path.join(root, 'CHANGELOG.md'), changelog);
+  }
   const git = (...a) => execFileSync('git', a, { cwd: dir, encoding: 'utf8', env: { ...process.env, GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@t', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@t' } }).trim();
   const bare = path.join(dir, 'remote.git');
   git('init', '-q', '--bare', bare);
@@ -112,7 +135,9 @@ function setup({ releases = [], tagged = false, corrupt, failUpload } = {}) {
   const runScriptWith = (more) => (...extra) => {
     const env = { ...process.env, PATH: `${bin}${path.delimiter}${process.env.PATH}`, FAKE_GH_STATE: stateFile, FAKE_GH_BARE: bare, FABTICE_RELEASE_REMOTE: bare, GITHUB_SHA: sha, GITHUB_REPOSITORY: 'pelikast/fabtice' };
     delete env.FABTICE_GH;
+    delete env.FABTICE_RELEASE_ROOT;
     delete env.GITHUB_REF; // the unit tests also run in GitHub Actions, on any branch
+    if (root) env.FABTICE_RELEASE_ROOT = root;
     Object.assign(env, more);
     const r = spawnSync(process.execPath, [SCRIPT, 'publish', '--assets', assets, '--out', path.join(dir, 'out'), ...extra], { env, encoding: 'utf8' });
     return { code: r.status, out: r.stdout + r.stderr };
@@ -221,6 +246,21 @@ test('a file read back different, or an upload that fails: the draft is deleted,
     assert.equal(s.tagOf(), '');
     assert.match(r.out, /Brouillon 100 supprimé/);
   }
+});
+
+test('notes « en préparation »: the real publication stops before any gh command; the dry run goes on, warning', (t) => {
+  const s = setup({ changelog: `# Nouveautés\n\n## Version ${VERSION}\n\nEn préparation.\n` });
+  t.after(s.cleanup);
+  const r = s.runScript();
+  assert.equal(r.code, 1, r.out);
+  assert.match(r.out, /ERREUR : la première section de CHANGELOG\.md dit encore « En préparation »/);
+  assert.deepEqual(s.state().calls, [], 'not one gh command');
+  assert.equal(s.tagOf(), '');
+  const dry = s.runScript('--dry-run');
+  assert.equal(dry.code, 0, dry.out);
+  assert.equal(dry.out.match(/ATTENTION !!! /g).length, 2, 'said at the start and at the end');
+  assert.match(dry.out, /ESSAI À BLANC TERMINÉ/);
+  assert.deepEqual(writes(s.state().calls), []);
 });
 
 test('in GitHub Actions, a real publication outside main is refused before anything is read', (t) => {
