@@ -21,6 +21,7 @@ import {
 } from '../store/gridActions';
 import { useApp } from '../store/store';
 import { useFitPanel } from '../ui/useFitPanel';
+import { usePhoneLayout } from '../util/media';
 
 const NUMERATORS = Array.from({ length: NUMERATOR_MAX - NUMERATOR_MIN + 1 }, (_, i) => NUMERATOR_MIN + i);
 
@@ -66,6 +67,7 @@ export function GridPanel({ ref }: { ref: Ref<HTMLDivElement> }) {
 
   const fitRef = useFitPanel(ref);
   const hasAnalysis = useApp((s) => s.analysis !== null);
+  const phone = usePhoneLayout();
 
   return (
     <div ref={fitRef} className="fenetre panneau-grille" role="dialog" aria-label={t('grid.title')}>
@@ -113,7 +115,7 @@ export function GridPanel({ ref }: { ref: Ref<HTMLDivElement> }) {
 
       <hr className="panneau-separe" />
       <GridOriginNote />
-      {hasAnalysis && <p className="panneau-note">{t('grid.tempoMenuHint')}</p>}
+      {hasAnalysis && <p className="panneau-note">{t(phone ? 'grid.tempoMenuHintTouch' : 'grid.tempoMenuHint')}</p>}
       <div className="panneau-actions">
         <BackToAnalysisButton />
         <button

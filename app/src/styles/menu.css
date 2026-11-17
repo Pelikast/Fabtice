@@ -107,7 +107,7 @@
   padding: 4px 8px 4px 16px;
   border-bottom: 1px solid var(--trait);
 }
-.feuille-menu-tete .fermer { width: 44px; height: 44px; }
+.feuille-menu-tete .fermer { width: 44px; height: 44px; margin: 0; }
 .feuille-menu-retour {
   display: inline-flex;
   align-items: center;

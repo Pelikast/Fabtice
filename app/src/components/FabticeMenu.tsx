@@ -98,13 +98,19 @@ function activate(id: CommandId, ctx: CommandContext): void {
 
 // ---------------------------------------------------------------- helpers
 
+/**
+ * The sheet replaces the drop-down on a phone, and also on any screen too short for the drop-down to fit (a phone on
+ * its side: 390 px high is less than the ten entries and their separators), since the sheet scrolls.
+ */
+const SHEET_QUERY = `${PHONE_QUERY}, (max-height: 500px)`;
+
 function subscribePhone(listener: () => void): () => void {
   if (typeof window.matchMedia !== 'function') return () => {};
-  const mq = window.matchMedia(PHONE_QUERY);
+  const mq = window.matchMedia(SHEET_QUERY);
   mq.addEventListener('change', listener);
   return () => mq.removeEventListener('change', listener);
 }
-const isPhone = () => typeof window.matchMedia === 'function' && window.matchMedia(PHONE_QUERY).matches;
+const isPhone = () => typeof window.matchMedia === 'function' && window.matchMedia(SHEET_QUERY).matches;
 
 /** The entries of a menu element (not those of its submenus). */
 function itemsOf(menu: Element | null): HTMLElement[] {

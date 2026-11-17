@@ -11,7 +11,8 @@
 // trailing `*` matches the start only (« Annuler* »). An entry greyed out
 // throws: a check that wants to see it greyed out uses `menuEntry`.
 
-const PHONE = '(max-width: 760px)';
+// Phone, or a screen too short for the drop-down: the sheet (as FabticeMenu.tsx decides).
+const PHONE = '(max-width: 760px), (max-height: 500px)';
 
 const isPhone = (page) => page.evaluate((q) => window.matchMedia(q).matches, PHONE);
 /** A touch where the page has a touch screen (`hasTouch`), a click elsewhere. */
