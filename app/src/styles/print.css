@@ -327,6 +327,9 @@
 .pp-case[data-taille="4"] { --r: 0.38; }
 /* Crowded bars: two rows, one up and one down by turns. */
 .pp-case[data-rangs="2"] { --rangs: 2; }
+/* Crowded chords on two rows under a letter or a modulation mark: the rows start below that top row (as on screen). */
+.pp-case.pp-lettree[data-rangs="2"] { --haut: calc(26 * var(--u)); }
+.pp-case.pp-modulee[data-rangs="2"] { --haut: calc(29 * var(--u)); }
 .pp-case.pp-double { border-left: calc(1.6mm * var(--e)) double var(--encre); }
 .pp-case.pp-signee { --pg: calc(30 * var(--u)); }
 .pp-numero {

@@ -116,7 +116,7 @@ function PrintLine({ line, chart, last }: { line: ChartLine; chart: PrintChart; 
 function PrintBar({ bar, chart, final }: { bar: ChartBar; chart: PrintChart; final: boolean }) {
   const n = bar.chords.length;
   const modulationText = bar.keyChange ? keyLabel(modulationKey(bar, chart).key, modulationKey(bar, chart).minor) : '';
-  const cls = ['pp-case', bar.doubleBar ? 'pp-double' : '', bar.signature ? 'pp-signee' : '', final ? 'pp-finale' : ''].filter(Boolean).join(' ');
+  const cls = ['pp-case', bar.doubleBar ? 'pp-double' : '', bar.signature ? 'pp-signee' : '', bar.keyChange ? 'pp-modulee' : bar.section ? 'pp-lettree' : '', final ? 'pp-finale' : ''].filter(Boolean).join(' ');
   return (
     <div className={cls} data-mesure={bar.bar} data-temps={n > 0 ? bar.beats : undefined} data-accords={n}>
       {bar.keyChange ? (
