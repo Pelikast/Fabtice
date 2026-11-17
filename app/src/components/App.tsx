@@ -12,6 +12,8 @@ import { useGlobalKeys } from '../ui/useGlobalKeys';
 import { ApplyWaiting } from './ApplyRender';
 import { ChartView } from './ChartView';
 import { ExportAudioDialog } from './ExportAudioDialog';
+import { ExportLogicDialog } from './ExportLogicDialog';
+import { logicDialog } from '../export/logic/dialog';
 import { LeaveProjectDialog } from './LeaveProjectDialog';
 import { SaveActivity } from './SaveActivity';
 import { NewPieceDialog } from './NewPieceDialog';
@@ -34,7 +36,8 @@ export function App() {
   // The alert about changes not saved, and the progress or the error of « Enregistrer », are windows too.
   const leaving = useStore(leaveDialog, (s) => s.open);
   const saving = useStore(saveActivity, (s) => (s.phase === 'working' && s.visible) || s.phase === 'error');
-  const inert = dialogOpen || messageOpen || leaving || saving;
+  const exportingLogic = useStore(logicDialog, (s) => s.open);
+  const inert = dialogOpen || messageOpen || leaving || saving || exportingLogic;
   const dragging = useFileDrop();
   useGlobalKeys();
   // Each newly opened piece is analysed in the background once it can play (analysis/runner.ts).
@@ -56,6 +59,7 @@ export function App() {
       <NewPieceDialog />
       <StandardsMessage />
       <ExportAudioDialog />
+      <ExportLogicDialog />
       <PrintDialog />
       <SaveProjectDialog />
       <SettingsDialog />

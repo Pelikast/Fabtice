@@ -12,6 +12,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { demoSwingResult } from '../analysis/fromDemoSwing';
+import { defaultExportPreferences } from '../model/audioExport';
 import { emptyCorrections } from '../model/corrections';
 import { PROJECT_DOCUMENT_VERSION, type ProjectDocument } from '../model/document';
 import { emptyStructureCorrections } from '../model/structure';
@@ -48,9 +49,12 @@ function expectKeptFrom(v5: Rec, doc: ProjectDocument): void {
   // Top level: the same fields, the same values (no new top-level field).
   expect(Object.keys(v6).sort()).toEqual(Object.keys(v5).sort());
   for (const key of Object.keys(v5)) {
-    if (key === 'version' || key === 'analysis' || key === 'corrections') continue;
+    if (key === 'version' || key === 'analysis' || key === 'corrections' || key === 'exportPrefs') continue;
     expect(v6[key], key).toEqual(v5[key]);
   }
+  // The choices of « Audio… » as the published app wrote them (format, what, range), plus the Wave, MP3 and file choices of 1.0.0 at their defaults.
+  expect(Object.keys(v5.exportPrefs as Rec).sort()).toEqual(['format', 'range', 'what']);
+  expect(v6.exportPrefs).toEqual({ ...defaultExportPreferences(), ...(v5.exportPrefs as Rec) });
   // Corrections: all of version 5, plus the two new fields at their defaults.
   const c = v6.corrections as Rec;
   expect(without(c, 'keyChanges', 'structure')).toEqual(v5.corrections);

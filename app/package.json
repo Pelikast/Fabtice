@@ -22,6 +22,7 @@
     "test:chart": "node tests/chart.mjs",
     "test:print": "node tests/print.mjs",
     "test:export": "node tests/export.mjs",
+    "test:export-logic": "node tests/export-logic.mjs",
     "test:export-audio": "node tests/export-audio.mjs",
     "test:export-memory": "node tests/export-memory.mjs",
     "test:analysis": "node tests/analysis.mjs",
@@ -57,6 +58,7 @@
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.3.0",
     "fake-indexeddb": "^6.2.8",
+    "midi-file": "1.2.4",
     "typescript": "^7.0.2",
     "vite": "^8.3.8",
     "vitest": "^5.1.0"

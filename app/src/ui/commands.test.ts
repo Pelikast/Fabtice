@@ -57,13 +57,13 @@ describe('which commands can run', () => {
     expect(enabledIds(ctx({ hasProject: false, hasTracks: false, hasChords: false }))).toEqual(['newFromLink', 'newFromFile', 'open', 'settings']);
   });
 
-  it('a piece without chords: save, export the sound; iReal Pro, PDF and printing greyed out', () => {
-    expect(enabledIds(ctx({ hasChords: false }))).toEqual(['newFromLink', 'newFromFile', 'open', 'save', 'saveAs', 'exportAudio', 'settings']);
+  it('a piece without chords: save, export the sound and the folder for Logic Pro; iReal Pro, PDF and printing greyed out', () => {
+    expect(enabledIds(ctx({ hasChords: false }))).toEqual(['newFromLink', 'newFromFile', 'open', 'save', 'saveAs', 'exportAudio', 'exportLogic', 'settings']);
   });
 
   it('a piece with chords: everything; undo and redo when the history has a step', () => {
     const c = ctx({ history: { canUndo: true, canRedo: false, undoLabel: 'Annuler : volume de la piste', redoLabel: null, modified: true } });
-    expect(enabledIds(c)).toEqual(['undo', 'newFromLink', 'newFromFile', 'open', 'save', 'saveAs', 'exportAudio', 'irealFile', 'pdf', 'print', 'settings']);
+    expect(enabledIds(c)).toEqual(['undo', 'newFromLink', 'newFromFile', 'open', 'save', 'saveAs', 'exportAudio', 'irealFile', 'pdf', 'exportLogic', 'print', 'settings']);
     expect(COMMANDS.undo.label(c)).toBe('Annuler : volume de la piste');
     expect(COMMANDS.redo.label(c)).toBe('Rétablir');
   });
@@ -97,7 +97,7 @@ describe('which commands can run', () => {
       '-',
       'save',
       'saveAs',
-      'export[exportAudio,ireal[irealFile],pdf]',
+      'export[exportAudio,ireal[irealFile],pdf,exportLogic]',
       'print',
       '-',
       'settings',
@@ -112,7 +112,7 @@ describe('which commands can run', () => {
       '-',
       'save',
       'saveAs',
-      'export[exportAudio,ireal[irealFile,irealOpen],pdf]',
+      'export[exportAudio,ireal[irealFile,irealOpen],pdf,exportLogic]',
       'print',
       '-',
       'settings',

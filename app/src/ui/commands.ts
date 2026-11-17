@@ -26,6 +26,7 @@ import { standardsStore } from '../standards/offer';
 import { openSettings } from '../store/actions';
 import { selectHasChords } from '../store/chartSelectors';
 import { openExportAudio, openPrint } from '../store/exportActions';
+import { openExportLogic } from '../export/logic/dialog';
 import { historyStatus, redo, subscribeHistory, undo, type HistoryStatus } from '../store/history';
 import { appStore, type AppState } from '../store/store';
 import { isMacPlatform, isTextField } from './historyKeys';
@@ -43,6 +44,7 @@ export const COMMAND_IDS = [
   'irealFile',
   'irealOpen',
   'pdf',
+  'exportLogic',
   'print',
   'settings',
   'quit',
@@ -226,6 +228,13 @@ export const COMMANDS: Record<CommandId, Command> = {
     enabled: withChords,
     run: () => openPrint(),
   },
+  exportLogic: {
+    id: 'exportLogic',
+    label: () => t('menu.exportLogic'),
+    // The tracks in audio and the MIDI file (tempo, signatures, keys, chords as markers): it needs tracks, not chords.
+    enabled: (c) => onPiece(c) && c.hasTracks,
+    run: () => openExportLogic(),
+  },
   print: {
     id: 'print',
     label: () => t('menu.print'),
@@ -279,7 +288,7 @@ export const FABTICE_MENU: MenuNode[] = [
     kind: 'submenu',
     id: 'export',
     label: 'menu.export',
-    children: [cmd('exportAudio'), { kind: 'submenu', id: 'ireal', label: 'menu.ireal', children: [cmd('irealFile'), cmd('irealOpen')] }, cmd('pdf')],
+    children: [cmd('exportAudio'), { kind: 'submenu', id: 'ireal', label: 'menu.ireal', children: [cmd('irealFile'), cmd('irealOpen')] }, cmd('pdf'), cmd('exportLogic')],
   },
   cmd('print'),
   line,

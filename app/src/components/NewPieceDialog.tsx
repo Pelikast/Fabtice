@@ -174,7 +174,7 @@ function Choices({ open, desktop }: { open: boolean; desktop: boolean }) {
   const formatsLine = (
     <div className="pied">
       <span>{t('new.formats')}</span>
-      <span className="depot">{t('new.dropHint')}</span>
+      <span className="pied-depot">{t('new.dropHint')}</span>
     </div>
   );
   const updateOffer = toolUpdate && (

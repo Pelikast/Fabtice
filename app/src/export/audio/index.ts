@@ -8,12 +8,13 @@ import { runAudioExport } from './run';
 import type { ExportedFile, ExportPlan } from './types';
 
 export * from './types';
-export { planAudioExport, audibleTracks, safeFileName, changesSuffix } from './plan';
+export { planAudioExport, audibleTracks, safeFileName, changesSuffix, type ExportRequest } from './plan';
 export { runAudioExport } from './run';
 export { getEncoder, hasEncoder, registerEncoder } from './encoders';
 export { deliverable, type Delivered } from './deliver';
 export { zipStore, crc32 } from './zip';
 export { wavEncoder, wavHeader } from './wav';
+export { SincResampler } from './resample';
 
 /** Runs a plan with the app's renderer and audio (and the applied render when it matches). */
 export function exportWithApp(plan: ExportPlan, options: { onProgress?: (f: number) => void; signal?: AbortSignal }): Promise<ExportedFile> {

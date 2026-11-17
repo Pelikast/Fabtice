@@ -20,6 +20,7 @@ const printing = require('./printing');
 const { electronFetch, fetchStandardsText } = require('./standards-fetch');
 const { projectPathsIn } = require('./open-files');
 const { createProjects } = require('./projects');
+const { registerFolderIpc } = require('./folder-writer');
 const { createCloseGuard } = require('./close-guard');
 const { createAudioJournal, sourceFromUrl } = require('./audio-journal');
 const { installPowerEvents } = require('./power-events');
@@ -356,6 +357,15 @@ function registerIpc() {
 
   // Lot 4: `.fab` project files: the Finder, the recent list, the page's picker (projects.js).
   projects.registerIpc(handle);
+
+  // C15.4 « Dossier pour Logic Pro… »: a real folder, written here file by file (folder-writer.js).
+  // `dialog.showSaveDialog` and `shell.showItemInFolder` are read at call time (a test stands in for them).
+  registerFolderIpc(handle, {
+    dialog,
+    shell,
+    window: () => win,
+    downloadsDir: () => app.getPath('downloads'),
+  });
 
   // C5: the page says which project is open and whether it has changes not saved: the dot in the close button,
   // the proxy icon of the file in the title bar. The title itself is the page's (`document.title`).

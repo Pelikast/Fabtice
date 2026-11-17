@@ -12,6 +12,7 @@
 //   nouveau-projet-* (at launch, from a file, from a link, ticked box, link in the Mac app),
 //   grilles-* (the start-up message of the chord charts: question, progression, resultat, dernier-message),
 //   impression-* (the print window: une-page, plusieurs-pages),
+//   export-audio-* (« Exporter » ▸ « Audio… »: wave, wave-96-khz, flac, mp3, des-pistes, des-pistes-un-seul-fichier),
 //   chargement-* (the ember text of the top bar: separation, analyse).
 //
 // Each screen is reached the way the browser checks reach it (`lib/menu.mjs`, `lib/settings.mjs`; the states of
@@ -350,6 +351,36 @@ async function printWindow(form) {
   }
 }
 
+// ---------------------------------------------------------------- 5 bis. « Exporter » ▸ « Audio… »
+
+async function audioWindow(form) {
+  const context = await browser.newContext(contextOptions(form));
+  const page = await openPage(context, '?demo&moteur=factice&separation=faite');
+  await sleep(500);
+  await menuCommand(page, 'Exporter', 'Audio…');
+  await page.waitForSelector('[data-testid="export-son"]');
+  await sleep(400);
+  await snap(page, form, 'export-audio-wave');
+  await page.selectOption('[data-testid="export-frequence"]', '96000');
+  await press(page, page.locator('.exp-duo [data-bits="24"]'));
+  await sleep(200);
+  await snap(page, form, 'export-audio-wave-96-khz');
+  await press(page, page.locator('.exp-formats [data-format="flac"]'));
+  await sleep(200);
+  await snap(page, form, 'export-audio-flac');
+  await press(page, page.locator('.exp-formats [data-format="mp3"]'));
+  await sleep(200);
+  await snap(page, form, 'export-audio-mp3');
+  await press(page, page.locator('[data-testid="export-son"] [data-choix="tracks"]'));
+  await sleep(200);
+  if (form.phone) await page.locator('.exp-pistes').scrollIntoViewIfNeeded();
+  await snap(page, form, 'export-audio-des-pistes');
+  await press(page, page.locator('[data-testid="export-separes"]'));
+  await sleep(200);
+  await snap(page, form, 'export-audio-des-pistes-un-seul-fichier');
+  await context.close();
+}
+
 // ---------------------------------------------------------------- 6. loading in progress (the ember text of the top bar)
 
 async function loading(form) {
@@ -386,6 +417,7 @@ try {
       ['nouveau projet', newProject],
       ['grilles', chartMessage],
       ['impression', printWindow],
+      ['export audio', audioWindow],
       ['chargement', loading],
     ]) {
       try {

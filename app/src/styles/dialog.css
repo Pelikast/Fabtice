@@ -162,6 +162,8 @@
 
 /* ---------- Drop anywhere ---------- */
 
+/* The whole-window veil shown while a file is dragged over the app. The hint in the
+   window « Nouveau projet » has its own class (`pied-depot`): it must never take this one. */
 .depot {
   position: fixed;
   inset: 0;
@@ -218,7 +220,7 @@
 /* The phone's transport is taller (DESIGN.md « Téléphone »): keep the notice above it. */
 @media (max-width: 760px) {
   /* « déposer le fichier dans la fenêtre » is for a mouse: nothing to drag from on a phone. */
-  .pied .depot { display: none; }
+  .pied-depot { display: none; }
   .avis-stockage { bottom: 212px; }
 }
 

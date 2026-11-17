@@ -5,8 +5,10 @@
 import { describe, expect, it } from 'vitest';
 import { CHUNK, pcmFromChannels } from '../../../audio/pcm';
 import { ExportError } from '../types';
+import { MP3_KBPS } from '../../../model/audioExport';
 import { id3Title } from './id3';
 import { crc16, ENCODER_DELAY, frameBytes, mp3InfoFrame } from './mp3Info';
+import { mp3Bitrate } from './settings';
 import { WINDOW, type FromWorker, type ToWorker } from './protocol';
 import { createWorkerEncoder } from './workerEncoder';
 
@@ -25,6 +27,23 @@ describe('id3Title', () => {
   });
   it('is empty for an empty title', () => {
     expect(id3Title('  ').length).toBe(0);
+  });
+});
+
+describe('mp3 rates', () => {
+  it('every rate of the window has its frame size at 48 kHz (3 bytes per kbit/s, no padding) and a code in the Info frame', () => {
+    for (const k of MP3_KBPS) {
+      expect(frameBytes(k, 48000)).toBe(3 * k);
+      const f = mp3InfoFrame({ kbps: k, sampleRate: 48000, channels: 2, audioFrames: 100, samples: 100 * 1152 - 1105 });
+      expect(f.length).toBe(3 * k);
+      const code = f[2]! >> 4;
+      expect([0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320][code]).toBe(k);
+    }
+  });
+  it('the default is 320 kbit/s, the list runs from 96 to 320', () => {
+    expect(mp3Bitrate(undefined)).toBe(320);
+    expect(MP3_KBPS[0]).toBe(96);
+    expect(MP3_KBPS[MP3_KBPS.length - 1]).toBe(320);
   });
 });
 
@@ -126,6 +145,16 @@ describe('createWorkerEncoder', () => {
     expect(progress[progress.length - 1]).toBe(1);
     expect(progress.every((p, i) => i === 0 || p >= progress[i - 1]!)).toBe(true);
     expect(w.terminated).toBe(true);
+  });
+  it('tells the worker the constant bit rate asked (320 kbit/s by default, an unknown rate is the default)', async () => {
+    const rateOf = async (kbps: number | undefined) => {
+      const w = new FakeWorker();
+      await createWorkerEncoder(spec, () => w as unknown as Worker).encode(audio(1000), { kbps });
+      return (w.received[0] as { kbps: number }).kbps;
+    };
+    expect(await rateOf(undefined)).toBe(320);
+    for (const k of MP3_KBPS) expect(await rateOf(k)).toBe(k);
+    expect(await rateOf(100)).toBe(320);
   });
   it('sends one channel for a mono piece and for equal channels', async () => {
     const w = new FakeWorker();

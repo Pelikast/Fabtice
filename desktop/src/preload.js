@@ -72,6 +72,12 @@ contextBridge.exposeInMainWorld('fabtice', {
   restartProjectSave: (session) => ipcRenderer.invoke('fabtice:project-save-restart', String(session)),
   finishProjectSave: (session) => ipcRenderer.invoke('fabtice:project-save-finish', String(session)),
   abortProjectSave: (session) => ipcRenderer.invoke('fabtice:project-save-abort', String(session)),
+  // Folder exports (folder-writer.js): a new folder chosen in the system's panel, files written by chunks.
+  beginFolderExport: (request) => ipcRenderer.invoke('fabtice:folder-begin', { suggestedName: String((request && request.suggestedName) || '') }),
+  writeFolderFile: (session, name, offset, bytes) => ipcRenderer.invoke('fabtice:folder-write', String(session), String(name), Number(offset), bytes),
+  finishFolderExport: (session) => ipcRenderer.invoke('fabtice:folder-finish', String(session)),
+  abortFolderExport: (session) => ipcRenderer.invoke('fabtice:folder-abort', String(session)),
+  revealFolderExport: (session) => ipcRenderer.invoke('fabtice:folder-reveal', String(session)),
   // The title bar: the dot in the close button and the proxy icon of the file.
   reportProjectState: (state) => ipcRenderer.invoke('fabtice:project-state', {
     projectId: state && state.projectId ? String(state.projectId) : null,

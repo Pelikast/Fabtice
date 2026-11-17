@@ -284,11 +284,21 @@ Fonctionnement :
 - Pas de service worker dans l’app Mac : la version web hors ligne
   (`app/src/pwa/`) ne s’inscrit pas sur `fabtice://`, qui les refuse de toute
   façon, et la construction pour le Mac n’a ni manifeste ni `sw.js`.
+- **Exports en dossier** (« Dossier pour Logic Pro… », étape 3 de la 1.0.0) :
+  `src/folder-writer.js`. Le panneau d’enregistrement du système (« Enregistrer
+  le dossier ») donne le nom et l’endroit ; l’app crée un dossier **neuf**
+  (« nom 2 », « nom 3 »… si quelque chose porte déjà ce nom : rien n’est jamais
+  remplacé), puis la page envoie chaque fichier par morceaux de 8 Mo
+  (`fabtice:folder-write`, nom nettoyé, vérifié dans le dossier, créé une fois
+  puis complété dans l’ordre). `fabtice:folder-abort` retire ce que l’export a
+  écrit, puis le dossier s’il est vide ; `fabtice:folder-reveal` le montre dans
+  le Finder. La page ne voit jamais de chemin complet (le dossier personnel
+  s’écrit « ~ »).
 - **Barre de menus** (étape 2 de la 1.0.0) : `src/menu.js`, en français.
   Fabtice (À propos, Réglages… cmd + ,, Quitter), Fichier (Nouveau projet → À
   partir d’un lien YouTube… / d’un fichier audio…, Ouvrir…, Ouvrir un projet
   récent, Enregistrer, Enregistrer sous…, Exporter → Audio… / iReal Pro /
-  PDF…, Imprimer…), Édition (Annuler, Rétablir, puis couper, copier, coller),
+  PDF… / Dossier pour Logic Pro…, Imprimer…), Édition (Annuler, Rétablir, puis couper, copier, coller),
   Présentation, Fenêtre, Aide (Diagnostic…). Les commandes sont **celles du
   menu Fabtice de la page** (`app/src/ui/commands.ts`), sous les mêmes
   identifiants (`MENU_COMMANDS`, `LABELS`, `ACCELERATORS`).
