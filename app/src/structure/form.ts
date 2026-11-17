@@ -187,21 +187,33 @@ function bestLattice(toks: readonly BarTokens[], S: Float32Array, n: number, L: 
     const k = Math.floor((n - s + 2) / L);
     if (k < 2) continue;
     let score = 0;
+    const matched = new Uint8Array(k);
+    const pairScore = (a: number, b: number, t: number) => {
+      let pair = 0;
+      for (let j = 0; j < L; j++) {
+        const i1 = s + a * L + j;
+        const i2 = s + b * L + j;
+        if (i2 >= n) continue;
+        const v = t === 0 ? S[i1 * n + i2]! : barSim(toks[i1]!, toks[i2]!, -t);
+        if (!Number.isNaN(v)) pair += v - tau;
+      }
+      return pair;
+    };
     for (let a = 0; a < k; a++) {
-      // every chorus counts (a phase that leaves one out is not better for it), a chord change on its first bar a little more
-      score += 0.15 * L + (changesAt(toks, s + a * L) ? 0.5 : 0);
+      if (changesAt(toks, s + a * L)) score += 0.5;
       for (let b = a + 1; b < k && b <= a + NEIGHBOURS; b++) {
-        // a pair that does not match (a transposed chorus, a drum solo) counts nothing, not against
-        let pair = 0;
-        for (let j = 0; j < L; j++) {
-          const i2 = s + b * L + j;
-          if (i2 >= n) continue;
-          const v = S[(s + a * L + j) * n + i2]!;
-          if (!Number.isNaN(v)) pair += v - tau;
+        // a pair that does not match (a drum solo) counts nothing, not against; the last chorus may be a step up
+        let pair = pairScore(a, b, 0);
+        if (pair <= 0 && b === k - 1) for (const t of [1, 2, -1, -2]) pair = Math.max(pair, pairScore(a, b, t) - 2);
+        if (pair > 0) {
+          matched[a] = 1;
+          matched[b] = 1;
         }
         score += Math.max(0, pair) / Math.min(k - 1, NEIGHBOURS);
       }
     }
+    // every chorus that resembles another counts (a phase that leaves one out is not better for it)
+    for (let a = 0; a < k; a++) if (matched[a]) score += 0.15 * L;
     if (score > bestScore + 1e-9) {
       bestScore = score;
       bestS = s;
@@ -706,19 +718,37 @@ class Phrases {
  * intro on the last bars of the form is common, an outro on its first bars
  * much less).
  */
-function bestRotation(ph: Phrases, T: readonly BarTokens[], choruses: readonly Chorus[], n: number, len: number): number {
+/** Weight of the bars a rotation takes in or leaves out (the priors above weigh more: the chords alone often cannot tell). */
+const FIT_W = 0.3;
+function bestRotation(ph: Phrases, toks: readonly BarTokens[], T: readonly BarTokens[], choruses: readonly Chorus[], n: number, len: number, tau: number): number {
   const L = T.length;
-  if (len >= L) return 0;
-  const first = choruses[0]!.first;
-  const end = choruses[choruses.length - 1]!.end;
+  const c0 = choruses[0]!;
+  const cz = choruses[choruses.length - 1]!;
+  const first = c0.first;
+  const end = cz.end;
+  // how well a bar fits a position of the consensus (bars that a rotation brings into the run, or leaves out)
+  const fit = (bar: number, pos: number, t: number) => {
+    if (bar < 0 || bar >= n) return 0;
+    const v = barSimShift(T[((pos % L) + L) % L]!, toks[bar]!, -t);
+    return Number.isNaN(v) ? 0 : v - tau;
+  };
   let best = 0;
   let bestScore = -Infinity;
   for (let r = -Math.floor(L / 2) + 1; r <= Math.floor(L / 2); r++) {
-    const { letters, clean } = ph.letters(len, r);
-    let score = 4 * clean + (USUAL_FORMS.has(letters.join('')) ? 3 : 0);
+    let score = 0;
+    if (len < L) {
+      const { letters, clean } = ph.letters(len, r);
+      score += 8 * clean + (USUAL_FORMS.has(letters.join('')) ? 3 : 0);
+    }
     for (let p = 0; p < L; p += len) {
       const prev = T[(((p + r - 1) % L) + L) % L]!.slots;
       if (prev[prev.length - 1] !== T[(((p + r) % L) + L) % L]!.slots[0]) score += 0.25;
+    }
+    // the bars the moved run takes in or leaves out, as the alignment would count them
+    if (r > 0) {
+      for (let j = 0; j < r; j++) score += FIT_W * (fit(end + j, j, cz.transpose) - fit(first + j, j, c0.transpose));
+    } else if (r < 0) {
+      for (let j = r; j < 0; j++) score += FIT_W * (fit(first + j, L + j, c0.transpose) - fit(end + j, L + j, cz.transpose));
     }
     const f = first + r;
     const e = end + r;
@@ -1001,7 +1031,7 @@ export function analyseForm(bars: readonly HarmonyBar[], o: FormOptions): FormAn
       if (iter === 2) {
         const ph = new Phrases(toks, S, choruses, L, bg);
         const len = phraseLength(L, () => ph.same(0, 8, 8, 0) >= SAME_SECTION);
-        const r = bestRotation(ph, T, choruses, n, len);
+        const r = bestRotation(ph, toks, T, choruses, n, len, Math.min(0.6, Math.max(0.2, bg + 0.4 * (crossAgreement(toks, choruses, L) - bg))));
         if (r === 0) break;
         T = T.map((_, j) => T[(((j + r) % L) + L) % L]!);
       }

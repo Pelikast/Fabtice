@@ -71,6 +71,9 @@ interface Group {
 }
 
 const isLetter = (l: Occurrence['label']): l is { letter: string } => 'letter' in l;
+
+/** A bar played in a theme votes this much more than a bar of a solo. */
+const THEME_WEIGHT = 1.5;
 const labelKey = (l: Occurrence['label']) => (isLetter(l) ? `L:${l.letter}` : `P:${l.part}`);
 
 // ---------------------------------------------------------------- beats
@@ -293,6 +296,68 @@ function positions(len: number, length: number): Int16Array {
   return out;
 }
 
+/**
+ * Written positions of an occurrence whose length differs from the written
+ * one (a bar dropped or added by the grid, letters placed by hand): a small
+ * time warp against the group's majority chords (−1: a bar not written).
+ */
+function alignPositions(bars: readonly HarmonyBar[], o: Occurrence, rows: readonly number[][]): Int16Array {
+  const len = o.end - o.first;
+  const L = rows.length;
+  const W = L + 1;
+  const D = new Float64Array((len + 1) * W).fill(Infinity);
+  const M = new Int8Array((len + 1) * W);
+  D[0] = 0;
+  const skip = 0.6;
+  for (let i = 0; i <= len; i++) {
+    for (let j = 0; j <= L; j++) {
+      if (!i && !j) continue;
+      let best = Infinity;
+      let move = 0;
+      if (i && j) {
+        const v = D[(i - 1) * W + j - 1]! + (1 - agreement(barTok(bars[o.first + i - 1]!), rows[j - 1]!));
+        if (v < best) {
+          best = v;
+          move = 1;
+        }
+      }
+      if (i) {
+        const v = D[(i - 1) * W + j]! + skip;
+        if (v < best) {
+          best = v;
+          move = 2;
+        }
+      }
+      if (j) {
+        const v = D[i * W + j - 1]! + skip;
+        if (v < best) {
+          best = v;
+          move = 3;
+        }
+      }
+      D[i * W + j] = best;
+      M[i * W + j] = move;
+    }
+  }
+  const out = new Int16Array(len).fill(-1);
+  let i = len;
+  let j = L;
+  while (i > 0 || j > 0) {
+    const m = M[i * W + j]!;
+    if (m === 1) {
+      out[i - 1] = j - 1;
+      i--;
+      j--;
+    } else if (m === 2) {
+      // an extra bar: written where its neighbour is
+      out[i - 1] = Math.max(0, Math.min(L - 1, j - 1));
+      i--;
+    } else if (m === 3) j--;
+    else break;
+  }
+  return out;
+}
+
 /** Splits the written length of a group: the most common length among its occurrences (the first one's on a tie). */
 function writtenLength(occ: readonly Occurrence[]): number {
   const n = new Map<number, number>();
@@ -465,7 +530,12 @@ function simplify(input: SimplifyInput): SimplifiedChart | null {
   // lengths and positions
   for (const g of groups) {
     g.length = g.tag || (isLetter(g.label) ? writtenLength(g.occ) : g.occ[0]!.end - g.occ[0]!.first);
-    g.map = g.occ.map((o) => positions(o.end - o.first, g.length));
+    const rows = isLetter(g.label) && !g.tag ? groupTokens(bars, g.occ) : [];
+    g.map = g.occ.map((o) => {
+      const len = o.end - o.first;
+      if (len === g.length || rows.length !== g.length || len > 2 * g.length) return positions(len, g.length);
+      return alignPositions(bars, o, rows);
+    });
   }
   // written order: first appearance; ids
   groups.sort((a, b) => a.occ[0]!.first - b.occ[0]!.first);
@@ -506,26 +576,57 @@ function simplify(input: SimplifyInput): SimplifiedChart | null {
       });
       const ref = played[0]?.bar ?? bars[g.occ[0]!.first]!;
       const beats = Math.max(1, Math.round(ref.beats) || 1);
-      const perBeat = Array.from({ length: beats }, () => [] as { chord: ChordSymbol | null; w: number }[]);
-      for (const { bar } of played) {
+      // the bar's rhythm first (one chord, or a second one on the middle of the bar), voted over the repeats
+      const half = beats >= 4 && beats % 2 === 0 ? beats / 2 : -1;
+      const readings = played.map(({ bar, i }) => {
         const bc = beatChords(bar);
-        for (let k = 0; k < beats; k++) perBeat[k]!.push(bc[Math.floor((k * bc.length) / beats)]!);
+        const p = partAt(i);
+        // the theme's harmony is the written one: solos reharmonise
+        const wt = p && (p.type === 'theme' || p.type === 'verse' || p.type === 'chorus') ? THEME_WEIGHT : 1;
+        const at = (k: number) => bc[Math.floor((k * bc.length) / beats)]!;
+        let split = false;
+        if (half > 0) {
+          const a = at(0).chord;
+          const b = at(half).chord;
+          // a change near the middle (one beat early or late included) splits the bar
+          split = !sameChordish(a, b) && (sameChordish(at(half - 1).chord, a) || sameChordish(at(half + 1 < beats ? half + 1 : half).chord, b));
+        }
+        return { at, wt, split };
+      });
+      let splitW = 0;
+      let wholeW = 0;
+      for (const r of readings) {
+        if (r.split) splitW += r.wt;
+        else wholeW += r.wt;
       }
+      // the known chart is one more voice, half a repeat
       const knownBar = isLetter(g.label) ? known(g.label.letter, pos) : null;
+      if (knownBar && half > 0) {
+        if (sameChordish(knownBar[0] ?? null, knownBar[Math.floor((half * knownBar.length) / beats)] ?? null)) wholeW += 0.5;
+        else splitW += 0.5;
+      }
+      const segments = half > 0 && splitW > wholeW ? [[0, half], [half, beats]] : [[0, beats]];
       const chords: WrittenChord[] = [];
       let last: ChordSymbol | null | undefined;
-      for (let k = 0; k < beats; k++) {
-        const { chord: c, alt } = consensusChord(perBeat[k]!, knownBar?.[Math.floor((k * knownBar.length) / beats)] ?? null, tonic, last ?? lastWritten);
+      for (const [from, to] of segments as [number, number][]) {
+        // each reading votes for what sounds in the segment, beat by beat (a chord a beat off still votes mostly right)
+        const entries: { chord: ChordSymbol | null; w: number }[] = [];
+        for (const r of readings) for (let k = from; k < to; k++) {
+          const x = r.at(k);
+          entries.push({ chord: x.chord, w: (x.w * r.wt) / (to - from) });
+        }
+        const kb = knownBar?.[Math.floor((from * knownBar.length) / beats)] ?? null;
+        const { chord: c, alt } = consensusChord(entries, kb, tonic, last ?? lastWritten);
         const same = last !== undefined && (c === null ? last === null : last !== null && last.root === c.root && last.quality === c.quality);
         if (!same) {
-          const wc = { beat: k, chord: c };
+          const wc = { beat: from, chord: c };
           chords.push(wc);
           if (alt !== null) alts.set(wc, alt);
         }
         last = c;
       }
       if (last !== undefined) lastWritten = last;
-      const tidy = tidyBeats(chords, beats);
+      const tidy = chords.length ? chords : [{ beat: 0, chord: null }];
       const simile = pos > 0 && prevChords !== null && sameWritten(prevChords, tidy);
       const meter = ref.meter;
       const signature = several && (prevMeter === null || !sameMeter(prevMeter, meter)) ? { ...meter } : null;
@@ -722,21 +823,10 @@ function timesOf(g: Group, groupOf: ReadonlyMap<Occurrence, Group>, letterOcc: r
   return times;
 }
 
-/** Chords on their beats, as a chart writes them: a change after the second beat of a 4-beat bar stays, one-beat flickers go. */
-function tidyBeats(chords: WrittenChord[], beats: number): WrittenChord[] {
-  if (chords.length <= 1) return chords;
-  // a chord lasting a single beat between two others in a bar of four or more is a reading accident unless it is on beat 3 (Real Book: two chords, second on beat 3)
-  const out: WrittenChord[] = [];
-  for (let k = 0; k < chords.length; k++) {
-    const c = chords[k]!;
-    const next = chords[k + 1]?.beat ?? beats;
-    const dur = next - c.beat;
-    if (beats >= 4 && dur === 1 && k > 0 && k < chords.length - 1) continue;
-    const prev = out[out.length - 1];
-    if (prev && (prev.chord === null ? c.chord === null : c.chord !== null && prev.chord.root === c.chord.root && prev.chord.quality === c.chord.quality)) continue;
-    out.push(c);
-  }
-  return out;
+/** Same root and family (or both N.C.). */
+function sameChordish(a: ChordSymbol | null, b: ChordSymbol | null): boolean {
+  if (!a || !b) return a === b;
+  return a.root === b.root && FAMILY_OF[a.quality] === FAMILY_OF[b.quality];
 }
 
 /** The known chart's chord per beat at a position of a letter, in the recording's key (null when none fits). */

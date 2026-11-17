@@ -81,6 +81,21 @@ export interface StructureEvidence {
   timbre: { bands: number; data: Float32Array };
   /** The instrument heard in the track where the winds fall (« Autres »), per bar; null when the recogniser was not run. */
   winds: (InstrumentGuess | null)[] | null;
+  /**
+   * Added by `evidence.ts` (optional: absent in the bench's simulated
+   * evidence and when no separated track is in memory): the melody each
+   * lead-capable separated track plays, per eighth of a bar. A theme plays
+   * the same melody at each repeat of a section, a solo does not.
+   */
+  melody?: MelodyEvidence;
+}
+
+/** The melody of the separated tracks, slot by slot (`StructureEvidence.melody`). */
+export interface MelodyEvidence {
+  /** Slots per bar (8: eighths of a 4/4 bar; a bar of any length is cut in as many). */
+  slots: number;
+  /** Per track, `bars × slots` pitch classes (0…11), 255 where no pitch stands out. */
+  stems: Partial<Record<StemId, Uint8Array>>;
 }
 
 /** One reading of the instrument recogniser. */

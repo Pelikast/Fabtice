@@ -378,6 +378,13 @@ function formStretches(input: PartsInput, from: number, to: number): { stretches
   return { stretches: out, named: !!stems };
 }
 
+/** The same soloist as far as we can tell: the same name, or « Vents » against a wind name (the recogniser was unsure once). */
+function sameSoloist(a: PartInstrument | null, b: PartInstrument | null): boolean {
+  return a === b || ((a === WINDS_UNSURE || b === WINDS_UNSURE) && a !== null && b !== null && WIND_NAMES.has(a) && WIND_NAMES.has(b));
+}
+
+const WIND_NAMES = new Set<PartInstrument>([WINDS_UNSURE, 'trumpet', 'saxophone', 'trombone', 'clarinet', 'flute', 'vibraphone', 'violin', 'organ']);
+
 /** Solo numbers: none when every soloist is named and plays once; else 1, 2, 3… */
 function numberSolos(parts: BarPart[]): void {
   const solos = parts.filter((p) => p.type === 'solo');
@@ -393,6 +400,76 @@ function edges(input: PartsInput, l: Layout): { intro: BarPart | null; outro: Ba
   const intro = l.introEnd > input.chordsFirst ? { type: 'intro' as const, number: null, instrument: null, first: input.chordsFirst, end: l.introEnd } : null;
   const outro = l.outroStart < input.chordsEnd ? { type: 'outro' as const, number: null, instrument: null, first: l.outroStart, end: input.chordsEnd } : null;
   return { intro, outro };
+}
+
+/** A slot with no clear pitch (`evidence.ts#MELODY_NONE`). */
+const NO_PITCH = 255;
+
+/**
+ * How much each played section's melody (on `lead`'s separated track)
+ * recurs: the best agreement, slot by slot, with another occurrence of the
+ * same letter (another chorus, or the same chorus: A1 and A2 of a theme).
+ * A theme scores high, a solo near chance. NaN where too little sounds.
+ */
+export function melodyRecurrence(input: PartsInput, lead: Lead): Float64Array | null {
+  const l = input.layout;
+  const mel = input.evidence?.melody;
+  const track = mel?.stems[lead as StemId];
+  if (!l || !mel || !track || !l.sections.length) return null;
+  const S = mel.slots;
+  const secs = l.sections;
+  const transpose = (s: (typeof secs)[number]) => (s.chorus >= 0 ? l.choruses[s.chorus]?.transpose ?? 0 : 0);
+  const out = new Float64Array(secs.length).fill(NaN);
+  secs.forEach((a, ia) => {
+    let best = NaN;
+    secs.forEach((b, ib) => {
+      if (ib === ia || b.letter !== a.letter) return;
+      const len = Math.min(a.end - a.first, b.end - b.first);
+      const shift = transpose(b) - transpose(a);
+      let same = 0;
+      let both = 0;
+      for (let k = 0; k < len * S; k++) {
+        const x = track[(a.first * S) + k];
+        const y = track[(b.first * S) + k];
+        if (x === undefined || y === undefined || x === NO_PITCH || y === NO_PITCH) continue;
+        both++;
+        if ((x - y + shift + 120) % 12 === 0) same++;
+      }
+      if (both < 0.25 * len * S) return;
+      const v = same / both;
+      if (!(v <= best)) best = v;
+    });
+    out[ia] = best;
+  });
+  return out;
+}
+
+/** A section whose melody recurs this well is the theme (chance is about 0.2 for a solo over the same chords). */
+const THEME_RECURRENCE = 0.45;
+
+/**
+ * The stretches the « Autres » track leads, cut at chorus starts: where the
+ * wind recogniser should listen (`evidence.ts#windsExcerpts`).
+ */
+export function windsStretches(input: PartsInput): { first: number; end: number }[] {
+  const l = input.layout;
+  const from = l ? l.introEnd : 0;
+  const to = l ? l.outroStart : input.n;
+  const found = input.evidence?.stems ? formStretches({ ...input, evidence: { ...input.evidence, winds: null } }, from, to) : null;
+  if (!found) return [];
+  const grid = gridStrength(l, input.n);
+  const out: { first: number; end: number }[] = [];
+  for (const s of found.stretches) {
+    if (s.lead !== 'other' && s.lead !== 'winds' && s.lead !== 'brass' && s.lead !== 'saxophone') continue;
+    let first = s.first;
+    for (let i = s.first + 1; i <= s.end; i++) {
+      if (i === s.end || grid[i]! >= 3) {
+        if (i - first >= 2) out.push({ first, end: i });
+        first = i;
+      }
+    }
+  }
+  return out;
 }
 
 /** Jazz parts (see the header). */
@@ -430,19 +507,48 @@ export function jazzParts(input: PartsInput): BarPart[] {
   }
   const st = found.stretches;
   const head = st[0]!;
-  // opening theme: the first lead, for one chorus (two for a short form) unless it stops earlier
-  const capEnd = choruses[Math.min(choruses.length, headChoruses) - 1]!.end;
-  const themeEnd = Math.min(head.end, capEnd);
-  const headLen = themeEnd - formFirst;
-  // closing theme: the last stretch of the same lead that reaches the end of the form, at most as long
-  let closing: { first: number; end: number } | null = null;
   const last = st[st.length - 1]!;
-  if (st.length > 1 && head.lead !== 'none' && last.lead === head.lead && last.instrument === head.instrument && last.end >= formEnd - 1) {
-    const first = Math.max(last.first, formEnd - headLen, themeEnd);
-    if (formEnd - first >= 4) closing = { first, end: formEnd };
+  // with the melody of the separated tracks: the theme is where the head's melody recurs
+  const rec = head.lead !== 'none' ? melodyRecurrence(input, head.lead) : null;
+  const recOf = (i: number) => rec?.[i] ?? NaN;
+  const secs = l.sections;
+  let themeEnd: number;
+  let closingFirst: number | null = null;
+  const melodic = rec !== null && secs.some((x, i) => x.first < head.end && !Number.isNaN(recOf(i)));
+  if (melodic) {
+    // opening theme: the choruses of the head lead whose sections recur (on average)
+    const chorusRec = (ci: number) => {
+      const v = secs.map((x, i) => (x.chorus === ci ? recOf(i) : NaN)).filter((x) => !Number.isNaN(x));
+      return v.length ? v.reduce((a, b) => a + b, 0) / v.length : NaN;
+    };
+    let k = 0;
+    while (k < choruses.length && choruses[k]!.end <= head.end + 1 && chorusRec(k) >= THEME_RECURRENCE) k++;
+    themeEnd = k > 0 ? Math.min(head.end, choruses[k - 1]!.end) : Math.min(head.end, choruses[Math.min(choruses.length, headChoruses) - 1]!.end);
+    // closing theme: the trailing sections of the last stretch, by the head lead, whose melody recurs
+    if (st.length > 1 && last.lead === head.lead && sameSoloist(last.instrument, head.instrument) && last.end >= formEnd - 1) {
+      let first: number | null = null;
+      for (let i = secs.length - 1; i >= 0; i--) {
+        const x = secs[i]!;
+        if (x.first < Math.max(last.first, themeEnd)) break;
+        if (recOf(i) >= THEME_RECURRENCE) first = x.first;
+        else break;
+      }
+      if (first !== null && formEnd - first >= 4) closingFirst = first;
+    }
+  } else {
+    // opening theme: the first lead, for one chorus (two for a short form) unless it stops earlier
+    themeEnd = Math.min(head.end, choruses[Math.min(choruses.length, headChoruses) - 1]!.end);
+    // closing theme: the last stretch of the same lead that reaches the end of the form, at most as long
+    if (st.length > 1 && head.lead !== 'none' && last.lead === head.lead && sameSoloist(last.instrument, head.instrument) && last.end >= formEnd - 1) {
+      const first = Math.max(last.first, formEnd - (themeEnd - formFirst), themeEnd);
+      if (formEnd - first >= 4) closingFirst = first;
+    }
   }
+  const closing = closingFirst !== null ? { first: closingFirst, end: formEnd } : null;
   const themes = closing ? 2 : 1;
-  parts.push({ type: 'theme', number: themes === 2 ? 1 : null, instrument: head.instrument, first: formFirst, end: themeEnd });
+  // the name of the theme's lead: the surer of its two readings
+  const themeName = closing && head.instrument === WINDS_UNSURE ? last.instrument : head.instrument;
+  parts.push({ type: 'theme', number: themes === 2 ? 1 : null, instrument: themeName, first: formFirst, end: themeEnd });
   const soloTo = closing ? closing.first : formEnd;
   for (const s of st) {
     const first = Math.max(s.first, themeEnd);
@@ -456,7 +562,7 @@ export function jazzParts(input: PartsInput): BarPart[] {
     }
     parts.push({ type: 'solo', number: null, instrument: s.instrument, first, end });
   }
-  if (closing) parts.push({ type: 'theme', number: 2, instrument: head.instrument, first: closing.first, end: closing.end });
+  if (closing) parts.push({ type: 'theme', number: 2, instrument: themeName, first: closing.first, end: closing.end });
   numberSolos(parts);
   if (outro) parts.push(outro);
   return parts;

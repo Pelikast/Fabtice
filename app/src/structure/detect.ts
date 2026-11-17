@@ -41,14 +41,14 @@ export function seventhShare(bars: readonly HarmonyBar[]): number {
       while (ci < chords.length && chords[ci]!.beat <= k + 1e-6) cur = chords[ci++]!.chord;
       if (!cur) continue;
       all++;
-      if (SEVENTHS.has(cur.quality) || cur.extensions.length > 0) sevenths++;
+      if (SEVENTHS.has(cur.quality)) sevenths++;
     }
   }
   return all ? sevenths / all : 0;
 }
 
-/** Jazz below this share of triads… i.e. Pop when fewer beats than this sound a seventh. */
-export const POP_SEVENTHS = 0.45;
+/** Pop when fewer beats than this sound a seventh or a sixth chord (the bench: pop ≤ 0.21, trad jazz ≥ 0.40, other jazz more). */
+export const POP_SEVENTHS = 0.3;
 
 /** The likeliest mode (see the header). */
 export function chooseMode(bars: readonly HarmonyBar[], fa: FormAnalysis): StructureMode {
