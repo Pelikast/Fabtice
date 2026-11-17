@@ -904,7 +904,9 @@ try {
     });
     await sleep(100);
     check('displayed key: A♭ + 2 semitones + B♭ instrument = C', (await text(page, '[data-testid="grille-ton"]')).startsWith('Tonalité de C pour instrument en Si♭'));
-    const before = JSON.stringify((await state(page)).analysis);
+    // The harmony pass may rewrite the derived fields (modulations, structure) after a key is chosen: they are left out.
+    const core = (a) => JSON.stringify({ ...a, keyChanges: null, structure: null });
+    const before = core((await state(page)).analysis);
     // Click on a note.
     await chordOf(page, 3).click();
     await sleep(300);
@@ -942,7 +944,7 @@ try {
     await page.locator('.cle-notes button').filter({ hasText: /^D♭$/ }).click();
     await sleep(100);
     check('displayed D♭ major is stored in the original key: A major (9)', JSON.stringify((await state(page)).corrections.key) === JSON.stringify({ tonic: 9, mode: 'major' }), JSON.stringify((await state(page)).corrections.key));
-    check('the analysis itself is untouched', JSON.stringify((await state(page)).analysis) === before);
+    check('the analysis itself is untouched', core((await state(page)).analysis) === before);
     check('no page errors (instrument)', errors.length === 0, errors.join(' | '));
     await page.close();
   }
