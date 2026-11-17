@@ -102,7 +102,10 @@ async function launch(bundle, env) {
   return { app, page };
 }
 
-const status = (page) => page.evaluate(() => window.fabtice.updateStatus());
+/** A promise, or a rejection after `ms` (a call to a process that is going away must not hang the trial). */
+const within = (promise, ms, what) => Promise.race([promise, new Promise((_, reject) => setTimeout(() => reject(new Error(`${what}: no answer in ${ms} ms`)), ms))]);
+const status = (page) => within(page.evaluate(() => window.fabtice.updateStatus()), 5000, 'status');
+const closeApp = (app) => within(app.close(), 15000, 'close').catch(() => {});
 
 async function waitFor(get, ok, ms, what) {
   const end = Date.now() + ms;
@@ -213,7 +216,7 @@ async function main() {
     if (last && last.error) throw new Error(`the update failed: ${JSON.stringify(last.error)}`);
     log('phases seen', phases.join(' → '));
     await waitFor(() => processGone(oldPid), (g) => g, 60000, 'the old app quits');
-    await app.close().catch(() => {});
+    await closeApp(app);
     // The relaunched app, started by `open -n` once the old one had quit, writes its report.
     const r = await waitFor(() => JSON.parse(fs.readFileSync(report, 'utf8')), (x) => x.pid !== oldPid, 120000, 'report of the relaunched app');
     copyOut(report, `trial-${ARCH}-report-update.json.txt`);
@@ -246,7 +249,7 @@ async function main() {
     // And it starts again, by itself, on its new number.
     const again = await launch(bundle, { FABTICE_USER_DATA: path.join(work, 'user-data-update') });
     assert.equal(await again.app.evaluate(({ app: a }) => a.getVersion()), next);
-    await again.app.close();
+    await closeApp(again.app);
     await net.close();
   });
 
@@ -261,12 +264,12 @@ async function main() {
     assert.deepEqual(await page.evaluate(() => window.fabtice.startUpdate()), { ok: true });
     const s = await waitFor(() => status(page), (x) => x.phase === 'available' && x.error, 5 * 60000, 'refusal');
     assert.deepEqual(s.error, { code: 'damaged', during: 'update' });
-    await app.close();
+    await closeApp(app);
     assert.equal(plistValue(bundle, 'CFBundleShortVersionString'), current);
     assert.deepEqual(fs.readdirSync(folder).sort(), ['Fabtice.app'], 'nothing left beside it');
     const again = await launch(bundle, env);
     assert.equal(await again.app.evaluate(({ app: a }) => a.getVersion()), current, 'it still starts, on its number');
-    await again.app.close();
+    await closeApp(again.app);
     await net.close();
   });
 
@@ -281,7 +284,7 @@ async function main() {
       const s = await page.evaluate(() => window.fabtice.checkForUpdate('page'));
       assert.deepEqual(s.blocked, { code: 'not-writable' });
       assert.deepEqual(await page.evaluate(() => window.fabtice.startUpdate()), { ok: false, reason: 'not-writable' });
-      await app.close();
+      await closeApp(app);
       assert.equal(plistValue(bundle, 'CFBundleShortVersionString'), current);
       assert.ok(!net.seen.some((u) => u.endsWith('.zip')), 'nothing downloaded');
     } finally {
@@ -301,7 +304,7 @@ async function main() {
     const s = await page.evaluate(() => window.fabtice.checkForUpdate('page'));
     assert.deepEqual(s.blocked, { code: 'translocated' });
     assert.deepEqual(await page.evaluate(() => window.fabtice.startUpdate()), { ok: false, reason: 'translocated' });
-    await app.close();
+    await closeApp(app);
     assert.deepEqual(fs.readdirSync(folder), ['Fabtice.app']);
     await net.close();
   });
