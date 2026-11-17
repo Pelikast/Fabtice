@@ -65,15 +65,23 @@ test('notes « en préparation »: a real publication stops, a dry run warns lou
   }
 });
 
-test('already published: a published release or the tag means nothing to do; a draft must be looked at', () => {
+test('already published: a published release means nothing to do; a tag alone or a draft must be looked at', () => {
   const lines = 'abc123\trefs/tags/v1.0.1\n';
   assert.deepEqual(publishedState('v1.0.1', '', []), { state: 'new' });
   assert.deepEqual(publishedState('v1.0.1', '', [{ tag_name: 'desktop-dev', draft: false, id: 1 }, { tag_name: 'v1.0.0', draft: false, id: 2 }]), { state: 'new' });
-  assert.equal(publishedState('v1.0.1', lines, []).state, 'published');
   assert.equal(publishedState('v1.0.1', 'abc\trefs/tags/v1.0.10\n', []).state, 'new');
   assert.equal(publishedState('v1.0.1', '', [{ tag_name: 'v1.0.1', draft: false, id: 3 }]).state, 'published');
+  assert.equal(publishedState('v1.0.1', lines, [{ tag_name: 'v1.0.1', draft: false, id: 3 }]).state, 'published');
   assert.equal(publishedState('v1.0.1', '', [{ tag_name: 'v1.0.1', draft: true, id: 3 }]).state, 'draft');
-  assert.equal(publishedState('v1.0.1', lines, [{ tag_name: 'v1.0.1', draft: true, id: 3 }]).state, 'published');
+  // The tag without a published release of this number: stop, and say what to look at.
+  const alone = publishedState('v1.0.1', lines, [{ tag_name: 'v1.0.0', draft: false, id: 2 }]);
+  assert.equal(alone.state, 'tag-only');
+  assert.match(alone.reason, /l’étiquette v1\.0\.1 existe \(abc123\) mais aucune version publiée ne porte ce numéro : .*supprimer l’étiquette v1\.0\.1/);
+  assert.equal(publishedState('v1.0.1', lines, []).state, 'tag-only');
+  assert.match(publishedState('v1.0.1', lines, [{ tag_name: 'v1.0.1', draft: true, id: 3 }]).reason, /seulement un brouillon/);
+  // Releases not read (a dry run without gh): the tag alone says « already there ».
+  assert.equal(publishedState('v1.0.1', lines, null).state, 'published');
+  assert.deepEqual(publishedState('v1.0.1', '', null), { state: 'new' });
 });
 
 test('the notes: which file to download, then the version file’s notes unchanged', () => {
@@ -182,8 +190,8 @@ test('dry run without gh: the tag is still checked by git', (t) => {
   assert.match(r.stdout, /RIEN À PUBLIER : l’étiquette/);
 });
 
-test('already published (release or tag): nothing is published or changed, success', (t) => {
-  for (const opts of [{ releases: [{ id: 5, tag_name: TAG, draft: false, prerelease: false, html_url: 'https://x', assets: [] }] }, { tagged: true }]) {
+test('already published: nothing is published or changed, success', (t) => {
+  for (const opts of [{ releases: [{ id: 5, tag_name: TAG, draft: false, prerelease: false, html_url: 'https://x', assets: [] }] }, { tagged: true, releases: [{ id: 5, tag_name: TAG, draft: false, prerelease: false, html_url: 'https://x', assets: [] }] }]) {
     const s = setup(opts);
     t.after(s.cleanup);
     for (const extra of [[], ['--dry-run']]) {
@@ -193,6 +201,18 @@ test('already published (release or tag): nothing is published or changed, succe
     }
     assert.deepEqual(writes(s.state().calls), []);
   }
+});
+
+test('the tag of this number without a published release: nothing done, failure that says what to look at', (t) => {
+  const s = setup({ tagged: true, releases: [{ id: 1, tag_name: 'desktop-dev', draft: false, prerelease: true, assets: [] }] });
+  t.after(s.cleanup);
+  for (const extra of [[], ['--dry-run']]) {
+    const r = s.runScript(...extra);
+    assert.equal(r.code, 1, r.out);
+    assert.match(r.out, new RegExp(`ERREUR : l’étiquette ${TAG.replace(/\./g, '\\.')} existe .* mais aucune version publiée ne porte ce numéro`));
+    assert.doesNotMatch(r.out, /RIEN À PUBLIER/);
+  }
+  assert.deepEqual(writes(s.state().calls), []);
 });
 
 test('a draft of this number left by a stopped run: nothing done, failure that says to delete it by hand', (t) => {

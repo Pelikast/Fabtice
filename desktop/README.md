@@ -753,13 +753,15 @@ fabrique rien), et à la main (« Run workflow ») sur n’importe quelle branch
       `vV`. Si la première section de `CHANGELOG.md` dit encore « En
       préparation », tout s’arrête là, en rouge, avant toute commande `gh`
       (l’essai à blanc le dit en gros, au début et à la fin, et continue) ;
-   2. **déjà publiée ?** Si l’étiquette `vV` existe, ou une release `vV`
-      publiée : **rien n’est publié ni modifié** (aucun fichier remplacé,
-      aucune étiquette déplacée), le journal le dit (« RIEN À PUBLIER ») et
-      la tâche finit en vert. Un envoi sur `main` sans nouveau numéro
-      fabrique et essaie donc tout, mais ne republie pas. Si un **brouillon**
-      `vV` traîne (fabrication interrompue au milieu) : rien non plus, mais en
-      rouge, pour qu’on le supprime à la main sur GitHub avant de relancer ;
+   2. **déjà publiée ?** Si une release `vV` est publiée : **rien n’est
+      publié ni modifié** (aucun fichier remplacé, aucune étiquette
+      déplacée), le journal le dit (« RIEN À PUBLIER ») et la tâche finit en
+      vert. Un envoi sur `main` sans nouveau numéro fabrique et essaie donc
+      tout, mais ne republie pas. Si un **brouillon** `vV` traîne
+      (fabrication interrompue au milieu), ou si l’**étiquette** `vV` existe
+      sans release publiée de ce numéro (étiquette poussée à la main,
+      version supprimée) : rien non plus, mais en rouge, avec la phrase qui
+      dit quoi regarder et supprimer à la main sur GitHub avant de relancer ;
    3. `fabtice-version.json` est fait par `ci/make-version-file.js` à partir
       des deux `.zip` (adresses de l’étiquette `vV`), et les notes de la
       release : quel fichier télécharger (puce Apple ou Intel, comment le

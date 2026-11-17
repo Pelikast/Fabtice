@@ -14,9 +14,10 @@
 //            « en préparation »: a real publication stops here (exit 1, before any gh command); a dry run says
 //            it loudly and goes on;
 //         2. already published? the tag vV on the remote (git ls-remote) and every release of the project
-//            (gh api, drafts included). The tag or a published release exists: nothing is published, nothing
-//            is changed, exit 0. A draft of vV exists (a run that stopped in the middle): nothing either,
-//            exit 1, because a person must look at it and delete it;
+//            (gh api, drafts included). A published release vV exists: nothing is published, nothing is
+//            changed, exit 0. The tag vV exists without a published release vV (a tag pushed by hand, a
+//            release deleted), or a draft of vV exists (a run that stopped in the middle): nothing either,
+//            exit 1, because a person must look at it;
 //         3. fabtice-version.json made by ci/make-version-file.js from the two zips (URLs of the tag vV), and
 //            the notes of the release (which file to download, then the same notes as the version file);
 //         4. a DRAFT release « Fabtice V » for the tag vV on the commit (a draft creates no tag), the five
@@ -91,15 +92,23 @@ function preparationVerdict(changelog, dryRun) {
  * Is this version already on GitHub?
  * @param {string} tag
  * @param {string} lsRemote  output of `git ls-remote --tags <remote> refs/tags/<tag>`
- * @param {Array<{ tag_name: string, draft: boolean, id: number, html_url?: string }>} releases
- * @returns {{ state: 'new' } | { state: 'published', reason: string } | { state: 'draft', reason: string }}
+ * @param {Array<{ tag_name: string, draft: boolean, id: number, html_url?: string }> | null} releases  null: not
+ *   read (a dry run without gh), only the tag is known
+ * @returns {{ state: 'new' } | { state: 'published' | 'tag-only' | 'draft', reason: string }}
  */
 function publishedState(tag, lsRemote, releases) {
   const tagLine = String(lsRemote || '').split('\n').find((l) => l.split(/\s+/)[1] === `refs/tags/${tag}`);
+  const tagSha = tagLine ? tagLine.split(/\s+/)[0] : null;
+  if (releases === null) return tagSha ? { state: 'published', reason: `l’étiquette ${tag} existe déjà (${tagSha} ; les releases n’ont pas pu être lues ici)` } : { state: 'new' };
   const same = releases.filter((r) => r.tag_name === tag);
   const published = same.find((r) => !r.draft);
   if (published) return { state: 'published', reason: `la version ${tag} est déjà publiée (${published.html_url || `release ${published.id}`})` };
-  if (tagLine) return { state: 'published', reason: `l’étiquette ${tag} existe déjà (${tagLine.split(/\s+/)[0]})` };
+  if (tagSha) {
+    return {
+      state: 'tag-only',
+      reason: `l’étiquette ${tag} existe (${tagSha}) mais aucune version publiée ne porte ce numéro${same.length ? ' (seulement un brouillon)' : ''} : une étiquette poussée à la main, ou une version supprimée. Regarder sur GitHub : si rien n’a été publié sous ce numéro, supprimer l’étiquette ${tag} (et le brouillon s’il y en a un) puis relancer ; sinon changer de numéro`,
+    };
+  }
   const draft = same.find((r) => r.draft);
   if (draft) return { state: 'draft', reason: `un brouillon de la version ${tag} existe (release ${draft.id}), laissé par une fabrication interrompue : le supprimer à la main sur GitHub, puis relancer` };
   return { state: 'new' };
@@ -231,7 +240,7 @@ function publish({ assetsDir, dryRun, outDir }) {
   const ls = run('git', ['ls-remote', '--tags', remote, `refs/tags/${tag}`]);
   log(`$ git ls-remote --tags ${remote} refs/tags/${tag}\n${ls.stdout.trim() || '(aucune étiquette)'}`);
   const list = run(gh, ['api', `repos/${repo}/releases?per_page=100`], { allowFail: dryRun });
-  let releases = [];
+  let releases = null;
   if (list.ok) {
     releases = JSON.parse(list.stdout);
     log(`$ ${gh} api repos/${repo}/releases?per_page=100\n${releases.length} release(s) : ${releases.map((r) => `${r.tag_name}${r.draft ? ' (brouillon)' : ''}${r.prerelease ? ' (préversion)' : ''}`).join(', ') || 'aucune'}`);
@@ -245,7 +254,7 @@ function publish({ assetsDir, dryRun, outDir }) {
     log(`Pour publier une nouvelle version : changer le numéro dans app/package.json et desktop/package.json, ajouter sa section en tête de CHANGELOG.md, pousser sur main.`);
     return 0;
   }
-  if (state.state === 'draft') {
+  if (state.state === 'draft' || state.state === 'tag-only') {
     log(`ERREUR : ${state.reason}. Rien n’est publié ni modifié.`);
     return 1;
   }
