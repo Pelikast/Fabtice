@@ -55,6 +55,8 @@ const LEAD_STEMS: readonly StemId[] = ['vocals', 'other', 'piano', 'guitar', 'ba
 const STEM_INSTRUMENT: Partial<Record<StemId, PartInstrument>> = {
   vocals: 'voice', piano: 'piano', guitar: 'guitar', bass: 'bass', drums: 'drums', saxophone: 'saxophone', brass: WINDS_UNSURE,
 };
+/** Tracks that do not comp (a voice): when they play, they lead. Horns may play backgrounds: they are judged by their level. */
+const MELODIC_STEMS = new Set<StemId>(['vocals']);
 /** Accompaniment tracks: they lead only when they clearly stand out. */
 const RHYTHM_STEMS = new Set<StemId>(['bass', 'drums']);
 
@@ -85,12 +87,15 @@ export function leadFromStems(stems: Partial<Record<StemId, Float32Array>>, n: n
   let loudest = 0;
   for (const s of ids) {
     const sorted = Array.from(lv.get(s)!).sort((a, b) => a - b);
+    // its playing level: from its loud bars (a guitar may play only its eight-bar solo: the tenth loudest bar is then too low)
     const q90 = sorted[Math.floor(0.9 * (sorted.length - 1))] ?? 0;
+    const q98 = sorted[Math.floor(0.98 * (sorted.length - 1))] ?? 0;
+    const loud = Math.min(q98, Math.max(2 * q90, 0.5 * q98));
     loudest = Math.max(loudest, q90);
-    const active = sorted.filter((x) => x > 0.3 * q90);
+    const active = sorted.filter((x) => x > 0.3 * loud);
     const r = Math.max(eps, median(active.length ? active : sorted));
     // a track silent much of the time (a voice, a horn) leads when it plays; one always there (a comping piano) when it stands out
-    if (!RHYTHM_STEMS.has(s) && sorted.filter((x) => x > 0.25 * r).length < INTERMITTENT * n) {
+    if (MELODIC_STEMS.has(s) || (!RHYTHM_STEMS.has(s) && sorted.filter((x) => x > 0.25 * r).length < INTERMITTENT * n)) {
       intermittent.add(s);
       ref.set(s, r);
     } else {
@@ -100,6 +105,9 @@ export function leadFromStems(stems: Partial<Record<StemId, Float32Array>>, n: n
     }
   }
   const silent = 0.02 * loudest;
+  // a track that never rises above what leaks into it from the others is not played at all
+  const loudestRef = Math.max(...ids.map((s) => ref.get(s)!));
+  const leakOnly = new Set(ids.filter((s) => ref.get(s)! < LEAK_ONLY * loudestRef));
   const labels: Lead[] = [...ids, 'none'];
   const cost: Float64Array[] = [];
   for (let i = 0; i < n; i++) {
@@ -107,9 +115,15 @@ export function leadFromStems(stems: Partial<Record<StemId, Float32Array>>, n: n
     const band = Math.max(eps, present.length ? median(present) : silent);
     const scores = ids.map((s) => {
       const l = lv.get(s)![i]! + eps;
-      if (l <= silent) return -3;
+      if (l <= silent || leakOnly.has(s)) return -3;
       const own = Math.log(l / ref.get(s)!);
-      if (intermittent.has(s)) return l > 0.25 * ref.get(s)! ? PRESENT_LEAD + 0.5 * Math.min(0, own) : -2;
+      if (intermittent.has(s)) {
+        const r = ref.get(s)!;
+        if (l > 0.25 * r) return PRESENT_LEAD + 0.5 * Math.min(0, own);
+        // a breath between two phrases: the lead goes on, a little less sure
+        const near = Math.max(lv.get(s)![i - 1] ?? 0, lv.get(s)![i + 1] ?? 0);
+        return near > 0.25 * r ? PRESENT_LEAD - 0.5 : -2;
+      }
       const sc = own + Math.log(l / band);
       // bass and drums always play: they lead only well above their usual level, the band stepping back (a fill is not a solo)
       if (RHYTHM_STEMS.has(s)) {
@@ -128,6 +142,8 @@ export function leadFromStems(stems: Partial<Record<StemId, Float32Array>>, n: n
   return { labels, cost };
 }
 
+/** A track whose usual level stays under this share of the loudest track's is only what leaks into it. */
+const LEAK_ONLY = 0.2;
 /** A track heard in fewer bars than this share is « intermittent » (it plays when it leads). */
 const INTERMITTENT = 0.8;
 /** The score of an intermittent track that plays: above a comping track at its usual level, below one that clearly stands out. */
@@ -325,29 +341,47 @@ const WINDS_CONFIDENCE = 0.5;
 const WINDS_MAJORITY = 0.6;
 
 /** Splits an « Autres » stretch where the recogniser hears two different wind instruments, chorus by chorus (or section by section). */
-function splitWinds(s: { first: number; end: number; lead: Lead }, winds: readonly (InstrumentGuess | null)[] | null, grid: Int8Array): { first: number; end: number; lead: Lead; instrument?: PartInstrument }[] {
-  if (s.lead !== 'other' || !winds) return [s];
+function splitWinds(
+  s: { first: number; end: number; lead: Lead },
+  winds: readonly (InstrumentGuess | null)[] | null,
+  grid: Int8Array,
+  level: Float32Array | undefined,
+): { first: number; end: number; lead: Lead; instrument?: PartInstrument }[] {
+  if (s.lead !== 'other') return [s];
   // units: the stretch cut at chorus starts, or at section starts when it is shorter than two choruses
   const cuts = [s.first];
   for (let i = s.first + 1; i < s.end; i++) if (grid[i]! >= 3) cuts.push(i);
   if (cuts.length < 2) for (let i = s.first + 1; i < s.end; i++) if (grid[i]! >= 2 && i - cuts[cuts.length - 1]! >= 8) cuts.push(i);
   const units = cuts.map((c, k) => ({ first: c, end: cuts[k + 1] ?? s.end }));
-  const named = units.map((u) => ({ ...u, instrument: windsInstrument(winds, u.first, u.end) }));
+  const named = units.map((u) => ({ ...u, instrument: winds ? windsInstrument(winds, u.first, u.end) : WINDS_UNSURE }));
+  const meanLog = (first: number, end: number) => {
+    if (!level) return 0;
+    let sum = 0;
+    for (let i = first; i < end; i++) sum += Math.log(1e-5 + level[i]!);
+    return sum / Math.max(1, end - first);
+  };
   const out: { first: number; end: number; lead: Lead; instrument?: PartInstrument }[] = [];
   for (const u of named) {
     const last = out[out.length - 1];
-    // a new part only between two confident, different names; « Vents » joins its neighbour
-    if (last && (last.instrument === u.instrument || u.instrument === WINDS_UNSURE || last.instrument === WINDS_UNSURE)) {
-      last.end = u.end;
-      if (last.instrument === WINDS_UNSURE && u.instrument !== WINDS_UNSURE) last.instrument = WINDS_UNSURE;
-      continue;
+    if (last) {
+      // another wind player: the recogniser names two different instruments confidently, or (when it
+      // cannot tell) the track's level jumps from one chorus to the next (two horns do not sound alike)
+      const names = last.instrument !== WINDS_UNSURE && u.instrument !== WINDS_UNSURE;
+      const other = names ? last.instrument !== u.instrument : Math.abs(meanLog(u.first, u.end) - meanLog(Math.max(last.first, u.first - (u.end - u.first)), u.first)) > LEVEL_JUMP;
+      if (!other) {
+        last.end = u.end;
+        continue;
+      }
     }
     out.push({ first: u.first, end: u.end, lead: 'other', instrument: u.instrument ?? WINDS_UNSURE });
   }
-  // the name of a merged stretch: what the recogniser says over all of it
-  for (const o of out) o.instrument = windsInstrument(winds, o.first, o.end) ?? WINDS_UNSURE;
+  // the name of each player: what the recogniser says over all of it
+  for (const o of out) o.instrument = winds ? (windsInstrument(winds, o.first, o.end) ?? WINDS_UNSURE) : WINDS_UNSURE;
   return out;
 }
+
+/** A change of level of the « Autres » track (natural log) from one chorus to the next that means another player. */
+const LEVEL_JUMP = 0.35;
 
 /** The instrument a stretch names (null: not known, e.g. without separation). */
 function instrumentOf(lead: Lead, named: PartInstrument | undefined, winds: readonly (InstrumentGuess | null)[] | null, first: number, end: number): PartInstrument | null {
@@ -394,7 +428,7 @@ function formStretches(input: PartsInput, from: number, to: number): { stretches
   }, []);
   const out: Stretch[] = [];
   for (const s of raw) {
-    for (const p of stems ? splitWinds(s, ev.winds, grid) : [s]) {
+    for (const p of stems ? splitWinds(s, ev.winds, grid, ev.stems?.other) : [s]) {
       const instrument = stems ? instrumentOf(p.lead, (p as { instrument?: PartInstrument }).instrument, ev.winds, p.first, p.end) : null;
       out.push({ first: p.first, end: p.end, lead: p.lead, instrument });
     }
