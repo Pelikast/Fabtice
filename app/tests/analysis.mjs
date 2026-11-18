@@ -964,10 +964,103 @@ scenarios.fin = async () => {
   await context.close();
 };
 
+/**
+ * 1.0.2, SheetSage2 and the combination (on trial): chosen in the settings (cost, size, licence
+ * stated), the demo piece analysed with SheetSage2 alone, then with the combination; the result
+ * records what read the chords; the progress moves steadily; the main thread stays free. The two
+ * files (2.8 GB) are fetched from Hugging Face, or from FABTICE_SS2_DIR when it is set (a folder
+ * holding the authors' `sheetsage2.safetensors` and `mert-v2-fullsong.safetensors`, served at the
+ * real addresses). Long (about 10 minutes): run it with FABTICE_ANALYSIS_ONLY=sheetsage2.
+ */
+scenarios.sheetsage2 = async () => {
+  // A profile on disk, as in the Mac app (a private window keeps everything in memory, where 2.8 GB does not fit).
+  const profile = fs.mkdtempSync(path.join(process.env.TMPDIR || '/tmp', 'fabtice-ss2-'));
+  const context = await chromium.launchPersistentContext(profile, { args: ['--no-sandbox', '--autoplay-policy=no-user-gesture-required', '--enable-precise-memory-info'] });
+  const local = process.env.FABTICE_SS2_DIR;
+  let server = null;
+  if (local) {
+    // A small server reading the files by slices (Playwright cannot hand 2.5 GB to the page itself):
+    // the hub's address answers with a redirect to it, as Hugging Face redirects to its CDN.
+    const http = await import('node:http');
+    server = http.createServer((req, res) => {
+      const file = path.join(local, path.basename(req.url));
+      if (!fs.existsSync(file)) return res.writeHead(404).end();
+      const size = fs.statSync(file).size;
+      const range = /^bytes=(\d+)-/.exec(req.headers.range ?? '');
+      const start = range ? Number(range[1]) : 0;
+      res.writeHead(range ? 206 : 200, { 'Access-Control-Allow-Origin': '*', 'Access-Control-Expose-Headers': 'Content-Range', 'Content-Length': String(size - start), ...(range ? { 'Content-Range': `bytes ${start}-${size - 1}/${size}` } : {}) });
+      fs.createReadStream(file, { start }).pipe(res);
+    });
+    await new Promise((r) => server.listen(0, '127.0.0.1', r));
+    const base = `http://127.0.0.1:${server.address().port}/`;
+    const names = { 'm-a-p/SheetSage2/': 'sheetsage2.safetensors', 'm-a-p/MERT-v2-FullSong/': 'mert-v2-fullsong.safetensors' };
+    await context.route(/huggingface\.co\/m-a-p\/(SheetSage2|MERT-v2-FullSong)\/resolve\//, (route) => {
+      const name = Object.entries(names).find(([k]) => route.request().url().includes(k))[1];
+      return route.fulfill({ status: 302, headers: { Location: base + name, 'Access-Control-Allow-Origin': '*' } });
+    });
+  }
+  const { page, errors } = await open(context);
+  await importFile(page, SWING);
+  await analysisEnded(page);
+  for (const choice of (process.env.FABTICE_SS2_CHOICES ?? 'sheetsage2,combined').split(',')) {
+    const settings = await chooseChordModel(page, choice);
+    check(`${choice}: the setting says « à l'essai », the cost, the size and the licence`, /À l’essai/.test(settings) && /Très long|Le plus long/.test(settings) && /3 Go/.test(settings) && /CC BY-NC 4\.0/.test(settings) && /2[,.]8 Go|2 758 Mo|2,76 Go/.test(settings), settings.replace(/\s+/g, ' ').slice(0, 600));
+    check(`${choice}: the choice is kept on this device`, (await page.evaluate(() => localStorage.getItem('fabtice.chordModel.v1'))) === choice);
+    await page.evaluate(() => {
+      window.__firstAnalysis = window.__fabtice.store.getState().analysis;
+      window.__percents = [];
+      setInterval(() => {
+        const w = document.querySelector('.analyse-etape')?.textContent ?? document.querySelector('[data-testid="analyse-etat"]')?.textContent ?? '';
+        const m = /(\d+) %/.exec(w);
+        if (m && window.__percents[window.__percents.length - 1] !== Number(m[1])) window.__percents.push(Number(m[1]));
+      }, 100);
+    });
+    const t0 = Date.now();
+    await page.click('[data-testid="modele-accords-relancer"]');
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(() => {
+      const s = window.__fabtice.store.getState();
+      return (s.analysis && s.analysis !== window.__firstAnalysis) || s.analysisRun.status === 'error';
+    }, null, { timeout: 3600000, polling: 500 });
+    const seconds = (Date.now() - t0) / 1000;
+    const st = await state(page);
+    check(`${choice}: the analysis ends with a result`, st.hasAnalysis && st.run.status === 'idle', JSON.stringify(st.run));
+    const r = await result(page);
+    const id = choice === 'sheetsage2' ? 'sheetsage2' : 'sheetsage2+tsumugi-chords';
+    check(`${choice}: the result records what read the chords`, r.chordModel?.id === id && !r.chordModel.fallback && r.analyser.models.includes('mert-v2-fullsong'), JSON.stringify([r.analyser.models, r.chordModel]));
+    const percents = await page.evaluate(() => window.__percents);
+    check(`${choice}: a percentage that moves steadily, never back`, percents.length >= 8 && percents.every((p, i) => i === 0 || p >= percents[i - 1]), percents.join(' '));
+    const c = compare(r);
+    check(`${choice}: chord roots at least 0.85 of the time`, c.roots >= 0.85, (c.roots * 100).toFixed(1));
+    note(`${choice} on the demo file: roots ${(c.roots * 100).toFixed(1)} %, root and quality ${(c.rootsAndQualities * 100).toFixed(1)} %, ${seconds.toFixed(0)} s`);
+    const mt = await mainThread(page);
+    check(`${choice}: no task over 200 ms on the main thread`, mt.longestTask < 200, `${mt.longestTask.toFixed(0)} ms`);
+  }
+  const realErrors = errors.filter((e) => !/No available adapters/i.test(e));
+  check('sheetsage2: no console error', realErrors.length === 0, realErrors.join(' | '));
+  // Second use: the 2.8 GB are read back from the device (by slices), nothing is downloaded.
+  {
+    const asked = [];
+    context.on('request', (req) => {
+      if (/m-a-p\/(SheetSage2|MERT-v2-FullSong)/.test(req.url())) asked.push(req.url());
+    });
+    const second = await open(context);
+    await importFile(second.page, SWING);
+    await analysisEnded(second.page, 3600000);
+    const r2 = await result(second.page);
+    check('sheetsage2, second use: nothing downloaded', asked.length === 0, asked.join(', '));
+    check('sheetsage2, second use: the kept files are read', r2?.chordModel && !r2.chordModel.fallback && r2.analyser.models.includes('mert-v2-fullsong'), JSON.stringify(r2?.chordModel));
+    await second.page.close();
+  }
+  await context.close();
+  server?.close();
+  fs.rmSync(profile, { recursive: true, force: true });
+};
+
 // ---------------------------------------------------------------------- main
 
 /** Long scenarios run only when asked by name. */
-const ON_REQUEST = new Set(['fin']);
+const ON_REQUEST = new Set(['fin', 'sheetsage2']);
 const only = process.env.FABTICE_ANALYSIS_ONLY;
 try {
   for (const [name, run] of Object.entries(scenarios)) {

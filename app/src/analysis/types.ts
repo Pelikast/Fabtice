@@ -63,6 +63,11 @@ export interface ChordWindowProgress {
   done: number;
   total: number;
   /**
+   * `steps` (1.0.2, SheetSage2 and the combination): `done` and `total` count pieces of work of
+   * comparable length (encoder parts, decoding, Tsumugi's windows), not windows of the piece.
+   */
+  kind?: 'steps';
+  /**
    * Steady progress of the whole chord step, 0…1 (never going back): the windows done plus an
    * estimate of the current one. Added by the analyser (`windowClock.ts`), not by the worker.
    */
@@ -147,6 +152,10 @@ export type ChordFallback = 'download' | 'memory' | 'failed';
 export interface ResultChordModel {
   id: string;
   fallback?: ChordFallback;
+  /** With a fallback (1.0.2): the model that was chosen (`CHORD_MODEL_ID`), when it was not the fine one. */
+  wanted?: string;
+  /** With a fallback of SheetSage2: what went wrong, in the engine's words (diagnostics, not shown). */
+  detail?: string;
 }
 
 export interface ListenedResult extends AnalysisResult {

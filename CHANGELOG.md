@@ -3,6 +3,34 @@
 Chaque version publiée sur GitHub (page « Releases ») a sa section ici, la plus
 récente en haut. La première section est recopiée sur la page de la version.
 
+## Version 1.0.2 — 18 novembre 2026
+
+Deux nouveaux modèles d'accords **à l'essai**, pour comparer vous-même sur vos
+disques. Rien ne change si vous ne touchez pas au réglage.
+
+### Deux choix de plus pour lire les accords
+Dans Réglages → Détection des accords → « Modèle d'accords » :
+- **« À l'essai : SheetSage2 »** : un modèle sorti en octobre 2026, le seul
+  récent qui ait été mesuré sur du jazz, où il fait mieux que les autres. Il
+  donne la fondamentale, la couleur (majeur, mineur, septième…) et les
+  renversements, mais pas les extensions (9, 11, 13).
+- **« À l'essai : SheetSage2 + Tsumugi-Chords (combinaison) »** : les deux
+  modèles votent l'accord (fondamentale, couleur, septième), puis
+  Tsumugi-Chords ajoute les extensions et la basse. Les reprises de la grille,
+  la grille du standard et, si la case est cochée, les instruments séparés
+  comptent aussi, comme avant.
+
+### À savoir avant de les essayer
+- C'est **long** : environ 6 minutes par tranche de 5 minutes de musique
+  pour SheetSage2, une douzaine de minutes pour la combinaison.
+- Le premier usage **télécharge 2,8 Go** (une seule fois). Il faut environ
+  3 Go de mémoire : c'est réservé aux ordinateurs.
+- Licence des poids : usage non commercial, comme pour Tsumugi-Chords.
+- Le panneau d'analyse dit quel modèle a lu les accords. Si SheetSage2 ne
+  peut pas tourner, l'analyse continue avec un autre modèle, et le dit.
+- Réglages → Avancé → « Place sur cet appareil » montre la place prise par
+  SheetSage2, et permet de la libérer.
+
 ## Version 1.0.1 — 18 novembre 2026
 
 Une version consacrée aux accords : l'analyse attend la séparation des

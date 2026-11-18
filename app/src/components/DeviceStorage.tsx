@@ -46,6 +46,7 @@ export function DeviceStorage() {
       rows.push({ key: 'rendu', label: t('storage.keptRender'), size: formatSize(keptRender.tracks.reduce((n, tr) => n + tr.frames * tr.channels * 2, 0)), run: forgetKeptRender });
     if (usage.analysis) rows.push({ key: 'analysis', label: t('storage.analysis'), size: formatSize(usage.analysis), target: 'analysis', busy: analysing });
     if (usage.fineChords) rows.push({ key: 'fine', label: t('storage.fineChords'), size: formatSize(usage.fineChords), target: 'fineChords', busy: analysing });
+    if (usage.sheetsage2) rows.push({ key: 'sheetsage2', label: t('storage.sheetsage2'), size: formatSize(usage.sheetsage2), target: 'sheetsage2', busy: analysing });
     if (usage.separation) rows.push({ key: 'separation', label: t('storage.separation'), size: formatSize(usage.separation), target: 'separation', busy: separating });
     if (usage.standardsTunes)
       rows.push({ key: 'standards', label: t('storage.standards'), size: t(usage.standardsTunes === 1 ? 'storage.tunes.one' : 'storage.tunes.other', { n: formatNumber(usage.standardsTunes, 0) }), target: 'standards' });

@@ -11,12 +11,16 @@ import * as ort from 'onnxruntime-web/wasm';
 import ortWasmModule from 'onnxruntime-web/ort-wasm-simd-threaded.mjs?url';
 import ortWasmBinary from 'onnxruntime-web/ort-wasm-simd-threaded.wasm?url';
 import tsumugiGraphUrl from '../assets/tsumugi-chords.graph.onnx?url';
-import { ensureModels, missingModels, sha256Hex } from '../models/download';
+import ss2ManifestJson from '../assets/sheetsage2/sheetsage2-manifest.json';
+import { ensureLargeModel, ensureModels, missingModels, sha256Hex } from '../models/download';
 import { openModelStore } from '../models/store';
 import { ANALYSIS_FIXED_LOAD, createSleeper, createThrottle, easePlan } from '../../settings/easeLoad';
 import { AnalysisError, type AnalysisErrorCode, type AnalysisStep, type ChordFallback, type GridHint, type ListenedResult } from '../types';
-import { BEAT_MODEL_ID, CHORD_MODEL_ID, MODEL_REGISTRY, TSUMUGI_GRAPH, modelsFor } from '../models';
-import { TSUMUGI_WEIGHTS_LOCATION, runTsumugi, tsumugiAudio, tsumugiChordFrames, tsumugiInfo } from '../engine/tsumugi';
+import { BEAT_MODEL_ID, CHORD_MODEL_ID, MODEL_REGISTRY, SHEETSAGE2_FILES, TSUMUGI_GRAPH, modelsFor, usesSheetSage2, usesTsumugi } from '../models';
+import { TSUMUGI_WEIGHTS_LOCATION, runTsumugi, tsumugiAudio, tsumugiChordFrames, tsumugiInfo, tsumugiWindows } from '../engine/tsumugi';
+import { runSheetSage2, sheetsage2ChordFrames, ss2Units, type Ss2GraphInfo, type Ss2Manifest, type Ss2Runtime } from '../engine/sheetsage2';
+import { SS2_FRONT_BYTES, SS2_RATE, melFront } from '../engine/sheetsage2Mel';
+import { combineFrames } from '../engine/combine';
 import type { AnalysisResult } from '../../model/analysis';
 import type { ChordFrames } from '../engine/chords';
 import { resultFromOutputs } from '../engine/analyse';
@@ -29,6 +33,12 @@ import { resampleRatioAsync } from '../engine/resample';
 import type { OrtLike, SessionLike } from '../engine/session';
 import type { Key } from '../../model/harmony';
 import type { AnalyseRequestMessage, DecodeRequestMessage, FromWorker, ToWorker } from './protocol';
+
+/** SheetSage2's graphs shipped with the app (no weights in them), by file name. */
+const SS2_GRAPH_URLS = Object.fromEntries(
+  Object.entries(import.meta.glob('../assets/sheetsage2/*.onnx', { query: '?url', import: 'default', eager: true }) as Record<string, string>).map(([k, v]) => [k.split('/').pop()!, v]),
+);
+const SS2_MANIFEST = ss2ManifestJson as unknown as Ss2Manifest;
 
 // The DOM typings of the app do not describe a worker's global scope: only what is used here.
 const scope = self as unknown as {
@@ -120,8 +130,11 @@ function gridFor(outputs: NetworkOutputs, grid: GridHint | null, fix: ManualTemp
   return fix ? manualTempoGrid(outputs.act, fix) : grid;
 }
 
-/** The piece at 22.05 kHz (Beat This!) and 44.1 kHz (CREMA); the 48 kHz mono copy is dropped on the way. */
-async function resampleAll(msg: AnalyseRequestMessage, ctl: StepControl): Promise<{ a22: Float32Array; a44: Float32Array }> {
+/**
+ * The piece at 22.05 kHz (Beat This!) and 44.1 kHz (CREMA), and at 24 kHz when SheetSage2 will read it;
+ * the 48 kHz mono copy is dropped on the way.
+ */
+async function resampleAll(msg: AnalyseRequestMessage, ctl: StepControl, ss2: boolean): Promise<{ a22: Float32Array; a44: Float32Array; a24: Float32Array | null }> {
   const mono = msg.mono;
   msg.mono = new Float32Array(0); // the message must not keep the piece alive
   const between = async () => {
@@ -131,7 +144,8 @@ async function resampleAll(msg: AnalyseRequestMessage, ctl: StepControl): Promis
   const a22 = await resampleRatioAsync(mono, msg.sampleRate / 22050, 32, between);
   ctl.progress(0.7);
   const a44 = await resampleRatioAsync(mono, msg.sampleRate / 44100, 20, between);
-  return { a22, a44 };
+  const a24 = ss2 ? await resampleRatioAsync(mono, msg.sampleRate / SS2_RATE, 32, between) : null;
+  return { a22, a44, a24 };
 }
 
 async function analyse(msg: AnalyseRequestMessage): Promise<void> {
@@ -140,14 +154,15 @@ async function analyse(msg: AnalyseRequestMessage): Promise<void> {
   const throttle = createThrottle({ share: ease.duty, sleep: sleeper.sleep });
   const rest = breather(throttle);
   const ctl = control(rest);
-  const fine = msg.chordModel === 'fine';
+  const fine = usesTsumugi(msg.chordModel);
+  const ss2 = usesSheetSage2(msg.chordModel);
   simulatedFailure = msg.simulateChordFailure ?? null;
   const specs = modelsFor(msg.beatModel, msg.chordModel);
   const base = modelsFor(msg.beatModel);
   const store = await openModelStore();
 
-  // 1. The tools, from the device or from their public location. The fine chord model's
-  //    weights come last: if they cannot be had, CREMA reads the chords (said in the result).
+  // 1. The tools, from the device or from their public location. The fine chord models' weights
+  //    come last: if they cannot be had, the analysis goes on without them (said in the result).
   const missing = await missingModels(specs, store);
   const total = missing.reduce((n, s) => n + s.bytes, 0);
   post({ type: 'plan', downloadBytes: total });
@@ -158,6 +173,9 @@ async function analyse(msg: AnalyseRequestMessage): Promise<void> {
   let files: Map<string, ArrayBuffer>;
   let fineWeights: ArrayBuffer | null = null;
   let fallback: ChordFallback | null = null;
+  let ss2Files: { ss2: Blob; mert: Blob } | null = null;
+  let ss2Fallback: ChordFallback | null = null;
+  let ss2Message: string | null = null;
   try {
     if (missing.length) ctl.step('download');
     const baseBytes = missing.filter((m) => base.some((b) => b.id === m.id)).reduce((n, s) => n + s.bytes, 0);
@@ -180,6 +198,28 @@ async function analyse(msg: AnalyseRequestMessage): Promise<void> {
       } catch (e) {
         if (e instanceof AnalysisError && e.code === 'cancelled') throw e;
         fallback = 'download';
+      }
+    }
+    if (ss2) {
+      // SheetSage2's two files (2.8 GB), kept as Blobs and read by slices: never one buffer.
+      let before = missing.filter((m) => !SHEETSAGE2_FILES.some((f) => f.id === m.id)).reduce((n, s) => n + s.bytes, 0);
+      try {
+        const got: Blob[] = [];
+        for (const spec of SHEETSAGE2_FILES) {
+          const wasMissing = missing.some((m) => m.id === spec.id);
+          const at = before;
+          got.push(
+            await ensureLargeModel(spec, { store, signal: controller.signal }, (received) => {
+              const loaded = at + received;
+              post({ type: 'progress', step: 'download', fraction: total ? loaded / total : 0, download: { modelId: spec.id, loaded, total: Math.max(total, loaded) } });
+            }),
+          );
+          if (wasMissing) before += spec.bytes;
+        }
+        ss2Files = { ss2: got[0]!, mert: got[1]! };
+      } catch (e) {
+        if (e instanceof AnalysisError && e.code === 'cancelled') throw e;
+        ss2Fallback = 'download';
       }
     }
   } finally {
@@ -210,7 +250,8 @@ async function analyse(msg: AnalyseRequestMessage): Promise<void> {
     ctl.progress(0.4);
     files.clear();
 
-    ({ a22, a44 } = await resampleAll(msg, ctl));
+    let a24: Float32Array | null = null;
+    ({ a22, a44, a24 } = await resampleAll(msg, ctl, ss2 && !!ss2Files));
     ctl.progress(1);
 
     const set: Sessions = { logmel: asSession(logmel), beat: asSession(beat), crema: asSession(crema) };
@@ -226,19 +267,55 @@ async function analyse(msg: AnalyseRequestMessage): Promise<void> {
     // The sessions are no longer needed: free their memory before decoding.
     await Promise.all(sessions.splice(0).map((s) => s.release().catch(() => {})));
 
-    // 3. The fine chord model, fed with the beats and the key of the analysis just made.
+    // 3. The fine chord models, fed with the beats and the key of the analysis just made.
+    //    « Combinaison » (1.0.2): Tsumugi, then SheetSage2, then their vote (`engine/combine.ts`).
     let models = base.map((s) => s.id);
+    const first = fine || ss2 ? decode(outputs, msg.grid, msg.key, msg.known, { duration: msg.duration, models }) : null;
+    // One steady progress over both models: Tsumugi's windows, then SheetSage2's pieces of work.
+    const tsUnits = fine && fineWeights && !fallback ? tsumugiWindows(Math.round(msg.duration * 25600)) * (remix ? 2 : 1) : 0;
+    const allUnits = tsUnits + (ss2 && ss2Files ? ss2Units(msg.duration, SS2_MANIFEST) : 0);
+    let tsumugi: { frames: ChordFrames; harmony?: ChordFrames } | null = null;
     if (fine && fineWeights && !fallback) {
-      const first = decode(outputs, msg.grid, msg.key, msg.known, { duration: msg.duration, models });
       const weights = fineWeights;
       fineWeights = null;
-      const r = await fineChords(msg, first, weights, ctl, remix?.mono ?? null);
+      const r = await fineChords(msg, first!, weights, ctl, remix?.mono ?? null, { before: 0, total: allUnits });
       if (r.fallback) fallback = r.fallback;
-      else if (r.frames) {
-        const harmony: HarmonyListening | null = r.harmony && remix ? { frames: r.harmony, timeScale: 1, stems: remix.stems } : null;
-        outputs = { ...outputs, frames: r.frames, timeScale: 1, listening: { harmony, bass: outputs.listening?.bass ?? null } };
-        models = models.map((id) => (id === CHORD_MODEL_ID.crema ? CHORD_MODEL_ID.fine : id));
-      }
+      else if (r.frames) tsumugi = { frames: r.frames, ...(r.harmony ? { harmony: r.harmony } : {}) };
+    }
+    let sheetsage2: ChordFrames | null = null;
+    if (ss2 && ss2Files && a24) {
+      const audio24 = a24;
+      a24 = null;
+      const r = await sheetsage2Chords(audio24, ss2Files, ctl, { before: tsUnits, total: allUnits });
+      if (r.fallback) {
+        ss2Fallback = r.fallback;
+        ss2Message = r.message ?? null;
+      } else sheetsage2 = r.frames!;
+    }
+    ss2Files = null;
+    if (ss2 && !sheetsage2 && !ss2Fallback) ss2Fallback = 'failed';
+    const harmonyOf = (h: ChordFrames | undefined): HarmonyListening | null => (h && remix ? { frames: h, timeScale: 1, stems: remix.stems } : null);
+    const withFrames = (frames: ChordFrames, harmony: HarmonyListening | null) => {
+      outputs = { ...outputs, frames, timeScale: 1, listening: { harmony, bass: outputs.listening?.bass ?? null } };
+    };
+    // What read the chords, as the result says it: the choice, or what it fell back to.
+    let readBy: string = CHORD_MODEL_ID.crema;
+    if (msg.chordModel === 'combined' && tsumugi && sheetsage2) {
+      withFrames(combineFrames(tsumugi.frames, sheetsage2), harmonyOf(tsumugi.harmony && combineFrames(tsumugi.harmony, sheetsage2)));
+      readBy = CHORD_MODEL_ID.combined;
+    } else if (msg.chordModel === 'sheetsage2' && sheetsage2) {
+      withFrames(sheetsage2, null);
+      readBy = CHORD_MODEL_ID.sheetsage2;
+    } else if (tsumugi) {
+      withFrames(tsumugi.frames, harmonyOf(tsumugi.harmony));
+      readBy = CHORD_MODEL_ID.fine;
+    } else if (msg.chordModel === 'combined' && sheetsage2) {
+      withFrames(sheetsage2, null);
+      readBy = CHORD_MODEL_ID.sheetsage2;
+    }
+    if (readBy !== CHORD_MODEL_ID.crema) {
+      const ids = readBy === CHORD_MODEL_ID.fine ? ['tsumugi-chords'] : readBy === CHORD_MODEL_ID.sheetsage2 ? SHEETSAGE2_FILES.map((f) => f.id) : ['tsumugi-chords', ...SHEETSAGE2_FILES.map((f) => f.id)];
+      models = [...models.filter((id) => id !== CHORD_MODEL_ID.crema), ...ids];
     }
     msg.stereo = [];
 
@@ -247,7 +324,11 @@ async function analyse(msg: AnalyseRequestMessage): Promise<void> {
     ctl.check();
     await rest();
     const result: ListenedResult = decode(outputs, msg.grid, msg.key, msg.known, { duration: msg.duration, models });
-    if (fine) result.chordModel = fallback ? { id: CHORD_MODEL_ID.crema, fallback } : { id: CHORD_MODEL_ID.fine };
+    if (fine || ss2) {
+      const wanted = CHORD_MODEL_ID[msg.chordModel];
+      const why = ss2 ? (ss2Fallback ?? fallback) : fallback;
+      result.chordModel = readBy === wanted ? { id: readBy } : { id: readBy, fallback: why ?? 'failed', wanted, ...(ss2Message ? { detail: ss2Message } : {}) };
+    }
     const tapped = tappedInfoOf(msg.grid);
     if (tapped) result.tapped = tapped;
     post({ type: 'result', result, outputs, models });
@@ -319,6 +400,7 @@ async function fineChords(
   weights: ArrayBuffer,
   ctl: StepControl,
   remix: Float32Array | null = null,
+  units: { before: number; total: number } | null = null,
 ): Promise<{ frames?: ChordFrames; harmony?: ChordFrames; fallback?: ChordFallback }> {
   ctl.step('chords');
   let session: ort.InferenceSession | null = null;
@@ -346,9 +428,10 @@ async function fineChords(
     const passes = remix ? 2 : 1;
     const window = (pass: number) => (done: number, total: number) => {
       if (simulatedFailure === 'memoire' && done === 1) throw new RangeError('simulated: Array buffer allocation failed');
-      const all = total * passes;
-      const at = pass * total + done;
-      post({ type: 'progress', step: 'chords', fraction: all ? at / all : 0, chordWindow: { done: at, total: all } });
+      // With SheetSage2 after it (« Combinaison »), its pieces of work follow in the same count.
+      const all = units && units.total > total * passes ? units.total : total * passes;
+      const at = (units?.before ?? 0) + pass * total + done;
+      post({ type: 'progress', step: 'chords', fraction: all ? at / all : 0, chordWindow: { done: at, total: all, ...(all > total * passes ? { kind: 'steps' as const } : {}) } });
     };
     const out = await runTsumugi(ort as unknown as OrtLike, asSession(session), left, right, info, ctl, window(0));
     const frames = tsumugiChordFrames(out);
@@ -370,6 +453,59 @@ async function fineChords(
     return { fallback: code === 'memory' ? 'memory' : 'failed' };
   } finally {
     await session?.release().catch(() => {});
+  }
+}
+
+/** A graph of SheetSage2 shipped with the app, checked against the manifest's SHA-256. */
+async function ss2Graph(info: Ss2GraphInfo): Promise<Uint8Array> {
+  const url = SS2_GRAPH_URLS[info.graph];
+  if (!url) throw new Error(`no SheetSage2 graph ${info.graph}`);
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`the SheetSage2 graph could not be read (${res.status})`);
+  const bytes = await res.arrayBuffer();
+  if (bytes.byteLength !== info.bytes || (await sha256Hex(bytes)) !== info.sha256) throw new Error('a SheetSage2 graph is damaged');
+  return new Uint8Array(bytes);
+}
+
+/**
+ * SheetSage2 over the piece (24 kHz mono) as ChordFrames, or why it could not run. Each graph's
+ * session reads only the slices of the authors' files it needs (`Blob.slice`), and is released
+ * before the next one is created. A cancellation goes through.
+ */
+async function sheetsage2Chords(
+  audio: Float32Array,
+  files: { ss2: Blob; mert: Blob },
+  ctl: StepControl,
+  units: { before: number; total: number },
+): Promise<{ frames?: ChordFrames; fallback?: ChordFallback; message?: string }> {
+  ctl.step('chords');
+  try {
+    if (simulatedFailure === 'session') throw new Error('simulated: the chord model session could not be created');
+    const rt: Ss2Runtime = {
+      Tensor: ort.Tensor as unknown as Ss2Runtime['Tensor'],
+      async open(info) {
+        const graph = await ss2Graph(info);
+        const externalData = [];
+        for (const x of info.slices) {
+          const blob = x.file === 'mert' ? files.mert : files.ss2;
+          externalData.push({ path: x.name, data: new Uint8Array(await blob.slice(x.start, x.end).arrayBuffer()) });
+        }
+        ctl.check();
+        const s = await ort.InferenceSession.create(graph, { executionProviders: ['wasm'], graphOptimizationLevel: 'all', logSeverityLevel: 3, externalData });
+        return { run: (f) => s.run(f as Record<string, ort.Tensor>) as unknown as ReturnType<SessionLike['run']>, release: () => s.release() };
+      },
+    };
+    const front = melFront(await files.mert.slice(0, SS2_FRONT_BYTES).arrayBuffer());
+    const out = await runSheetSage2(rt, SS2_MANIFEST, front, audio, ctl, (p) => {
+      if (simulatedFailure === 'memoire' && p.done === 1) throw new RangeError('simulated: Array buffer allocation failed');
+      const at = units.before + p.done;
+      post({ type: 'progress', step: 'chords', fraction: units.total ? at / units.total : p.fraction, chordWindow: { done: at, total: units.total, kind: 'steps' } });
+    });
+    return { frames: sheetsage2ChordFrames(out) };
+  } catch (e) {
+    const { code, message } = describe(e);
+    if (code === 'cancelled') throw e;
+    return { fallback: code === 'memory' ? 'memory' : 'failed', message: message.slice(0, 300) };
   }
 }
 

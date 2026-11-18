@@ -1,0 +1,399 @@
+{
+ "parts": [
+  {
+   "graph": "sheetsage2-enc-0.onnx",
+   "bytes": 335022,
+   "sha256": "f698d073f39063cb9726d3992797e09ec4f5d28c41af82c392b8a9e2167ed955",
+   "slices": [
+    {
+     "file": "mert",
+     "name": "mert@629616",
+     "start": 629616,
+     "end": 194034544
+    },
+    {
+     "file": "mert",
+     "name": "mert@1161059184",
+     "start": 1161059184,
+     "end": 1257761648
+    },
+    {
+     "file": "mert",
+     "name": "mert@1644571504",
+     "start": 1644571504,
+     "end": 1741273968
+    },
+    {
+     "file": "mert",
+     "name": "mert@2321488752",
+     "start": 2321488752,
+     "end": 2529812848
+    },
+    {
+     "file": "ss2",
+     "name": "ss2@40352",
+     "start": 40352,
+     "end": 4234656
+    },
+    {
+     "file": "ss2",
+     "name": "ss2@25206176",
+     "start": 25206176,
+     "end": 27303328
+    },
+    {
+     "file": "ss2",
+     "name": "ss2@35691936",
+     "start": 35691936,
+     "end": 37789088
+    },
+    {
+     "file": "ss2",
+     "name": "ss2@163861920",
+     "start": 163861920,
+     "end": 163862020
+    }
+   ],
+   "kept": 0,
+   "layers": [
+    0,
+    4
+   ]
+  },
+  {
+   "graph": "sheetsage2-enc-1.onnx",
+   "bytes": 277492,
+   "sha256": "b005c2fa56c16355d4f3551fb5d102c0bcfd3d743aece251235f15e66ea6d433",
+   "slices": [
+    {
+     "file": "mert",
+     "name": "mert@1741273968",
+     "start": 1741273968,
+     "end": 2128083824
+    },
+    {
+     "file": "ss2",
+     "name": "ss2@37789088",
+     "start": 37789088,
+     "end": 46177696
+    },
+    {
+     "file": "ss2",
+     "name": "ss2@163861920",
+     "start": 163861920,
+     "end": 163862020
+    }
+   ],
+   "kept": 0,
+   "layers": [
+    4,
+    8
+   ]
+  },
+  {
+   "graph": "sheetsage2-enc-2.onnx",
+   "bytes": 277515,
+   "sha256": "50b290d19283fef5a4cdf61179ad280c96f96ce664e3c810396fe9a40183d89e",
+   "slices": [
+    {
+     "file": "mert",
+     "name": "mert@194034544",
+     "start": 194034544,
+     "end": 387439472
+    },
+    {
+     "file": "mert",
+     "name": "mert@2128083824",
+     "start": 2128083824,
+     "end": 2321488752
+    },
+    {
+     "file": "ss2",
+     "name": "ss2@4234656",
+     "start": 4234656,
+     "end": 8428960
+    },
+    {
+     "file": "ss2",
+     "name": "ss2@46177696",
+     "start": 46177696,
+     "end": 50372000
+    },
+    {
+     "file": "ss2",
+     "name": "ss2@163861920",
+     "start": 163861920,
+     "end": 163862020
+    }
+   ],
+   "kept": 0,
+   "layers": [
+    8,
+    12
+   ]
+  },
+  {
+   "graph": "sheetsage2-enc-3.onnx",
+   "bytes": 277650,
+   "sha256": "73cfbc14b67b44ba149879079ec3b582acf61106f37192c91fadd5aaf49b9b34",
+   "slices": [
+    {
+     "file": "mert",
+     "name": "mert@387439472",
+     "start": 387439472,
+     "end": 774249328
+    },
+    {
+     "file": "ss2",
+     "name": "ss2@8428960",
+     "start": 8428960,
+     "end": 16817568
+    },
+    {
+     "file": "ss2",
+     "name": "ss2@163861920",
+     "start": 163861920,
+     "end": 163862020
+    }
+   ],
+   "kept": 0,
+   "layers": [
+    12,
+    16
+   ]
+  },
+  {
+   "graph": "sheetsage2-enc-4.onnx",
+   "bytes": 277991,
+   "sha256": "faeaf4f7861648a966b27569c3d0a5062a8289c896ae7f0d2594bafd3ffc09c2",
+   "slices": [
+    {
+     "file": "mert",
+     "name": "mert@774249328",
+     "start": 774249328,
+     "end": 1161059184
+    },
+    {
+     "file": "ss2",
+     "name": "ss2@16817568",
+     "start": 16817568,
+     "end": 25206176
+    },
+    {
+     "file": "ss2",
+     "name": "ss2@163861920",
+     "start": 163861920,
+     "end": 163862020
+    }
+   ],
+   "kept": 0,
+   "layers": [
+    16,
+    20
+   ]
+  },
+  {
+   "graph": "sheetsage2-enc-5.onnx",
+   "bytes": 278593,
+   "sha256": "00e3f0dffe1ee28e9d581c263c9f0a386cc26f150aa94be3d4471e897b08f47a",
+   "slices": [
+    {
+     "file": "mert",
+     "name": "mert@1257761648",
+     "start": 1257761648,
+     "end": 1644571504
+    },
+    {
+     "file": "ss2",
+     "name": "ss2@27303328",
+     "start": 27303328,
+     "end": 35691936
+    },
+    {
+     "file": "ss2",
+     "name": "ss2@161762720",
+     "start": 161762720,
+     "end": 163862020
+    }
+   ],
+   "kept": 0,
+   "layers": [
+    20,
+    24
+   ]
+  }
+ ],
+ "layersPerPart": 4,
+ "cross": {
+  "graph": "sheetsage2-cross.onnx",
+  "bytes": 19249,
+  "sha256": "89f5ec90ac89a24f592afb4983b38594012ab2af4cff7c906c79d76116b3cef4",
+  "slices": [
+   {
+    "file": "ss2",
+    "name": "ss2@60865952",
+    "start": 60865952,
+    "end": 61916576
+   },
+   {
+    "file": "ss2",
+    "name": "ss2@64017824",
+    "start": 64017824,
+    "end": 65068448
+   },
+   {
+    "file": "ss2",
+    "name": "ss2@77682080",
+    "start": 77682080,
+    "end": 78732704
+   },
+   {
+    "file": "ss2",
+    "name": "ss2@80833952",
+    "start": 80833952,
+    "end": 81884576
+   },
+   {
+    "file": "ss2",
+    "name": "ss2@94498208",
+    "start": 94498208,
+    "end": 95548832
+   },
+   {
+    "file": "ss2",
+    "name": "ss2@97650080",
+    "start": 97650080,
+    "end": 98700704
+   },
+   {
+    "file": "ss2",
+    "name": "ss2@111314336",
+    "start": 111314336,
+    "end": 112364960
+   },
+   {
+    "file": "ss2",
+    "name": "ss2@114466208",
+    "start": 114466208,
+    "end": 115516832
+   },
+   {
+    "file": "ss2",
+    "name": "ss2@128130464",
+    "start": 128130464,
+    "end": 129181088
+   },
+   {
+    "file": "ss2",
+    "name": "ss2@131282336",
+    "start": 131282336,
+    "end": 132332960
+   },
+   {
+    "file": "ss2",
+    "name": "ss2@144946592",
+    "start": 144946592,
+    "end": 145997216
+   },
+   {
+    "file": "ss2",
+    "name": "ss2@148098464",
+    "start": 148098464,
+    "end": 149149088
+   }
+  ],
+  "kept": 0
+ },
+ "step": {
+  "graph": "sheetsage2-step.onnx",
+  "bytes": 87515,
+  "sha256": "f961e48fc196233d2147fbe0db298866fda176a6a15ab8a201da87cc09dc134e",
+  "slices": [
+   {
+    "file": "ss2",
+    "name": "ss2@50372000",
+    "start": 50372000,
+    "end": 60865952
+   },
+   {
+    "file": "ss2",
+    "name": "ss2@61916576",
+    "start": 61916576,
+    "end": 64017824
+   },
+   {
+    "file": "ss2",
+    "name": "ss2@65068448",
+    "start": 65068448,
+    "end": 77682080
+   },
+   {
+    "file": "ss2",
+    "name": "ss2@78732704",
+    "start": 78732704,
+    "end": 80833952
+   },
+   {
+    "file": "ss2",
+    "name": "ss2@81884576",
+    "start": 81884576,
+    "end": 94498208
+   },
+   {
+    "file": "ss2",
+    "name": "ss2@95548832",
+    "start": 95548832,
+    "end": 97650080
+   },
+   {
+    "file": "ss2",
+    "name": "ss2@98700704",
+    "start": 98700704,
+    "end": 111314336
+   },
+   {
+    "file": "ss2",
+    "name": "ss2@112364960",
+    "start": 112364960,
+    "end": 114466208
+   },
+   {
+    "file": "ss2",
+    "name": "ss2@115516832",
+    "start": 115516832,
+    "end": 128130464
+   },
+   {
+    "file": "ss2",
+    "name": "ss2@129181088",
+    "start": 129181088,
+    "end": 131282336
+   },
+   {
+    "file": "ss2",
+    "name": "ss2@132332960",
+    "start": 132332960,
+    "end": 144946592
+   },
+   {
+    "file": "ss2",
+    "name": "ss2@145997216",
+    "start": 145997216,
+    "end": 148098464
+   },
+   {
+    "file": "ss2",
+    "name": "ss2@149149088",
+    "start": 149149088,
+    "end": 161762720
+   },
+   {
+    "file": "ss2",
+    "name": "ss2@163862020",
+    "start": 163862020,
+    "end": 228738564
+   }
+  ],
+  "kept": 0
+ }
+}

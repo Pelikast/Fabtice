@@ -37,6 +37,9 @@ import { DATA } from '../../banc/paths';
 import type { StemName } from '../../banc/types';
 import type { AnalysisResult } from '../../../../../app/src/model/analysis';
 import { tsumugiFrames } from './tsumugiApp';
+import { sheetsage2ChordFrames } from '../../../../../app/src/analysis/engine/sheetsage2';
+import { SS2_LABELS } from '../../../../../app/src/analysis/engine/sheetsage2Vocab';
+import { COMBINE_WEIGHTS, combineFrames } from '../../../../../app/src/analysis/engine/combine';
 import { audioSha, harteToSymbol, onGrid, pooledArgmax, pooledBass, readModel, toChordFrames, type ModelFrames } from './lire';
 
 const MODEL = process.env.MODELE ?? '';
@@ -354,4 +357,37 @@ export const appMix: Variant = async (input, ctx) => {
     for (let c = 0; c < N_CHORDS; c++) probs[f * N_CHORDS + c]! /= s;
   }
   return stageA(input, net, { T: cr.T, fps: cr.fps, probs, pitch: cr.pitch, bass: cr.bass }, ts);
+};
+
+// ------------------------------------------------------------- 1.0.2: SheetSage2
+// SheetSage2's chords from the authors' PyTorch run (modeles/dump_sheetsage2.py, data/modeles/
+// sheetsage2/<id>.<condition>.json: the events and, at each chord, its probabilities), turned into
+// ChordFrames by the app's own `sheetsage2ChordFrames` (the app's TypeScript gives the same tokens:
+// modeles/ts/ss2-parity.ts), then the app's decoding (stage A), as the worker does.
+// - ss2-seul : SheetSage2 alone;
+// - ss2-combi: the combination of the app (`engine/combine.ts`): Tsumugi (MODELE=tsumugi, the
+//              precomputed outputs, or MODELE=app) and SheetSage2 vote the chord with the weights
+//              SS2_W and TS_W (default: the app's `COMBINE_WEIGHTS`), Tsumugi's notes, bass and
+//              extensions kept.
+
+function ss2Frames(input: VariantInput): ChordFrames {
+  const path = join(DATA, 'modeles', 'sheetsage2', `${input.id}.${input.condition}.json`);
+  if (!existsSync(path)) throw new Error(`no SheetSage2 output for ${input.id} ${input.condition} (dump_sheetsage2.py)`);
+  const d = JSON.parse(readFileSync(path, 'utf8')) as { duration: number; events: { time: number; chord?: string }[]; chords: { label: string; probs: number[] }[] };
+  const withChord = d.events.filter((e) => e.chord !== undefined);
+  if (withChord.length !== d.chords.length) throw new Error(`SheetSage2 output of ${input.id}: events and chords do not match`);
+  const chords = withChord.map((e, k) => ({ time: e.time, label: SS2_LABELS.indexOf(e.chord!), probs: Float32Array.from(d.chords[k]!.probs) }));
+  return sheetsage2ChordFrames({ duration: d.duration, chords, tokens: [] });
+}
+
+export const ss2Alone: Variant = async (input, ctx) => {
+  const net = await ctx.networks(input.mixPath);
+  return stageA(input, net, ss2Frames(input), 1);
+};
+
+export const ss2Combined: Variant = async (input, ctx) => {
+  const net = await ctx.networks(input.mixPath);
+  const ts = (await fineFrames(input, net))!;
+  const w = { sheetsage2: Number(process.env.SS2_W ?? COMBINE_WEIGHTS.sheetsage2), tsumugi: Number(process.env.TS_W ?? COMBINE_WEIGHTS.tsumugi) };
+  return stageA(input, net, combineFrames(ts, ss2Frames(input), w), 1);
 };

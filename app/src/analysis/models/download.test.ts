@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ModelSpec } from '../models';
 import { AnalysisError, type DownloadProgress } from '../types';
-import { MAX_ATTEMPTS, downloadModel, ensureModels, missingModels, sha256Hex } from './download';
+import { MAX_ATTEMPTS, downloadModel, ensureLargeModel, ensureModels, missingModels, sha256Hex } from './download';
 import { MemoryModelStore } from './store';
 
 const enc = (n: number, seed: number) => Uint8Array.from({ length: n }, (_, i) => (i * 31 + seed) & 255);
@@ -293,5 +293,41 @@ describe('the list of models', () => {
       const got = MODEL_REGISTRY[id];
       expect({ url: got.url, bytes: got.bytes, sha256: got.sha256, licence: got.licence }).toEqual({ url: want.url, bytes: want.bytes, sha256: want.sha256, licence: want.licence });
     }
+  });
+});
+
+describe('ensureLargeModel (a file kept as a Blob, never in one buffer)', () => {
+  it('downloads, checks the digest piece by piece, keeps it as a Blob, then uses the kept one', async () => {
+    const content = enc(20_000, 3);
+    const s = await spec('big', content);
+    const store = new MemoryModelStore();
+    const { fetchFn, calls } = hub(content);
+    const blob = await ensureLargeModel(s, { store, fetchFn, sleep: noWait });
+    expect(new Uint8Array(await blob.arrayBuffer())).toEqual(content);
+    expect((await store.getBlob('big'))?.data.size).toBe(content.length);
+    expect(await store.hasFile('big', s.bytes, s.sha256)).toBe(true);
+    const again = await ensureLargeModel(s, { store, fetchFn, sleep: noWait });
+    expect(again.size).toBe(content.length);
+    expect(calls.length).toBe(1);
+  });
+
+  it('resumes after a dropped connection, from the last byte received', async () => {
+    const content = enc(30_000, 5);
+    const s = await spec('big', content);
+    const store = new MemoryModelStore();
+    const { fetchFn, calls } = hub(content, (n, init, c) => ok(c, new Headers(init?.headers), { failAfter: n === 1 ? 12_000 : Infinity }));
+    const blob = await ensureLargeModel(s, { store, fetchFn, sleep: noWait });
+    expect(new Uint8Array(await blob.arrayBuffer())).toEqual(content);
+    expect(calls.map((c) => c.range)).toEqual([null, 'bytes=12000-']);
+  });
+
+  it('refuses a file whose digest is wrong, and gives up after the attempts', async () => {
+    const content = enc(5000, 7);
+    const s = { ...(await spec('big', content)), sha256: '0'.repeat(64) };
+    const store = new MemoryModelStore();
+    const { fetchFn, calls } = hub(content);
+    await expect(ensureLargeModel(s, { store, fetchFn, sleep: noWait })).rejects.toMatchObject({ code: 'download-failed' });
+    expect(calls.length).toBe(MAX_ATTEMPTS);
+    expect(await store.getBlob('big')).toBeNull();
   });
 });

@@ -33,6 +33,12 @@ export interface ModelStore {
   /** Whether a complete file of exactly this size and digest is stored (nothing is read back). */
   hasFile(id: string, bytes: number, sha256: string): Promise<boolean>;
   putFile(file: StoredFile): Promise<void>;
+  /**
+   * A complete file kept as a Blob (the very large tools, `ModelSpec.large`): its bytes stay on disk,
+   * read slice by slice (`Blob.slice`). Null when it is not kept.
+   */
+  getBlob(id: string): Promise<{ bytes: number; sha256: string; data: Blob } | null>;
+  putBlob(id: string, bytes: number, sha256: string, data: Blob): Promise<void>;
   deleteFile(id: string): Promise<void>;
   /** The pieces of an interrupted download, in order. */
   readParts(id: string): Promise<ArrayBuffer[]>;
@@ -47,19 +53,27 @@ export interface ModelStore {
 /** Memory only: the fallback, and what the unit tests use. */
 export class MemoryModelStore implements ModelStore {
   readonly files = new Map<string, StoredFile>();
+  readonly blobs = new Map<string, { bytes: number; sha256: string; data: Blob }>();
   readonly parts = new Map<string, ArrayBuffer[]>();
   async getFile(id: string) {
     return this.files.get(id) ?? null;
   }
   async hasFile(id: string, bytes: number, sha256: string) {
-    const f = this.files.get(id);
+    const f = this.files.get(id) ?? this.blobs.get(id);
     return !!f && f.bytes === bytes && f.sha256 === sha256;
+  }
+  async getBlob(id: string) {
+    return this.blobs.get(id) ?? null;
+  }
+  async putBlob(id: string, bytes: number, sha256: string, data: Blob) {
+    this.blobs.set(id, { bytes, sha256, data });
   }
   async putFile(file: StoredFile) {
     this.files.set(file.id, file);
   }
   async deleteFile(id: string) {
     this.files.delete(id);
+    this.blobs.delete(id);
   }
   async readParts(id: string) {
     const out: ArrayBuffer[] = [];
@@ -79,10 +93,11 @@ export class MemoryModelStore implements ModelStore {
   }
   async clearAll() {
     this.files.clear();
+    this.blobs.clear();
     this.parts.clear();
   }
   async listFiles() {
-    return [...this.files.values()].map((f) => ({ id: f.id, bytes: f.bytes }));
+    return [...[...this.files.values()].map((f) => ({ id: f.id, bytes: f.bytes })), ...[...this.blobs].map(([id, b]) => ({ id, bytes: b.bytes }))];
   }
 }
 
@@ -178,6 +193,22 @@ export class IdbModelStore implements ModelStore {
     const db = await this.db();
     const rec = (await wrap(db.transaction('files').objectStore('files').get(id))) as FileRecord | undefined;
     return !!rec && rec.bytes === bytes && rec.sha256 === sha256 && recordBytes(rec.data) === bytes;
+  }
+
+  async getBlob(id: string): Promise<{ bytes: number; sha256: string; data: Blob } | null> {
+    const db = await this.db();
+    const rec = (await wrap(db.transaction('files').objectStore('files').get(id))) as FileRecord | undefined;
+    if (!rec || typeof Blob === 'undefined') return null;
+    if (rec.data instanceof Blob) return { bytes: rec.bytes, sha256: rec.sha256, data: rec.data };
+    if (rec.data instanceof ArrayBuffer) return { bytes: rec.bytes, sha256: rec.sha256, data: new Blob([rec.data]) };
+    return null;
+  }
+
+  async putBlob(id: string, bytes: number, sha256: string, data: Blob): Promise<void> {
+    const db = await this.db();
+    const tx = db.transaction('files', 'readwrite');
+    tx.objectStore('files').put({ id, bytes, sha256, data } satisfies FileRecord);
+    await done(tx);
   }
 
   async putFile(file: StoredFile): Promise<void> {

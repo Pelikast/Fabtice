@@ -19,7 +19,7 @@ import type { AnalysisResult } from '../model/analysis';
 import { isEased, stretchedSeconds } from '../settings/easeLoad';
 import { mixToMono } from './engine/resample';
 import type { NetworkOutputs } from './engine/pipeline';
-import { CHORD_MODEL_ID, modelsFor, type BeatModelChoice, type ChordModelChoice } from './models';
+import { CHORD_MODEL_ID, modelsFor, usesTsumugi, type BeatModelChoice, type ChordModelChoice } from './models';
 import { openModelStore } from './models/store';
 import { createWindowClock, DEFAULT_WINDOW_SECONDS } from './windowClock';
 import {
@@ -143,7 +143,7 @@ export class FabticeAnalyzer implements Analyzer {
       // decoding runs again (with what the user corrected). Outputs kept from another chord model
       // (or from a fine run that fell back) are recomputed.
       // The separated parts heard are part of « the same sound ».
-      const stems = chordModel === 'fine' ? (request.stems ?? []) : [];
+      const stems = usesTsumugi(chordModel) ? (request.stems ?? []) : [];
       const stemsKey = stems.map((s) => `${s.name}:${s.audioId}`).join(',');
       const reuse =
         this.kept && this.kept.audioId === request.audioId && this.kept.stemsKey === stemsKey && this.kept.chordId === CHORD_MODEL_ID[chordModel] ? this.kept : null;
@@ -164,7 +164,7 @@ export class FabticeAnalyzer implements Analyzer {
       } else {
         const mono = await this.mix(channels, length, signal);
         // The fine model listens in stereo: its own copies of the channels (the request's are not ours).
-        const stereo = chordModel === 'fine' ? channels.slice(0, 2).map((c) => c.slice()) : [];
+        const stereo = usesTsumugi(chordModel) ? channels.slice(0, 2).map((c) => c.slice()) : [];
         message = {
           type: 'analyse',
           mono,
@@ -248,7 +248,8 @@ export class FabticeAnalyzer implements Analyzer {
       const ease = isEased(request.loadShare) ? request.loadShare : 1;
       const clock = createWindowClock(stretchedSeconds(sessionWindowSeconds ?? DEFAULT_WINDOW_SECONDS, ease));
       let windowsMeasured = false;
-      const weights = request.chordModel === 'fine' ? FINE_STEP_WEIGHTS : STEP_WEIGHTS;
+      const heavy = (request.chordModel ?? 'crema') !== 'crema';
+      const weights = heavy ? FINE_STEP_WEIGHTS : STEP_WEIGHTS;
       const share = (s: AnalysisStep): [number, number] => {
         const scale = downloadBytes > 0 ? 1 - DOWNLOAD_SHARE : 1;
         if (s === 'download') return [0, DOWNLOAD_SHARE];
@@ -267,7 +268,7 @@ export class FabticeAnalyzer implements Analyzer {
           // The fine model reports whole windows: the clock fills in between, from the windows before.
           f = clock.fraction(performance.now());
           chordWindow = { ...chordWindow, fraction: f };
-        } else if (step === 'chords' && f === 0 && request.chordModel !== 'fine') {
+        } else if (step === 'chords' && f === 0 && !heavy) {
           const expected = stretchedSeconds(Math.max(1, duration * CHORD_SECONDS_PER_SECOND), ease);
           f = Math.min(0.95, 1 - Math.exp(-(performance.now() - stepStarted) / 1000 / expected));
         }

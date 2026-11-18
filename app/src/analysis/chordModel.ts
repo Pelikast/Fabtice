@@ -25,7 +25,7 @@ const KEY = 'fabtice.chordModel.v1';
 
 /** What the user set: `auto` (nothing stored) or an explicit model. */
 export type ChordModelSetting = 'auto' | ChordModelChoice;
-export const CHORD_MODEL_SETTINGS: readonly ChordModelSetting[] = ['auto', 'crema', 'fine'];
+export const CHORD_MODEL_SETTINGS: readonly ChordModelSetting[] = ['auto', 'crema', 'fine', 'sheetsage2', 'combined'];
 
 /** Least memory (GB, as `navigator.deviceMemory` reports it) for the automatic choice to take the detailed model. */
 export const FINE_MIN_MEMORY_GB = 8;
@@ -53,9 +53,12 @@ let autoAllowed = true;
 let deviceOverride: ChordModelDevice | null = null;
 const listeners = new Set<() => void>();
 
-/** Reads the stored value: `fine` or `crema` are explicit choices; nothing (or anything else) is automatic. */
+/**
+ * Reads the stored value: `fine`, `crema` and (1.0.2, à l'essai) `sheetsage2`, `combined` are explicit
+ * choices; nothing (or anything else) is automatic. The automatic choice never takes the ones on trial.
+ */
 export function readStoredSetting(value: string | null): ChordModelSetting {
-  return value === 'fine' || value === 'crema' ? value : 'auto';
+  return value === 'fine' || value === 'crema' || value === 'sheetsage2' || value === 'combined' ? value : 'auto';
 }
 
 function read(): ChordModelSetting {

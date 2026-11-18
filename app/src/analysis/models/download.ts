@@ -15,6 +15,7 @@
 import { AnalysisError, type DownloadProgress } from '../types';
 import type { ModelSpec } from '../models';
 import type { ModelStore } from './store';
+import { Sha256 } from './sha256';
 
 export const MAX_ATTEMPTS = 3;
 const PART_BYTES = 2 * 1024 * 1024;
@@ -256,4 +257,108 @@ export async function ensureModels(specs: readonly ModelSpec[], opts: EnsureOpti
     out.set(spec.id, data);
   }
   return out;
+}
+
+// ---------------------------------------------------------------------------- very large files
+
+/** Pieces of a large download gathered into one Blob before going on (the browser may keep them on disk). */
+const LARGE_PIECE_BYTES = 8 * 1024 * 1024;
+
+/**
+ * A very large file (`ModelSpec.large`: SheetSage2's encoder, 2.5 GB), never held in one buffer:
+ * received piece by piece into a Blob, its SHA-256 computed as it comes (`Sha256`), then kept as a
+ * Blob (`ModelStore.putBlob`). A dropped connection resumes from the last byte received (`Range`),
+ * within this analysis; a page closed during the download starts it again next time. A file already
+ * kept is used after checking its size and recorded digest (reading 2.5 GB back to hash it at each
+ * analysis would cost half a minute; it was checked when it was received).
+ * `onBytes(received)` as bytes arrive. Rejects with `download-failed` or `cancelled`.
+ */
+export async function ensureLargeModel(spec: ModelSpec, env: DownloadEnv, onBytes: (received: number) => void = () => {}): Promise<Blob> {
+  const { store, signal } = env;
+  try {
+    const kept = await store.getBlob(spec.id);
+    if (kept && kept.bytes === spec.bytes && kept.sha256 === spec.sha256 && kept.data.size === spec.bytes) return kept.data;
+    if (kept) await quietly(() => store.deleteFile(spec.id));
+  } catch {
+    // not kept, or the store cannot say: download
+  }
+  const fetchFn = env.fetchFn ?? fetch;
+  const sleep = env.sleep ?? abortableSleep;
+  let chunks: Blob[] = [];
+  let pending: Uint8Array[] = [];
+  let pendingBytes = 0;
+  let received = 0;
+  let hash = new Sha256();
+  const restart = () => {
+    chunks = [];
+    pending = [];
+    pendingBytes = 0;
+    received = 0;
+    hash = new Sha256();
+    onBytes(0);
+  };
+  const flush = () => {
+    if (!pendingBytes) return;
+    chunks.push(new Blob(pending as BlobPart[]));
+    pending = [];
+    pendingBytes = 0;
+  };
+  let failures = 0;
+  let lastError: unknown = null;
+  while (failures < MAX_ATTEMPTS) {
+    if (signal?.aborted) throw new AnalysisError('cancelled');
+    const before = received;
+    try {
+      const res = await fetchFn(spec.url, { signal, headers: received > 0 ? { Range: `bytes=${received}-` } : undefined });
+      if (res.status === 206 && received > 0 && rangeStart(res.headers.get('Content-Range')) === received) {
+        // resuming
+      } else if (res.status === 200) {
+        if (received > 0) restart();
+      } else {
+        await res.body?.cancel().catch(() => {});
+        throw new Error(`HTTP ${res.status}`);
+      }
+      if (!res.body) throw new Error('no body');
+      const reader = res.body.getReader();
+      try {
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          if (received + value.byteLength > spec.bytes) throw new IntegrityError('more bytes than expected');
+          hash.update(value);
+          pending.push(value);
+          pendingBytes += value.byteLength;
+          received += value.byteLength;
+          if (pendingBytes >= LARGE_PIECE_BYTES) flush();
+          onBytes(received);
+        }
+      } finally {
+        await reader.cancel().catch(() => {});
+      }
+      if (received !== spec.bytes) throw new Error(`incomplete: ${received} of ${spec.bytes} bytes`);
+      flush();
+      if (hash.hex() !== spec.sha256) throw new IntegrityError(`unexpected SHA-256 for ${spec.id}`);
+      const blob = new Blob(chunks);
+      chunks = [];
+      await quietly(() => store.putBlob(spec.id, spec.bytes, spec.sha256, blob));
+      return blob;
+    } catch (e) {
+      if (isAbort(e, signal)) throw new AnalysisError('cancelled');
+      lastError = e;
+      if (e instanceof IntegrityError) {
+        restart();
+        failures++;
+      } else if (received === before) failures++;
+      // A connection that brought bytes before dropping is not a failure: it resumes.
+      flush();
+      if (failures < MAX_ATTEMPTS) {
+        try {
+          await sleep(800 * Math.max(1, failures), signal);
+        } catch {
+          throw new AnalysisError('cancelled');
+        }
+      }
+    }
+  }
+  throw new AnalysisError('download-failed', lastError instanceof Error ? lastError.message : String(lastError));
 }

@@ -29,6 +29,7 @@ import type { AnalysisResult } from '../model/analysis';
 import type { Seconds } from '../model/project';
 import { currentLoadShare } from '../settings/easeLoadShare';
 import { chordModelChoice } from './chordModel';
+import { usesTsumugi } from './models';
 import { autoAnalysisDisabled, getAnalyzer } from './index';
 import { knownChartsFor } from './knownCharts';
 import { engineIndex } from './engine/knownChart';
@@ -182,8 +183,8 @@ async function launch(fix: TempoFixRun | null, fresh = false): Promise<AnalysisR
   // registry's 16-bit samples a slice at a time, let go once the analyser has it. The fine chord
   // model (Réglages avancés) listens in stereo: both channels then.
   const chordModel = chordModelChoice();
-  const channels = chordModel === 'fine' ? pcmToChannels(audio) : [await pcmToMonoInSlices(audio)];
-  const stems = chordModel === 'fine' && s.settings.listenToStems ? await stemsToHear(s, audio.sampleRate) : [];
+  const channels = usesTsumugi(chordModel) ? pcmToChannels(audio) : [await pcmToMonoInSlices(audio)];
+  const stems = usesTsumugi(chordModel) && s.settings.listenToStems ? await stemsToHear(s, audio.sampleRate) : [];
   if (!stillMine()) {
     if (running === mine) running = null;
     return null;

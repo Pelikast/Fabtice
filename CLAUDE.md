@@ -261,6 +261,23 @@ rapport au périmètre ci-dessus :
   calcul natif pour l'instant. **Version future** : séparation à distance par
   une clé secrète saisie par l'utilisateur, qui paie lui-même le service.
 
+## Version 1.0.2 (demande du propriétaire, 18 novembre 2026)
+
+Deux choix de plus dans Réglages → Détection des accords → « Modèle d'accords », marqués
+« À l'essai » pour qu'il les compare lui-même sur ses disques ; le choix d'office ne change pas
+(le choix automatique ne prend jamais un modèle à l'essai) :
+
+- **SheetSage2 seul** (m-a-p, octobre 2026, poids CC BY-NC 4.0) : le seul modèle récent mesuré
+  sur du jazz (banc JAAH), sans extensions. 2,8 Go à télécharger (son décodeur et l'encodeur
+  MERT-v2-FullSong), environ 3 Go de mémoire, de l'ordre de 6 minutes par tranche de 5 minutes
+  de musique sur le processeur. L'app le fait tourner tel que ses auteurs le font (mêmes jetons
+  que leur modèle PyTorch, vérifié), avec des graphes sans poids qui lisent des tranches de leurs
+  fichiers.
+- **Combinaison en deux temps** : SheetSage2 et Tsumugi votent le squelette de l'accord
+  (fondamentale, couleur, septième), avec les autres avis déjà présents (reprises, grille du
+  standard, instruments séparés si la case est cochée) ; puis Tsumugi donne les extensions et
+  la basse. Poids choisis sur le banc (`web/spikes/accords/modeles/RECHERCHE.md`).
+
 ## Exigences de qualité
 
 - Le cas de test principal est le jazz ancien (mono, instruments mélangés,
