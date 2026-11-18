@@ -23,6 +23,11 @@ export function setUseKnownCharts(useKnownCharts: boolean): void {
   set((s) => ({ settings: { ...s.settings, useKnownCharts } }));
 }
 
+/** « Écouter aussi les instruments séparés » (1.0.1): applies to the next analysis. */
+export function setListenToStems(listenToStems: boolean): void {
+  set((s) => ({ settings: { ...s.settings, listenToStems } }));
+}
+
 /** « Détecter les modulations » (stage 5): off, the detected modulations go at the next refresh of the harmony pass. */
 export function setDetectModulations(detectModulations: boolean): void {
   set((s) => ({ settings: { ...s.settings, detectModulations } }));

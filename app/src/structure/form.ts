@@ -112,12 +112,28 @@ export interface FormOptions {
    * timbre changes); a chorus start that falls on one is likelier. Optional.
    */
   cues?: readonly number[];
+  /**
+   * Section letters written by hand (bar index, letter), 1.0.1: fixed points. A chorus start on a
+   * bar where the user wrote the form's first letter (the first in the alphabet among theirs,
+   * usually « A ») weighs more than anything the chords alone can say. Optional.
+   */
+  fixed?: readonly { bar: number; letter: string }[];
 }
 
 const MIN_CHORUS = 12;
 /** How much a chorus start on a change of who plays counts (the first one more: the theme enters after the intro). */
 const CUE_FIRST = 1.5;
 const CUE_OTHER = 0.5;
+/** A chorus start on a letter written by hand: more than every prior of `bestRotation` together (8 + 3 + …). */
+const CUE_HAND = 20;
+
+/** The bars where the user wrote the form's first letter (see `FormOptions.fixed`). */
+function handStarts(fixed: FormOptions['fixed']): Set<number> {
+  const list = (fixed ?? []).filter((f) => f.bar >= 0 && /^[A-Z]/.test(f.letter));
+  if (!list.length) return new Set();
+  const first = list.map((f) => f.letter[0]!).sort()[0]!;
+  return new Set(list.filter((f) => f.letter[0] === first).map((f) => f.bar));
+}
 /** No chorus is longer (forms of 64 bars exist; longer ones are two choruses). */
 const MAX_CHORUS = 96;
 
@@ -737,7 +753,17 @@ class Phrases {
  */
 /** Weight of the bars a rotation takes in or leaves out (the priors above weigh more: the chords alone often cannot tell). */
 const FIT_W = 0.3;
-function bestRotation(ph: Phrases, toks: readonly BarTokens[], T: readonly BarTokens[], choruses: readonly Chorus[], n: number, len: number, tau: number, cues: ReadonlySet<number>): number {
+function bestRotation(
+  ph: Phrases,
+  toks: readonly BarTokens[],
+  T: readonly BarTokens[],
+  choruses: readonly Chorus[],
+  n: number,
+  len: number,
+  tau: number,
+  cues: ReadonlySet<number>,
+  hand: ReadonlySet<number> = new Set(),
+): number {
   const L = T.length;
   const c0 = choruses[0]!;
   const cz = choruses[choruses.length - 1]!;
@@ -771,6 +797,8 @@ function bestRotation(ph: Phrases, toks: readonly BarTokens[], T: readonly BarTo
     if (cues.size) choruses.forEach((c, k) => {
       if (cues.has(c.first + r)) score += k === 0 ? CUE_FIRST : CUE_OTHER;
     });
+    // the letters written by hand: fixed points
+    if (hand.size) for (const c of choruses) if (hand.has(c.first + r)) score += CUE_HAND;
     const f = first + r;
     const e = end + r;
     const lost = Math.max(0, -f) + Math.max(0, e - n);
@@ -1068,7 +1096,7 @@ export function analyseForm(bars: readonly HarmonyBar[], o: FormOptions): FormAn
       if (iter === 2) {
         const ph = new Phrases(toks, S, choruses, L, bg);
         const len = phraseLength(L, () => ph.same(0, 8, 8, 0) >= SAME_SECTION);
-        const r = bestRotation(ph, toks, T, choruses, n, len, Math.min(0.6, Math.max(0.2, bg + 0.4 * (crossAgreement(toks, choruses, L) - bg))), new Set(o.cues ?? []));
+        const r = bestRotation(ph, toks, T, choruses, n, len, Math.min(0.6, Math.max(0.2, bg + 0.4 * (crossAgreement(toks, choruses, L) - bg))), new Set(o.cues ?? []), handStarts(o.fixed));
         if (r === 0) break;
         T = T.map((_, j) => T[(((j + r) % L) + L) % L]!);
       }

@@ -32,6 +32,7 @@ interface Preferences {
   atLaunch?: LaunchBehaviour;
   analyseOnImport?: boolean;
   useKnownCharts?: boolean;
+  listenToStems?: boolean;
   detectModulations?: boolean;
   autoStructure?: boolean;
   easeLoad?: boolean;
@@ -69,6 +70,7 @@ const pick = (s: AppState): Preferences => ({
   atLaunch: s.settings.atLaunch,
   analyseOnImport: s.settings.analyseOnImport,
   useKnownCharts: s.settings.useKnownCharts,
+  listenToStems: s.settings.listenToStems,
   detectModulations: s.settings.detectModulations,
   autoStructure: s.settings.autoStructure,
   easeLoad: s.settings.easeLoad,
@@ -88,6 +90,7 @@ export function persistPreferences(store: AppStore): () => void {
       ...(p.atLaunch === 'lastProject' || p.atLaunch === 'newProject' ? { atLaunch: p.atLaunch } : {}),
       ...(typeof p.analyseOnImport === 'boolean' ? { analyseOnImport: p.analyseOnImport } : {}),
       ...(typeof p.useKnownCharts === 'boolean' ? { useKnownCharts: p.useKnownCharts } : {}),
+      ...(typeof p.listenToStems === 'boolean' ? { listenToStems: p.listenToStems } : {}),
       ...(typeof p.detectModulations === 'boolean' ? { detectModulations: p.detectModulations } : {}),
       ...(typeof p.autoStructure === 'boolean' ? { autoStructure: p.autoStructure } : {}),
       ...(typeof p.easeLoad === 'boolean' ? { easeLoad: p.easeLoad } : {}),

@@ -93,6 +93,25 @@ export function stemFeatures(
   };
 }
 
+/** RMS of `audio44` (44.1 kHz) per chord-network frame (hop 4096 at the network's rate, `timeScale`). */
+export function frameRms(audio44: Float32Array, T: number, timeScale: number): Float32Array {
+  const rms = new Float32Array(T);
+  const hop = 4096 / timeScale;
+  for (let f = 0; f < T; f++) {
+    const i0 = Math.floor(f * hop);
+    const i1 = Math.min(audio44.length, Math.floor((f + 1) * hop));
+    let s = 0;
+    for (let i = i0; i < i1; i++) s += audio44[i]! * audio44[i]!;
+    rms[f] = i1 > i0 ? Math.sqrt(s / (i1 - i0)) : 0;
+  }
+  return rms;
+}
+
+/** Parts that are never harmony candidates (exported for the worker: they are not even listened to). */
+export function isHarmonyCandidate(name: string): boolean {
+  return !NOT_HARMONY.has(name);
+}
+
 /** Two listenings of the same beats pooled log-linearly: `mixWeight` of `a`, the rest of `b`. */
 export function blendUnits(a: readonly PooledUnit[], b: readonly PooledUnit[], mixWeight: number): PooledUnit[] {
   const wa = mixWeight;

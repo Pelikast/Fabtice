@@ -20,6 +20,15 @@ describe('structure form: chorus length and letters', () => {
     expect(fa.chorus?.sections.map((s) => s.letter).join('')).toBe('AABA'.repeat(4));
   });
 
+  it('starts the choruses where the user wrote the first letter by hand (fixed points)', () => {
+    const bars = chartBars(repeat(BLUES, 6));
+    expect(analyseForm(bars, opts).chorus?.choruses[1]!.first).toBe(12);
+    const fixed = [4, 16, 28].map((bar) => ({ bar, letter: 'A' }));
+    const fa = analyseForm(bars, { ...opts, fixed });
+    expect(fa.chorus?.chorusLength).toBe(12);
+    expect(fa.chorus?.choruses.map((c) => c.first).slice(0, 3)).toEqual([4, 16, 28]);
+  });
+
   it('takes 12 bars for a blues played many times, not 24', () => {
     const fa = analyseForm(chartBars(repeat(BLUES, 6)), opts);
     expect(fa.chorus?.chorusLength).toBe(12);

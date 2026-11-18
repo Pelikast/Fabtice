@@ -157,6 +157,11 @@ export interface AppSettings {
   analyseOnImport: boolean;
   /** Per device. « S'appuyer sur les grilles connues des standards »: the chord analysis looks the title up in the library of standards. */
   useKnownCharts: boolean;
+  /**
+   * Per device (1.0.1). « Écouter aussi les instruments séparés »: after a separation, the detailed
+   * chord model also listens to the parts that carry the harmony (`analysis/engine/listen.ts`).
+   */
+  listenToStems: boolean;
   /** Per device (stage 5). « Détecter les modulations »: off, the detected modulations are emptied (the hand ones stay). */
   detectModulations: boolean;
   /** Per device (stage 5). « Structure automatique du morceau »: off, no detected structure (the hand parts and letters stay). */
@@ -173,6 +178,9 @@ export const EASE_LOAD_MIN = 20;
 export const EASE_LOAD_MAX = 99;
 export const EASE_LOAD_DEFAULT = 75;
 
+/** « Écouter aussi les instruments séparés » by default: the bench's verdict (web/spikes/accords/modeles/RECHERCHE.md, 1.0.1). */
+export const LISTEN_TO_STEMS_DEFAULT = false;
+
 export const DEFAULT_ADVANCED: AdvancedSettings = { separationModel: 'auto', formants: false };
 
 export function defaultAppSettings(): AppSettings {
@@ -182,6 +190,7 @@ export function defaultAppSettings(): AppSettings {
     atLaunch: 'lastProject',
     analyseOnImport: true,
     useKnownCharts: true,
+    listenToStems: LISTEN_TO_STEMS_DEFAULT,
     detectModulations: true,
     autoStructure: true,
     easeLoad: false,

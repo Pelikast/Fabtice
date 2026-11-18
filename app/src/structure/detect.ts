@@ -110,6 +110,7 @@ export function structureInBars(input: HarmonyInput, keyChanges: readonly { time
     key: input.key,
     keyChanges: keyChanges.map((k) => ({ bar: barIndexAt(bars, k.time), key: k.key })),
     cues: playerChanges(input),
+    fixed: (input.handSections ?? []).map((h) => ({ bar: barIndexAt(bars, h.time), letter: h.label })),
   });
   const mode: StructureMode = input.mode === 'auto' ? chooseMode(bars, analysis) : input.mode;
   const layout = mode === 'pop' ? (analysis.phrases ?? analysis.chorus) : (analysis.chorus ?? analysis.phrases);

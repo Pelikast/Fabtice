@@ -5,7 +5,7 @@
 
 import { t } from '../../i18n';
 import { STRUCTURE_MODE_CHOICES } from '../../model/structure';
-import { setAutoStructure, setDetectModulations, setUseKnownCharts } from '../../store/settingsActions';
+import { setAutoStructure, setDetectModulations, setListenToStems, setUseKnownCharts } from '../../store/settingsActions';
 import { setStructureMode } from '../../store/structureActions';
 import { useApp } from '../../store/store';
 import { ChordAnalysisAgain, ChordModelSetting } from '../ChordModelSetting';
@@ -13,6 +13,7 @@ import { CheckRow, Section } from './parts';
 
 export function ChordsTab() {
   const known = useApp((s) => s.settings.useKnownCharts);
+  const stems = useApp((s) => s.settings.listenToStems);
   const modulations = useApp((s) => s.settings.detectModulations);
   const structure = useApp((s) => s.settings.autoStructure);
   const mode = useApp((s) => s.corrections.structure.mode);
@@ -21,6 +22,7 @@ export function ChordsTab() {
       <Section scope="app">
         <ChordModelSetting />
         <CheckRow checked={known} onChange={setUseKnownCharts} label={t('settingsWin.chords.known')} note={t('settingsWin.chords.knownNote')} testId="grilles-connues" />
+        <CheckRow checked={stems} onChange={setListenToStems} label={t('settingsWin.chords.stems')} note={t('settingsWin.chords.stemsNote')} testId="ecouter-instruments" />
         <CheckRow
           checked={modulations}
           onChange={setDetectModulations}

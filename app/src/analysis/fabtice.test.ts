@@ -396,6 +396,27 @@ describe('FabticeAnalyzer', () => {
       expect(kinds()).toEqual(['analyse', 'decode', 'analyse', 'decode', 'decode']);
     });
 
+    it('« Écouter aussi les instruments séparés »: hands the parts to the fine model by transfer; other parts, another analysis', async () => {
+      const { a, workers } = analyser();
+      const fine = { ...RESULT, chordModel: { id: 'tsumugi-chords' } } as typeof RESULT;
+      const part = (name: string, audioId: string) => ({ name, audioId, mono: new Float32Array(48000) });
+      const run = async (req: AnalysisRequest) => {
+        const p = a.analyse(req);
+        await vi.advanceTimersByTimeAsync(0);
+        workers[workers.length - 1]!.emit({ type: 'result', result: fine, outputs: OUTPUTS, models: ['beat-this-logmel'] });
+        await p;
+        return workers[workers.length - 1]!.posted[0]!;
+      };
+      const first = await run(request({ chordModel: 'fine', stems: [part('piano', 'p1'), part('bass', 'b1')] }));
+      expect(first.message.type).toBe('analyse');
+      if (first.message.type !== 'analyse') throw new Error('unreachable');
+      expect(first.message.stems?.map((s) => s.name)).toEqual(['piano', 'bass']);
+      expect(first.transfer).toContain(first.message.stems![0]!.mono.buffer);
+      expect((await run(request({ chordModel: 'fine', stems: [part('piano', 'p1'), part('bass', 'b1')] }))).message.type).toBe('decode');
+      expect((await run(request({ chordModel: 'fine', stems: [part('piano', 'p2'), part('bass', 'b2')] }))).message.type).toBe('analyse');
+      expect((await run(request({ chordModel: 'fine' }))).message.type).toBe('analyse');
+    });
+
     it('forgets the kept outputs when disposed', async () => {
       const { a, workers } = analyser();
       const p = a.analyse(request());

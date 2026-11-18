@@ -74,7 +74,11 @@ export function toChordFrames(m: ModelFrames): ChordFrames {
   if (Math.abs(m.t0) > 1e-9) throw new Error('t0 != 0 not supported');
   const implied = !m.pitch || !m.bass ? impliedPitchBass(m.probs169, m.T) : null;
   // The engine takes log(p + 1e-6): keep the rows normalised.
-  return { T: m.T, fps: 1 / m.hop, probs: m.probs169, pitch: m.pitch ?? implied!.pitch, bass: m.bass ?? implied!.bass };
+  const frames: ChordFrames = { T: m.T, fps: 1 / m.hop, probs: m.probs169, pitch: m.pitch ?? implied!.pitch, bass: m.bass ?? implied!.bass };
+  // Tsumugi's 745 classes, as the app keeps them (`ChordFrames.detail`, 1.0.1: its own extensions).
+  // TS_EXT=0: without them (the extensions then come from the notes, as before 1.0.1).
+  if (m.C === 745 && process.env.TS_EXT !== '0') frames.detail = m.probs;
+  return frames;
 }
 
 /** Resample a model's 169-chord probabilities onto CREMA's frame grid (nearest frame). */

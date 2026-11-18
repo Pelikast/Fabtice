@@ -26,6 +26,13 @@ export interface AnalyseRequestMessage {
    * entry for a mono piece). Empty with CREMA, which listens to `mono` only.
    */
   stereo: Float32Array[];
+  /**
+   * 1.0.1, « Écouter aussi les instruments séparés », with the fine model only: the separated parts
+   * (not the drums) in mono at `sampleRate` (TRANSFERRED). The worker hears each with CREMA, keeps
+   * the ones that carry the harmony (`engine/listen.ts#selectHarmony`), and runs the fine model once
+   * more on their remix with the bass (`engine/chart.ts#HarmonyListening`).
+   */
+  stems?: { name: string; mono: Float32Array }[];
   /** Test hook only (`?echec-accords=memoire|session`): the fine chord model fails on purpose. */
   simulateChordFailure?: string | null;
   grid: GridHint | null;

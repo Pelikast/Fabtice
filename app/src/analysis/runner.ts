@@ -32,6 +32,7 @@ import { chordModelChoice } from './chordModel';
 import { autoAnalysisDisabled, getAnalyzer } from './index';
 import { knownChartsFor } from './knownCharts';
 import { engineIndex } from './engine/knownChart';
+import { isHarmonyCandidate } from './engine/listen';
 import { analysisProgressStore, setAnalysisProgress } from './progress';
 import { AnalysisError, resultChordModel, type AnalysisProgress, type AnalysisRequest, type GridHint } from './types';
 
@@ -45,6 +46,21 @@ function separationPending(s: AppState): boolean {
 /** The audio the analysis listens to: the original piece (before any separation), shown or set aside. */
 function sourceTrack(s: AppState) {
   return [...s.tracks, ...s.separation.aside].find((tr) => tr.audio.origin === 'original') ?? s.tracks[0] ?? null;
+}
+
+/**
+ * « Écouter aussi les instruments séparés » (1.0.1): the parts of the separation in force, in
+ * mono, with the bass (the drums are never heard for the chords). Empty without a separation.
+ */
+async function stemsToHear(s: AppState, sampleRate: number): Promise<{ name: string; audioId: string; mono: Float32Array }[]> {
+  if (!s.separation.result) return [];
+  const out: { name: string; audioId: string; mono: Float32Array }[] = [];
+  for (const tr of s.tracks) {
+    if (!tr.stem || tr.audio.origin !== 'separated' || !(isHarmonyCandidate(tr.stem) || tr.stem === 'bass')) continue;
+    const pcm = getAudio(tr.audio.id);
+    if (pcm && pcm.sampleRate === sampleRate) out.push({ name: tr.stem, audioId: tr.audio.id, mono: await pcmToMonoInSlices(pcm) });
+  }
+  return out;
 }
 
 /** Stops the analysis in progress, if any (its result, if it still comes, is dropped). */
@@ -166,6 +182,7 @@ async function launch(fix: TempoFixRun | null, fresh = false): Promise<AnalysisR
   // model (Réglages avancés) listens in stereo: both channels then.
   const chordModel = chordModelChoice();
   const channels = chordModel === 'fine' ? pcmToChannels(audio) : [await pcmToMonoInSlices(audio)];
+  const stems = chordModel === 'fine' && s.settings.listenToStems ? await stemsToHear(s, audio.sampleRate) : [];
   if (!stillMine()) {
     if (running === mine) running = null;
     return null;
@@ -190,6 +207,7 @@ async function launch(fix: TempoFixRun | null, fresh = false): Promise<AnalysisR
     knownCharts,
     // « Alléger le travail pour l'appareil »: read now, for the whole analysis (a change applies to the next one).
     loadShare: currentLoadShare(),
+    ...(stems.length ? { stems } : {}),
     onProgress,
     signal: abort.signal,
     tempoFix: fix ? (fix.kind === 'tapped' ? { kind: 'tapped', from: fix.from, grid: fix.grid, taps: fix.taps } : { kind: fix.kind, from: fix.from, grid: fix.grid, ...(fix.anchored ? { anchored: true } : {}) }) : null,

@@ -214,6 +214,12 @@ export interface AnalysisRequest {
    * its pieces of work and uses fewer threads; the results are the same, only the schedule changes.
    */
   loadShare?: number;
+  /**
+   * 1.0.1, « Écouter aussi les instruments séparés » (fine model only): the separated parts in
+   * mono at `sampleRate` (not the drums), each with its audio id. Handed over to the analyser,
+   * which may transfer them: do not use them afterwards.
+   */
+  stems?: { name: string; audioId: string; mono: Float32Array }[];
 }
 
 export type AnalysisErrorCode =

@@ -22,7 +22,9 @@ import type { ChordFrames } from '../engine/chords';
 import { resultFromOutputs } from '../engine/analyse';
 import { manualTempoGrid, tappedInfoOf, type ManualTempoFix } from '../engine/tapGrid';
 import type { KnownCharts } from '../engine/chart';
-import { runNetworks, type NetworkOutputs, type Sessions, type StepControl } from '../engine/pipeline';
+import { beatUnits, chordStage, gridFromActivations, gridFromHint, runNetworks, type NetworkOutputs, type Sessions, type StepControl } from '../engine/pipeline';
+import { frameRms, isHarmonyCandidate, selectHarmony, stemFeatures, type StemFeatures } from '../engine/listen';
+import type { HarmonyListening } from '../engine/chart';
 import { resampleRatioAsync } from '../engine/resample';
 import type { OrtLike, SessionLike } from '../engine/session';
 import type { Key } from '../../model/harmony';
@@ -216,6 +218,11 @@ async function analyse(msg: AnalyseRequestMessage): Promise<void> {
     msg.grid = gridFor(outputs, msg.grid, msg.tempoFix);
     a22 = null;
     a44 = null;
+    // 2b. The separated parts (1.0.1): CREMA on each tells which carry the harmony; their remix waits for the fine model.
+    let remix: { mono: Float32Array; stems: string[] } | null = null;
+    const stems = msg.stems ?? [];
+    msg.stems = [];
+    if (fine && fineWeights && !fallback && stems.length) remix = await harmonyRemix(stems, outputs, msg, set, ctl);
     // The sessions are no longer needed: free their memory before decoding.
     await Promise.all(sessions.splice(0).map((s) => s.release().catch(() => {})));
 
@@ -225,10 +232,11 @@ async function analyse(msg: AnalyseRequestMessage): Promise<void> {
       const first = decode(outputs, msg.grid, msg.key, msg.known, { duration: msg.duration, models });
       const weights = fineWeights;
       fineWeights = null;
-      const r = await fineChords(msg, first, weights, ctl);
+      const r = await fineChords(msg, first, weights, ctl, remix?.mono ?? null);
       if (r.fallback) fallback = r.fallback;
       else if (r.frames) {
-        outputs = { ...outputs, frames: r.frames, timeScale: 1 };
+        const harmony: HarmonyListening | null = r.harmony && remix ? { frames: r.harmony, timeScale: 1, stems: remix.stems } : null;
+        outputs = { ...outputs, frames: r.frames, timeScale: 1, listening: { harmony, bass: outputs.listening?.bass ?? null } };
         models = models.map((id) => (id === CHORD_MODEL_ID.crema ? CHORD_MODEL_ID.fine : id));
       }
     }
@@ -246,6 +254,47 @@ async function analyse(msg: AnalyseRequestMessage): Promise<void> {
   } finally {
     await Promise.all(sessions.splice(0).map((s) => s.release().catch(() => {})));
   }
+}
+
+/**
+ * The separated parts that carry the harmony, remixed with the bass (mono, at the piece's rate), as
+ * the bench measured it (web/spikes/accords/modeles/bench/variantes.ts, `modele-tiges`): CREMA on
+ * each candidate part, its features against the mix's, `selectHarmony`. Null when none carries it.
+ * The parts' audio is let go here.
+ */
+async function harmonyRemix(
+  stems: { name: string; mono: Float32Array }[],
+  outputs: NetworkOutputs,
+  msg: AnalyseRequestMessage,
+  set: Sessions,
+  ctl: StepControl,
+): Promise<{ mono: Float32Array; stems: string[] } | null> {
+  ctl.step('chords');
+  const grid = msg.grid ? gridFromHint(msg.grid.times, msg.grid.downbeat, msg.grid.meter.numerator) : gridFromActivations(outputs.act).grid;
+  if (grid.beats.length < 2) return null;
+  const mixUnits = beatUnits(outputs.frames, outputs.timeScale, grid);
+  const between = async () => {
+    ctl.check();
+    await ctl.yieldNow();
+  };
+  const feats: Record<string, StemFeatures> = {};
+  const candidates = stems.filter((s) => isHarmonyCandidate(s.name) && s.name !== 'bass');
+  for (const [k, s] of candidates.entries()) {
+    const a44 = await resampleRatioAsync(s.mono, msg.sampleRate / 44100, 20, between);
+    const quiet: StepControl = { ...ctl, step() {}, progress() {} };
+    const { frames, timeScale } = await chordStage(ort as unknown as OrtLike, set, a44, outputs.tuning, quiet);
+    feats[s.name] = stemFeatures(frames, frameRms(a44, frames.T, timeScale), beatUnits(frames, timeScale, grid), mixUnits, grid.numbers);
+    ctl.progress((k + 1) / (candidates.length + 1) / 10);
+  }
+  const pick = selectHarmony(feats);
+  if (!pick.length) return null;
+  const bass = stems.find((s) => s.name === 'bass');
+  if (bass) pick.push('bass');
+  const parts = pick.map((n) => stems.find((s) => s.name === n)!.mono);
+  const n = Math.max(...parts.map((p) => p.length));
+  const mono = new Float32Array(n);
+  for (const p of parts) for (let i = 0; i < p.length; i++) mono[i]! += p[i]!;
+  return { mono, stems: pick };
 }
 
 /** The shipped graph of the fine model, checked against its SHA-256. */
@@ -269,7 +318,8 @@ async function fineChords(
   first: AnalysisResult,
   weights: ArrayBuffer,
   ctl: StepControl,
-): Promise<{ frames?: ChordFrames; fallback?: ChordFallback }> {
+  remix: Float32Array | null = null,
+): Promise<{ frames?: ChordFrames; harmony?: ChordFrames; fallback?: ChordFallback }> {
   ctl.step('chords');
   let session: ort.InferenceSession | null = null;
   try {
@@ -292,11 +342,28 @@ async function fineChords(
     const numbers = b.times.map((_, i) => ((((i - b.downbeat) % n) + n) % n) + 1);
     const key = first.key ? { tonic: first.key.tonic, minor: first.key.mode === 'minor' } : null;
     const info = tsumugiInfo(b.times, numbers, key, msg.duration);
-    const out = await runTsumugi(ort as unknown as OrtLike, asSession(session), left, right, info, ctl, (done, total) => {
+    // With the separated parts, the windows of both passes make one progress (same length, same count).
+    const passes = remix ? 2 : 1;
+    const window = (pass: number) => (done: number, total: number) => {
       if (simulatedFailure === 'memoire' && done === 1) throw new RangeError('simulated: Array buffer allocation failed');
-      post({ type: 'progress', step: 'chords', fraction: total ? done / total : 0, chordWindow: { done, total } });
-    });
-    return { frames: tsumugiChordFrames(out) };
+      const all = total * passes;
+      const at = pass * total + done;
+      post({ type: 'progress', step: 'chords', fraction: all ? at / all : 0, chordWindow: { done: at, total: all } });
+    };
+    const out = await runTsumugi(ort as unknown as OrtLike, asSession(session), left, right, info, ctl, window(0));
+    const frames = tsumugiChordFrames(out);
+    if (!remix) return { frames };
+    // The parts that carry the harmony: one more pass, on their remix, with the same beats and key.
+    // Should it fail, the analysis keeps the whole piece's (as without separation).
+    try {
+      const [l2, r2] = tsumugiAudio([remix], msg.sampleRate);
+      await yieldNow();
+      const h = await runTsumugi(ort as unknown as OrtLike, asSession(session), l2, r2, info, ctl, window(1));
+      return { frames, harmony: tsumugiChordFrames(h) };
+    } catch (e) {
+      if (describe(e).code === 'cancelled') throw e;
+      return { frames };
+    }
   } catch (e) {
     const { code } = describe(e);
     if (code === 'cancelled') throw e;

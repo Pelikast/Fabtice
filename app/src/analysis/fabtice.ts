@@ -101,7 +101,7 @@ export class FabticeAnalyzer implements Analyzer {
   /** The analysis in progress (its signal tells when it is being given up: a new one may then start at once). */
   private active: { signal?: AbortSignal } | null = null;
   private current: Worker | null = null;
-  private kept: { audioId: string; outputs: NetworkOutputs; duration: number; models: string[]; chordId: string } | null = null;
+  private kept: { audioId: string; stemsKey: string; outputs: NetworkOutputs; duration: number; models: string[]; chordId: string } | null = null;
 
   constructor(options: FabticeAnalyzerOptions = {}) {
     this.beatModel = options.beatModel ?? 'light';
@@ -142,7 +142,11 @@ export class FabticeAnalyzer implements Analyzer {
       // Same audio, same chord model: the networks would give the very same numbers, so only the
       // decoding runs again (with what the user corrected). Outputs kept from another chord model
       // (or from a fine run that fell back) are recomputed.
-      const reuse = this.kept && this.kept.audioId === request.audioId && this.kept.chordId === CHORD_MODEL_ID[chordModel] ? this.kept : null;
+      // The separated parts heard are part of « the same sound ».
+      const stems = chordModel === 'fine' ? (request.stems ?? []) : [];
+      const stemsKey = stems.map((s) => `${s.name}:${s.audioId}`).join(',');
+      const reuse =
+        this.kept && this.kept.audioId === request.audioId && this.kept.stemsKey === stemsKey && this.kept.chordId === CHORD_MODEL_ID[chordModel] ? this.kept : null;
       if (!reuse) this.kept = null;
       let message: ToWorker;
       let transfer: Transferable[] = [];
@@ -175,11 +179,12 @@ export class FabticeAnalyzer implements Analyzer {
           known: request.knownCharts ?? null,
           tempoFix: request.tempoFix ?? null,
           ...(isEased(request.loadShare) ? { loadShare: request.loadShare } : {}),
+          ...(stems.length ? { stems: stems.map((s) => ({ name: s.name, mono: s.mono })) } : {}),
         } satisfies AnalyseRequestMessage;
-        transfer = [mono.buffer, ...stereo.map((c) => c.buffer)];
+        transfer = [mono.buffer, ...stereo.map((c) => c.buffer), ...stems.map((s) => s.mono.buffer)];
       }
       const { result, outputs, models } = await this.talk(message, transfer, duration, request);
-      if (outputs) this.kept = { audioId: request.audioId, outputs, duration, models, chordId: resultChordModel(result).id };
+      if (outputs) this.kept = { audioId: request.audioId, stemsKey, outputs, duration, models, chordId: resultChordModel(result).id };
       return result;
     } finally {
       if (this.active === mine) this.active = null;

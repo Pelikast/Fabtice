@@ -131,6 +131,11 @@ export interface HarmonyInput {
   evidence: StructureEvidence | null;
   /** « Mode » as chosen by the user: the detector names the parts in that mode (`auto`: it picks the likeliest). */
   mode: StructureModeChoice;
+  /**
+   * The section letters the user placed by hand (1.0.1): fixed points of the form search, a chorus
+   * starts where the user wrote the form's first letter. Absent or empty: none.
+   */
+  handSections?: readonly { time: Seconds; label: string }[];
 }
 
 /** `detectKeyChanges`: the later passages, ascending, each on a bar line after the first bar. */

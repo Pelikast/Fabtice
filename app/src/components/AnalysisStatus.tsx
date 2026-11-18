@@ -195,6 +195,8 @@ export function AnalysisPanel({ ref }: { ref: Ref<HTMLDivElement> }) {
   const waitingSeparation = useApp((s) => s.separationRun.status === 'running');
   const run = useApp((s) => s.analysisRun);
   const used = useApp((s) => (s.analysis ? evidenceText(analysisEvidence(s.analysis)) : ''));
+  // « Écoute : … » (1.0.1): the whole piece, or the piece and the separated parts.
+  const heardStems = useApp((s) => (s.analysis ? (analysisEvidence(s.analysis)?.harmonyStems.length ?? 0) > 0 : false));
   // Primitives only: a selector that builds an object would re-render for ever.
   const chordId = useApp((s) => (s.analysis ? resultChordModel(s.analysis).id : null));
   const chordFallback = useApp((s) => (s.analysis ? (resultChordModel(s.analysis).fallback ?? null) : null));
@@ -222,6 +224,11 @@ export function AnalysisPanel({ ref }: { ref: Ref<HTMLDivElement> }) {
                   ? t('analysis.waitSeparation')
                   : t('analysis.noneText')}
           </p>
+          {status === 'done' && (
+            <p className="panneau-note" data-testid="analyse-ecoute-source">
+              {t(heardStems ? 'analysis.listensStems' : 'analysis.listensWhole')}
+            </p>
+          )}
           {status === 'done' && used && (
             <p className="panneau-note" data-testid="analyse-ecoute">
               {used}
