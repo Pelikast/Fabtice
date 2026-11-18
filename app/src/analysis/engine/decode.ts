@@ -13,6 +13,7 @@
 //   fades away.
 // Viterbi gives the chart; forward-backward gives each segment's confidence.
 
+import { fineExtensions } from './tsumugiExtensions';
 import { N_CHORDS, NO_CHORD, QUAL_PCS, chordQual, chordRoot, type EngineQuality, type PooledUnit } from './chords';
 
 const DOM = new Set<EngineQuality | null>(['7']);
@@ -367,12 +368,19 @@ export function buildSegments(
       const r = chordRoot(g.chord);
       const q = chordQual(g.chord)!;
       const tones = new Set(QUAL_PCS[q]);
-      for (const [iv, name] of Object.entries(TENSIONS[q] ?? {})) {
-        const k = (r + Number(iv)) % 12;
-        if (tones.has(Number(iv))) continue;
-        if (pitch[k]! >= extThreshold) seg.extensions.push({ name, p: pitch[k]! });
+      // The fine model names its extensions itself (1.0.1): they are taken over the notes.
+      const fine = fineDetail(units, g.beats);
+      const named = fine ? fineExtensions(fine, g.chord) : null;
+      if (named) {
+        seg.extensions = named.map((name) => ({ name, p: conf[g.chord]! }));
+      } else {
+        for (const [iv, name] of Object.entries(TENSIONS[q] ?? {})) {
+          const k = (r + Number(iv)) % 12;
+          if (tones.has(Number(iv))) continue;
+          if (pitch[k]! >= extThreshold) seg.extensions.push({ name, p: pitch[k]! });
+        }
+        seg.extensions.sort((x, y) => y.p - x.p);
       }
-      seg.extensions.sort((x, y) => y.p - x.p);
       let bb = 0;
       for (let k = 1; k < 12; k++) if (bass[k]! > bass[bb]!) bb = k;
       const iv = (bb - r + 12) % 12;
@@ -380,4 +388,19 @@ export function buildSegments(
     }
     return seg;
   });
+}
+
+/** The fine model's classes summed over beats `beats` (weighted by frames), or null without them. */
+function fineDetail(units: readonly PooledUnit[], beats: readonly number[]): Float64Array | null {
+  let out: Float64Array | null = null;
+  let frames = 0;
+  for (const i of beats) {
+    const u = units[i]!;
+    if (!u.detail) return null;
+    out ??= new Float64Array(u.detail.length);
+    for (let c = 0; c < u.detail.length; c++) out[c]! += u.detail[c]! * u.frames;
+    frames += u.frames;
+  }
+  if (out && frames > 0) for (let c = 0; c < out.length; c++) out[c]! /= frames;
+  return out;
 }

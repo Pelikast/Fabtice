@@ -125,7 +125,7 @@ export async function runTsumugi(
 
 /**
  * The model's evidence as the engine's ChordFrames: the 745 classes summed onto the app's
- * 169 chords (extensions folded into their chord), the model's own notes and bass. 25 frames
+ * 169 chords (extensions folded into their chord), the model's own notes, bass and classes. 25 frames
  * per second from time 0 of the piece: the decoding takes it with `timeScale` 1 (the model
  * needs no tuning correction).
  */
@@ -143,5 +143,8 @@ export function tsumugiChordFrames(f: TsumugiFrames): ChordFrames {
     if (s > 0) for (let c = 0; c < N_CHORDS; c++) probs[row + c]! /= s;
     else probs[row + NO_CHORD] = 1;
   }
-  return { T, fps: FRAME_RATE, probs, pitch: f.tones.slice(), bass: f.bass.slice() };
+  // Its own 745 classes go along: the chord found takes the extensions of the model's best
+  // class among those that fold onto it (1.0.1, `fineExtensions`).
+  return { T, fps: FRAME_RATE, probs, pitch: f.tones.slice(), bass: f.bass.slice(), detail: f.detail.slice() };
 }
+

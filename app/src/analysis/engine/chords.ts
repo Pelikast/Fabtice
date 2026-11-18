@@ -53,6 +53,8 @@ export interface ChordFrames {
   pitch: Float32Array;
   /** Bass posteriors, T × 13. */
   bass: Float32Array;
+  /** The fine model only: its own 745 classes (with extensions), T × 745 (`tsumugiVocab.ts`). */
+  detail?: Float32Array;
 }
 
 /**
@@ -94,6 +96,8 @@ export interface PooledUnit {
   pitch: Float64Array;
   bass: Float64Array;
   frames: number;
+  /** Mean of `ChordFrames.detail` over the unit, when the model gives it. */
+  detail?: Float64Array;
 }
 
 /**
@@ -112,12 +116,15 @@ export function poolSegments(fr: ChordFrames, segments: readonly (readonly [numb
     const pitch = new Float64Array(12);
     const bass = new Float64Array(13);
     const n = f1 - f0;
+    const D = fr.detail ? fr.detail.length / fr.T : 0;
+    const detail = fr.detail ? new Float64Array(D) : undefined;
     for (let f = f0; f < f1; f++) {
       for (let c = 0; c < N_CHORDS; c++) logp[c]! += Math.log(fr.probs[f * N_CHORDS + c]! + 1e-6) / n;
       for (let k = 0; k < 12; k++) pitch[k]! += fr.pitch[f * 12 + k]! / n;
       for (let k = 0; k < 13; k++) bass[k]! += fr.bass[f * 13 + k]! / n;
+      if (detail) for (let c = 0; c < D; c++) detail[c]! += fr.detail![f * D + c]! / n;
     }
-    out.push({ t0, t1, logp, pitch, bass, frames: n });
+    out.push(detail ? { t0, t1, logp, pitch, bass, frames: n, detail } : { t0, t1, logp, pitch, bass, frames: n });
   }
   return out;
 }
