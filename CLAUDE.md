@@ -252,7 +252,9 @@ rapport au périmètre ci-dessus :
   savoir le faire.
 - **Publication** : un push sur `main` fabrique, teste sur les deux puces,
   puis publie la version du numéro de `desktop/package.json` (étiquette
-  `v1.0.0`, vraie version, dernière version), une seule fois par numéro. Pour
+  `v1.0.0`, vraie version, dernière version), une seule fois par numéro. **Chaque version a sa propre page de version sur GitHub** : une nouvelle
+  version n'écrase jamais les précédentes, qui restent téléchargeables (demande
+  du propriétaire, 18 novembre 2026, valable pour toutes les versions). Pour
   publier la suivante : changer le numéro dans `app/package.json` et
   `desktop/package.json` et ajouter sa section en tête de `CHANGELOG.md`.
 - **Séparation** : comportement inchangé ; pas d'option « rapide », pas de
