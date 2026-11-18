@@ -1,13 +1,16 @@
 # Passation — état du projet
 
-## État des lieux : version 1.0.0 (17 novembre 2026)
+## État des lieux : version 1.0.0, publiée le 18 novembre 2026
 
 À lire d'abord ; le reste du document décrit ce qui existait avant (lots 1 à
 4, version du 16 novembre) et garde les pièges de l'environnement de travail.
 
-**Ce qui existe.** La version 1.0.0 est écrite, vérifiée et prête sur la
-branche `v1` ; elle se publie par un push de `v1` sur `main`, avec l'accord
-du propriétaire. Par rapport à la version du 16 novembre, elle apporte : le
+**Ce qui existe.** La version 1.0.0 est **publiée** depuis le 18 novembre
+2026 : page « Fabtice 1.0.0 » sur GitHub, étiquette `v1.0.0` sur le commit
+`f348a76` de `main`, deux `.dmg`, deux `.zip` et `fabtice-version.json`. Tout
+son travail s'est fait sur la branche `v1`, passée sur `main` avec l'accord du
+propriétaire ; une version suivante se prépare sur une nouvelle branche. Par
+rapport à la version du 16 novembre, elle apporte : le
 menu Fabtice et la barre de menus du Mac, les Réglages à sept onglets,
 Annuler / Rétablir, « Enregistrer » qui écrase le `.fab` et l'alerte avant de
 perdre son travail, la fenêtre « Nouveau projet », le message des grilles des
@@ -61,18 +64,25 @@ passe au rouge si une app installée ne pourrait pas la suivre. Détail :
   entendu : tout a été vérifié par tests, captures et sur les Mac de GitHub.
   La liste de ce que le propriétaire doit essayer est dans
   `v1/bilan-etape-7.md`.
-- La publication réelle n'a jamais tourné (seul son essai à blanc), et la mise
-  à jour automatique ne se verra chez le propriétaire qu'avec la version qui
-  suivra la 1.0.0.
+- La publication réelle a tourné une fois, pour la 1.0.0, verte du premier
+  coup (journal `15-publish.log` : publiée, dernière version, fichier de
+  version relu, archives joignables). La mise à jour automatique ne se verra
+  chez le propriétaire qu'avec la version qui suivra la 1.0.0.
+- Sur le Mac Intel de GitHub, la page de l'app s'est arrêtée deux fois au
+  lancement de la lecture (« Target crashed »), sur une vingtaine de
+  fabrications ; jamais sur la puce Apple ; cause non trouvée. Si cela arrive
+  chez un utilisateur, Aide → Diagnostic… le note (« Une fenêtre de Fabtice
+  s'est arrêtée ») : demander ce journal au propriétaire s'il voit l'app se
+  figer ou se vider sur son Mac Intel.
 - Jamais ouverts dans le vrai logiciel : le dossier pour Logic Pro (à essayer
   par le propriétaire dans Logic 13) et le projet Ableton Live (personne ne
   peut l'essayer : annoncé « à l'essai »).
 - Structure, modulations et reconnaissance des vents : mesurées sur des
   rendus de synthèse seulement ; ce sont des propositions à corriger à la
   main.
-- Après la publication : retitrer l'ancienne page `desktop-dev` (« Ancienne
-  version de test, remplacée par Fabtice 1.0.0 ») et demander au propriétaire
-  le déploiement Netlify.
+- Reste à faire après la publication : retitrer à la main, sur GitHub,
+  l'ancienne page `desktop-dev` (« Ancienne version de test, remplacée par
+  Fabtice 1.0.0 ») ; le déploiement Netlify, demandé au propriétaire.
 - Reporté : affichage « Partition » (v2) ; séparation à distance par clé
   secrète (version future) ; apps Windows, Android, iOS.
 

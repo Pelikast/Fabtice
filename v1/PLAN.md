@@ -24,6 +24,10 @@ lisent que par parties, quand on en a besoin.
 
 Chaque session d'étape met cette table à jour quand elle finit.
 
+**Publiée le 18 novembre 2026** : `v1` est passée sur `main` au commit
+`f348a76` (étiquette `v1.0.0`, page « Fabtice 1.0.0 »), fabrication verte sur les
+deux puces du premier coup. La suite se prépare sur une nouvelle branche.
+
 ## Règles sans exception
 
 - **Aucun déploiement Netlify.** Pousser ne publie rien sur le site ; on ne
