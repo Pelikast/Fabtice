@@ -107,6 +107,9 @@ describe('the automatic choice (owner\'s decision, 17 November 2026)', () => {
     expect(readStoredSetting('nonsense')).toBe('auto');
     expect(readStoredSetting('fine')).toBe('fine');
     expect(readStoredSetting('crema')).toBe('crema');
+    // 1.0.2, on trial: explicit choices only.
+    expect(readStoredSetting('sheetsage2')).toBe('sheetsage2');
+    expect(readStoredSetting('combined')).toBe('combined');
     store['fabtice.chordModel.v1'] = 'crema';
     resetChordModelChoice();
     setChordModelDevice(computer8);

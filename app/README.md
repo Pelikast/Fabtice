@@ -3205,6 +3205,53 @@ gardés (règle de toujours, testée dans `chordModel.test.ts`).
   3,3 Go au pic. Essai : `FABTICE_E2E_ANALYSIS_FINE=1 xvfb-run -a node --test
   test/e2e/analysis-fine.test.js` dans `desktop/` (non bloquant).
 
+##### SheetSage2 et la combinaison, à l'essai (1.0.2 : `engine/sheetsage2*.ts`, `engine/combine.ts`)
+
+Deux valeurs de plus pour **Modèle d'accords** : « À l'essai : SheetSage2 » (`sheetsage2`) et
+« À l'essai : SheetSage2 + Tsumugi-Chords (combinaison) » (`combined`). Choix explicites
+seulement : l'automatique ne les prend jamais (`chordModel.ts#readStoredSetting`).
+
+- **Fichiers.** Deux fichiers des auteurs, intacts, révisions figées, SHA-256 vérifiées :
+  `m-a-p/SheetSage2` `model.safetensors` (229 Mo : décodeur, adaptateurs de l'encodeur) et
+  `m-a-p/MERT-v2-FullSong` `model.safetensors` (2,53 Go : l'encodeur). Trop gros pour un seul
+  tampon : `models/download.ts#ensureLargeModel` les reçoit par morceaux dans un `Blob`, calcule
+  la SHA-256 au fil de l'eau (`models/sha256.ts`), reprend après une coupure (`Range`) et les
+  garde comme `Blob` dans la base des outils (`ModelStore.putBlob`) ; au réemploi, la taille et
+  l'empreinte notées suffisent (relire 2,5 Go pour les hacher coûterait une demi-minute).
+  Un profil sur disque est nécessaire (le cas de l'app Mac et d'un navigateur ordinaire) : dans
+  une fenêtre privée, le `Blob` ne tient pas en mémoire et l'analyse se replie, en le disant.
+- **Graphes** (`assets/sheetsage2/`, sans poids, provenance dans `assets/README.md`) : six
+  morceaux de l'encodeur (quatre couches, ~400 à 600 Mo de poids chacun), l'attention croisée,
+  un pas du décodeur. Chaque graphe lit seulement ses **tranches** des deux fichiers
+  (`Blob.slice`, manifeste `sheetsage2-manifest.json`), sa session est créée, utilisée puis
+  libérée avant la suivante. L'attention de l'encodeur est calculée tête par tête (7 500 images
+  par fenêtre : les 16 têtes d'un coup demanderaient 3,6 Go).
+- **Déroulé (worker).** Le morceau à 24 kHz mono, en fenêtres de 300 s (une seule jusqu'à
+  5 minutes ; au-delà, toutes les 200 s, chacune gardant le milieu de ses recouvrements) ;
+  log-mel calculé en TypeScript avec les constantes du fichier MERT-v2 (`sheetsage2Mel.ts`) ;
+  décodage glouton jeton par jeton sous la grammaire des auteurs (`Grammar`), invite « temps et
+  accords complets » ; à chaque accord écrit, ses probabilités sur ses 361 étiquettes
+  (`sheetsage2Vocab.ts`, généré par `gen_sheetsage2_vocab.py`). `sheetsage2ChordFrames` en fait
+  des `ChordFrames` à 25 images/s (chaque accord tenu jusqu'au suivant, replié sur les 169
+  accords, basse tirée des renversements, sans `detail` : pas d'extensions), puis la suite
+  habituelle (`resultFromOutputs`). Identique au modèle PyTorch des auteurs : 729 jetons sur 729
+  sur un morceau du banc (`web/spikes/accords/modeles/ts/ss2-parity.ts`).
+- **Combinaison** (`combine.ts`) : Tsumugi d'abord, puis SheetSage2 ; par image, produit pondéré
+  de leurs probabilités sur les 169 accords (`COMBINE_WEIGHTS`), les notes, la basse et les 745
+  classes (extensions) de Tsumugi gardées. Avec « Écouter aussi les instruments séparés », le
+  passage de Tsumugi sur les parties harmoniques est combiné de la même façon.
+- **Progression** : `chordWindow` avec `kind: 'steps'` compte des pièces de travail de durée
+  voisine (chaque morceau de l'encodeur, le décodage, chaque fenêtre de Tsumugi) ; le panneau dit
+  « Accords : lecture approfondie, 37 % ».
+- **Repli** : SheetSage2 introuvable ou en échec → CREMA (choix `sheetsage2`) ou Tsumugi seul
+  (combinaison) ; `chordModel: { id, fallback, wanted, detail }`, la barre du haut le dit
+  (« Accords lus sans SheetSage2 » ou « … par le modèle rapide ») et le panneau dit pourquoi.
+- **Coût mesuré ici** (4 cœurs, onnxruntime-web WASM sous Node, 4 fils) : par fenêtre de 300 s,
+  encodeur ~3,8 min (54 s pour le premier morceau, ~34 s pour chacun des autres), décodeur
+  ~56 ms par jeton (~7 jetons par seconde de musique) ; pic de mémoire ~3 Go.
+  Vérification dans Chromium (profil sur disque) : `FABTICE_ANALYSIS_ONLY=sheetsage2 npm run
+  test:analysis` (`FABTICE_SS2_DIR` : servir les deux fichiers depuis un dossier local).
+
 #### Grille d'accords — `src/chart/`
 
 Tout est en place : la feuille fidèle à la maquette, et ce qu'un musicien fait
