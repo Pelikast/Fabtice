@@ -25,11 +25,13 @@ export const COMBINE_WEIGHTS: CombineWeights = { sheetsage2: 0.5, tsumugi: 1 };
 
 /**
  * The owner's idea (18 November 2026): where the two models name the same chord, it is taken as
- * right, Tsumugi's extensions with it; where they do not, the chord is marked doubtful and its
- * extensions are left out (a doubt on the chord is a doubt on its extensions). A chord counts as
- * « agreed » when the two models agree on at least `minShare` of its frames.
+ * right, Tsumugi's extensions with it; where they do not, the chord is marked doubtful. A chord
+ * counts as « agreed » when the two models agree on at least `minShare` of its frames. Measured on
+ * the bench (RECHERCHE.md, « Version 1.0.2 »): the doubtful mark then flags 54 % of the wrong
+ * chords instead of 15 to 17 % (synthetic jazz), the chords found unchanged; leaving out the
+ * extensions of the chords in doubt loses « complet » points (67 → 64 %): kept off.
  */
-export const COMBINE_AGREEMENT = { minShare: 0.5, doubt: true, dropExtensions: true };
+export const COMBINE_AGREEMENT = { minShare: 0.5, doubt: true, dropExtensions: false };
 
 const EPS = 1e-4;
 

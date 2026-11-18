@@ -6,6 +6,57 @@ extensions, basse et renversements), qui tournent sur l'appareil de
 l'utilisateur avec onnxruntime-web, et les proposer comme choix dans les
 réglages avancés.
 
+## Version 1.0.2 : SheetSage2 et la combinaison (mesures du 18 novembre 2026)
+
+SheetSage2 (m-a-p, octobre 2026) : le seul modèle récent mesuré sur du jazz (banc JAAH : 64,5 %
+majeur/mineur, contre 59,5 % pour ChordFormer). Encodeur MERT-v2-FullSong (632 M paramètres) et
+décodeur qui écrit le morceau en jetons ; ses 361 accords n'ont **pas d'extensions**. Poids
+CC BY-NC 4.0, téléchargeables sans compte.
+
+- **Conversion** (`convert_sheetsage2.py`, vérifiée par `check_sheetsage2.py`) : graphes sans
+  poids (encodeur en six morceaux de quatre couches, attention tête par tête, attention croisée,
+  pas du décodeur), lisant des tranches des fichiers des auteurs. Écart à leur PyTorch : 4·10⁻⁶
+  sur l'encodeur, mêmes jetons au décodage. Le code de l'app (`ts/ss2-parity.ts`, onnxruntime-web
+  WASM sous Node) donne **729 jetons sur 729** identiques à leur modèle sur `satin`.
+- **Coût** (4 cœurs, WASM) : ~3,8 min d'encodeur par fenêtre de 300 s (une fenêtre jusqu'à
+  5 minutes de musique), ~56 ms par jeton, ~7 jetons par seconde de musique ; pic ~3 Go.
+- **Banc** : `dump_sheetsage2.py` (leur PyTorch, invite « temps et accords complets ») sur le
+  sous-ensemble Tsumugi (`corpus_list.py`, 14 morceaux de synthèse, 8 prises GuitarSet, deux sons
+  chacun), variantes `ss2-seul` et `ss2-combi` (le code de l'app : `sheetsage2ChordFrames`,
+  `combineFrames`, puis l'étape A), Tsumugi précalculé (`MODELE=tsumugi`). Grille détectée,
+  couleur / complet par temps.
+
+| Variante | Synthèse propre | Synthèse vieux disque | GuitarSet | GuitarSet vieux disque |
+|---|---|---|---|---|
+| CREMA (`app`) | 64 / 33 % | 52 / 28 % | 81 / 76 % | 78 / 68 % |
+| Tsumugi (`modele-a`) | 89 / 65 % | 79 / 49 % | 79 / 76 % | 85 / 78 % |
+| SheetSage2 seul (`ss2-seul`) | 84 / 39 % | 80 / 37 % | 82 / 81 % | 82 / 79 % |
+| combinaison, poids SheetSage2 0,2 | 90 / 67 % | 85 / 52 % | 80 / 77 % | 84 / 76 % |
+| combinaison, 0,35 | 91 / 67 % | 86 / 53 % | 81 / 78 % | 83 / 76 % |
+| **combinaison, 0,5 (retenu)** | **91 / 67 %** | **87 / 54 %** | 80 / 78 % | 82 / 76 % |
+| combinaison, 1 | 91 / 66 % | 86 / 53 % | 81 / 78 % | 81 / 77 % |
+| combinaison, 2 | 86 / 62 % | 82 / 51 % | 81 / 78 % | 80 / 77 % |
+
+- SheetSage2 seul vaut Tsumugi sur le vieux disque de synthèse et le dépasse un peu sur la
+  guitare propre, mais perd beaucoup sur « complet » (pas d'extensions).
+- La combinaison (poids Tsumugi 1, SheetSage2 0,5) gagne **+2 points** de couleur sur la synthèse
+  propre et **+8 points** sur le vieux disque de synthèse, le cas principal du propriétaire ;
+  GuitarSet vieux disque perd 3 points (8 prises seulement).
+- **Règle du propriétaire** (désaccord des deux modèles sur au moins la moitié de l'accord) :
+
+| Avec la combinaison 0,5 | Synthèse propre | Synthèse vieux disque | GuitarSet | GuitarSet vieux disque |
+|---|---|---|---|---|
+| erreurs signalées « douteux », sans la règle | 15 % | 17 % | 1 % | 17 % |
+| **avec « douteux » en cas de désaccord (retenu)** | **54 %** | **54 %** | **37 %** | **59 %** |
+| faux quand douteux, avec la règle | 30 % | 25 % | 90 % | 76 % |
+| complet, en retirant aussi les extensions | 67 → 64 % | 54 → 52 % | 78 → 78 % | 76 → 76 % |
+
+  Les accords trouvés ne changent pas ; le signal « douteux » montre trois fois plus d'erreurs,
+  au prix de plus d'accords marqués à tort sur la synthèse. Retirer les extensions des accords en
+  doute fait perdre des accords complets justes : non retenu (`combine.ts#COMBINE_AGREEMENT`).
+- Reste à mesurer sur de vrais disques de jazz ancien (le propriétaire, avec ses `.fab`
+  corrigés) : c'est là que SheetSage2, entraîné sur beaucoup plus de musique, devrait compter.
+
 ## Version 1.0.1 : mesures du 18 novembre 2026
 
 Sous-ensemble Tsumugi (`corpus_list.py`, 14 morceaux de synthèse et 8 prises GuitarSet, chacun en

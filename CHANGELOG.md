@@ -18,7 +18,12 @@ Dans Réglages → Détection des accords → « Modèle d'accords » :
   modèles votent l'accord (fondamentale, couleur, septième), puis
   Tsumugi-Chords ajoute les extensions et la basse. Les reprises de la grille,
   la grille du standard et, si la case est cochée, les instruments séparés
-  comptent aussi, comme avant.
+  comptent aussi, comme avant. Quand les deux modèles ne sont pas d'accord,
+  l'accord est marqué **douteux** sur la grille : vous savez où vérifier.
+- Sur nos morceaux d'essai façon vieux disque, la combinaison trouve la bonne
+  couleur d'accord **87 fois sur 100**, contre 79 pour Tsumugi-Chords seul et
+  80 pour SheetSage2 seul. Les accords marqués douteux montrent trois fois
+  plus d'erreurs qu'avant.
 
 ### À savoir avant de les essayer
 - C'est **long** : environ 6 minutes par tranche de 5 minutes de musique
