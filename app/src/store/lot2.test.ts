@@ -17,6 +17,9 @@ import { keyLabel } from '../harmony/key';
 import { fakeClock } from '../test/fakeClock';
 import * as actions from './actions';
 import { applyAnalysis } from './analysisActions';
+import { startHistory, undo } from './history';
+import { setSeparationRun } from './separationActions';
+import type { SeparationRun } from './store';
 import {
   keyInForce,
   selectAnalysisStatus,
@@ -102,6 +105,26 @@ describe('applying an analysis', () => {
     expect(s.tempoMap.origin).toBe('analysis');
     expect(s.corrections.key).toBeNull();
     expect(s.corrections.sections).toHaveLength(1);
+  });
+
+  it('« Garder mes corrections » unticked: everything done by hand goes, as one undoable step', () => {
+    applyAnalysis(result());
+    const stop = startHistory(appStore);
+    grid.doubleTheTempo();
+    harmony.setKey({ tonic: 8, mode: 'minor' });
+    harmony.setSection(4, 'B');
+    harmony.setBarChords(3, [{ beatInBar: 0, chord: chord(6, '7', ['b9']) }]);
+    const before = get();
+    applyAnalysis(result(), { fresh: true });
+    const s = get();
+    expect(s.tempoMap.origin).toBe('analysis');
+    expect(s.corrections.key).toBeNull();
+    expect(s.corrections.sections).toHaveLength(0);
+    expect(s.corrections.chords).toHaveLength(0);
+    expect(undo()).toBe(true);
+    expect(get().corrections).toBe(before.corrections);
+    expect(get().tempoMap).toBe(before.tempoMap);
+    stop();
   });
 
   it('a manual grid from the lot 1 panel is kept too', () => {
@@ -324,6 +347,19 @@ describe('the analysis runner', () => {
     expect(seen).toContain('running:download');
     expect(seen).toContain('running:beats');
     expect(seen.at(-1)).toBe('idle');
+    expect(selectAnalysisStatus(get())).toBe('done');
+  });
+
+  it('waits for the separation, then analyses (1.0.1)', async () => {
+    replaceAnalyzer(new MockAnalyzer({ durationMs: 0, downloadMs: 0 }));
+    await openPiece();
+    setSeparationRun({ status: 'running', projectId: get().project!.id, modelId: 'x', step: 'separate', backend: null, fellBack: false } as SeparationRun);
+    const stop = startAutoAnalysis(true);
+    await new Promise((r) => setTimeout(r, 50));
+    expect(get().analysis).toBeNull();
+    setSeparationRun({ status: 'idle' });
+    await new Promise((r) => setTimeout(r, 50));
+    stop();
     expect(selectAnalysisStatus(get())).toBe('done');
   });
 

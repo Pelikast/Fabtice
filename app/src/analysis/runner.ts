@@ -19,6 +19,8 @@ import { beatGridOf } from '../grid/beats';
 import { barStartTime } from '../grid/tempoMap';
 import type { TempoMap } from '../model/tempoMap';
 import { applyAnalysis, setAnalysisRun } from '../store/analysisActions';
+import { setSeparationNotice } from '../store/separationActions';
+import { t } from '../i18n';
 import { applyTempoFix } from '../store/tempoFixActions';
 import type { ManualTempoFix } from './engine/tapGrid';
 import type { TempoFixKind } from './engine/tempoFix';
@@ -33,6 +35,11 @@ import { analysisProgressStore, setAnalysisProgress } from './progress';
 import { AnalysisError, resultChordModel, type AnalysisProgress, type AnalysisRequest, type GridHint } from './types';
 
 let running: { projectId: string; abort: AbortController } | null = null;
+
+/** A separation runs, or was asked in the new-piece dialog and is about to start. */
+function separationPending(s: AppState): boolean {
+  return s.separationRun.status === 'running' || (s.ui.importStems.length > 0 && !s.separation.result && s.separationRun.status === 'idle');
+}
 
 /** The audio the analysis listens to: the original piece (before any separation), shown or set aside. */
 function sourceTrack(s: AppState) {
@@ -56,8 +63,8 @@ export function isAnalysing(): boolean {
  * Analyses the open piece. Resolves when done, failed or cancelled (never
  * rejects): the outcome is in the store.
  */
-export function runAnalysis(): Promise<void> {
-  return launch(null).then(() => undefined);
+export function runAnalysis(opts: { fresh?: boolean } = {}): Promise<void> {
+  return launch(null, opts.fresh === true).then(() => undefined);
 }
 
 /**
@@ -119,7 +126,7 @@ type TempoFixRun = ManualTempoFix & {
   preview?: boolean;
 };
 
-async function launch(fix: TempoFixRun | null): Promise<AnalysisResult | null> {
+async function launch(fix: TempoFixRun | null, fresh = false): Promise<AnalysisResult | null> {
   const store = appStore;
   const s = store.getState();
   const project = s.project;
@@ -151,7 +158,8 @@ async function launch(fix: TempoFixRun | null): Promise<AnalysisResult | null> {
     }
   };
 
-  const userGrid = s.tempoMap.origin === 'manual' || s.tempoMap.origin === 'corrected';
+  // From scratch: nothing done by hand is given to the analysis.
+  const userGrid = !fresh && (s.tempoMap.origin === 'manual' || s.tempoMap.origin === 'corrected');
   // CREMA listens in mono ((l + r) / 2, its own mix): one transient Float32 copy, made from the
   // registry's 16-bit samples a slice at a time, let go once the analyser has it. The fine chord
   // model (Réglages avancés) listens in stereo: both channels then.
@@ -174,7 +182,7 @@ async function launch(fix: TempoFixRun | null): Promise<AnalysisResult | null> {
     audioId: track.audio.id,
     grid: fix ? fix.grid : userGrid ? beatGridOf(s.tempoMap, project.duration) : null,
     // A tempo action keeps the key in force, so that the chords from its bar are read in the same key.
-    key: fix ? (s.corrections.key ?? (s.analysis?.key ? { tonic: s.analysis.key.tonic, mode: s.analysis.key.mode } : null)) : s.corrections.key,
+    key: fix ? (s.corrections.key ?? (s.analysis?.key ? { tonic: s.analysis.key.tonic, mode: s.analysis.key.mode } : null)) : fresh ? null : s.corrections.key,
     knownCharts,
     // « Alléger le travail pour l'appareil »: read now, for the whole analysis (a change applies to the next one).
     loadShare: currentLoadShare(),
@@ -188,7 +196,7 @@ async function launch(fix: TempoFixRun | null): Promise<AnalysisResult | null> {
     setAnalysisProgress({ chordWindow: null, fallback: resultChordModel(result).fallback ?? null });
     if (fix?.preview) setAnalysisRun({ status: 'idle' });
     else if (fix && fix.kind !== 'tapped') applyTempoFix(result, { time: fix.from, kind: fix.kind, previous: fix.previous });
-    else if (!fix) applyAnalysis(result, { keptGrid: userGrid });
+    else if (!fix) applyAnalysis(result, fresh ? { fresh: true } : { keptGrid: userGrid });
     return result;
   } catch (e) {
     if (!stillMine()) return null;
@@ -211,12 +219,40 @@ export function startAutoAnalysis(enabled = !autoAnalysisDisabled()): () => void
   const store = appStore;
   let triedFor: string | null = null;
   let previousProject: string | null = store.getState().project?.id ?? null;
+  let previousResult = store.getState().separation.result;
+  let wasSeparating = separationPending(store.getState());
   const check = (s: AppState) => {
     const id = s.project?.id ?? null;
     if (id !== previousProject) {
       previousProject = id;
+      previousResult = s.separation.result;
+      wasSeparating = separationPending(s);
       if (running && running.projectId !== id) cancelAnalysis();
     }
+    // First the separation, then the analysis (1.0.1, owner's decision): an analysis
+    // started before the separation is stopped and starts again once it ends.
+    const separating = separationPending(s);
+    if (separating) {
+      if (running && running.projectId === id) {
+        cancelAnalysis();
+        triedFor = null;
+      }
+      wasSeparating = true;
+      return;
+    }
+    if (wasSeparating) {
+      wasSeparating = false;
+      const separated = s.separation.result !== previousResult && s.separation.result !== null;
+      previousResult = s.separation.result;
+      // A piece already analysed: chords and structure again, corrections kept.
+      if (separated && enabled && id && s.analysis && s.analysisRun.status !== 'running') {
+        void runAnalysis().then(() => {
+          if (appStore.getState().analysisRun.status === 'idle') setSeparationNotice(t('analysis.afterSeparation'));
+        });
+        return;
+      }
+    }
+    previousResult = s.separation.result;
     // « Analyser dès l'import » (Réglages → Tempo et analyse): off, the piece waits for « Analyser ce morceau ».
     if (!enabled || !s.settings.analyseOnImport || !id || s.analysis || triedFor === id) return;
     if (s.transport.engine !== 'ready' && s.transport.engine !== 'playing') return;

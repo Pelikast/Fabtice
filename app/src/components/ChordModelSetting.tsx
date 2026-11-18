@@ -11,6 +11,7 @@ import { runAnalysis } from '../analysis/runner';
 import { t } from '../i18n';
 import { formatSize } from '../separation/useChoice';
 import { useApp } from '../store/store';
+import { useState } from 'react';
 
 /** Minutes for 4 minutes of music on a computer, as measured (4 threads, see app/README.md). */
 const FINE_MINUTES_PER_4MIN = 6;
@@ -50,14 +51,53 @@ export function ChordModelSetting() {
   );
 }
 
-/** For the open piece: the detection runs again with the model in force. Offered at any time (there is no « changed » to wait for). */
-export function ChordAnalysisAgain() {
+/**
+ * « Analyser de nouveau » for the open piece (1.0.1): « Garder mes corrections » ticked by
+ * default (the corrections stay and guide the new analysis); unticked, everything done by hand is
+ * dropped, after a second click that says so (one undoable step). `onStart`: e.g. close a panel.
+ */
+export function ChordAnalysisAgain({ label = t('settings.chordModel.again'), onStart }: { label?: string; onStart?: () => void }) {
   const running = useApp((s) => s.analysisRun.status === 'running');
+  const [keep, setKeep] = useState(true);
+  const [confirming, setConfirming] = useState(false);
+  const start = (fresh: boolean) => {
+    setConfirming(false);
+    onStart?.();
+    void runAnalysis({ fresh });
+  };
   return (
     <div className="option option-colonne">
-      <button type="button" className="bouton-cadre" data-testid="modele-accords-relancer" disabled={running} onClick={() => void runAnalysis()}>
-        {t('settings.chordModel.again')}
-      </button>
+      <label className="case">
+        <input
+          type="checkbox"
+          checked={keep}
+          data-testid="analyse-garder-corrections"
+          onChange={(e) => {
+            setKeep(e.target.checked);
+            setConfirming(false);
+          }}
+        />
+        {t('analysis.keepCorrections')}
+      </label>
+      <small>{t(keep ? 'analysis.keepCorrectionsNote' : 'analysis.freshNote')}</small>
+      {confirming ? (
+        <>
+          <button type="button" className="bouton-cadre" data-testid="analyse-zero-confirmer" disabled={running} onClick={() => start(true)}>
+            {t('analysis.freshConfirm')}
+          </button>
+          <small>{t('analysis.freshUndo')}</small>
+        </>
+      ) : (
+        <button
+          type="button"
+          className="bouton-cadre"
+          data-testid="modele-accords-relancer"
+          disabled={running}
+          onClick={() => (keep ? start(false) : setConfirming(true))}
+        >
+          {label}
+        </button>
+      )}
       <small>{t('settings.chordModel.againNote')}</small>
     </div>
   );

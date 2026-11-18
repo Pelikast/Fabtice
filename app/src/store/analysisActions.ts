@@ -5,6 +5,7 @@ import { tempoMapFromBeats } from '../grid/beats';
 import { withMetersOf } from '../grid/meters';
 import type { AnalysisResult } from '../model/analysis';
 import { emptyCorrections } from '../model/corrections';
+import { transact } from './history';
 import { appStore, type AnalysisRun, type AppState } from './store';
 
 const get = () => appStore.getState();
@@ -25,6 +26,11 @@ export interface ApplyAnalysisOptions {
    * kept instead, so « Revenir à l'analyse » still goes back to them.
    */
   keptGrid?: boolean;
+  /**
+   * « Analyser de nouveau » with « Garder mes corrections » unticked (1.0.1): everything done
+   * by hand is dropped, sections, structure and modulations included, as one undoable step.
+   */
+  fresh?: boolean;
 }
 
 /**
@@ -43,19 +49,24 @@ export function applyAnalysis(result: AnalysisResult, opts: ApplyAnalysisOptions
   if (!s.project) return;
   const userGrid = s.tempoMap.origin === 'manual' || s.tempoMap.origin === 'corrected';
   let tempoMap = s.tempoMap;
-  if (opts.replaceCorrections || !userGrid) {
+  const replace = opts.replaceCorrections || opts.fresh;
+  if (replace || !userGrid) {
     try {
       const analysed = tempoMapFromBeats(result.beats.times, result.beats.downbeat, result.beats.meter, 'analysis');
-      tempoMap = opts.replaceCorrections ? analysed : withMetersOf(analysed, s.tempoMap);
+      tempoMap = replace ? analysed : withMetersOf(analysed, s.tempoMap);
     } catch {
       // An unusable grid in the result: the grid in force stays.
     }
   }
-  const corrections = opts.replaceCorrections
+  const corrections = opts.fresh
+    ? emptyCorrections()
+    : opts.replaceCorrections
     ? { ...emptyCorrections(), sections: s.corrections.sections, structure: s.corrections.structure, keyChanges: s.corrections.keyChanges }
     : s.corrections;
   const analysis = opts.keptGrid && s.analysis ? { ...result, beats: s.analysis.beats } : result;
-  set({ analysis, tempoMap, corrections, analysisRun: { status: 'idle' } });
+  const patch = { analysis, tempoMap, corrections, analysisRun: { status: 'idle' } as const };
+  if (opts.fresh) transact('history.what.fresh', () => set(patch));
+  else set(patch);
 }
 
 export function setAnalysisRun(analysisRun: AnalysisRun): void {

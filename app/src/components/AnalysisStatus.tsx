@@ -8,6 +8,7 @@ import { getAnalyzer, type AnalysisModelInfo } from '../analysis';
 import { useAnalysisProgress } from '../analysis/progress';
 import { evidenceText } from '../analysis/evidenceText';
 import { cancelAnalysis, runAnalysis } from '../analysis/runner';
+import { ChordAnalysisAgain } from './ChordModelSetting';
 import { chordModelChoice, useChordModelChoice } from '../analysis/chordModel';
 import { analysisEvidence, resultChordModel, type ChordWindowProgress } from '../analysis/types';
 import { formatBarNumber } from '../grid/format';
@@ -191,6 +192,7 @@ function useModels(): AnalysisModelInfo[] {
 
 export function AnalysisPanel({ ref }: { ref: Ref<HTMLDivElement> }) {
   const status = useApp(selectAnalysisStatus);
+  const waitingSeparation = useApp((s) => s.separationRun.status === 'running');
   const run = useApp((s) => s.analysisRun);
   const used = useApp((s) => (s.analysis ? evidenceText(analysisEvidence(s.analysis)) : ''));
   // Primitives only: a selector that builds an object would re-render for ever.
@@ -212,7 +214,13 @@ export function AnalysisPanel({ ref }: { ref: Ref<HTMLDivElement> }) {
       ) : (
         <>
           <p className="panneau-note">
-            {run.status === 'error' ? t(`analysis.error.${run.code}`) : status === 'done' ? t('analysis.doneText') : t('analysis.noneText')}
+            {run.status === 'error'
+              ? t(`analysis.error.${run.code}`)
+              : status === 'done'
+                ? t('analysis.doneText')
+                : waitingSeparation
+                  ? t('analysis.waitSeparation')
+                  : t('analysis.noneText')}
           </p>
           {status === 'done' && used && (
             <p className="panneau-note" data-testid="analyse-ecoute">
@@ -228,15 +236,20 @@ export function AnalysisPanel({ ref }: { ref: Ref<HTMLDivElement> }) {
                   : null}
             </p>
           )}
-          <button
-            className="bouton-cadre"
-            onClick={() => {
-              closePanel();
-              void runAnalysis();
-            }}
-          >
-            {status === 'none' ? t('analysis.start') : t('analysis.again')}
-          </button>
+          {status === 'none' ? (
+            <button
+              className="bouton-cadre"
+              disabled={waitingSeparation}
+              onClick={() => {
+                closePanel();
+                void runAnalysis();
+              }}
+            >
+              {t('analysis.start')}
+            </button>
+          ) : (
+            <ChordAnalysisAgain label={t('analysis.again')} onStart={closePanel} />
+          )}
         </>
       )}
     </div>

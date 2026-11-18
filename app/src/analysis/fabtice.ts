@@ -139,9 +139,10 @@ export class FabticeAnalyzer implements Analyzer {
     try {
       const duration = length / sampleRate;
       const chordModel = request.chordModel ?? 'crema';
-      // Outputs kept from another chord model (or from a fine run that fell back) are recomputed.
-      const reuse =
-        this.kept && this.kept.audioId === request.audioId && (request.grid || request.key || request.tempoFix) && this.kept.chordId === CHORD_MODEL_ID[chordModel] ? this.kept : null;
+      // Same audio, same chord model: the networks would give the very same numbers, so only the
+      // decoding runs again (with what the user corrected). Outputs kept from another chord model
+      // (or from a fine run that fell back) are recomputed.
+      const reuse = this.kept && this.kept.audioId === request.audioId && this.kept.chordId === CHORD_MODEL_ID[chordModel] ? this.kept : null;
       if (!reuse) this.kept = null;
       let message: ToWorker;
       let transfer: Transferable[] = [];

@@ -379,7 +379,7 @@ describe('FabticeAnalyzer', () => {
       await second;
     });
 
-    it('analyses from scratch without a hint, for another audio, or after the outputs were lost', async () => {
+    it('decodes again on the same audio even without a hint; analyses for another audio or after the outputs were lost', async () => {
       const { a, workers } = analyser();
       const kinds = () => workers.map((w) => w.posted[0]?.message.type);
       const run = async (req: AnalysisRequest, outputs: NetworkOutputs | null = OUTPUTS) => {
@@ -389,11 +389,11 @@ describe('FabticeAnalyzer', () => {
         await p;
       };
       await run(request());
-      await run(request()); // no hint: a fresh analysis
+      await run(request()); // no hint, same audio and model: the same numbers, so a decoding (1.0.1)
       await run(request({ audioId: 'other', grid: hint })); // not the audio that was kept
       await run(request({ audioId: 'other', grid: hint }), null); // the audio just analysed: its outputs are used
       await run(request({ audioId: 'other', grid: hint })); // and again, a decoding gives none to keep but they stay
-      expect(kinds()).toEqual(['analyse', 'analyse', 'analyse', 'decode', 'decode']);
+      expect(kinds()).toEqual(['analyse', 'decode', 'analyse', 'decode', 'decode']);
     });
 
     it('forgets the kept outputs when disposed', async () => {
