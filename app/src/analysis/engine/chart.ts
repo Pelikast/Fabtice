@@ -13,6 +13,7 @@
 //      (`reliability.ts`): « doubtful » = more likely wrong than right.
 // Pure; each step can be switched off (`ChartOptions`), for the bench.
 
+import { handSource, type HandHint } from './hand';
 import { bassBeats, type BassBeat } from './bassline';
 import type { ChordFrames, PooledUnit } from './chords';
 import { buildSegments, decodeChords, type ChordSegment, type DecodeOptions } from './decode';
@@ -45,6 +46,12 @@ export interface KnownCharts {
   candidates: (ChartCandidate & { collectionName?: string | null })[];
   /** Other tunes, for the fit check (`knownChart.ts`). */
   references: readonly (StandardChart | ReferenceBeats)[];
+  /**
+   * The chords the user wrote by hand (1.0.1, « Garder mes corrections »): start time and engine
+   * index (`knownChart.ts#engineIndex`), ascending. Strong evidence on their own beats and on
+   * the same beats of the other choruses (`hand.ts`).
+   */
+  hand?: readonly HandHint[];
 }
 
 export interface ChartSettings {
@@ -133,6 +140,7 @@ export function analyseChart(input: ChartInput): ChartRun {
       }
     }
   }
+  if (input.known?.hand?.length) sources.push(handSource(units, grid.numbers, input.known.hand, rep));
   if (sources.length) units = applyEvidence(units, sources);
   const dec = decodeChords(units, grid.numbers, grid.beatsPerBar, key.best, prior);
   const last = units[units.length - 1];

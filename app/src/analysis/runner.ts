@@ -31,6 +31,7 @@ import { currentLoadShare } from '../settings/easeLoadShare';
 import { chordModelChoice } from './chordModel';
 import { autoAnalysisDisabled, getAnalyzer } from './index';
 import { knownChartsFor } from './knownCharts';
+import { engineIndex } from './engine/knownChart';
 import { analysisProgressStore, setAnalysisProgress } from './progress';
 import { AnalysisError, resultChordModel, type AnalysisProgress, type AnalysisRequest, type GridHint } from './types';
 
@@ -170,7 +171,10 @@ async function launch(fix: TempoFixRun | null, fresh = false): Promise<AnalysisR
     return null;
   }
   // « S'appuyer sur les grilles connues des standards » (Réglages → Détection des accords): off, the title is not looked up.
-  const knownCharts = s.settings.useKnownCharts ? await knownChartsFor(project.title) : null;
+  const found = s.settings.useKnownCharts ? await knownChartsFor(project.title) : null;
+  // « Garder mes corrections » (1.0.1): the chords written by hand are a strong hint for the rest.
+  const hand = fresh ? [] : s.corrections.chords.map((h) => ({ time: h.time, chord: engineIndex(h.chord) }));
+  const knownCharts = hand.length ? { ...(found ?? { candidates: [], references: [] }), hand } : found;
   if (!stillMine()) {
     if (running === mine) running = null;
     return null;
