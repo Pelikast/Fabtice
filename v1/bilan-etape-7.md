@@ -146,6 +146,16 @@ Rien ne manque au cahier.
 - L'ancienne app mise de côté est effacée dès que la nouvelle démarre : si la
   nouvelle plantait ensuite, il n'y aurait pas de copie (le bilan 6 disait le
   contraire). Elle est essayée avant le remplacement.
+- **Arrêt de la page sur le Mac Intel de GitHub au lancement de la lecture**
+  (« Target crashed ») : vu une fois sur deux fabrications à cette étape, et
+  déjà une fois à l'étape 2 (pendant `audio-device.test.js`), chaque fois vert
+  à la relance sans changement. Jamais vu sur la puce Apple ni sur la machine
+  de travail. Cause non trouvée ; **à rapprocher du blocage du son signalé par
+  le propriétaire sur son Mac Intel** : lui demander s'il voit l'app se figer
+  ou se fermer au lancement de la lecture. Conséquence pour la publication :
+  si cela arrive au push sur `main`, le travail `intel` est rouge et rien
+  n'est publié ; relancer les travaux en échec suffit (la publication part
+  ensuite).
 - Remplacement de l'app dans le vrai dossier Applications : jamais essayé sur
   un vrai Mac (macOS 13 et plus peut demander une autorisation) ; en cas de
   refus, l'ancienne app reste et l'app le dit.
@@ -181,6 +191,9 @@ Rien ne manque au cahier.
   été relu puis intégré par la session d'étape.
 - Le dépôt cloné par la session n'avait que cinquante commits : `git fetch
   --unshallow` avant toute comparaison avec `main`.
+- Les captures rangées dans `/tmp` ont disparu en cours d'étape (nettoyage
+  par un agent ou par la machine) : les ranger dans le dossier de brouillon de
+  la session.
 - Le binaire d'Electron n'est pas toujours installé par `npm install` : `node
   node_modules/electron/install.js` dans `desktop/`.
 
@@ -245,12 +258,36 @@ Rien ne manque au cahier.
   que `desktop-dev`).
 - **Fabrication sur les Mac de GitHub**, lancée à la main sur `v1`, deux
   fois :
-  (résultats ajoutés au commit suivant)
+  1. run 44176970526, commit `ad02879` (après les corrections de la
+     fabrication) : **vert au premier lancement** sur les deux puces, étape
+     `07b` comprise (les deux `.dmg` : « Fabtice.app 1.0.0, signature
+     valide »), essai de mise à jour sur les deux puces, jeton en lecture
+     seule, essai à blanc.
+  2. run 44197337671, commit `2c0fa59` (tout le code de l'étape ; les commits
+     suivants ne sont que des documents) : puce Apple verte ; **Mac Intel
+     rouge au premier lancement, vert à la relance du seul travail en échec,
+     sans rien changer au code** (41 tests e2e : 38 réussis, 3 sautés). La
+     panne : la page s'est arrêtée (« Target crashed ») au moment où
+     `journey.test.js` lance la lecture avec le vrai moteur audio. Voir « Pas
+     fait, ou fragile ».
+  - Essai à blanc de la publication (`15-publish-dry-run.log`) : aucune
+    étiquette `v1.0.0`, une seule version sur GitHub (`desktop-dev`), fichier
+    de version fabriqué (notes de 15 345 caractères, deux archives avec leurs
+    empreintes), cinq fichiers listés, « la version v1.0.0 serait publiée »,
+    **sans avertissement**.
+  - `release/notes.txt` (16,7 Ko) : « Quel fichier télécharger ? », puis
+    « Nouveautés » = la section 1.0.0 du changelog telle qu'elle est ;
+    `release/fabtice-version.txt` : format 1, version 1.0.0, page
+    `releases/tag/v1.0.0`, macOS 12 minimum, les deux `.zip` à l'adresse
+    `releases/download/v1.0.0/…`.
+  - Travail `publish` sauté (pas sur `main`) : rien n'a été publié.
 
 ## Pour la suite
 
 **Avant le push sur `main`** (session d'origine, avec l'accord du
 propriétaire) :
+0. Si le travail `intel` échoue sur « Target crashed », relancer les travaux
+   en échec (voir plus haut) avant de chercher une panne.
 1. Dater le titre de `CHANGELOG.md` (« ## Version 1.0.0 — <date> »).
 2. Vérifier encore que `v1.0.0` n'existe pas (`git ls-remote --tags origin`).
 3. Passer `v1` sur `main`.

@@ -20,7 +20,7 @@ lisent que par parties, quand on en a besoin.
 | 4. Tempo à la main | C12, C13 (fenêtre) | fait (`v1/bilan-etape-4.md`) | `dfb1535` (code), puis le commit du bilan |
 | 5. Harmonie | C10, C14 | fait (`v1/bilan-etape-5.md`) | `4b8d2db` (code), puis le commit du bilan |
 | 6. Machine | C2, C16, C17 (numéros, fabrication) | fait (`v1/bilan-etape-6.md`) | `40e9d06` (code), puis le commit du bilan |
-| 7. Finition | vérification complète, changelog, publication 1.0.0 | à faire | |
+| 7. Finition | vérification complète, changelog ; la publication reste à faire par la session d'origine | fait (`v1/bilan-etape-7.md`) | `4557436` (code), puis les commits des documents |
 
 Chaque session d'étape met cette table à jour quand elle finit.
 
