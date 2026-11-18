@@ -39,7 +39,7 @@ import type { AnalysisResult } from '../../../../../app/src/model/analysis';
 import { tsumugiFrames } from './tsumugiApp';
 import { sheetsage2ChordFrames } from '../../../../../app/src/analysis/engine/sheetsage2';
 import { SS2_LABELS } from '../../../../../app/src/analysis/engine/sheetsage2Vocab';
-import { COMBINE_WEIGHTS, combineFrames } from '../../../../../app/src/analysis/engine/combine';
+import { COMBINE_AGREEMENT, COMBINE_WEIGHTS, combineFrames } from '../../../../../app/src/analysis/engine/combine';
 import { audioSha, harteToSymbol, onGrid, pooledArgmax, pooledBass, readModel, toChordFrames, type ModelFrames } from './lire';
 
 const MODEL = process.env.MODELE ?? '';
@@ -389,5 +389,8 @@ export const ss2Combined: Variant = async (input, ctx) => {
   const net = await ctx.networks(input.mixPath);
   const ts = (await fineFrames(input, net))!;
   const w = { sheetsage2: Number(process.env.SS2_W ?? COMBINE_WEIGHTS.sheetsage2), tsumugi: Number(process.env.TS_W ?? COMBINE_WEIGHTS.tsumugi) };
+  // AGREE_DOUBT=0 / AGREE_DROP=0: without the owner's rule (doubtful, no extensions where the models disagree).
+  if (process.env.AGREE_DOUBT) COMBINE_AGREEMENT.doubt = process.env.AGREE_DOUBT !== '0';
+  if (process.env.AGREE_DROP) COMBINE_AGREEMENT.dropExtensions = process.env.AGREE_DROP !== '0';
   return stageA(input, net, combineFrames(ts, ss2Frames(input), w), 1);
 };

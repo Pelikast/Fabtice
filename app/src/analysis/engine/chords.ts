@@ -55,6 +55,11 @@ export interface ChordFrames {
   bass: Float32Array;
   /** The fine model only: its own 745 classes (with extensions), T × 745 (`tsumugiVocab.ts`). */
   detail?: Float32Array;
+  /**
+   * The combination only (1.0.2, `combine.ts`): per frame, 1 when SheetSage2 and Tsumugi name the
+   * same chord (root and colour), else 0.
+   */
+  agree?: Float32Array;
 }
 
 /**
@@ -98,6 +103,8 @@ export interface PooledUnit {
   frames: number;
   /** Mean of `ChordFrames.detail` over the unit, when the model gives it. */
   detail?: Float64Array;
+  /** Share of the unit's frames where the two models of the combination agree (`ChordFrames.agree`). */
+  agree?: number;
 }
 
 /**
@@ -124,7 +131,13 @@ export function poolSegments(fr: ChordFrames, segments: readonly (readonly [numb
       for (let k = 0; k < 13; k++) bass[k]! += fr.bass[f * 13 + k]! / n;
       if (detail) for (let c = 0; c < D; c++) detail[c]! += fr.detail![f * D + c]! / n;
     }
-    out.push(detail ? { t0, t1, logp, pitch, bass, frames: n, detail } : { t0, t1, logp, pitch, bass, frames: n });
+    const u: PooledUnit = detail ? { t0, t1, logp, pitch, bass, frames: n, detail } : { t0, t1, logp, pitch, bass, frames: n };
+    if (fr.agree) {
+      let a = 0;
+      for (let f = f0; f < f1; f++) a += fr.agree[f]!;
+      u.agree = a / n;
+    }
+    out.push(u);
   }
   return out;
 }

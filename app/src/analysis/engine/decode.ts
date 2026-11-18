@@ -14,6 +14,7 @@
 // Viterbi gives the chart; forward-backward gives each segment's confidence.
 
 import { fineExtensions } from './tsumugiExtensions';
+import { COMBINE_AGREEMENT } from './combine';
 
 /** The fine model's extensions kept over the notes: its alterations (see `buildSegments`). */
 const FINE_ALTERATIONS = new Set(['b9', '#9', '#11', 'b13']);
@@ -308,6 +309,8 @@ export interface ChordSegment {
   pitch: number[];
   extensions: { name: string; p: number }[];
   bass: { pc: number; p: number } | null;
+  /** The combination only: share of the segment where its two models agree (`combine.ts`). */
+  agreement?: number;
 }
 
 export interface SegmentOptions {
@@ -386,6 +389,11 @@ export function buildSegments(
         if (FINE_ALTERATIONS.has(name) && !seg.extensions.some((e) => e.name === name)) seg.extensions.push({ name, p: conf[g.chord]! });
       }
       seg.extensions.sort((x, y) => y.p - x.p);
+      const agreement = agreementOf(units, g.beats);
+      if (agreement !== null) {
+        seg.agreement = agreement;
+        if (COMBINE_AGREEMENT.dropExtensions && agreement < COMBINE_AGREEMENT.minShare) seg.extensions = [];
+      }
       let bb = 0;
       for (let k = 1; k < 12; k++) if (bass[k]! > bass[bb]!) bb = k;
       const iv = (bb - r + 12) % 12;
@@ -393,6 +401,19 @@ export function buildSegments(
     }
     return seg;
   });
+}
+
+/** Share of the frames of beats `beats` where the combination's two models agree, or null outside the combination. */
+function agreementOf(units: readonly PooledUnit[], beats: readonly number[]): number | null {
+  let a = 0;
+  let n = 0;
+  for (const i of beats) {
+    const u = units[i]!;
+    if (u.agree === undefined) return null;
+    a += u.agree * u.frames;
+    n += u.frames;
+  }
+  return n > 0 ? a / n : null;
 }
 
 /** The fine model's classes summed over beats `beats` (weighted by frames), or null without them. */

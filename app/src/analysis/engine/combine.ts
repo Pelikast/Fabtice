@@ -23,6 +23,14 @@ export interface CombineWeights {
 /** Weights of the vote on the skeleton (bench, « Version 1.0.2 »). */
 export const COMBINE_WEIGHTS: CombineWeights = { sheetsage2: 0.5, tsumugi: 1 };
 
+/**
+ * The owner's idea (18 November 2026): where the two models name the same chord, it is taken as
+ * right, Tsumugi's extensions with it; where they do not, the chord is marked doubtful and its
+ * extensions are left out (a doubt on the chord is a doubt on its extensions). A chord counts as
+ * « agreed » when the two models agree on at least `minShare` of its frames.
+ */
+export const COMBINE_AGREEMENT = { minShare: 0.5, doubt: true, dropExtensions: true };
+
 const EPS = 1e-4;
 
 /**
@@ -34,9 +42,11 @@ export function combineFrames(tsumugi: ChordFrames, sheetsage2: ChordFrames, w: 
   if (Math.abs(tsumugi.fps - sheetsage2.fps) > 1e-9) throw new Error('the two models do not share a frame rate');
   const T = tsumugi.T;
   const probs = new Float32Array(T * N_CHORDS);
+  const agree = new Float32Array(T);
   const logs = new Float64Array(N_CHORDS);
   for (let t = 0; t < T; t++) {
     const s = Math.min(t, sheetsage2.T - 1);
+    agree[t] = argmax(tsumugi.probs, t * N_CHORDS) === argmax(sheetsage2.probs, s * N_CHORDS) ? 1 : 0;
     let m = -Infinity;
     for (let c = 0; c < N_CHORDS; c++) {
       const v = w.tsumugi * Math.log(tsumugi.probs[t * N_CHORDS + c]! + EPS) + w.sheetsage2 * Math.log(sheetsage2.probs[s * N_CHORDS + c]! + EPS);
@@ -47,5 +57,11 @@ export function combineFrames(tsumugi: ChordFrames, sheetsage2: ChordFrames, w: 
     for (let c = 0; c < N_CHORDS; c++) sum += logs[c] = Math.exp(logs[c]! - m);
     for (let c = 0; c < N_CHORDS; c++) probs[t * N_CHORDS + c] = logs[c]! / sum;
   }
-  return { ...tsumugi, probs };
+  return { ...tsumugi, probs, agree };
+}
+
+function argmax(p: Float32Array, at: number): number {
+  let best = 0;
+  for (let c = 1; c < N_CHORDS; c++) if (p[at + c]! > p[at + best]!) best = c;
+  return best;
 }

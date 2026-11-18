@@ -13,6 +13,7 @@
 //      (`reliability.ts`): « doubtful » = more likely wrong than right.
 // Pure; each step can be switched off (`ChartOptions`), for the bench.
 
+import { COMBINE_AGREEMENT } from './combine';
 import { handSource, type HandHint } from './hand';
 import { bassBeats, type BassBeat } from './bassline';
 import type { ChordFrames, PooledUnit } from './chords';
@@ -152,7 +153,12 @@ export function analyseChart(input: ChartInput): ChartRun {
   const last = units[units.length - 1];
   const segments = buildSegments(units, grid.beats.concat([last ? last.t1 : 0]), dec.path, dec.post);
   const accepted = fit?.accepted ? fit : null;
-  const rel = reliabilityFeatures(segments, net, rep, accepted).map((f) => reliability(f));
+  // The combination (1.0.2): a chord its two models do not agree on is doubtful (`combine.ts`).
+  const rel = reliabilityFeatures(segments, net, rep, accepted).map((f, k) => {
+    const r = reliability(f);
+    const a = segments[k]!.agreement;
+    return COMBINE_AGREEMENT.doubt && a !== undefined && a < COMBINE_AGREEMENT.minShare ? Math.min(r, 0.45) : r;
+  });
   return {
     key,
     segments,

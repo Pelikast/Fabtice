@@ -50,7 +50,7 @@ def main() -> None:
     audio_mod = import_module(pkg + ".audio_sheetsage2")
     prompts = tok.normalize_prompts(PROMPTS)
     only = set(filter(None, a.only.split(",")))
-    files = sorted(a.corpus.glob("*/*/mix.flac"))
+    files = sorted([*a.corpus.glob("*/*/mix.flac"), *a.corpus.glob("*/*/mix.wav")])
     for f in files:
         pid, cond = f.parent.parent.name, f.parent.name
         if only and pid not in only:
