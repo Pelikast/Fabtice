@@ -27,10 +27,13 @@ const path = require('node:path');
 const { launchInterface } = require('./helpers');
 const { fakeApp, marker, zipFolder } = require('../update-fixtures');
 
+// The version the fake GitHub offers: the one after this app's (its package.json).
+const NEXT = require('../../package.json').version.replace(/(\d+)$/, (n) => String(Number(n) + 1));
+
 const OUT = process.env.FABTICE_E2E_OUT;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-async function fakeGitHub(root, { version = '1.0.1' } = {}) {
+async function fakeGitHub(root, { version = NEXT } = {}) {
   const source = path.join(root, 'new');
   const app = fakeApp(path.join(source, 'Fabtice.app'), { version, archs: [process.arch === 'arm64' ? 'arm64' : 'x64'], marker: 'new' });
   fs.writeFileSync(path.join(app, 'Contents', 'Resources', 'app.asar'), crypto.randomBytes(1_300_000));
@@ -86,7 +89,7 @@ test('the update of the Mac app: search, message, refused archives, manual downl
     const checked = await page.evaluate(() => window.fabtice.checkForUpdate('page'));
     assert.equal(checked.phase, 'available');
     assert.equal(checked.origin, 'page');
-    assert.equal(checked.available.version, '1.0.1');
+    assert.equal(checked.available.version, NEXT);
     assert.match(checked.available.notes, /un bouton/);
     assert.equal(checked.blocked, null, 'the fake installed app can be replaced');
     assert.ok(net.state.seen.includes('/objects.githubusercontent.com/version?sig=1'), 'the redirect to the storage host was followed');
@@ -103,7 +106,7 @@ test('the update of the Mac app: search, message, refused archives, manual downl
     await page.waitForSelector('[data-testid="maj-message"][data-etat="available"]', { timeout: 30000 });
     const text = (await page.locator('[data-testid="maj-message"]').innerText()).replace(/\s+/g, ' ');
     assert.match(text, /Une mise à jour est disponible/);
-    assert.ok(text.includes(`Fabtice ${current}`) && text.includes('1.0.1'), text);
+    assert.ok(text.includes(`Fabtice ${current}`) && text.includes(NEXT), text);
     assert.match(text, /La mise à jour se fait en un bouton/);
     assert.equal(await page.locator('[data-testid="maj-notes"] strong').innerText(), 'accords');
     assert.equal(await page.locator('[data-testid="maj-mettre"]').innerText(), 'Mettre à jour Fabtice');
@@ -134,7 +137,7 @@ test('the update of the Mac app: search, message, refused archives, manual downl
       shell.openExternal = async (url) => void globalThis.__opened.push(url);
     });
     await page.evaluate(() => window.fabtice.openUpdatePage());
-    assert.deepEqual(await app.evaluate(() => globalThis.__opened), ['https://github.com/pelikast/fabtice/releases/tag/v1.0.1']);
+    assert.deepEqual(await app.evaluate(() => globalThis.__opened), [`https://github.com/pelikast/fabtice/releases/tag/v${NEXT}`]);
 
     // ---------------------------------------------------------------- « Plus tard »
     await page.locator('[data-testid="maj-plus-tard"]').click();

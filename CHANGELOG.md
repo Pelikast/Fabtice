@@ -3,6 +3,52 @@
 Chaque version publiée sur GitHub (page « Releases ») a sa section ici, la plus
 récente en haut. La première section est recopiée sur la page de la version.
 
+## Version 1.0.1 — 18 novembre 2026
+
+Une version consacrée aux accords : l'analyse attend la séparation des
+instruments, se relance en gardant vos corrections, et s'en sert pour lire le
+reste du morceau.
+
+### Séparation puis analyse
+- Quand vous demandez une séparation des instruments (à l'import ou plus
+  tard), l'analyse **attend qu'elle soit finie**. Une analyse déjà en route
+  s'arrête et repart ensuite.
+- À la fin de la séparation, les accords et la structure sont **mis à jour
+  tout seuls**, vos corrections gardées : « Accords et structure mis à jour
+  après la séparation des instruments ».
+- Le tempo écoute toujours le morceau entier, comme avant.
+
+### Analyser de nouveau
+- La fenêtre « Analyser de nouveau » a une case **« Garder mes
+  corrections »**, cochée d'office. Décochée, tout repart de zéro (accords,
+  tonalité, modulations, sections, structure, tempo corrigé, signatures),
+  après confirmation, et cela s'annule.
+- Quand le son et le modèle n'ont pas changé, l'analyse repart **en quelques
+  secondes** : les calculs longs ne sont pas refaits.
+
+### Vos corrections guident l'analyse
+- Un accord que vous avez corrigé aide à lire **la même mesure dans les
+  autres reprises** de la grille. L'accord réellement entendu l'emporte quand
+  il est net. Sur nos morceaux d'essai, si l'on corrige la première grille,
+  les autres reprises gagnent de 2 à 3 accords justes sur 100.
+- Les **lettres de section** que vous placez à la main (A, B…) sont des
+  points fixes : la recherche de la forme fait commencer les grilles là où
+  vous avez écrit la première lettre.
+
+### Modèle d'accords détaillé
+- Le modèle détaillé ajoute aux accords **les altérations qu'il entend**
+  (♭9, ♯9, ♯11, ♭13). Les autres extensions (9, 11, 13) restent lues sur les
+  notes, ce qui s'est montré plus juste.
+
+### Instruments séparés
+- Nouveau réglage dans Réglages → Détection des accords : **« Écouter aussi
+  les instruments séparés »**. Après une séparation, le modèle détaillé
+  écoute en plus les instruments qui jouent les accords. Il est **décoché
+  d'office** : sur nos essais, il n'améliore pas les accords et double le
+  temps de l'analyse. Vous pouvez l'essayer sur vos disques.
+- Le panneau d'analyse dit ce qui a été écouté : « Écoute : le morceau
+  entier » ou « Écoute : le morceau et les instruments séparés ».
+
 ## Version 1.0.0 — 18 novembre 2026
 
 La première version numérotée de Fabtice. Elle réorganise toute l'app autour

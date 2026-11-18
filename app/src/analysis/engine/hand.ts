@@ -19,7 +19,14 @@ export interface HandHint {
   chord: number;
 }
 
-export const HAND = { own: 6, partner: 3, exact: 0.6, colour: 0.25, tritone: 0.03 };
+/**
+ * Measured on the bench (1.0.1, variant `modele-mains`: a user who corrects every wrong bar of the
+ * first chorus; colour per beat of the rest, against the same corrections given as no hint): own
+ * 0.5, partner 3: +2.0 points on clean synthetic jazz, +2.9 on the old records, +0.2 / 0 on
+ * GuitarSet. A stronger own weight (6) drags the neighbours of a corrected bar along (−2.4 on
+ * GuitarSet old records); the partners carry the gain.
+ */
+export const HAND = { own: 0.5, partner: 3, exact: 0.6, colour: 0.25, tritone: 0.03 };
 
 function logNoChord(): Float64Array {
   const p = new Float64Array(N_CHORDS).fill(Math.log(0.2 / N_CHORDS));

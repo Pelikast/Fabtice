@@ -14,6 +14,9 @@
 // Viterbi gives the chart; forward-backward gives each segment's confidence.
 
 import { fineExtensions } from './tsumugiExtensions';
+
+/** The fine model's extensions kept over the notes: its alterations (see `buildSegments`). */
+const FINE_ALTERATIONS = new Set(['b9', '#9', '#11', 'b13']);
 import { N_CHORDS, NO_CHORD, QUAL_PCS, chordQual, chordRoot, type EngineQuality, type PooledUnit } from './chords';
 
 const DOM = new Set<EngineQuality | null>(['7']);
@@ -368,19 +371,21 @@ export function buildSegments(
       const r = chordRoot(g.chord);
       const q = chordQual(g.chord)!;
       const tones = new Set(QUAL_PCS[q]);
-      // The fine model names its extensions itself (1.0.1): they are taken over the notes.
+      // Extensions: the notes heard (pitch evidence over the threshold), plus the alterations the
+      // fine model names itself (1.0.1). Measured on the bench (modeles/RECHERCHE.md, 1.0.1): the
+      // fine model's own extensions alone lose « complet » points (it names too few: 67 → 61 % on
+      // clean synthetic jazz); its alterations added to the notes lose none.
+      for (const [iv, name] of Object.entries(TENSIONS[q] ?? {})) {
+        const k = (r + Number(iv)) % 12;
+        if (tones.has(Number(iv))) continue;
+        if (pitch[k]! >= extThreshold) seg.extensions.push({ name, p: pitch[k]! });
+      }
       const fine = fineDetail(units, g.beats);
       const named = fine ? fineExtensions(fine, g.chord) : null;
-      if (named) {
-        seg.extensions = named.map((name) => ({ name, p: conf[g.chord]! }));
-      } else {
-        for (const [iv, name] of Object.entries(TENSIONS[q] ?? {})) {
-          const k = (r + Number(iv)) % 12;
-          if (tones.has(Number(iv))) continue;
-          if (pitch[k]! >= extThreshold) seg.extensions.push({ name, p: pitch[k]! });
-        }
-        seg.extensions.sort((x, y) => y.p - x.p);
+      for (const name of named ?? []) {
+        if (FINE_ALTERATIONS.has(name) && !seg.extensions.some((e) => e.name === name)) seg.extensions.push({ name, p: conf[g.chord]! });
       }
+      seg.extensions.sort((x, y) => y.p - x.p);
       let bb = 0;
       for (let k = 1; k < 12; k++) if (bass[k]! > bass[bb]!) bb = k;
       const iv = (bb - r + 12) % 12;

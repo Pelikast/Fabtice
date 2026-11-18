@@ -63,7 +63,13 @@ export interface ChartSettings {
   decode: Partial<DecodeOptions>;
 }
 
-export const CHART_SETTINGS: ChartSettings = { mixWeight: 0.3, bass: {}, repeats: {}, chart: {}, decode: {} };
+/**
+ * `mixWeight`: the harmony parts are heard only by the fine model (1.0.1, « Écouter aussi les
+ * instruments séparés », off by default). Measured on the bench with the real separation
+ * (HTDemucs, variant `modele-tiges`, 8 pieces × 2 sounds): no weight gains (0.3: −0.8 / −1.4
+ * points of colour, 0.7: −0.5 / −0.5, 0.85: −0.2 / −0.2); 0.7 keeps every piece within 1.6 points.
+ */
+export const CHART_SETTINGS: ChartSettings = { mixWeight: 0.7, bass: {}, repeats: {}, chart: {}, decode: {} };
 
 export interface ChartInput {
   frames: ChordFrames;

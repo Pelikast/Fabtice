@@ -102,6 +102,11 @@ test('a project saved in the app opens in a fresh app from the Finder, everythin
       await page.waitForFunction(() => window.__fabtice && window.__fabtice.lot3, null, { timeout: 30000 });
       await page.evaluate(() => window.__fabtice.lot3.separation.startSeparation({ stems: ['vocals', 'bass'] }));
       await page.waitForFunction(() => window.__fabtice.store.getState().separation.result, null, { timeout: 60000 });
+      // First the separation, then the analysis (1.0.1): it runs again once the separation is done.
+      await page.waitForFunction(() => {
+        const s = window.__fabtice.store.getState();
+        return s.analysis && s.analysisRun.status === 'idle';
+      }, null, { timeout: 60000 });
       await page.evaluate(() => {
         const { store, lot4 } = window.__fabtice;
         store.setState((s) => ({
@@ -351,6 +356,11 @@ test('« Enregistrer » and « Enregistrer sous… » in the app: the project\'s
       await page.waitForFunction(() => window.__fabtice && window.__fabtice.lot3, null, { timeout: 30000 });
       await page.evaluate(() => window.__fabtice.lot3.separation.startSeparation({ stems: ['vocals', 'bass'] }));
       await page.waitForFunction(() => window.__fabtice.store.getState().separation.result, null, { timeout: 60000 });
+      // First the separation, then the analysis (1.0.1): it runs again once the separation is done.
+      await page.waitForFunction(() => {
+        const s = window.__fabtice.store.getState();
+        return s.analysis && s.analysisRun.status === 'idle';
+      }, null, { timeout: 60000 });
       await page.waitForTimeout(1500);
       projectId = await page.evaluate(() => window.__fabtice.store.getState().project.id);
       // Title: the piece's, while it was never saved; a new piece is « modified » (the dot in the close button).

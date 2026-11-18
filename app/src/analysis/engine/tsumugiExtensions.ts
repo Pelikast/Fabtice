@@ -1,5 +1,5 @@
 // The fine model's own extensions (1.0.1): Tsumugi names 62 qualities with their 9, 11, 13 and
-// alterations; the app keeps them instead of reading them from the notes. Pure.
+// alterations; the app adds its alterations to the extensions read from the notes (`decode.ts`). Pure.
 
 import { TSUMUGI_LABELS, TSUMUGI_TO_APP } from './tsumugiVocab';
 

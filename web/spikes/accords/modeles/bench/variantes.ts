@@ -24,7 +24,7 @@ import type { Variant, VariantChord, VariantInput, VariantOutput } from '../../b
 import { resultFromOutputs } from '../../../../../app/src/analysis/engine/analyse';
 import { listen, lowAudio } from '../../banc/ecoute';
 import { knownFor } from '../../banc/variantes/app';
-import type { HandHint } from '../../../../../app/src/analysis/engine/hand';
+import { HAND, type HandHint } from '../../../../../app/src/analysis/engine/hand';
 import type { HarmonyListening, KnownCharts } from '../../../../../app/src/analysis/engine/chart';
 import { engineIndex } from '../../../../../app/src/analysis/engine/knownChart';
 import { chordAt, loadCorpus, type TruthChord } from '../../banc/truth';
@@ -230,6 +230,10 @@ const sameColour = (a: ChordSymbol | null, b: TruthChord) => !!a && a.root === b
  * the app's chart does. HAND_CHORUSES: how many choruses the user corrects (default 1).
  */
 export const appHand: Variant = async (input, ctx) => {
+  // HAND_OWN / HAND_PARTNER / HAND_EXACT: the weights of `hand.ts#HAND`, for the sweep.
+  if (process.env.HAND_OWN) HAND.own = Number(process.env.HAND_OWN);
+  if (process.env.HAND_PARTNER) HAND.partner = Number(process.env.HAND_PARTNER);
+  if (process.env.HAND_EXACT) HAND.exact = Number(process.env.HAND_EXACT);
   const net = await ctx.networks(input.mixPath);
   const frames = (await fineFrames(input, net))!;
   const first = await stageA(input, net, frames, 1);
@@ -251,7 +255,14 @@ export const appHand: Variant = async (input, ctx) => {
       hand.push({ time: t0, end: t1, chord: { root: c.root, quality: c.quality, extensions: c.extensions, bass: c.bass } as ChordSymbol });
     });
   }
-  const hints: HandHint[] = hand.map((h) => ({ time: h.time, chord: engineIndex(h.chord) }));
+  // In the app a chord written by hand sits on a beat of the grid in force: snap to the detected beats.
+  const grid = first.beats?.times ?? [];
+  const snap = (t: number) => grid.reduce((b, x) => (Math.abs(x - t) < Math.abs(b - t) ? x : b), grid[0] ?? t);
+  for (const h of hand) {
+    h.time = snap(h.time);
+    h.end = snap(h.end);
+  }
+  const hints: HandHint[] = hand.filter((h) => h.end > h.time).map((h) => ({ time: h.time, chord: engineIndex(h.chord) }));
   const out = process.env.HAND_HINTS === '0' || !hints.length ? first : await stageA(input, net, frames, 1, hints);
   // The chart: the hand chords over the analysis on their bars.
   let merged = [...out.chords].sort((a, b) => a.time - b.time);

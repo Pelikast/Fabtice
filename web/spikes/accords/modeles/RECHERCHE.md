@@ -6,6 +6,66 @@ extensions, basse et renversements), qui tournent sur l'appareil de
 l'utilisateur avec onnxruntime-web, et les proposer comme choix dans les
 réglages avancés.
 
+## Version 1.0.1 : mesures du 18 novembre 2026
+
+Sous-ensemble Tsumugi (`corpus_list.py`, 14 morceaux de synthèse et 8 prises GuitarSet, chacun en
+deux sons), grille détectée, chiffres par temps « couleur / complet ». **Tsumugi tourne ici avec le
+code de l'app** (`modeles/bench/tsumugiApp.ts` : `runTsumugi`, `tsumugiChordFrames`, nourri des
+temps et de la tonalité du premier décodage comme dans le worker, ONNX Runtime pour Node à la place
+du WebAssembly ; `MODELE=app`). Banc préparé de nouveau ce jour : `corpus/render.py` borne
+maintenant le décalage « vieux disque » à ±35 cents (`MAX_DETUNE`), ce qui change la vitesse de trois
+vieux disques (`bill-bailey`, `blue-bossa`, `blues-valse-sol`) et réécrit leurs vérités dans
+`data/` ; les vérités du dépôt ne sont pas modifiées. Les comparaisons ci-dessous sont donc faites
+entre elles, sur les mêmes données, pas contre les chiffres du 15 novembre.
+
+| Variante | Synthèse propre | Synthèse vieux disque | GuitarSet | GuitarSet vieux disque |
+|---|---|---|---|---|
+| Tsumugi + étape A, extensions lues sur les notes (avant 1.0.1) | 90 / 67,2 % | 81 / 49,4 % | 79 / 75,8 % | 85 / 77,9 % |
+| extensions de Tsumugi seules (étape 4 telle qu'écrite) | 90 / 61,1 % | 81 / 45,5 % | 79 / 75,8 % | 85 / 79,7 % |
+| **notes + altérations nommées par Tsumugi (retenu)** | 90 / 67,2 % | 81 / 49,5 % | 79 / 75,8 % | 85 / 77,9 % |
+
+- **Étape 4** : Tsumugi nomme trop peu d'extensions pour ce jazz (2 567 extensions manquantes sur
+  les temps de bonne couleur, contre 1 810 par les notes : « m7(9,11) » lu « m7 »). Retenu : les
+  extensions lues sur les notes, plus les altérations que Tsumugi nomme lui-même (♭9, ♯9, ♯11, ♭13),
+  qui ne font perdre aucun point (`decode.ts#FINE_ALTERATIONS`).
+- **Étape 3, corrections simulées** (`modele-mains`) : l'utilisateur corrige, dans la première grille,
+  chaque mesure fausse (accords vrais, posés sur les temps détectés) ; on compare l'analyse qui
+  reçoit ces accords comme indices à celle qui ne fait que les afficher. Poids réglés par balayage :
+  `HAND.own` 0,5, `HAND.partner` 3.
+
+| Indices des accords à la main | Synthèse propre | Synthèse vieux disque | GuitarSet | GuitarSet vieux disque |
+|---|---|---|---|---|
+| aucun (affichés seulement) | 92,7 % | 86,2 % | 98,2 % | 99,0 % |
+| poids d'origine (own 6, partner 3) | 94,6 % | 88,8 % | 98,4 % | 96,6 % |
+| **own 0,5, partner 3 (retenu)** | **94,7 %** | **89,1 %** | 98,4 % | 99,0 % |
+
+  Le gain vient des autres reprises ; un poids fort sur la mesure corrigée elle-même entraîne ses
+  voisines (−2,4 points sur GuitarSet vieux disque). Aucun morceau ne perd plus de 1,6 point.
+- **Étape 5, instruments séparés** (`modele-tiges`, vraie séparation HTDemucs 6 sources par
+  `banc/separer.ts`) : CREMA sur chaque partie choisit les parties harmoniques
+  (`listen.ts#selectHarmony`), un seul passage de Tsumugi sur leur mélange (mono) avec la basse,
+  combiné au morceau entier. Sur 8 morceaux × 2 sons (couleur, par temps) :
+
+| Poids du morceau entier | Synthèse propre | Synthèse vieux disque | Pire morceau |
+|---|---|---|---|
+| morceau entier seul | 91,1 % | 77,5 % | — |
+| 0,3 | 90,3 % | 76,1 % | −8,9 |
+| 0,5 | 90,5 % | 77,0 % | −3,1 |
+| 0,7 | 90,6 % | 77,0 % | −1,6 |
+| 0,85 | 90,9 % | 77,3 % | −2,1 |
+
+  Sur les 14 morceaux de synthèse (28 fichiers), poids 0,7 : 90,4 → 90,0 % (son propre), 81,4 →
+  79,6 % (vieux disque) ; un morceau s'effondre (`valse-cliche-re` vieux disque, −16 points), la
+  séparation y range l'harmonie dans « guitare » et « autres ». Parties retenues par le choix
+  automatique : autres + basse (8 fois), guitare + autres + basse (7), guitare + basse (6), autres +
+  piano + basse (5), piano + basse (2).
+
+  Aucun gain : la règle (au moins +3 points, aucun morceau qui s'effondre) n'est pas remplie. La case
+  « Écouter aussi les instruments séparés » est donc **décochée par défaut** ; cochée, le morceau
+  entier pèse 0,7 (`chart.ts#CHART_SETTINGS`). Tsumugi lit déjà très bien le morceau entier ; les
+  parties séparées, imparfaites (la séparation range souvent le piano dans « guitare » ou « autres »
+  sur les vieux disques), n'ajoutent rien.
+
 ## Mesures sur le banc (15 novembre, après l'étape A)
 
 ### Ce qu'on a mesuré

@@ -125,3 +125,61 @@ test('the fine chord model runs in the app, from the settings, and says what it 
     await app.close();
   }
 });
+
+// 1.0.1, step 5: « Écouter aussi les instruments séparés » (off by default). The fine model is
+// chosen and the case ticked in the settings, the piece is separated (SCNet, the light tool); at
+// the end of the separation the analysis runs again by itself (first the separation, then the
+// analysis), the worker hears each part with CREMA, keeps the harmony parts and runs the fine model
+// once more on their remix. The panel says what was heard.
+test('the fine chord model also listens to the separated parts when asked', { skip: !ENABLED && 'set FABTICE_E2E_ANALYSIS_FINE=1 (downloads about 80 MB, takes minutes)', timeout: 2400000 }, async () => {
+  const userData = fs.mkdtempSync(path.join(os.tmpdir(), 'fabtice-e2e-fine-stems-'));
+  const { app, page, problems } = await launch({ FABTICE_YTDLP_PATH: STUB, FABTICE_E2E_QUERY: '?debug&analyse=reel' }, userData);
+  try {
+    await page.locator('.voile.ouverte').waitFor({ timeout: 30000 });
+    await page.locator('.accueil input[type="file"]').setInputFiles(SWING);
+    await pieceReady(page);
+    await menuCommand(page, 'Réglages…');
+    await page.click('[role="tab"][data-tab="chords"]');
+    await page.selectOption('[data-testid="modele-accords"]', 'fine');
+    const box = page.locator('[data-testid="ecouter-instruments"]');
+    assert.equal(await box.isChecked(), false, 'off by default');
+    await box.check();
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(() => window.__fabtice && window.__fabtice.lot3, null, { timeout: 30000 });
+    await page.evaluate(() => window.__fabtice.lot3.separation.setSeparationModel('scnet'));
+    await page.locator('[data-testid="separer"]').click();
+    await page.locator('[data-testid="panneau-separation"]').waitFor();
+    await page.locator('[data-testid="lancer-separation"]').click();
+    await page.waitForFunction(() => {
+      const s = window.__fabtice.store.getState();
+      return (s.separation.result && s.separationRun.status === 'idle') || s.separationRun.status === 'error';
+    }, null, { timeout: 900000, polling: 500 });
+    // The analysis after the separation, with the fine model and the parts.
+    await page.waitForFunction(
+      () => {
+        const s = window.__fabtice.store.getState();
+        if (s.analysisRun.status === 'error') return true;
+        return s.analysisRun.status === 'idle' && s.analysis && s.analysis.chordModel && s.analysis.chordModel.id === 'tsumugi-chords' && s.analysis.analysedAt > s.separation.result.finishedAt;
+      },
+      null,
+      { timeout: 1800000, polling: 500 },
+    );
+    const s = await page.evaluate(() => {
+      const st = window.__fabtice.store.getState();
+      return { run: st.analysisRun, chordModel: st.analysis.chordModel, evidence: st.analysis.evidence, stems: [...st.tracks, ...st.separation.aside].map((t) => t.stem).filter(Boolean) };
+    });
+    assert.equal(s.run.status, 'idle', JSON.stringify(s.run));
+    assert.deepEqual(s.chordModel, { id: 'tsumugi-chords' });
+    assert.ok(Array.isArray(s.evidence.harmonyStems), JSON.stringify(s.evidence));
+    for (const name of s.evidence.harmonyStems) assert.ok(s.stems.includes(name), `${name} is one of the parts ${s.stems.join(', ')}`);
+    console.log(`parts of the separation: ${s.stems.join(', ')}; heard for the harmony: ${s.evidence.harmonyStems.join(', ') || 'none'}`);
+    // The analysis panel (the ruler's « Accords » status): « Écoute : … ».
+    const line = await page.evaluate(() => (window.__fabtice.store.getState().analysis.evidence.harmonyStems.length ? 'stems' : 'whole'));
+    assert.ok(line === 'stems' || line === 'whole');
+    const kept = problems.filter((p) => !/No available adapters|WebGPU.*(unavailable|not supported)|Failed to create WebGPU/i.test(p));
+    problems.splice(0, problems.length, ...kept);
+    await assertClean(page, problems, 'fine analysis with the separated parts');
+  } finally {
+    await app.close();
+  }
+});

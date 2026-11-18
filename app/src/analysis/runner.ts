@@ -55,8 +55,9 @@ function sourceTrack(s: AppState) {
 async function stemsToHear(s: AppState, sampleRate: number): Promise<{ name: string; audioId: string; mono: Float32Array }[]> {
   if (!s.separation.result) return [];
   const out: { name: string; audioId: string; mono: Float32Array }[] = [];
-  for (const tr of s.tracks) {
-    if (!tr.stem || tr.audio.origin !== 'separated' || !(isHarmonyCandidate(tr.stem) || tr.stem === 'bass')) continue;
+  // Shown or set aside (« Morceau entier » showing): the parts of the separation in force.
+  for (const tr of [...s.tracks, ...s.separation.aside]) {
+    if (!tr.stem || tr.audio.origin !== 'separated' || !(isHarmonyCandidate(tr.stem) || tr.stem === 'bass') || out.some((o) => o.name === tr.stem)) continue;
     const pcm = getAudio(tr.audio.id);
     if (pcm && pcm.sampleRate === sampleRate) out.push({ name: tr.stem, audioId: tr.audio.id, mono: await pcmToMonoInSlices(pcm) });
   }
