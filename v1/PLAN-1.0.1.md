@@ -43,8 +43,10 @@ Les six étapes sont faites. Chiffres du banc dans `web/spikes/accords/modeles/R
   notes, plus les altérations nommées par Tsumugi (♭9, ♯9, ♯11, ♭13), sans perte.
 - 5 : instruments séparés (vraie séparation HTDemucs, 14 morceaux × 2 sons) : pas de gain
   (−0,4 / −1,8 point, un morceau à −16) ; case « Écouter aussi les instruments séparés »
-  décochée par défaut, morceau entier pesant 0,7 quand elle est cochée. Lettres de section à la
-  main = points fixes de la forme (`structure/form.ts#CUE_HAND`). Ligne « Écoute : … ».
+  décochée par défaut, morceau entier pesant 0,7 quand elle est cochée. Lettres de section et parties
+  écrites ou déplacées à la main = points fixes de la forme (`structure/form.ts#CUE_HAND`,
+  `PHRASE_HAND`, `detect.ts#handAnchors`) : les parties trouvées se recalent autour (grilles en
+  Jazz, phrases en Pop) ; banc de structure inchangé sans correction (Tier S, corpus entier). Ligne « Écoute : … ».
 - 6 : tests unitaires, essais Electron (dont `analysis-fine.test.js` avec les instruments séparés),
   `CHANGELOG.md`, numéros 1.0.1.
 - Préparer le banc réécrit trois vérités (`bill-bailey`, `blue-bossa`, `blues-valse-sol`) : la

@@ -29,6 +29,15 @@ describe('structure form: chorus length and letters', () => {
     expect(fa.chorus?.choruses.map((c) => c.first).slice(0, 3)).toEqual([4, 16, 28]);
   });
 
+  it('starts the choruses where a part written by hand starts (Thème, Solo), and the phrases on its bounds', () => {
+    const bars = chartBars(repeat(BLUES, 6));
+    const fa = analyseForm(bars, { ...opts, anchors: { chorus: [5, 17], phrase: [] } });
+    expect(fa.chorus?.choruses.map((c) => c.first).slice(0, 2)).toEqual([5, 17]);
+    const song = chartBars(repeat('C | Am | F | G | C | Am | F | G | F | G | Em | Am | F | G | C | C', 3));
+    expect(analyseForm(song, opts).phrases?.sections[1]!.first).toBe(8);
+    expect(analyseForm(song, { ...opts, anchors: { chorus: [], phrase: [3] } }).phrases?.sections.map((x) => x.first).slice(0, 2)).toEqual([3, 11]);
+  });
+
   it('takes 12 bars for a blues played many times, not 24', () => {
     const fa = analyseForm(chartBars(repeat(BLUES, 6)), opts);
     expect(fa.chorus?.chorusLength).toBe(12);

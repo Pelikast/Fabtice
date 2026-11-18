@@ -136,6 +136,11 @@ export interface HarmonyInput {
    * starts where the user wrote the form's first letter. Absent or empty: none.
    */
   handSections?: readonly { time: Seconds; label: string }[];
+  /**
+   * The parts written or moved by hand (1.0.1): fixed points as well; the detected parts are found
+   * around them (the merge then shows the hand parts over the detected ones). Absent: none.
+   */
+  handParts?: readonly { start: Seconds; end: Seconds; type: PartType }[];
 }
 
 /** `detectKeyChanges`: the later passages, ascending, each on a bar line after the first bar. */

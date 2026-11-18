@@ -17,7 +17,7 @@
 
 import type { Key } from '../model/harmony';
 import type { Seconds } from '../model/project';
-import { FORM_PATTERN, PART_INSTRUMENT_PATTERN, PART_TYPES, type DetectedStructure, type StructureMode, type StructurePart } from '../model/structure';
+import { FORM_PATTERN, PART_INSTRUMENT_PATTERN, PART_TYPES, type DetectedStructure, type PartType, type StructureMode, type StructurePart } from '../model/structure';
 import { analyseForm, type FormAnalysis, type Layout } from './form';
 import { detectParts, leadFromStems, leadFromTimbre, leadStretches, type BarPart } from './parts';
 import type { HarmonyBar, HarmonyInput } from './types';
@@ -92,6 +92,26 @@ export interface StructureInBars {
 }
 
 /** Everything `detectStructure` finds, in bars. Null when nothing can be said. */
+/** Kinds of part that start a chorus (Thème, Solo, Outro; the end of an Intro), see `FormOptions.anchors`. */
+const CHORUS_STARTS: ReadonlySet<PartType> = new Set(['theme', 'solo', 'outro']);
+
+/** The bars the hand parts fix (see `FormOptions.anchors`). */
+export function handAnchors(bars: readonly HarmonyBar[], parts: NonNullable<HarmonyInput['handParts']>): { chorus: number[]; phrase: number[] } {
+  const chorus = new Set<number>();
+  const phrase = new Set<number>();
+  for (const p of parts) {
+    // A boundary at the end of the last bar (or later) is the end of the piece, not its last bar.
+    const at = (t: Seconds) => (bars.length && t >= bars[bars.length - 1]!.end - 1e-3 ? bars.length : barIndexAt(bars, t));
+    const first = at(p.start);
+    const end = at(p.end);
+    if (CHORUS_STARTS.has(p.type)) chorus.add(first);
+    if (p.type === 'intro') chorus.add(end);
+    phrase.add(first);
+    phrase.add(end);
+  }
+  return { chorus: [...chorus].sort((a, b) => a - b), phrase: [...phrase].sort((a, b) => a - b) };
+}
+
 export function structureInBars(input: HarmonyInput, keyChanges: readonly { time: Seconds; key: Key }[]): StructureInBars | null {
   const bars = input.bars;
   const n = bars.length;
@@ -111,6 +131,7 @@ export function structureInBars(input: HarmonyInput, keyChanges: readonly { time
     keyChanges: keyChanges.map((k) => ({ bar: barIndexAt(bars, k.time), key: k.key })),
     cues: playerChanges(input),
     fixed: (input.handSections ?? []).map((h) => ({ bar: barIndexAt(bars, h.time), letter: h.label })),
+    anchors: handAnchors(bars, input.handParts ?? []),
   });
   const mode: StructureMode = input.mode === 'auto' ? chooseMode(bars, analysis) : input.mode;
   const layout = mode === 'pop' ? (analysis.phrases ?? analysis.chorus) : (analysis.chorus ?? analysis.phrases);

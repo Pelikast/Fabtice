@@ -34,6 +34,27 @@ describe('structure detection', () => {
     expect(checked).toBeGreaterThan(120);
   });
 
+  it('finds the other parts around a part moved by hand (Pop: « Couplet 1 » one bar later)', () => {
+    const song = chartBars(repeat('C | Am | F | G | C | Am | F | G | F | G | Em | Am | F | G | C | C', 3));
+    const before = detectStructure(inputOf(song, { mode: 'pop' }), [])!;
+    expect(before.parts.map((p) => song.findIndex((b) => b.start === p.start))).toEqual([0, 8, 16, 24, 32, 40]);
+    // The user makes the first verse start one bar later: the cut follows, the other parts too.
+    const handParts = [{ start: song[1]!.start, end: song[9]!.start, type: 'verse' as const }];
+    const after = detectStructure(inputOf(song, { mode: 'pop', handParts }), [])!;
+    const starts = after.parts.map((p) => song.findIndex((b) => b.start === p.start));
+    expect(starts).toContain(9);
+    expect(starts).toContain(17);
+    expect(starts).not.toContain(8);
+  });
+
+  it('finds the choruses around a theme moved by hand (Jazz: « Thème 1 » one bar later)', () => {
+    const bars = chartBars(repeat(AABA, 4));
+    const handParts = [{ start: bars[1]!.start, end: bars[33]!.start, type: 'theme' as const }];
+    const s = detectStructure(inputOf(bars, { handParts }), [])!;
+    const solo = s.parts.find((p) => p.type === 'solo')!;
+    expect(bars.findIndex((b) => b.start === solo.start)).toBe(33);
+  });
+
   it('says nothing for a piece too short, or without chords', () => {
     expect(detectStructure(inputOf(chartBars('C | F | G7 | C | F | G7')), [])).toBeNull();
     const nc = Array.from({ length: 40 }, () => 'N.C.').join(' | ');

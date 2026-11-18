@@ -118,6 +118,12 @@ export interface FormOptions {
    * usually « A ») weighs more than anything the chords alone can say. Optional.
    */
   fixed?: readonly { bar: number; letter: string }[];
+  /**
+   * Parts written or moved by hand (1.0.1): fixed points too. `chorus`: bars where a chorus should
+   * start (a hand Thème, Solo or Outro starts there, a hand Intro ends there); `phrase`: every
+   * boundary of a hand part, for the phrase cut (Pop). Optional.
+   */
+  anchors?: { chorus: readonly number[]; phrase: readonly number[] };
 }
 
 const MIN_CHORUS = 12;
@@ -127,13 +133,21 @@ const CUE_OTHER = 0.5;
 /** A chorus start on a letter written by hand: more than every prior of `bestRotation` together (8 + 3 + …). */
 const CUE_HAND = 20;
 
-/** The bars where the user wrote the form's first letter (see `FormOptions.fixed`). */
-function handStarts(fixed: FormOptions['fixed']): Set<number> {
-  const list = (fixed ?? []).filter((f) => f.bar >= 0 && /^[A-Z]/.test(f.letter));
-  if (!list.length) return new Set();
+/**
+ * The bars where a chorus should start by the user's hand: where they wrote the form's first letter
+ * (`FormOptions.fixed`), and where their parts say so (`FormOptions.anchors.chorus`).
+ */
+function handStarts(o: FormOptions): Set<number> {
+  const out = new Set((o.anchors?.chorus ?? []).filter((b) => b > 0));
+  const list = (o.fixed ?? []).filter((f) => f.bar >= 0 && /^[A-Z]/.test(f.letter));
+  if (!list.length) return out;
   const first = list.map((f) => f.letter[0]!).sort()[0]!;
-  return new Set(list.filter((f) => f.letter[0] === first).map((f) => f.bar));
+  for (const f of list) if (f.letter[0] === first) out.add(f.bar);
+  return out;
 }
+
+/** A phrase start on a boundary of a hand part: more than the repeats of a whole piece can say. */
+const PHRASE_HAND = 10;
 /** No chorus is longer (forms of 64 bars exist; longer ones are two choruses). */
 const MAX_CHORUS = 96;
 
@@ -898,7 +912,7 @@ export function knownBody(chart: StandardChart): KnownBody | null {
 const PHRASE_SAME = 0.55;
 
 /** Phrases of `len` bars from the offset where they repeat best; letters only for repeated phrases. */
-function phraseLayout(toks: readonly BarTokens[], S: Float32Array, bg: number, len: number): Layout | null {
+function phraseLayout(toks: readonly BarTokens[], S: Float32Array, bg: number, len: number, hand: ReadonlySet<number> = new Set()): Layout | null {
   const n = toks.length;
   if (n < 2 * len) return null;
   const sim = (a: number, b: number, t = 0) => {
@@ -921,6 +935,7 @@ function phraseLayout(toks: readonly BarTokens[], S: Float32Array, bg: number, l
     let score = 0;
     for (const a of starts) {
       if (changesAt(toks, a)) score += 0.15;
+      if (a > 0 && hand.has(a)) score += PHRASE_HAND;
       let m = 0;
       for (const b of starts) if (b !== a) {
         const v = sim(a, b);
@@ -1096,7 +1111,7 @@ export function analyseForm(bars: readonly HarmonyBar[], o: FormOptions): FormAn
       if (iter === 2) {
         const ph = new Phrases(toks, S, choruses, L, bg);
         const len = phraseLength(L, () => ph.same(0, 8, 8, 0) >= SAME_SECTION);
-        const r = bestRotation(ph, toks, T, choruses, n, len, Math.min(0.6, Math.max(0.2, bg + 0.4 * (crossAgreement(toks, choruses, L) - bg))), new Set(o.cues ?? []), handStarts(o.fixed));
+        const r = bestRotation(ph, toks, T, choruses, n, len, Math.min(0.6, Math.max(0.2, bg + 0.4 * (crossAgreement(toks, choruses, L) - bg))), new Set(o.cues ?? []), handStarts(o));
         if (r === 0) break;
         T = T.map((_, j) => T[(((j + r) % L) + L) % L]!);
       }
@@ -1173,6 +1188,6 @@ export function analyseForm(bars: readonly HarmonyBar[], o: FormOptions): FormAn
     if (knownFits) break;
   }
 
-  const phrases = phraseLayout(toks, S, bg, n >= 24 ? 8 : 4);
+  const phrases = phraseLayout(toks, S, bg, n >= 24 ? 8 : 4, new Set(o.anchors?.phrase ?? []));
   return { toks, bg, chorus, phrases, knownFits };
 }

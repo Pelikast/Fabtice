@@ -34,6 +34,11 @@ reste du morceau.
 - Les **lettres de section** que vous placez à la main (A, B…) sont des
   points fixes : la recherche de la forme fait commencer les grilles là où
   vous avez écrit la première lettre.
+- Les **parties** que vous corrigez à la main (Thème, Solo, Couplet,
+  Refrain…) sont aussi des points fixes : si vous faites commencer
+  « Couplet 1 » une mesure plus tard, les parties suivantes que l'app a
+  trouvées se décalent avec lui. Ce que vous avez écrit n'est jamais changé,
+  et la grille complète simplifiée suit aussitôt.
 
 ### Modèle d'accords détaillé
 - Le modèle détaillé ajoute aux accords **les altérations qu'il entend**

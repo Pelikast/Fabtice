@@ -121,6 +121,7 @@ function depsOf(s: AppState): readonly unknown[] {
     c.structure.mode,
     c.sections,
     c.structure.lettersByHand,
+    c.structure.parts,
     s.settings.detectModulations,
     s.settings.autoStructure,
     s.settings.useKnownCharts,
@@ -417,6 +418,8 @@ export class HarmonyRefresh {
       mode: s.corrections.structure.mode,
       // The letters written by hand (1.0.1): fixed points of the form.
       handSections: s.corrections.structure.lettersByHand || s.corrections.sections.length ? s.corrections.sections : [],
+      // The parts written or moved by hand (1.0.1): fixed points too; the others are found around them.
+      handParts: s.corrections.structure.parts.map((p) => ({ start: p.start, end: p.end, type: p.type })),
     };
     if (detecting) this.input = input;
     let keyChanges: AnalysedKeyChange[] = [];
