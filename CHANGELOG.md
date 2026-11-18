@@ -3,7 +3,7 @@
 Chaque version publiée sur GitHub (page « Releases ») a sa section ici, la plus
 récente en haut. La première section est recopiée sur la page de la version.
 
-## Version 1.0.0
+## Version 1.0.0 — 18 novembre 2026
 
 La première version numérotée de Fabtice. Elle réorganise toute l'app autour
 d'un seul menu, sait annuler, enregistrer comme un vrai logiciel, trouver la
