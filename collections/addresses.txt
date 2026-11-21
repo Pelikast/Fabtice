@@ -1,0 +1,18 @@
+# collection addresses, 2026-11-21T11:55:46.252Z
+# collection | page | http | tunes read (min) | role
+jazz-1460 | https://www.irealpro.com/main-playlists/ | HTTP 200 | 1460 read (min 1100) | in place/official
+brazilian-220 | https://www.irealpro.com/main-playlists/ | HTTP 200 | 220 read (min 170) | in place/official
+latin-50 | https://www.irealpro.com/main-playlists/ | HTTP 200 | 50 read (min 40) | in place/official
+blues-50 | https://www.irealpro.com/main-playlists/ | HTTP 200 | 54 read (min 40) | in place/official
+dixieland-trad | https://forums.irealpro.com/threads/10591/ | HTTP 200 | 1917 read (min 50) | in place/forum
+gypsy-jazz | https://forums.irealpro.com/threads/215/ | HTTP 200 | 441 read (min 50) | in place/forum
+pop-400 | https://www.irealpro.com/main-playlists/ | HTTP 200 | 403 read (min 320) | in place/official
+country-50 | https://www.irealpro.com/main-playlists/ | HTTP 200 | 50 read (min 40) | in place/official
+samba-de-roda | https://forums.irealpro.com/threads/11680/ | HTTP 200 | 588 read (min 150) | in place/forum
+choro-melhor | https://forums.irealpro.com/threads/13040/ | HTTP 200 | 260 read (min 30) | in place/forum
+disco-bossa | https://forums.irealpro.com/threads/12074/ | HTTP 200 | 60 read (min 20) | in place/forum
+real-book-1 | https://forums.irealpro.com/threads/10464/ | HTTP 200 | 379 read (min 150) | in place/forum
+real-book-2 | https://forums.irealpro.com/threads/10489/ | HTTP 200 | 418 read (min 150) | in place/forum
+real-book-3 | https://forums.irealpro.com/threads/10544/ | HTTP 200 | 583 read (min 150) | in place/forum
+beatles | https://forums.irealpro.com/threads/1188/ | HTTP 200 | 179 read (min 30) | in place/forum
+SUMMARY: 15 collections, 15 readable; failing candidates: []; failing in place: []

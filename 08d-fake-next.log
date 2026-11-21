@@ -1,0 +1,60 @@
+### logs/logs-build/08d-fake-next.log (59 lines, last 400 shown)
+### step 08d-fake-next — 2026-11-21T12:08:13Z — Darwin 24.6.0 arm64
+fake newer version: 1.0.4
+  • electron-builder  version=26.18.0 os=24.6.0
+  • loaded configuration  file=package.json ("build" field)
+  • author is missed in the package.json  appPackageFile=/Users/runner/work/Fabtice/Fabtice/desktop/package.json
+  • executing @electron/rebuild  electronVersion=43.8.9 arch=arm64 buildFromSource=false workspaceRoot=/Users/runner/work/Fabtice/Fabtice/desktop projectDir=./ appDir=./
+  • installing native dependencies  arch=arm64
+  • completed installing native dependencies
+  • packaging       platform=darwin arch=arm64 electron=43.8.9 appOutDir=dist-next/arm64/mac-arm64
+  • downloaded      label=electron progress=100%
+  • downloaded electron zip extracted successfully  output=/Users/runner/work/Fabtice/Fabtice/desktop/dist-next/arm64/mac-arm64
+  • searching for node modules  pm=npm searchDir=/Users/runner/work/Fabtice/Fabtice/desktop
+  • no node modules found in collection, trying next search directory  pm=npm searchDir=/Users/runner/work/Fabtice/Fabtice/desktop
+  • searching for node modules  pm=traversal searchDir=/Users/runner/work/Fabtice/Fabtice/desktop
+  • using manual traversal of node_modules to build dependency tree
+  • no node modules found in collection, trying next search directory  pm=traversal searchDir=/Users/runner/work/Fabtice/Fabtice/desktop
+  • no node modules returned while searching directories  searchDirectories=[""]
+  • default Electron icon is used  reason=application icon is not set
+  • signing         file=dist-next/arm64/mac-arm64/Fabtice.app platform=darwin type=distribution identityName=- identityHash=none provisioningProfile=none
+  • skipped macOS notarization  reason=`notarize` options were unable to be generated
+  • building        target=macOS zip arch=arm64 file=dist-next/arm64/Fabtice-mac-apple-silicon.zip
+  • building block map  blockMapFile=dist-next/arm64/Fabtice-mac-apple-silicon.zip.blockmap
+  • electron-builder  version=26.18.0 os=24.6.0
+  • loaded configuration  file=package.json ("build" field)
+  • author is missed in the package.json  appPackageFile=/Users/runner/work/Fabtice/Fabtice/desktop/package.json
+  • executing @electron/rebuild  electronVersion=43.8.9 arch=x64 buildFromSource=false workspaceRoot=/Users/runner/work/Fabtice/Fabtice/desktop projectDir=./ appDir=./
+  • installing native dependencies  arch=x64
+  • completed installing native dependencies
+  • packaging       platform=darwin arch=x64 electron=43.8.9 appOutDir=dist-next/x64/mac
+  • downloaded      label=electron progress=100%
+  • downloaded electron zip extracted successfully  output=/Users/runner/work/Fabtice/Fabtice/desktop/dist-next/x64/mac
+  • searching for node modules  pm=npm searchDir=/Users/runner/work/Fabtice/Fabtice/desktop
+  • no node modules found in collection, trying next search directory  pm=npm searchDir=/Users/runner/work/Fabtice/Fabtice/desktop
+  • searching for node modules  pm=traversal searchDir=/Users/runner/work/Fabtice/Fabtice/desktop
+  • using manual traversal of node_modules to build dependency tree
+  • no node modules found in collection, trying next search directory  pm=traversal searchDir=/Users/runner/work/Fabtice/Fabtice/desktop
+  • no node modules returned while searching directories  searchDirectories=[""]
+  • default Electron icon is used  reason=application icon is not set
+  • signing         file=dist-next/x64/mac/Fabtice.app platform=darwin type=distribution identityName=- identityHash=none provisioningProfile=none
+  • skipped macOS notarization  reason=`notarize` options were unable to be generated
+  • building        target=macOS zip arch=x64 file=dist-next/x64/Fabtice-mac-intel.zip
+  • building block map  blockMapFile=dist-next/x64/Fabtice-mac-intel.zip.blockmap
+dist-next/arm64:
+total 264472
+drwxr-xr-x  6 runner  staff        192 Nov 21 12:09 .
+drwxr-xr-x  4 runner  staff        128 Nov 21 12:09 ..
+-rw-r--r--  1 runner  staff        926 Nov 21 12:09 builder-debug.yml
+-rw-r--r--  1 runner  staff  131780356 Nov 21 12:09 Fabtice-mac-apple-silicon.zip
+-rw-r--r--  1 runner  staff     137605 Nov 21 12:09 Fabtice-mac-apple-silicon.zip.blockmap
+drwxr-xr-x  3 runner  staff         96 Nov 21 12:08 mac-arm64
+
+dist-next/x64:
+total 297256
+drwxr-xr-x  6 runner  staff        192 Nov 21 12:10 .
+drwxr-xr-x  4 runner  staff        128 Nov 21 12:09 ..
+-rw-r--r--  1 runner  staff        922 Nov 21 12:10 builder-debug.yml
+-rw-r--r--  1 runner  staff  137717406 Nov 21 12:10 Fabtice-mac-intel.zip
+-rw-r--r--  1 runner  staff     145878 Nov 21 12:10 Fabtice-mac-intel.zip.blockmap
+drwxr-xr-x  3 runner  staff         96 Nov 21 12:09 mac

@@ -1,0 +1,132 @@
+### logs/logs-build/07b-inspect-dmg.log (131 lines, last 400 shown)
+### step 07b-inspect-dmg — 2026-11-21T11:59:13Z — Darwin 24.6.0 arm64
+######## dist/Fabtice-mac-apple-silicon.dmg
+Checksumming Protective Master Boot Record (MBR : 0)…
+Protective Master Boot Record (MBR :: verified   CRC32 $EA8085A3
+Checksumming GPT Header (Primary GPT Header : 1)…
+ GPT Header (Primary GPT Header : 1): verified   CRC32 $E1F61B1C
+Checksumming GPT Partition Data (Primary GPT Table : 2)…
+GPT Partition Data (Primary GPT Tabl: verified   CRC32 $FB3B67AD
+Checksumming  (Apple_Free : 3)…
+                    (Apple_Free : 3): verified   CRC32 $00000000
+Checksumming disk image (Apple_HFS : 4)…
+          disk image (Apple_HFS : 4): verified   CRC32 $4C57FFC9
+Checksumming  (Apple_Free : 5)…
+                    (Apple_Free : 5): verified   CRC32 $00000000
+Checksumming GPT Partition Data (Backup GPT Table : 6)…
+GPT Partition Data (Backup GPT Table: verified   CRC32 $FB3B67AD
+Checksumming GPT Header (Backup GPT Header : 7)…
+  GPT Header (Backup GPT Header : 7): verified   CRC32 $2DB1AC07
+verified   CRC32 $E2E7FE01
+/dev/disk5          	GUID_partition_scheme          	
+/dev/disk5s1        	Apple_HFS                      	/Users/runner/work/_temp/dmg-apple-silicon
+total 128
+drwxr-xr-x   6 runner  staff    272 Nov 21 11:56 .
+drwxr-xr-x  19 runner  staff    608 Nov 21 11:59 ..
+-rw-r--r--   1 runner  staff  37298 Nov 21 11:56 .background.tiff
+-rw-r--r--   1 runner  staff  16388 Nov 21 11:56 .DS_Store
+lrwxr-xr-x   1 runner  staff     13 Nov 21 11:56 Applications -> /Applications
+drwxr-xr-x   3 runner  staff    102 Nov 21 11:56 Fabtice.app
+== main executable
+/Users/runner/work/_temp/dmg-apple-silicon/Fabtice.app/Contents/MacOS/Fabtice: Mach-O 64-bit executable arm64
+arm64
+minos arm64: main=12.0 framework=12.0
+== Info.plist
+12.0
+1.0.3
+org.fabtice.desktop
+== highest minos over every Mach-O in the bundle
+12.0 arm64 Contents/Frameworks/Mantle.framework/Versions/A/Mantle
+12.0 arm64 Contents/Frameworks/ReactiveObjC.framework/Versions/A/ReactiveObjC
+12.0 arm64 Contents/Frameworks/Squirrel.framework/Versions/A/Resources/ShipIt
+12.0 arm64 Contents/Frameworks/Squirrel.framework/Versions/A/Squirrel
+12.0 arm64 Contents/MacOS/Fabtice
+== signature
+Identifier=org.fabtice.desktop
+Format=app bundle with Mach-O thin (arm64)
+CodeDirectory v=20400 size=620 flags=0x2(adhoc) hashes=9+7 location=embedded
+Signature=adhoc
+TeamIdentifier=not set
+--validated:/Users/runner/work/_temp/dmg-apple-silicon/Fabtice.app/Contents/Frameworks/Squirrel.framework/Versions/Current/.
+/Users/runner/work/_temp/dmg-apple-silicon/Fabtice.app: valid on disk
+/Users/runner/work/_temp/dmg-apple-silicon/Fabtice.app: satisfies its Designated Requirement
+/Users/runner/work/_temp/dmg-apple-silicon/Fabtice.app: rejected
+== Electron fuses (RunAsNode must stay enabled)
+Analyzing app: Fabtice.app
+Fuse Version: v1
+  RunAsNode is Enabled
+  EnableCookieEncryption is Disabled
+  EnableNodeOptionsEnvironmentVariable is Enabled
+  EnableNodeCliInspectArguments is Enabled
+  EnableEmbeddedAsarIntegrityValidation is Disabled
+  OnlyLoadAppFromAsar is Disabled
+  LoadBrowserProcessSpecificV8Snapshot is Disabled
+  GrantFileProtocolExtraPrivileges is Enabled
+  WasmTrapHandlers is Enabled
+dist/Fabtice-mac-apple-silicon.dmg : Fabtice.app 1.0.3, arm64, signature valide
+"disk5" ejected.
+######## dist/Fabtice-mac-intel.dmg
+Checksumming Protective Master Boot Record (MBR : 0)…
+Protective Master Boot Record (MBR :: verified   CRC32 $DD9CC4D0
+Checksumming GPT Header (Primary GPT Header : 1)…
+ GPT Header (Primary GPT Header : 1): verified   CRC32 $BE3A6AA5
+Checksumming GPT Partition Data (Primary GPT Table : 2)…
+GPT Partition Data (Primary GPT Tabl: verified   CRC32 $01AC4FA2
+Checksumming  (Apple_Free : 3)…
+                    (Apple_Free : 3): verified   CRC32 $00000000
+Checksumming disk image (Apple_HFS : 4)…
+          disk image (Apple_HFS : 4): verified   CRC32 $ABA71C5C
+Checksumming  (Apple_Free : 5)…
+                    (Apple_Free : 5): verified   CRC32 $00000000
+Checksumming GPT Partition Data (Backup GPT Table : 6)…
+GPT Partition Data (Backup GPT Table: verified   CRC32 $01AC4FA2
+Checksumming GPT Header (Backup GPT Header : 7)…
+  GPT Header (Backup GPT Header : 7): verified   CRC32 $99A512D6
+verified   CRC32 $37D911AE
+/dev/disk5          	GUID_partition_scheme          	
+/dev/disk5s1        	Apple_HFS                      	/Users/runner/work/_temp/dmg-intel
+total 128
+drwxr-xr-x   6 runner  staff    272 Nov 21 11:58 .
+drwxr-xr-x  20 runner  staff    640 Nov 21 11:59 ..
+-rw-r--r--   1 runner  staff  37298 Nov 21 11:58 .background.tiff
+-rw-r--r--   1 runner  staff  16388 Nov 21 11:58 .DS_Store
+lrwxr-xr-x   1 runner  staff     13 Nov 21 11:58 Applications -> /Applications
+drwxr-xr-x   3 runner  staff    102 Nov 21 11:57 Fabtice.app
+== main executable
+/Users/runner/work/_temp/dmg-intel/Fabtice.app/Contents/MacOS/Fabtice: Mach-O 64-bit executable x86_64
+x86_64
+minos x86_64: main=12.0 framework=12.0
+== Info.plist
+12.0
+1.0.3
+org.fabtice.desktop
+== highest minos over every Mach-O in the bundle
+12.0 x86_64 Contents/Frameworks/Mantle.framework/Versions/A/Mantle
+12.0 x86_64 Contents/Frameworks/ReactiveObjC.framework/Versions/A/ReactiveObjC
+12.0 x86_64 Contents/Frameworks/Squirrel.framework/Versions/A/Resources/ShipIt
+12.0 x86_64 Contents/Frameworks/Squirrel.framework/Versions/A/Squirrel
+12.0 x86_64 Contents/MacOS/Fabtice
+== signature
+Identifier=org.fabtice.desktop
+Format=app bundle with Mach-O thin (x86_64)
+CodeDirectory v=20400 size=460 flags=0x2(adhoc) hashes=4+7 location=embedded
+Signature=adhoc
+TeamIdentifier=not set
+--validated:/Users/runner/work/_temp/dmg-intel/Fabtice.app/Contents/Frameworks/Squirrel.framework/Versions/Current/.
+/Users/runner/work/_temp/dmg-intel/Fabtice.app: valid on disk
+/Users/runner/work/_temp/dmg-intel/Fabtice.app: satisfies its Designated Requirement
+/Users/runner/work/_temp/dmg-intel/Fabtice.app: rejected
+== Electron fuses (RunAsNode must stay enabled)
+Analyzing app: Fabtice.app
+Fuse Version: v1
+  RunAsNode is Enabled
+  EnableCookieEncryption is Disabled
+  EnableNodeOptionsEnvironmentVariable is Enabled
+  EnableNodeCliInspectArguments is Enabled
+  EnableEmbeddedAsarIntegrityValidation is Disabled
+  OnlyLoadAppFromAsar is Disabled
+  LoadBrowserProcessSpecificV8Snapshot is Disabled
+  GrantFileProtocolExtraPrivileges is Enabled
+  WasmTrapHandlers is Enabled
+dist/Fabtice-mac-intel.dmg : Fabtice.app 1.0.3, x86_64, signature valide
+"disk5" ejected.

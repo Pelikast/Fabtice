@@ -1,0 +1,10 @@
+### logs/logs-build/08f-release-host.log (9 lines, last 400 shown)
+### step 08f-release-host — 2026-11-21T12:10:51Z — Darwin 24.6.0 arm64
+# https://github.com/pelikast/fabtice/releases/download/desktop-dev/Fabtice-mac-intel.dmg
+302 github.com -> release-assets.githubusercontent.com (allowed: true)
+200 release-assets.githubusercontent.com
+# https://github.com/pelikast/fabtice/releases/latest/download/fabtice-version.json
+302 github.com -> github.com (allowed: true)
+302 github.com -> release-assets.githubusercontent.com (allowed: true)
+200 release-assets.githubusercontent.com
+Tous les sauts sont dans la liste des hôtes permis.

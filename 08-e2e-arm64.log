@@ -1,0 +1,334 @@
+### logs/logs-build/08-e2e-arm64.log (333 lines, last 400 shown)
+### step 08-e2e-arm64 — 2026-11-21T11:59:28Z — Darwin 24.6.0 arm64
+
+> fabtice-desktop@1.0.3 test:e2e
+> node --test --test-concurrency=1 "test/e2e/*.test.js"
+
+TAP version 13
+# Subtest: the fine chord model runs in the app, from the settings, and says what it cost
+ok 1 - the fine chord model runs in the app, from the settings, and says what it cost # SKIP set FABTICE_E2E_ANALYSIS_FINE=1 (downloads 68 MB, takes minutes)
+  ---
+  duration_ms: 0.525708
+  type: 'test'
+  ...
+# Subtest: the fine chord model also listens to the separated parts when asked
+ok 2 - the fine chord model also listens to the separated parts when asked # SKIP set FABTICE_E2E_ANALYSIS_FINE=1 (downloads about 80 MB, takes minutes)
+  ---
+  duration_ms: 0.084833
+  type: 'test'
+  ...
+# Subtest: the real analysis runs in the app under the shipped policy, keeps its tools, and does not download them twice
+ok 3 - the real analysis runs in the app under the shipped policy, keeps its tools, and does not download them twice # SKIP set FABTICE_E2E_ANALYSIS=1 (downloads the analysis tools, about 18 MB)
+  ---
+  duration_ms: 0.50475
+  type: 'test'
+  ...
+# Subtest: « Appliquer » renders with the real renderer in the app and the engine plays the rendered audio
+ok 4 - « Appliquer » renders with the real renderer in the app and the engine plays the rendered audio
+  ---
+  duration_ms: 11091.676708
+  type: 'test'
+  ...
+# Subtest: sleep and wake give the audio output back; the audio journal reaches the diagnostic window and the disk
+ok 5 - sleep and wake give the audio output back; the audio journal reaches the diagnostic window and the disk
+  ---
+  duration_ms: 4401.156458
+  type: 'test'
+  ...
+# Subtest: the sound exported in the app lands on disk: a WAV mix, a ZIP of tracks, an mp3 and a flac
+ok 6 - the sound exported in the app lands on disk: a WAV mix, a ZIP of tracks, an mp3 and a flac
+  ---
+  duration_ms: 11318.8395
+  type: 'test'
+  ...
+# Subtest: the sheets of the print window are saved as a PDF from the app, page for page; « Imprimer » goes to the chosen printer or opens the system dialog
+ok 7 - the sheets of the print window are saved as a PDF from the app, page for page; « Imprimer » goes to the chosen printer or opens the system dialog
+  ---
+  duration_ms: 11535.29475
+  type: 'test'
+  ...
+# Subtest: a right click in the link field offers Couper, Copier, Coller, Tout sélectionner, and « Coller » pastes the link; on selected text only Copier; nowhere else, nothing
+ok 8 - a right click in the link field offers Couper, Copier, Coller, Tout sélectionner, and « Coller » pastes the link; on selected text only Copier; nowhere else, nothing
+  ---
+  duration_ms: 2980.076792
+  type: 'test'
+  ...
+# Subtest: the Ableton Live project is a real folder with its sub-folders, its sets naming the files where they are
+ok 9 - the Ableton Live project is a real folder with its sub-folders, its sets naming the files where they are
+  ---
+  duration_ms: 26116.28475
+  type: 'test'
+  ...
+# Subtest: the folder for Logic Pro is a real folder where the panel said, never over an existing one
+ok 10 - the folder for Logic Pro is a real folder where the panel said, never over an existing one
+  ---
+  duration_ms: 25272.998584
+  type: 'test'
+  ...
+# Subtest: the app starts on the real interface, isolated, with the link field
+ok 11 - the app starts on the real interface, isolated, with the link field
+  ---
+  duration_ms: 2448.653916
+  type: 'test'
+  ...
+# Subtest: the bridge called from the interface page returns audio bytes (stub yt-dlp)
+ok 12 - the bridge called from the interface page returns audio bytes (stub yt-dlp)
+  ---
+  duration_ms: 1513.097833
+  type: 'test'
+  ...
+# Subtest: yt-dlp install, then extraction refused until installed (page-driven)
+ok 13 - yt-dlp install, then extraction refused until installed (page-driven)
+  ---
+  duration_ms: 1543.614125
+  type: 'test'
+  ...
+# Subtest: the diagnostic window opens from the menu and works with the stub
+ok 14 - the diagnostic window opens from the menu and works with the stub
+  ---
+  duration_ms: 1956.888583
+  type: 'test'
+  ...
+# Subtest: the file downloads inside the app and decodes to the chart; « Ouvrir dans iReal Pro » reaches the system once, with that link only
+ok 15 - the file downloads inside the app and decodes to the chart; « Ouvrir dans iReal Pro » reaches the system once, with that link only
+  ---
+  duration_ms: 6657.813375
+  type: 'test'
+  ...
+# engine: it, clock 0:00,0 -> 0:00,1
+# Subtest: first launch: link → import → waveform → play → loop and key → relaunch
+ok 16 - first launch: link → import → waveform → play → loop and key → relaunch
+  ---
+  duration_ms: 7241.685125
+  type: 'test'
+  ...
+# Subtest: a live stream is refused in French, the app stays usable, a file imports
+ok 17 - a live stream is refused in French, the app stays usable, a file imports
+  ---
+  duration_ms: 2454.583
+  type: 'test'
+  ...
+# steps seen (4.8 s): ["Recherche du morceau…","Préparation du téléchargement…","Téléchargement du son…0 %","Téléchargement du son…25 %","Téléchargement du son…50 %","Téléchargement du son…75 %","Téléchargement du son…100 %","Préparation du son…","Ouverture du morceau…"]
+# Subtest: slow start, known size: preparation first (no figure), then real percentages, then decoding
+ok 18 - slow start, known size: preparation first (no figure), then real percentages, then decoding
+  ---
+  duration_ms: 5917.37625
+  type: 'test'
+  ...
+# steps seen: ["Recherche du morceau…","Préparation du téléchargement…","Téléchargement du son…3 ko reçus","Téléchargement du son…12 ko reçus","Téléchargement du son…24 ko reçus","Téléchargement du son…34 ko reçus","Téléchargement du son…100 %","Préparation du son…","Ouverture du morceau…"]
+# Subtest: unknown size: the amount received, never a percentage while downloading
+ok 19 - unknown size: the amount received, never a percentage while downloading
+  ---
+  duration_ms: 3397.417583
+  type: 'test'
+  ...
+# Subtest: the diagnostic window copies the report of the last import made from the interface
+ok 20 - the diagnostic window copies the report of the last import made from the interface
+  ---
+  duration_ms: 7346.787166
+  type: 'test'
+  ...
+# Subtest: the menu bar: the page's commands, greyed out as in the app, run in the page, never twice
+ok 21 - the menu bar: the page's commands, greyed out as in the app, run in the page, never twice
+  ---
+  duration_ms: 7950.772292
+  type: 'test'
+  ...
+# Subtest: a piece saved, then reopened at launch: « not modified », the same file; its file gone: « modified »
+ok 22 - a piece saved, then reopened at launch: « not modified », the same file; its file gone: « modified »
+  ---
+  duration_ms: 17878.704166
+  type: 'test'
+  ...
+# \# 1280x800: {"vw":1280,"vh":656,"scrolls":false,"link":164.09375,"project":232.984375,"recents":251.875,"stems":405.4375,"formats":529.1875,"recentLines":3,"dialogBottom":566.078125}
+# \# 960x640: {"vw":960,"vh":640,"scrolls":false,"link":156.09375,"project":224.984375,"recents":243.875,"stems":397.4375,"formats":521.1875,"recentLines":3,"dialogBottom":558.078125}
+# Subtest: the opening dialog is in order and fits at 1280 × 800 and 960 × 640 with the link field and recent projects
+ok 23 - the opening dialog is in order and fits at 1280 × 800 and 960 × 640 with the link field and recent projects
+  ---
+  duration_ms: 3646.807875
+  type: 'test'
+  ...
+# Subtest: the message of the chord charts comes over the opening screen; « Non merci » with the box ends it for good
+ok 24 - the message of the chord charts comes over the opening screen; « Non merci » with the box ends it for good
+  ---
+  duration_ms: 4310.686041
+  type: 'test'
+  ...
+# Subtest: a project saved in the app opens in a fresh app from the Finder, everything restored
+ok 25 - a project saved in the app opens in a fresh app from the Finder, everything restored
+  ---
+  duration_ms: 34471.513583
+  type: 'test'
+  ...
+# Subtest: « Enregistrer » and « Enregistrer sous… » in the app: the project's file, written safely and fast; the alert on closing and quitting
+ok 26 - « Enregistrer » and « Enregistrer sous… » in the app: the project's file, written safely and fast; the alert on closing and quitting
+  ---
+  duration_ms: 21877.159333
+  type: 'test'
+  ...
+# file: 6.2 MB or more stored, back 1.5 s after the launch
+# Subtest: a file of several MB comes back at the next launch, with its settings, and plays
+ok 27 - a file of several MB comes back at the next launch, with its settings, and plays
+  ---
+  duration_ms: 5808.819791
+  type: 'test'
+  ...
+# link: 6.2 MB or more stored, back 1.9 s after the launch
+# Subtest: a piece imported from a link, of several MB, comes back at the next launch
+ok 28 - a piece imported from a link, of several MB, comes back at the next launch
+  ---
+  duration_ms: 7225.111708
+  type: 'test'
+  ...
+# Subtest: a launch cut short during a restore: the piece is offered, kept, and opens on « Rouvrir »
+ok 29 - a launch cut short during a restore: the piece is offered, kept, and opens on « Rouvrir »
+  ---
+  duration_ms: 7844.567333
+  type: 'test'
+  ...
+# IndexedDB on fabtice://app: 57.7 MB written in 1.0 s; private file system: written 29360128
+# after the relaunch: both tracks read back in 0.2 s; private file system: read back 29360128
+# Subtest: separated instruments of real size are kept on the app origin and read back after a relaunch
+ok 30 - separated instruments of real size are kept on the app origin and read back after a relaunch
+  ---
+  duration_ms: 4549.798125
+  type: 'test'
+  ...
+# Subtest: the real separation runs in the app under the shipped policy, shows the instruments and reports to the diagnostic window
+ok 31 - the real separation runs in the app under the shipped policy, shows the instruments and reports to the diagnostic window # SKIP set FABTICE_E2E_SEPARATION=1 (downloads SCNet, 13 MB, and separates 38 s)
+  ---
+  duration_ms: 0.711041
+  type: 'test'
+  ...
+# Subtest: the Mac app downloads the chart collections itself: bridge rules, then the whole offer
+ok 32 - the Mac app downloads the chart collections itself: bridge rules, then the whole offer
+  ---
+  duration_ms: 4761.222958
+  type: 'test'
+  ...
+# === Fabtice — diagnostic ===
+# Date : 2026-11-21T12:03:52.750Z
+# App : Fabtice 1.0.3 (commit 5ed6870e3d, construit le 2026-11-21T11:56:11Z, run 44901115000)
+# Electron 43.8.9 · Chromium 150.0.7871.250 · Node 24.22.1 · V8 15.0.245.31-electron.0
+# Système : macOS 15.8.2 (noyau 24.6.0)
+# Processeur : Apple M1 (Virtual) · 3 cœurs · 7 Go de mémoire
+# Architecture du processus : arm64 · sous Rosetta : non
+# Moteur JS pour yt-dlp : node = ~/work/_temp/arm64/Fabtice.app/Contents/MacOS/Fabtice avec ELECTRON_RUN_AS_NODE=1 → répond v24.22.1 (174 ms)
+# yt-dlp : 2099.01.01-stub · source : variable FABTICE_YTDLP_PATH · chemin : ~/work/Fabtice/Fabtice/desktop/test/fixtures/stub-yt-dlp.js
+# --- Dernière importation ---
+# Lien saisi : https://youtu.be/dQw4w9WgXcQ?list=PL0123456789&t=5
+# URL transmise : https://www.youtube.com/watch?v=dQw4w9WgXcQ (id dQw4w9WgXcQ)
+# Format demandé : bestaudio[ext=m4a][acodec^=mp4a]/bestaudio[ext=m4a]/bestaudio
+# > Étape infos (-J)
+#   Exécutable : ~/work/Fabtice/Fabtice/desktop/test/fixtures/stub-yt-dlp.js
+#   Arguments : ["--ignore-config","--no-playlist","--verbose","--no-js-runtimes","--js-runtimes","node:~/work/_temp/arm64/Fabtice.app/Contents/MacOS/Fabtice","--cache-dir","/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/fabtice-e2e-VFpHrf/yt-dlp-cache","--format","bestaudio[ext=m4a][acodec^=mp4a]/bestaudio[ext=m4a]/bestaudio","--dump-single-json","--","https://www.youtube.com/watch?v=dQw4w9WgXcQ"]
+#   Code de sortie : 0 · durée 0.23 s
+#   stderr (4 dernières lignes) :
+#     [debug] Command-line config: ["--ignore-config","--no-playlist","--verbose","--no-js-runtimes","--js-runtimes","node:~/work/_temp/arm64/Fabtice.app/Contents/MacOS/Fabtice","--cache-dir","/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/fabtice-e2e-VFpHrf/yt-dlp-cache","--format","bestaudio[ext=m4a][acodec^=mp4a]/bestaudio[ext=m4a]/bestaudio","--dump-single-json","--","https://www.youtube.com/watch?v=dQw4w9WgXcQ"]
+#     [debug] yt-dlp version stub@2099.01.01 (test stub)
+#     [debug] JS runtimes: node-24.22.1
+#     [youtube] [jsc:node] stub challenge solved
+# > Étape téléchargement
+#   Exécutable : ~/work/Fabtice/Fabtice/desktop/test/fixtures/stub-yt-dlp.js
+#   Arguments : ["--ignore-config","--no-playlist","--verbose","--no-js-runtimes","--js-runtimes","node:~/work/_temp/arm64/Fabtice.app/Contents/MacOS/Fabtice","--cache-dir","/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/fabtice-e2e-VFpHrf/yt-dlp-cache","--load-info-json","/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/fabtice-MG0Ymr/info.json","--format","bestaudio[ext=m4a][acodec^=mp4a]/bestaudio[ext=m4a]/bestaudio","--fixup","never","--no-part","--no-mtime","--newline","--output","/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/fabtice-MG0Ymr/audio.%(ext)s"]
+#   Code de sortie : 0 · durée 0.06 s
+#   stderr (3 dernières lignes) :
+#     [debug] Command-line config: ["--ignore-config","--no-playlist","--verbose","--no-js-runtimes","--js-runtimes","node:~/work/_temp/arm64/Fabtice.app/Contents/MacOS/Fabtice","--cache-dir","/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/fabtice-e2e-VFpHrf/yt-dlp-cache","--load-info-json","/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/fabtice-MG0Ymr/info.json","--format","bestaudio[ext=m4a][acodec^=mp4a]/bestaudio[ext=m4a]/bestaudio","--fixup","never","--no-part","--no-mtime","--newline","--output","/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/fabtice-MG0Ymr/audio.%(ext)s"]
+#     [debug] yt-dlp version stub@2099.01.01 (test stub)
+#     [debug] stub: download starts
+# > Lignes clés de yt-dlp :
+#     [debug] yt-dlp version stub@2099.01.01 (test stub)
+#     [debug] JS runtimes: node-24.22.1
+#     [youtube] [jsc:node] stub challenge solved
+# Vidéo : « Tonalité d’essai » · Fabtice test · 0:04 · live_status not_live
+# Format choisi : 140 · ext m4a · acodec mp4a.40.2 · container m4a_dash · 64 kb/s · 44100 Hz · 2 canaux · protocole https
+# Fichier : audio.m4a · 34279 octets (33.5 Kio)
+# Conteneur détecté : MP4 fragmenté (DASH) — marque « dash », 4 fragments moof · boîtes : ftyp moov sidx moof mdat moof mdat moof mdat moof mdat
+# Durée totale : 0.30 s · dossier temporaire supprimé : oui
+# Résultat : téléchargé
+# Décodage (decodeAudioData) : OK en 26 ms · 2 canaux · 4.023 s (attendu 4 s) · tampon à 48000 Hz (contexte 48000 Hz, source 44100 Hz)
+# Conclusion ffmpeg : Chromium décode le m4a DASH non remuxé → ffmpeg inutile.
+# --- Dernière séparation ---
+# Aucune séparation n’a encore été faite dans cette app.
+# --- Journal audio ---
+# === Fabtice — journal audio ===
+# Copié le 2026-11-21 12:03:52.032
+# Dernière lecture réussie : aucune
+# 2 événement(s), les plus anciens d’abord :
+# 2026-11-21 12:03:50.893  [système] Fabtice démarre
+# 2026-11-21 12:03:51.394  [interface] Page ouverte (Chrome/150.0.7871.250 Electron/43.8.9 Safari/537.36 (Macintosh))
+# --- WebGPU ---
+# navigator.gpu : présent · format de canevas préféré bgra8unorm
+# Adaptateur : vendor apple · architecture ? · device ? · description ? · fallback non
+# Limites : maxBufferSize=2147483648 · maxStorageBufferBindingSize=2147483644 · maxComputeWorkgroupStorageSize=32768 · maxComputeInvocationsPerWorkgroup=1024 · maxComputeWorkgroupSizeX=1024 · maxStorageBuffersPerShaderStage=10 · maxTextureDimension2D=16384
+# Fonctions (20) : bgra8unorm-storage, clip-distances, core-features-and-limits, depth-clip-control, depth32float-stencil8, dual-source-blending, float32-blendable, float32-filterable, indirect-first-instance, rg11b10ufloat-renderable, shader-f16, subgroups, texture-component-swizzle, texture-compression-astc, texture-compression-astc-sliced-3d, texture-compression-bc, texture-compression-bc-sliced-3d, texture-compression-etc2, texture-formats-tier1, texture-formats-tier2
+# position after 1.2 s of playback: 1.22
+# Subtest: DASH m4a: import, decode, play, copy diagnostics
+ok 33 - DASH m4a: import, decode, play, copy diagnostics
+  ---
+  duration_ms: 4197.287375
+  type: 'test'
+  ...
+# Subtest: WebM/Opus fallback decodes too
+ok 34 - WebM/Opus fallback decodes too
+  ---
+  duration_ms: 2621.991625
+  type: 'test'
+  ...
+# Subtest: live streams are refused, bad links rejected
+ok 35 - live streams are refused, bad links rejected
+  ---
+  duration_ms: 2515.991625
+  type: 'test'
+  ...
+# Subtest: the bar menu lists its five entries in order, each with its hint
+ok 36 - the bar menu lists its five entries in order, each with its hint
+  ---
+  duration_ms: 2962.122958
+  type: 'test'
+  ...
+# Subtest: « Changer la signature rythmique »: 7/8 for one bar only, the ruler writes it and the return, one undo takes both back
+ok 37 - « Changer la signature rythmique »: 7/8 for one bar only, the ruler writes it and the return, one undo takes both back
+  ---
+  duration_ms: 3067.935542
+  type: 'test'
+  ...
+# Subtest: « Correction de la courbe en tapant le tempo »: the full flow, one correction, one undo step; Escape in a second run changes nothing
+ok 38 - « Correction de la courbe en tapant le tempo »: the full flow, one correction, one undo step; Escape in a second run changes nothing
+  ---
+  duration_ms: 13301.175875
+  type: 'test'
+  ...
+# Subtest: the space bar: with a window or a menu open it never starts the playback; with none open it does
+ok 39 - the space bar: with a window or a menu open it never starts the playback; with none open it does
+  ---
+  duration_ms: 2959.721083
+  type: 'test'
+  ...
+# Subtest: Ctrl + Z and Ctrl + Maj + Z undo and redo a change of the piece, with the Edit menu in place
+ok 40 - Ctrl + Z and Ctrl + Maj + Z undo and redo a change of the piece, with the Edit menu in place
+  ---
+  duration_ms: 2140.579584
+  type: 'test'
+  ...
+# Subtest: the update of the Mac app: search, message, refused archives, manual download
+ok 41 - the update of the Mac app: search, message, refused archives, manual download
+  ---
+  duration_ms: 2359.983834
+  type: 'test'
+  ...
+# Subtest: install: down, then retry on a flaky server, then quiet update note
+ok 42 - install: down, then retry on a flaky server, then quiet update note
+  ---
+  duration_ms: 6738.804459
+  type: 'test'
+  ...
+1..42
+# tests 42
+# suites 0
+# pass 38
+# fail 0
+# cancelled 0
+# skipped 4
+# todo 0
+# duration_ms 305938.009625

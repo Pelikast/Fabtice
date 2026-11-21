@@ -1,0 +1,43 @@
+=== Fabtice — diagnostic ===
+Date : 2026-11-21T12:04:34.175Z
+App : Fabtice 1.0.3 (commit 5ed6870e3d, construit le 2026-11-21T11:56:11Z, run 44901115000)
+Electron 43.8.9 · Chromium 150.0.7871.250 · Node 24.22.1 · V8 15.0.245.31-electron.0
+Système : macOS 15.8.2 (noyau 24.6.0)
+Processeur : Apple M1 (Virtual) · 3 cœurs · 7 Go de mémoire
+Architecture du processus : arm64 · sous Rosetta : non
+Moteur JS pour yt-dlp : node = ~/work/_temp/arm64/Fabtice.app/Contents/MacOS/Fabtice avec ELECTRON_RUN_AS_NODE=1 → répond v24.22.1 (129 ms)
+yt-dlp : 2099.02.02-fake · source : téléchargé par Fabtice · chemin : /var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/fabtice-e2e-install-hm1c25/yt-dlp/yt-dlp_macos
+yt-dlp SHA-256 : db5f6ee2d0d3958e85873d77c70d50292e80ab021e621a4b120a6f9be9ab91b4
+Mise à jour yt-dlp : vérification impossible (net::ERR_EMPTY_RESPONSE)
+Réseau yt-dlp (8 essais cette session) :
+  12:04:32.872 version 127.0.0.1:49621 essai 1/4 · ÉCHEC en 21 ms · net::ERR_EMPTY_RESPONSE
+  12:04:32.994 version 127.0.0.1:49621 essai 2/4 · ÉCHEC en 2 ms · net::ERR_EMPTY_RESPONSE
+  12:04:33.209 version 127.0.0.1:49621 essai 3/4 · ÉCHEC en 7 ms · net::ERR_EMPTY_RESPONSE
+  12:04:33.521 version 127.0.0.1:49621 essai 4/4 · ÉCHEC en 8 ms · net::ERR_EMPTY_RESPONSE
+  12:04:33.529 sommes 127.0.0.1:49621 essai 1/4 · ÉCHEC en 23 ms · net::ERR_EMPTY_RESPONSE
+  12:04:33.656 sommes 127.0.0.1:49621 essai 2/4 · ÉCHEC en 8 ms · net::ERR_EMPTY_RESPONSE
+  12:04:33.865 sommes 127.0.0.1:49621 essai 3/4 · ÉCHEC en 2 ms · net::ERR_EMPTY_RESPONSE
+  12:04:34.171 sommes 127.0.0.1:49621 essai 4/4 · ÉCHEC en 4 ms · net::ERR_EMPTY_RESPONSE
+
+--- Dernière importation ---
+Aucune.
+
+--- Dernière séparation ---
+Aucune séparation n’a encore été faite dans cette app.
+
+--- Journal audio ---
+=== Fabtice — journal audio ===
+Copié le 2026-11-21 12:04:33.557
+Dernière lecture réussie : aucune
+5 événement(s), les plus anciens d’abord :
+2026-11-21 12:04:28.316  [système] Fabtice démarre
+2026-11-21 12:04:28.755  [interface] Page ouverte (Chrome/150.0.7871.250 Electron/43.8.9 Safari/537.36 (Macintosh))
+2026-11-21 12:04:32.256  [système] Fabtice se ferme
+2026-11-21 12:04:32.853  [système] Fabtice démarre
+2026-11-21 12:04:33.379  [interface] Page ouverte (Chrome/150.0.7871.250 Electron/43.8.9 Safari/537.36 (Macintosh))
+
+--- WebGPU ---
+navigator.gpu : présent · format de canevas préféré bgra8unorm
+Adaptateur : vendor apple · architecture ? · device ? · description ? · fallback non
+Limites : maxBufferSize=2147483648 · maxStorageBufferBindingSize=2147483644 · maxComputeWorkgroupStorageSize=32768 · maxComputeInvocationsPerWorkgroup=1024 · maxComputeWorkgroupSizeX=1024 · maxStorageBuffersPerShaderStage=10 · maxTextureDimension2D=16384
+Fonctions (20) : bgra8unorm-storage, clip-distances, core-features-and-limits, depth-clip-control, depth32float-stencil8, dual-source-blending, float32-blendable, float32-filterable, indirect-first-instance, rg11b10ufloat-renderable, shader-f16, subgroups, texture-component-swizzle, texture-compression-astc, texture-compression-astc-sliced-3d, texture-compression-bc, texture-compression-bc-sliced-3d, texture-compression-etc2, texture-formats-tier1, texture-formats-tier2

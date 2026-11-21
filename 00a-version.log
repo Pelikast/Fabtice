@@ -1,0 +1,3 @@
+### logs/logs-build/00a-version.log (2 lines, last 400 shown)
+### step 00a-version — 2026-11-21T11:52:10Z — Darwin 24.6.0 arm64
+Version 1.0.3 : app/package.json, desktop/package.json et CHANGELOG.md concordent.

@@ -1,0 +1,37 @@
+### logs/logs-build/08c-separation-arm64.log (36 lines, last 400 shown)
+### step 08c-separation-arm64 — 2026-11-21T12:04:58Z — Darwin 24.6.0 arm64
+TAP version 13
+# tools list: remote (ok), bs-roformer-sw, htdemucs-6s, scnet; requests: none seen
+# separation states: {"status":"running","projectId":"db522006-fd12-4b72-9e5e-8881fc93f6b1","modelId":"scnet","step":"download","backend":null,"fellBack":false} → {"status":"running","projectId":"db522006-fd12-4b72-9e5e-8881fc93f6b1","modelId":"scnet","step":"prepare","backend":null,"fellBack":false} → {"status":"running","projectId":"db522006-fd12-4b72-9e5e-8881fc93f6b1","modelId":"scnet","step":"separate","backend":"gpu","fellBack":false} → {"status":"running","projectId":"db522006-fd12-4b72-9e5e-8881fc93f6b1","modelId":"scnet","step":"finish","backend":"gpu","fellBack":false} → {"status":"idle"}
+# separation in the app: 191.1 s with the download, on gpu; compute 189.1 s
+# Rapport de séparation Fabtice
+# Date : 2026-11-21T12:08:10.916Z
+# Outil : SCNet (scnet) · SHA-256 982289314941…
+# Demandé : carte graphique, puis processeur si besoin · terminé sur : carte graphique (WebGPU)
+# Adaptateur graphique : apple
+# Repli sur le processeur : non
+# Morceau : 37,6 s, mono
+# Segments : 9 (un tous les 5,5 s de musique)
+# Calcul total : 189,1 s, soit 5,02 fois la durée du morceau
+# Par segment, carte graphique (WebGPU) : 20,74 s en moyenne (3,77 fois la durée)
+# Chargement de l’outil, carte graphique (WebGPU) : 2,3 s
+# Téléchargement de l’outil : 1,1 s pour 13 Mo
+# Fils de calcul : 2 · cœurs : 3 · mémoire annoncée : 8 Go · isolation : oui
+# Moteur : ONNX Runtime Web 1.31.1
+# Navigateur : Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Fabtice/1.0.3 Chrome/150.0.7871.250 Electron/43.8.9 Safari/537.36
+# the report is in the diagnostic window
+# Subtest: the real separation runs in the app under the shipped policy, shows the instruments and reports to the diagnostic window
+ok 1 - the real separation runs in the app under the shipped policy, shows the instruments and reports to the diagnostic window
+  ---
+  duration_ms: 193949.109916
+  type: 'test'
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 1
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 194209.432

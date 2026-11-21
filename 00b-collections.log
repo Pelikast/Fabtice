@@ -1,0 +1,72 @@
+### logs/logs-build/00b-collections.log (71 lines, last 400 shown)
+### step 00b-collections — 2026-11-21T11:55:45Z — Darwin 24.6.0 arm64
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.1.0 [39m[90m/Users/runner/work/Fabtice/Fabtice/app[39m
+
+[90mstdout[2m | src/standards/collectionAddresses.real.test.ts[2m > [22m[2mcollection addresses (online)[2m > [22m[2mjazz-1460: at least one page gives 1100 tunes
+[22m[39mjazz-1460 | https://www.irealpro.com/main-playlists/ | HTTP 200 | 1460 read (min 1100) | in place/official
+
+[90mstdout[2m | src/standards/collectionAddresses.real.test.ts[2m > [22m[2mcollection addresses (online)[2m > [22m[2mbrazilian-220: at least one page gives 170 tunes
+[22m[39mbrazilian-220 | https://www.irealpro.com/main-playlists/ | HTTP 200 | 220 read (min 170) | in place/official
+
+[90mstdout[2m | src/standards/collectionAddresses.real.test.ts[2m > [22m[2mcollection addresses (online)[2m > [22m[2mlatin-50: at least one page gives 40 tunes
+[22m[39mlatin-50 | https://www.irealpro.com/main-playlists/ | HTTP 200 | 50 read (min 40) | in place/official
+
+[90mstdout[2m | src/standards/collectionAddresses.real.test.ts[2m > [22m[2mcollection addresses (online)[2m > [22m[2mblues-50: at least one page gives 40 tunes
+[22m[39mblues-50 | https://www.irealpro.com/main-playlists/ | HTTP 200 | 54 read (min 40) | in place/official
+
+[90mstdout[2m | src/standards/collectionAddresses.real.test.ts[2m > [22m[2mcollection addresses (online)[2m > [22m[2mdixieland-trad: at least one page gives 50 tunes
+[22m[39mdixieland-trad | https://forums.irealpro.com/threads/10591/ | HTTP 200 | 1917 read (min 50) | in place/forum
+
+[90mstdout[2m | src/standards/collectionAddresses.real.test.ts[2m > [22m[2mcollection addresses (online)[2m > [22m[2mgypsy-jazz: at least one page gives 50 tunes
+[22m[39mgypsy-jazz | https://forums.irealpro.com/threads/215/ | HTTP 200 | 441 read (min 50) | in place/forum
+
+[90mstdout[2m | src/standards/collectionAddresses.real.test.ts[2m > [22m[2mcollection addresses (online)[2m > [22m[2mpop-400: at least one page gives 320 tunes
+[22m[39mpop-400 | https://www.irealpro.com/main-playlists/ | HTTP 200 | 403 read (min 320) | in place/official
+
+[90mstdout[2m | src/standards/collectionAddresses.real.test.ts[2m > [22m[2mcollection addresses (online)[2m > [22m[2mcountry-50: at least one page gives 40 tunes
+[22m[39mcountry-50 | https://www.irealpro.com/main-playlists/ | HTTP 200 | 50 read (min 40) | in place/official
+
+[90mstdout[2m | src/standards/collectionAddresses.real.test.ts[2m > [22m[2mcollection addresses (online)[2m > [22m[2msamba-de-roda: at least one page gives 150 tunes
+[22m[39msamba-de-roda | https://forums.irealpro.com/threads/11680/ | HTTP 200 | 588 read (min 150) | in place/forum
+
+[90mstdout[2m | src/standards/collectionAddresses.real.test.ts[2m > [22m[2mcollection addresses (online)[2m > [22m[2mchoro-melhor: at least one page gives 30 tunes
+[22m[39mchoro-melhor | https://forums.irealpro.com/threads/13040/ | HTTP 200 | 260 read (min 30) | in place/forum
+
+[90mstdout[2m | src/standards/collectionAddresses.real.test.ts[2m > [22m[2mcollection addresses (online)[2m > [22m[2mdisco-bossa: at least one page gives 20 tunes
+[22m[39mdisco-bossa | https://forums.irealpro.com/threads/12074/ | HTTP 200 | 60 read (min 20) | in place/forum
+
+[90mstdout[2m | src/standards/collectionAddresses.real.test.ts[2m > [22m[2mcollection addresses (online)[2m > [22m[2mreal-book-1: at least one page gives 150 tunes
+[22m[39mreal-book-1 | https://forums.irealpro.com/threads/10464/ | HTTP 200 | 379 read (min 150) | in place/forum
+
+[90mstdout[2m | src/standards/collectionAddresses.real.test.ts[2m > [22m[2mcollection addresses (online)[2m > [22m[2mreal-book-2: at least one page gives 150 tunes
+[22m[39mreal-book-2 | https://forums.irealpro.com/threads/10489/ | HTTP 200 | 418 read (min 150) | in place/forum
+
+[90mstdout[2m | src/standards/collectionAddresses.real.test.ts[2m > [22m[2mcollection addresses (online)[2m > [22m[2mreal-book-3: at least one page gives 150 tunes
+[22m[39mreal-book-3 | https://forums.irealpro.com/threads/10544/ | HTTP 200 | 583 read (min 150) | in place/forum
+
+[90mstdout[2m | src/standards/collectionAddresses.real.test.ts[2m > [22m[2mcollection addresses (online)[2m > [22m[2mbeatles: at least one page gives 30 tunes
+[22m[39mbeatles | https://forums.irealpro.com/threads/1188/ | HTTP 200 | 179 read (min 30) | in place/forum
+
+[90mstdout[2m | src/standards/collectionAddresses.real.test.ts[2m > [22m[2mcollection addresses (online)[2m > [22m[2msummary: the addresses that fail
+[22m[39mSUMMARY: 15 collections, 15 readable; failing candidates: []; failing in place: []
+
+ [32m✓[39m src/standards/collectionAddresses.real.test.ts [2m([22m[2m16 tests[22m[2m)[22m[33m 8078[2mms[22m[39m
+   [32m✓[39m collection addresses (online) [2m(16)[22m
+     [33m[2m✓[22m[39m jazz-1460: at least one page gives 1100 tunes[33m 548[2mms[22m[39m
+     [33m[2m✓[22m[39m blues-50: at least one page gives 40 tunes[33m 320[2mms[22m[39m
+     [33m[2m✓[22m[39m dixieland-trad: at least one page gives 50 tunes[33m 965[2mms[22m[39m
+     [33m[2m✓[22m[39m gypsy-jazz: at least one page gives 50 tunes[33m 594[2mms[22m[39m
+     [33m[2m✓[22m[39m samba-de-roda: at least one page gives 150 tunes[33m 602[2mms[22m[39m
+     [33m[2m✓[22m[39m choro-melhor: at least one page gives 30 tunes[33m 476[2mms[22m[39m
+     [33m[2m✓[22m[39m disco-bossa: at least one page gives 20 tunes[33m 527[2mms[22m[39m
+     [33m[2m✓[22m[39m real-book-1: at least one page gives 150 tunes[33m 1448[2mms[22m[39m
+     [33m[2m✓[22m[39m real-book-2: at least one page gives 150 tunes[33m 473[2mms[22m[39m
+     [33m[2m✓[22m[39m real-book-3: at least one page gives 150 tunes[33m 554[2mms[22m[39m
+     [33m[2m✓[22m[39m beatles: at least one page gives 30 tunes[33m 495[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m16 passed[39m[22m[90m (16)[39m
+[2m   Start at [22m 11:55:46
+[2m   Duration [22m 8.28s[2m (tests 99%, transform 1%)[22m
+

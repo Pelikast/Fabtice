@@ -1,0 +1,16 @@
+{
+  "version": "1.0.4",
+  "pid": 5672,
+  "execPath": "/private/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/fabtice-trial-cuvbmp/Applications d’essai é/Mes apps/Fabtice.app/Contents/MacOS/Fabtice",
+  "place": {
+    "ok": true,
+    "bundle": "/private/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/fabtice-trial-cuvbmp/Applications d’essai é/Mes apps/Fabtice.app",
+    "folder": "/private/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/fabtice-trial-cuvbmp/Applications d’essai é/Mes apps"
+  },
+  "cleaned": {
+    "removedAside": true,
+    "removedStaging": 0
+  },
+  "asideLeft": false,
+  "at": "2026-11-21T12:10:36.369Z"
+}

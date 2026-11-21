@@ -1,0 +1,134 @@
+### logs/logs-build/01-ui-build.log (133 lines, last 400 shown)
+### step 01-ui-build — 2026-11-21T11:55:54Z — Darwin 24.6.0 arm64
+
+> fabtice-app@1.0.3 build:desktop
+> vite build --mode desktop
+
+[36mvite v8.3.8 [32mbuilding client environment for desktop...[36m[39m
+transforming...
+✓ 388 modules transformed.
+rendering chunks...
+computing gzip size...
+../desktop/ui/assets/rolldown-runtime-I1t7kcUN.js                           0.41 kB
+../desktop/ui/index.html                                                    0.98 kB │ gzip:     0.47 kB
+../desktop/ui/assets/LICENSE-audio-encode-flac.txt                          1.06 kB │ gzip:     0.65 kB
+../desktop/ui/assets/LICENSE-wasm-media-encoders.txt                        1.07 kB │ gzip:     0.65 kB
+../desktop/ui/assets/LICENSE-signalsmith-linear.txt                         1.07 kB │ gzip:     0.66 kB
+../desktop/ui/assets/LICENSE-signalsmith-stretch.txt                        1.09 kB │ gzip:     0.67 kB
+../desktop/ui/assets/LICENSE-onnxruntime-web.txt                            1.22 kB │ gzip:     0.74 kB
+../desktop/ui/assets/meta-Bk7MnnYO.js                                       2.06 kB
+../desktop/ui/assets/flac-encode-DIHoZrPO.js                                2.40 kB
+../desktop/ui/assets/LICENSE-libflac.txt                                    2.86 kB │ gzip:     1.38 kB
+../desktop/ui/assets/encode.worker-DJxLGdjE.js                              3.29 kB
+../desktop/ui/assets/LICENSE-NotoMusic.txt                                  4.37 kB │ gzip:     1.97 kB
+../desktop/ui/assets/LICENSE-Fraunces.txt                                   4.50 kB │ gzip:     2.00 kB
+../desktop/ui/assets/LICENSE-InstrumentSans.txt                             4.53 kB │ gzip:     2.00 kB
+../desktop/ui/assets/es-DYcwLNXc.js                                         5.28 kB
+../desktop/ui/assets/worker-C5F7BnkI.js                                     7.76 kB
+../desktop/ui/assets/sheetsage2-cross-B-FySOi5.onnx                        19.24 kB
+../desktop/ui/assets/ort-wasm-simd-threaded-DN_1uOdW.mjs                   24.73 kB
+../desktop/ui/assets/processor-ChGnEMso.js                                 25.70 kB
+../desktop/ui/assets/LICENSE-lame.txt                                      27.06 kB │ gzip:     9.61 kB
+../desktop/ui/assets/separation.worker-5DHmKowq.js                         28.72 kB
+../desktop/ui/assets/instrument-sans-latin-wght-normal-BbzFLZTg.woff2      30.09 kB
+../desktop/ui/assets/LICENSE-rubberband-GPL.txt                            30.26 kB │ gzip:     6.07 kB
+../desktop/ui/assets/ort.wasm.min-B0udrbSB.js                              51.68 kB
+../desktop/ui/assets/ort-wasm-simd-threaded.asyncify-C87S2c-s.mjs          53.45 kB
+../desktop/ui/assets/noto-music-music-400-normal-CksxHXl6.woff2            56.32 kB
+../desktop/ui/assets/ort.webgpu.min-CdaWd9iT.js                            68.89 kB
+../desktop/ui/assets/instruments.worker-BK0yXaV3.js                        69.02 kB
+../desktop/ui/assets/signalsmith-nosimd-CxQ0jmwS.wasm                      83.71 kB │ gzip:    35.25 kB
+../desktop/ui/assets/sheetsage2-step-DO-1SgS4.onnx                         87.51 kB
+../desktop/ui/assets/fraunces-latin-full-normal-CFFu7zhK.woff2            121.01 kB
+../desktop/ui/assets/mp3-BxzrsqzD.wasm                                    132.99 kB │ gzip:    67.16 kB
+../desktop/ui/assets/fraunces-latin-full-italic-D2JnYqd-.woff2            149.72 kB
+../desktop/ui/assets/analysis.worker-CWn1KVRy.js                          190.94 kB
+../desktop/ui/assets/libflac.wasm-BH8NyNqt.js                             244.53 kB
+../desktop/ui/assets/sheetsage2-enc-1-aSAiEWZa.onnx                       277.49 kB
+../desktop/ui/assets/sheetsage2-enc-2-ixS_gEeI.onnx                       277.51 kB
+../desktop/ui/assets/sheetsage2-enc-3-BoY_YnQE.onnx                       277.65 kB
+../desktop/ui/assets/sheetsage2-enc-4-Lw-Kr617.onnx                       277.99 kB
+../desktop/ui/assets/sheetsage2-enc-5-BRD-h944.onnx                       278.59 kB
+../desktop/ui/assets/sheetsage2-enc-0-D6Nb_SVv.onnx                       335.02 kB
+../desktop/ui/assets/rubberband-nosimd-BPYr609o.wasm                      486.03 kB │ gzip:   157.63 kB
+../desktop/ui/assets/tsumugi-chords.graph-BMj9CsIU.onnx                 1,356.05 kB
+../desktop/ui/assets/ort-wasm-simd-threaded-qh98TCA_.wasm              14,848.85 kB │ gzip: 3,878.24 kB
+../desktop/ui/assets/ort-wasm-simd-threaded.asyncify-AkdHdxrx.wasm     28,747.73 kB │ gzip: 7,279.10 kB
+../desktop/ui/assets/index-D3sS07zs.css                                   125.74 kB │ gzip:    22.96 kB
+../desktop/ui/assets/assets-DzdJ13IR.js                                     0.08 kB │ gzip:     0.09 kB
+../desktop/ui/assets/assets-DsaTdKEX.js                                     0.16 kB │ gzip:     0.14 kB
+../desktop/ui/assets/fromDesktop-C-gXm837.js                                0.81 kB │ gzip:     0.48 kB
+../desktop/ui/assets/start-DTyx7hxL.js                                     23.66 kB │ gzip:     9.83 kB
+../desktop/ui/assets/index-DaD4NG6s.js                                  1,095.38 kB │ gzip:   343.71 kB
+
+[33m[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.[39m
+[33m[33m[INEFFECTIVE_DYNAMIC_IMPORT] [0msrc/separation/models.ts is dynamically imported by src/separation/mock.ts but also statically imported by src/demo/start.ts, src/main.tsx, src/separation/runner.ts, src/separation/useChoice.ts, dynamic import will not move module into another chunk.
+[39m
+[33m[33m[INEFFECTIVE_DYNAMIC_IMPORT] [0msrc/structure/instruments/index.ts is dynamically imported by src/structure/gather.ts but also statically imported by src/components/AnalysisStatus.tsx, dynamic import will not move module into another chunk.
+[39m
+[32m✓ built in 1.48s[39m
+../desktop/ui:
+total 8
+drwxr-xr-x   4 runner  staff   128 Nov 21 11:55 .
+drwxr-xr-x  10 runner  staff   320 Nov 21 11:55 ..
+drwxr-xr-x  52 runner  staff  1664 Nov 21 11:55 assets
+-rw-r--r--   1 runner  staff   983 Nov 21 11:55 index.html
+
+../desktop/ui/assets:
+total 97776
+drwxr-xr-x  52 runner  staff      1664 Nov 21 11:55 .
+drwxr-xr-x   4 runner  staff       128 Nov 21 11:55 ..
+-rw-r--r--   1 runner  staff    190945 Nov 21 11:55 analysis.worker-CWn1KVRy.js
+-rw-r--r--   1 runner  staff       164 Nov 21 11:55 assets-DsaTdKEX.js
+-rw-r--r--   1 runner  staff        80 Nov 21 11:55 assets-DzdJ13IR.js
+-rw-r--r--   1 runner  staff      3293 Nov 21 11:55 encode.worker-DJxLGdjE.js
+-rw-r--r--   1 runner  staff      5281 Nov 21 11:55 es-DYcwLNXc.js
+-rw-r--r--   1 runner  staff      2409 Nov 21 11:55 flac-encode-DIHoZrPO.js
+-rw-r--r--   1 runner  staff    149720 Nov 21 11:55 fraunces-latin-full-italic-D2JnYqd-.woff2
+-rw-r--r--   1 runner  staff    121016 Nov 21 11:55 fraunces-latin-full-normal-CFFu7zhK.woff2
+-rw-r--r--   1 runner  staff       813 Nov 21 11:55 fromDesktop-C-gXm837.js
+-rw-r--r--   1 runner  staff    125749 Nov 21 11:55 index-D3sS07zs.css
+-rw-r--r--   1 runner  staff   1095388 Nov 21 11:55 index-DaD4NG6s.js
+-rw-r--r--   1 runner  staff     30092 Nov 21 11:55 instrument-sans-latin-wght-normal-BbzFLZTg.woff2
+-rw-r--r--   1 runner  staff     69021 Nov 21 11:55 instruments.worker-BK0yXaV3.js
+-rw-r--r--   1 runner  staff    244533 Nov 21 11:55 libflac.wasm-BH8NyNqt.js
+-rw-r--r--   1 runner  staff      1067 Nov 21 11:55 LICENSE-audio-encode-flac.txt
+-rw-r--r--   1 runner  staff      4504 Nov 21 11:55 LICENSE-Fraunces.txt
+-rw-r--r--   1 runner  staff      4538 Nov 21 11:55 LICENSE-InstrumentSans.txt
+-rw-r--r--   1 runner  staff     27066 Nov 21 11:55 LICENSE-lame.txt
+-rw-r--r--   1 runner  staff      2869 Nov 21 11:55 LICENSE-libflac.txt
+-rw-r--r--   1 runner  staff      4379 Nov 21 11:55 LICENSE-NotoMusic.txt
+-rw-r--r--   1 runner  staff      1225 Nov 21 11:55 LICENSE-onnxruntime-web.txt
+-rw-r--r--   1 runner  staff     30260 Nov 21 11:55 LICENSE-rubberband-GPL.txt
+-rw-r--r--   1 runner  staff      1074 Nov 21 11:55 LICENSE-signalsmith-linear.txt
+-rw-r--r--   1 runner  staff      1093 Nov 21 11:55 LICENSE-signalsmith-stretch.txt
+-rw-r--r--   1 runner  staff      1070 Nov 21 11:55 LICENSE-wasm-media-encoders.txt
+-rw-r--r--   1 runner  staff      2068 Nov 21 11:55 meta-Bk7MnnYO.js
+-rw-r--r--   1 runner  staff    132999 Nov 21 11:55 mp3-BxzrsqzD.wasm
+-rw-r--r--   1 runner  staff     56324 Nov 21 11:55 noto-music-music-400-normal-CksxHXl6.woff2
+-rw-r--r--   1 runner  staff     24738 Nov 21 11:55 ort-wasm-simd-threaded-DN_1uOdW.mjs
+-rw-r--r--   1 runner  staff  14848852 Nov 21 11:55 ort-wasm-simd-threaded-qh98TCA_.wasm
+-rw-r--r--   1 runner  staff  28747738 Nov 21 11:55 ort-wasm-simd-threaded.asyncify-AkdHdxrx.wasm
+-rw-r--r--   1 runner  staff     53457 Nov 21 11:55 ort-wasm-simd-threaded.asyncify-C87S2c-s.mjs
+-rw-r--r--   1 runner  staff     51689 Nov 21 11:55 ort.wasm.min-B0udrbSB.js
+-rw-r--r--   1 runner  staff     68899 Nov 21 11:55 ort.webgpu.min-CdaWd9iT.js
+-rw-r--r--   1 runner  staff     25702 Nov 21 11:55 processor-ChGnEMso.js
+-rw-r--r--   1 runner  staff       418 Nov 21 11:55 rolldown-runtime-I1t7kcUN.js
+-rw-r--r--   1 runner  staff    486033 Nov 21 11:55 rubberband-nosimd-BPYr609o.wasm
+-rw-r--r--   1 runner  staff     28728 Nov 21 11:55 separation.worker-5DHmKowq.js
+-rw-r--r--   1 runner  staff     19249 Nov 21 11:55 sheetsage2-cross-B-FySOi5.onnx
+-rw-r--r--   1 runner  staff    335022 Nov 21 11:55 sheetsage2-enc-0-D6Nb_SVv.onnx
+-rw-r--r--   1 runner  staff    277492 Nov 21 11:55 sheetsage2-enc-1-aSAiEWZa.onnx
+-rw-r--r--   1 runner  staff    277515 Nov 21 11:55 sheetsage2-enc-2-ixS_gEeI.onnx
+-rw-r--r--   1 runner  staff    277650 Nov 21 11:55 sheetsage2-enc-3-BoY_YnQE.onnx
+-rw-r--r--   1 runner  staff    277991 Nov 21 11:55 sheetsage2-enc-4-Lw-Kr617.onnx
+-rw-r--r--   1 runner  staff    278593 Nov 21 11:55 sheetsage2-enc-5-BRD-h944.onnx
+-rw-r--r--   1 runner  staff     87515 Nov 21 11:55 sheetsage2-step-DO-1SgS4.onnx
+-rw-r--r--   1 runner  staff     83719 Nov 21 11:55 signalsmith-nosimd-CxQ0jmwS.wasm
+-rw-r--r--   1 runner  staff     23669 Nov 21 11:55 start-DTyx7hxL.js
+-rw-r--r--   1 runner  staff   1356051 Nov 21 11:55 tsumugi-chords.graph-BMj9CsIU.onnx
+-rw-r--r--   1 runner  staff      7766 Nov 21 11:55 worker-C5F7BnkI.js

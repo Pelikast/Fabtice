@@ -1,0 +1,401 @@
+### logs/logs-build/03-unit-tests.log (1172 lines, last 400 shown)
+  duration_ms: 1.32175
+  type: 'test'
+  ...
+# Subtest: checkUrl: https, an allowed host, nothing else
+ok 129 - checkUrl: https, an allowed host, nothing else
+  ---
+  duration_ms: 1.106875
+  type: 'test'
+  ...
+# Subtest: gives the text of an allowed host, with no cookie and a plain user agent
+ok 130 - gives the text of an allowed host, with no cookie and a plain user agent
+  ---
+  duration_ms: 30.190709
+  type: 'test'
+  ...
+# Subtest: the test seam does nothing without FABTICE_HOLD_WINDOW, or for a non-local origin
+ok 131 - the test seam does nothing without FABTICE_HOLD_WINDOW, or for a non-local origin
+  ---
+  duration_ms: 0.810791
+  type: 'test'
+  ...
+# Subtest: follows a redirect to an allowed host, refuses one to another host
+ok 132 - follows a redirect to an allowed host, refuses one to another host
+  ---
+  duration_ms: 16.903041
+  type: 'test'
+  ...
+# Subtest: http errors, size cap (declared and streamed), timeout and network failure
+ok 133 - http errors, size cap (declared and streamed), timeout and network failure
+  ---
+  duration_ms: 160.378
+  type: 'test'
+  ...
+# Subtest: the chain works: the version published, both zips through allowed hosts
+ok 134 - the chain works: the version published, both zips through allowed hosts
+  ---
+  duration_ms: 14.888834
+  type: 'test'
+  ...
+# Subtest: GitHub still serves the former version for a moment: tried again, spaced, then fine
+ok 135 - GitHub still serves the former version for a moment: tried again, spaced, then fine
+  ---
+  duration_ms: 2.771084
+  type: 'test'
+  ...
+# Subtest: a redirect to a host outside the list: failure at once, the host named, never asked
+ok 136 - a redirect to a host outside the list: failure at once, the host named, never asked
+  ---
+  duration_ms: 0.499666
+  type: 'test'
+  ...
+# Subtest: no network: failures said, tried again, never thrown
+ok 137 - no network: failures said, tried again, never thrown
+  ---
+  duration_ms: 0.246416
+  type: 'test'
+  ...
+# Subtest: Info.plist: the top-level values only, entities decoded
+ok 138 - Info.plist: the top-level values only, entities decoded
+  ---
+  duration_ms: 1.208125
+  type: 'test'
+  ...
+# Subtest: the chip of an executable, read from its Mach-O header
+ok 139 - the chip of an executable, read from its Mach-O header
+  ---
+  duration_ms: 2.398625
+  type: 'test'
+  ...
+# Subtest: the size a zip unpacks to, from its central directory
+ok 140 - the size a zip unpacks to, from its central directory
+  ---
+  duration_ms: 12.763209
+  type: 'test'
+  ...
+# Subtest: unpacking: ditto -x -k into the work folder; a failure is said
+ok 141 - unpacking: ditto -x -k into the work folder; a failure is said
+  ---
+  duration_ms: 3.565375
+  type: 'test'
+  ...
+# Subtest: what was unpacked is checked: identifier, version, executable, chip, nothing else beside it
+ok 142 - what was unpacked is checked: identifier, version, executable, chip, nothing else beside it
+  ---
+  duration_ms: 29.56975
+  type: 'test'
+  ...
+# Subtest: on macOS: Info.plist through plutil, the new program must start, the signature must hold on an Apple chip
+ok 143 - on macOS: Info.plist through plutil, the new program must start, the signature must hold on an Apple chip
+  ---
+  duration_ms: 6.534375
+  type: 'test'
+  ...
+# Subtest: the swap: the new app in place, the old one aside, paths with spaces and accents
+ok 144 - the swap: the new app in place, the old one aside, paths with spaces and accents
+  ---
+  duration_ms: 2.952917
+  type: 'test'
+  ...
+# Subtest: the swap fails at each step: the installed app is intact where it was
+ok 145 - the swap fails at each step: the installed app is intact where it was
+  ---
+  duration_ms: 16.181917
+  type: 'test'
+  ...
+# Subtest: the swap refuses to run from the set-aside copy itself: nothing is removed
+ok 146 - the swap refuses to run from the set-aside copy itself: nothing is removed
+  ---
+  duration_ms: 3.932459
+  type: 'test'
+  ...
+# Subtest: at the next start: the old app set aside and the work folders go; nothing else, never the running app
+ok 147 - at the next start: the old app set aside and the work folders go; nothing else, never the running app
+  ---
+  duration_ms: 5.926834
+  type: 'test'
+  ...
+# Subtest: the hosts: GitHub and its release storage, https only
+ok 148 - the hosts: GitHub and its release storage, https only
+  ---
+  duration_ms: 1.209916
+  type: 'test'
+  ...
+# Subtest: the test address: only with the e2e switch, only on this machine
+ok 149 - the test address: only with the e2e switch, only on this machine
+  ---
+  duration_ms: 0.241833
+  type: 'test'
+  ...
+# Subtest: the version file: redirects followed by hand and checked; refused hops, statuses, size cap
+ok 150 - the version file: redirects followed by hand and checked; refused hops, statuses, size cap
+  ---
+  duration_ms: 353.85475
+  type: 'test'
+  ...
+# (node:6475) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 error listeners added to [WriteStream]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:6475) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 error listeners added to [WriteStream]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+# Subtest: the archive: exact size, SHA-256 computed on the way, progress; refusals leave no file
+ok 151 - the archive: exact size, SHA-256 computed on the way, progress; refusals leave no file
+  ---
+  duration_ms: 343.424542
+  type: 'test'
+  ...
+# Subtest: the bundle of an executable
+ok 152 - the bundle of an executable
+  ---
+  duration_ms: 1.44325
+  type: 'test'
+  ...
+# Subtest: the protected copy of App Translocation
+ok 153 - the protected copy of App Translocation
+  ---
+  duration_ms: 0.265958
+  type: 'test'
+  ...
+# Subtest: locate: a packaged app in a folder it can write
+ok 154 - locate: a packaged app in a folder it can write
+  ---
+  duration_ms: 4.513959
+  type: 'test'
+  ...
+# Subtest: locate: the cases where it cannot update itself
+ok 155 - locate: the cases where it cannot update itself
+  ---
+  duration_ms: 3.094375
+  type: 'test'
+  ...
+# Subtest: locate: a copy the update itself made (set aside, or in a work folder) is never replaced
+ok 156 - locate: a copy the update itself made (set aside, or in a work folder) is never replaced
+  ---
+  duration_ms: 4.3115
+  type: 'test'
+  ...
+# Subtest: the test seam stands for the bundle, on any system
+ok 157 - the test seam stands for the bundle, on any system
+  ---
+  duration_ms: 1.494125
+  type: 'test'
+  ...
+# Subtest: room on the disk: four times the archive (the archive, its unpacked app, a margin), the free space as the system says
+ok 158 - room on the disk: four times the archive (the archive, its unpacked app, a margin), the free space as the system says
+  ---
+  duration_ms: 5.383292
+  type: 'test'
+  ...
+# Subtest: versions are three numbers, compared as numbers
+ok 159 - versions are three numbers, compared as numbers
+  ---
+  duration_ms: 1.094083
+  type: 'test'
+  ...
+# Subtest: an update is only a strictly newer version: never the same, never an older one
+ok 160 - an update is only a strictly newer version: never the same, never an older one
+  ---
+  duration_ms: 0.143
+  type: 'test'
+  ...
+# Subtest: the system version: macOS 12 minimum
+ok 161 - the system version: macOS 12 minimum
+  ---
+  duration_ms: 0.135916
+  type: 'test'
+  ...
+# Subtest: addresses: the project releases on github.com only
+ok 162 - addresses: the project releases on github.com only
+  ---
+  duration_ms: 0.487708
+  type: 'test'
+  ...
+# Subtest: the reader: a good file
+ok 163 - the reader: a good file
+  ---
+  duration_ms: 0.375708
+  type: 'test'
+  ...
+# Subtest: the reader is strict: unknown format, missing, ill-typed or out-of-bound fields
+ok 164 - the reader is strict: unknown format, missing, ill-typed or out-of-bound fields
+  ---
+  duration_ms: 1.590417
+  type: 'test'
+  ...
+# Subtest: make-version-file: sizes and SHA-256 of the two archives, the first section of the changelog, read back by the app
+ok 165 - make-version-file: sizes and SHA-256 of the two archives, the first section of the changelog, read back by the app
+  ---
+  duration_ms: 8.303583
+  type: 'test'
+  ...
+# Subtest: the first section of a changelog, long ones cut at a line
+ok 166 - the first section of a changelog, long ones cut at a line
+  ---
+  duration_ms: 1.209292
+  type: 'test'
+  ...
+# Subtest: check: a newer version is available; the same or an older one is not; who asked is kept
+ok 167 - check: a newer version is available; the same or an older one is not; who asked is kept
+  ---
+  duration_ms: 62.156459
+  type: 'test'
+  ...
+# Subtest: check: no network, no file, a file this version cannot read
+ok 168 - check: no network, no file, a file this version cannot read
+  ---
+  duration_ms: 49.626958
+  type: 'test'
+  ...
+# (node:6746) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 error listeners added to [WriteStream]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: the update: downloaded, checked, the page asked, the swap, the relaunch
+ok 169 - the update: downloaded, checked, the page asked, the swap, the relaunch
+  ---
+  duration_ms: 53.677667
+  type: 'test'
+  ...
+# (node:6746) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 error listeners added to [WriteStream]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+# (node:6746) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 error listeners added to [WriteStream]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+# Subtest: a tampered archive is refused: nothing changed, nothing left
+ok 170 - a tampered archive is refused: nothing changed, nothing left
+  ---
+  duration_ms: 96.355166
+  type: 'test'
+  ...
+# (node:6746) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 error listeners added to [WriteStream]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+# Subtest: the page refuses to close (changes not saved): the update is cancelled, nothing changed
+ok 171 - the page refuses to close (changes not saved): the update is cancelled, nothing changed
+  ---
+  duration_ms: 57.594542
+  type: 'test'
+  ...
+# (node:6746) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 error listeners added to [WriteStream]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+# Subtest: an archive that does not hold the version announced: refused before anything moves
+ok 172 - an archive that does not hold the version announced: refused before anything moves
+  ---
+  duration_ms: 52.863042
+  type: 'test'
+  ...
+# (node:6746) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 error listeners added to [WriteStream]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+# Subtest: the swap fails: the old app is back, the update said as failed
+ok 173 - the swap fails: the old app is back, the update said as failed
+  ---
+  duration_ms: 51.094084
+  type: 'test'
+  ...
+# Subtest: cancel while it downloads: nothing changed, nothing left
+ok 174 - cancel while it downloads: nothing changed, nothing left
+  ---
+  duration_ms: 79.017709
+  type: 'test'
+  ...
+# Subtest: not enough room on the disk: said before downloading
+ok 175 - not enough room on the disk: said before downloading
+  ---
+  duration_ms: 34.445833
+  type: 'test'
+  ...
+# Subtest: places where it cannot work: said at the check, refused at the start
+ok 176 - places where it cannot work: said at the check, refused at the start
+  ---
+  duration_ms: 8.352041
+  type: 'test'
+  ...
+# Subtest: the app opened from the set-aside copy: refused at the check and at the start, nothing removed
+ok 177 - the app opened from the set-aside copy: refused at the check and at the start, nothing removed
+  ---
+  duration_ms: 9.255167
+  type: 'test'
+  ...
+# Subtest: the page of the version, for the manual download: GitHub release pages only
+ok 178 - the page of the version, for the manual download: GitHub release pages only
+  ---
+  duration_ms: 9.477708
+  type: 'test'
+  ...
+# Subtest: the trial report (test mode only) says the version, the place and what was cleaned
+ok 179 - the trial report (test mode only) says the version, the place and what was cleaned
+  ---
+  duration_ms: 9.564458
+  type: 'test'
+  ...
+# Subtest: the relaunch: a detached shell waits for this process, then opens the new bundle; paths as arguments
+ok 180 - the relaunch: a detached shell waits for this process, then opens the new bundle; paths as arguments
+  ---
+  duration_ms: 0.39575
+  type: 'test'
+  ...
+# Subtest: the relaunch waits as long as the old app lives (up to ten minutes), and only then opens the new one
+ok 181 - the relaunch waits as long as the old app lives (up to ten minutes), and only then opens the new one
+  ---
+  duration_ms: 1753.585667
+  type: 'test'
+  ...
+# Subtest: accepts the supported link shapes
+ok 182 - accepts the supported link shapes
+  ---
+  duration_ms: 1.308083
+  type: 'test'
+  ...
+# Subtest: rejects everything else
+ok 183 - rejects everything else
+  ---
+  duration_ms: 0.274
+  type: 'test'
+  ...
+# Subtest: canonical URL is rebuilt from the id only
+ok 184 - canonical URL is rebuilt from the id only
+  ---
+  duration_ms: 0.157709
+  type: 'test'
+  ...
+# Subtest: transient failures on every step are retried and the install succeeds
+ok 185 - transient failures on every step are retried and the install succeeds
+  ---
+  duration_ms: 67.655625
+  type: 'test'
+  ...
+# Subtest: persistent download failure leaves no partial file
+ok 186 - persistent download failure leaves no partial file
+  ---
+  duration_ms: 41.666042
+  type: 'test'
+  ...
+# Subtest: a checksum that never matches is never installed
+ok 187 - a checksum that never matches is never installed
+  ---
+  duration_ms: 16.548458
+  type: 'test'
+  ...
+# Subtest: API refusal falls back to the latest/download URLs without retrying
+ok 188 - API refusal falls back to the latest/download URLs without retrying
+  ---
+  duration_ms: 9.98825
+  type: 'test'
+  ...
+# Subtest: HTTP 404 on the binary is not retried
+ok 189 - HTTP 404 on the binary is not retried
+  ---
+  duration_ms: 2.44175
+  type: 'test'
+  ...
+# Subtest: update check failing with yt-dlp installed reports, never throws
+ok 190 - update check failing with yt-dlp installed reports, never throws
+  ---
+  duration_ms: 30.256666
+  type: 'test'
+  ...
+# Subtest: default backoff is four attempts within about 20 seconds
+ok 191 - default backoff is four attempts within about 20 seconds
+  ---
+  duration_ms: 0.292583
+  type: 'test'
+  ...
+1..191
+# tests 191
+# suites 0
+# pass 191
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 9320.603

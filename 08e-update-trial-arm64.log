@@ -1,0 +1,24 @@
+### logs/logs-build/08e-update-trial-arm64.log (23 lines, last 400 shown)
+### step 08e-update-trial-arm64 — 2026-11-21T12:10:25Z — Darwin 24.6.0 arm64
+[trial 12:10:25] work folder /private/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/fabtice-trial-cuvbmp
+[trial 12:10:27] installed version 1.0.3, fake newer build 1.0.4 (arm64)
+[trial 12:10:27] version file {"name":"Fabtice-mac-apple-silicon.zip","url":"https://github.com/pelikast/fabtice/releases/download/v1.0.4/Fabtice-mac-apple-silicon.zip","sha256":"8b85982dd3cbc228865a8445027e761d71fdaa2efa41b55dca8a67640d7ccd93","size":131780356}
+[trial 12:10:27] ---- update to the fake newer version, relaunch, old copy removed
+[trial 12:10:31] check {"phase":"available","available":"1.0.4","blocked":null,"error":null}
+[trial 12:10:35] phases seen downloading → preparing
+[trial 12:10:36] relaunched app {"version":"1.0.4","pid":5672,"execPath":"/private/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/fabtice-trial-cuvbmp/Applications d’essai é/Mes apps/Fabtice.app/Contents/MacOS/Fabtice","place":{"ok":true,"bundle":"/private/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/fabtice-trial-cuvbmp/Applications d’essai é/Mes apps/Fabtice.app","folder":"/private/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/fabtice-trial-cuvbmp/Applications d’essai é/Mes apps"},"cleaned":{"removedAside":true,"removedStaging":0},"asideLeft":false,"at":"2026-11-21T12:10:36.369Z"}
+[trial 12:10:36] relaunch log: (empty)
+[trial 12:10:37] codesign 0 /private/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/fabtice-trial-cuvbmp/Applications d’essai é/Mes apps/Fabtice.app: valid on disk | /private/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/fabtice-trial-cuvbmp/Applications d’essai é/Mes apps/Fabtice.app: satisfies its Designated Requirement
+[trial 12:10:37] quarantine attribute of the new bundle: none
+[trial 12:10:38] ---- update to the fake newer version, relaunch, old copy removed: ok
+[trial 12:10:38] ---- a tampered archive is refused; the installed app is unchanged and starts
+[trial 12:10:45] ---- a tampered archive is refused; the installed app is unchanged and starts: ok
+[trial 12:10:45] ---- a folder this account cannot write: said, nothing touched
+[trial 12:10:48] ---- a folder this account cannot write: said, nothing touched: ok
+[trial 12:10:48] ---- the protected place of App Translocation (path rule): said, nothing touched
+[trial 12:10:51] ---- the protected place of App Translocation (path rule): said, nothing touched: ok
+[trial 12:10:51] ==== all done
+[trial 12:10:51] update to the fake newer version, relaunch, old copy removed: ok (11 s)
+[trial 12:10:51] a tampered archive is refused; the installed app is unchanged and starts: ok (7 s)
+[trial 12:10:51] a folder this account cannot write: said, nothing touched: ok (3 s)
+[trial 12:10:51] the protected place of App Translocation (path rule): said, nothing touched: ok (3 s)

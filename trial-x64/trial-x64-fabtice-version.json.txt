@@ -1,0 +1,22 @@
+{
+  "format": 1,
+  "version": "1.0.4",
+  "publishedAt": "2026-11-21T12:22:00Z",
+  "notes": "### Essai\n- Une version factice, pour l'essai de la mise à jour.",
+  "page": "https://github.com/pelikast/fabtice/releases/tag/v1.0.4",
+  "minimumSystemVersion": "12.0",
+  "downloads": {
+    "arm64": {
+      "name": "Fabtice-mac-apple-silicon.zip",
+      "url": "https://github.com/pelikast/fabtice/releases/download/v1.0.4/Fabtice-mac-apple-silicon.zip",
+      "sha256": "d2aeb97925f7048e1e4b7eda1a8a110a8598981687ea05d72791ae37296c3839",
+      "size": 1100000
+    },
+    "x64": {
+      "name": "Fabtice-mac-intel.zip",
+      "url": "https://github.com/pelikast/fabtice/releases/download/v1.0.4/Fabtice-mac-intel.zip",
+      "sha256": "73e32de8feab5719b8d2fc99a86c3cd0d8ba98546868671767b05779138c8ccd",
+      "size": 137717406
+    }
+  }
+}

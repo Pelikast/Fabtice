@@ -1,0 +1,58 @@
+=== Fabtice — diagnostic ===
+Date : 2026-11-21T12:18:24.321Z
+App : Fabtice 1.0.3 (commit 5ed6870e3d, construit le 2026-11-21T11:56:11Z, run 44901115000)
+Electron 43.8.9 · Chromium 150.0.7871.250 · Node 24.22.1 · V8 15.0.245.31-electron.0
+Système : macOS 15.7.9 (noyau 24.6.0)
+Processeur : Intel(R) Core(TM) i7-8700B CPU @ 3.20GHz · 4 cœurs · 14 Go de mémoire
+Architecture du processus : x64 · sous Rosetta : non
+Moteur JS pour yt-dlp : node = ~/work/_temp/app/Fabtice.app/Contents/MacOS/Fabtice avec ELECTRON_RUN_AS_NODE=1 → répond v24.22.1 (197 ms)
+yt-dlp : 2099.01.01-stub · source : variable FABTICE_YTDLP_PATH · chemin : ~/work/Fabtice/Fabtice/desktop/test/fixtures/stub-yt-dlp.js
+
+--- Dernière importation ---
+Lien saisi : https://www.youtube.com/watch?v=dQw4w9WgXcQ
+URL transmise : https://www.youtube.com/watch?v=dQw4w9WgXcQ (id dQw4w9WgXcQ)
+Format demandé : bestaudio[ext=m4a][acodec^=mp4a]/bestaudio[ext=m4a]/bestaudio
+> Étape infos (-J)
+  Exécutable : ~/work/Fabtice/Fabtice/desktop/test/fixtures/stub-yt-dlp.js
+  Arguments : ["--ignore-config","--no-playlist","--verbose","--no-js-runtimes","--js-runtimes","node:~/work/_temp/app/Fabtice.app/Contents/MacOS/Fabtice","--cache-dir","/var/folders/20/jp1_0n3n7kndh6rnbqb5344m0000gn/T/fabtice-e2e-ZiUuQH/yt-dlp-cache","--format","bestaudio[ext=m4a][acodec^=mp4a]/bestaudio[ext=m4a]/bestaudio","--dump-single-json","--","https://www.youtube.com/watch?v=dQw4w9WgXcQ"]
+  Code de sortie : 0 · durée 0.38 s
+  stderr (4 dernières lignes) :
+    [debug] Command-line config: ["--ignore-config","--no-playlist","--verbose","--no-js-runtimes","--js-runtimes","node:~/work/_temp/app/Fabtice.app/Contents/MacOS/Fabtice","--cache-dir","/var/folders/20/jp1_0n3n7kndh6rnbqb5344m0000gn/T/fabtice-e2e-ZiUuQH/yt-dlp-cache","--format","bestaudio[ext=m4a][acodec^=mp4a]/bestaudio[ext=m4a]/bestaudio","--dump-single-json","--","https://www.youtube.com/watch?v=dQw4w9WgXcQ"]
+    [debug] yt-dlp version stub@2099.01.01 (test stub)
+    [debug] JS runtimes: node-24.22.1
+    [youtube] [jsc:node] stub challenge solved
+> Étape téléchargement
+  Exécutable : ~/work/Fabtice/Fabtice/desktop/test/fixtures/stub-yt-dlp.js
+  Arguments : ["--ignore-config","--no-playlist","--verbose","--no-js-runtimes","--js-runtimes","node:~/work/_temp/app/Fabtice.app/Contents/MacOS/Fabtice","--cache-dir","/var/folders/20/jp1_0n3n7kndh6rnbqb5344m0000gn/T/fabtice-e2e-ZiUuQH/yt-dlp-cache","--load-info-json","/var/folders/20/jp1_0n3n7kndh6rnbqb5344m0000gn/T/fabtice-Ro7hgo/info.json","--format","bestaudio[ext=m4a][acodec^=mp4a]/bestaudio[ext=m4a]/bestaudio","--fixup","never","--no-part","--no-mtime","--newline","--output","/var/folders/20/jp1_0n3n7kndh6rnbqb5344m0000gn/T/fabtice-Ro7hgo/audio.%(ext)s"]
+  Code de sortie : 0 · durée 0.09 s
+  stderr (3 dernières lignes) :
+    [debug] Command-line config: ["--ignore-config","--no-playlist","--verbose","--no-js-runtimes","--js-runtimes","node:~/work/_temp/app/Fabtice.app/Contents/MacOS/Fabtice","--cache-dir","/var/folders/20/jp1_0n3n7kndh6rnbqb5344m0000gn/T/fabtice-e2e-ZiUuQH/yt-dlp-cache","--load-info-json","/var/folders/20/jp1_0n3n7kndh6rnbqb5344m0000gn/T/fabtice-Ro7hgo/info.json","--format","bestaudio[ext=m4a][acodec^=mp4a]/bestaudio[ext=m4a]/bestaudio","--fixup","never","--no-part","--no-mtime","--newline","--output","/var/folders/20/jp1_0n3n7kndh6rnbqb5344m0000gn/T/fabtice-Ro7hgo/audio.%(ext)s"]
+    [debug] yt-dlp version stub@2099.01.01 (test stub)
+    [debug] stub: download starts
+> Lignes clés de yt-dlp :
+    [debug] yt-dlp version stub@2099.01.01 (test stub)
+    [debug] JS runtimes: node-24.22.1
+    [youtube] [jsc:node] stub challenge solved
+Vidéo : « Tonalité d’essai » · Fabtice test · 0:04 · live_status not_live
+Format choisi : 251 · ext webm · acodec opus · container webm_dash · 64 kb/s · 44100 Hz · 2 canaux · protocole https
+Fichier : audio.webm · 44667 octets (43.6 Kio)
+Conteneur détecté : WebM (EBML)
+Durée totale : 0.48 s · dossier temporaire supprimé : oui
+Résultat : téléchargé
+Décodage (decodeAudioData) : OK en 34 ms · 2 canaux · 4.000 s (attendu 4 s) · tampon à 44100 Hz (contexte 44100 Hz, source 44100 Hz)
+Conclusion ffmpeg : fichier non fragmenté (webm), la question du m4a DASH reste ouverte.
+
+--- Dernière séparation ---
+Aucune séparation n’a encore été faite dans cette app.
+
+--- Journal audio ---
+=== Fabtice — journal audio ===
+Copié le 2026-11-21 12:18:23.418
+Dernière lecture réussie : aucune
+2 événement(s), les plus anciens d’abord :
+2026-11-21 12:18:22.359  [système] Fabtice démarre
+2026-11-21 12:18:23.009  [interface] Page ouverte (Chrome/150.0.7871.250 Electron/43.8.9 Safari/537.36 (Macintosh))
+
+--- WebGPU ---
+navigator.gpu : présent · format de canevas préféré bgra8unorm
+Adaptateur : aucun (requestAdapter a renvoyé null)

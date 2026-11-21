@@ -1,0 +1,401 @@
+### logs/logs-build/00-ui-check.log (759 lines, last 400 shown)
+
+ [32m✓[39m src/analysis/engine/repair.eval.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m src/separation/device.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m src/timeline/peaks.test.ts [2m([22m[2m9 tests[22m[2m)[22m[33m 407[2mms[22m[39m
+   [32m✓[39m peak pyramid [2m(6)[22m
+     [33m[2m✓[22m[39m computes ten minutes of stereo audio within a sane time[33m 323[2mms[22m[39m
+ [32m✓[39m src/standards/transposeTo.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m src/store/modulationActions.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 141[2mms[22m[39m
+ [32m✓[39m src/demo/demoAutumn.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 39[2mms[22m[39m
+ [32m✓[39m src/analysis/engine/dsp.test.ts [2m([22m[2m13 tests[22m[2m)[22m[33m 462[2mms[22m[39m
+[90mstdout[2m | src/analysis/engine/tempoFix.app.test.ts[2m > [22m[2mthe owner’s cases on the app’s own network outputs[2m > [22m[2mprints the figures
+[22m[39mso-what.disque (256 true beats)
+  version 4      beats 262, found 92.3 %, downbeats 79.7 %, jumps 4
+  now            beats 257, found 91.2 %, downbeats 92.2 %, jumps 0
+  « Corriger » at bar 8 of version 4: beats 258, found 94.9 %, downbeats 76.6 %, jumps 0
+blues-bird.disque (336 true beats)
+  version 4      beats 337, found 99.3 %, downbeats 97.6 %, jumps 2
+  now            beats 337, found 99.3 %, downbeats 97.6 %, jumps 2
+  « Corriger » at bar 2 of version 4: beats 338, found 99.4 %, downbeats 100.0 %, jumps 0
+
+ [32m✓[39m src/analysis/engine/tempoFix.app.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m src/analysis/engine/tsumugi.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 89[2mms[22m[39m
+[90mstdout[2m | src/structure/bench.test.ts[2m > [22m[2mstructure bench: Tier S[2m > [22m[2mruns the harmony pass on every case and prints the table
+[22m[39m### Tier S, sous-ensemble — erreurs d’analyse : parfait
+
+| Mesure | pistes / sans grille | pistes / grille connue | sans séparation / sans grille | sans séparation / grille connue |
+|---|---:|---:|---:|---:|
+| **Forme** | | | | |
+| Longueur du chorus exacte | 92.9 % (13/14) | 100.0 % (14/14) | 92.9 % (13/14) | 100.0 % (14/14) |
+| Limites de chorus ±1 : précision | 94.3 % (66/70) | 100.0 % (66/66) | 94.3 % (66/70) | 100.0 % (66/66) |
+| Limites de chorus ±1 : rappel | 100.0 % (66/66) | 100.0 % (66/66) | 100.0 % (66/66) | 100.0 % (66/66) |
+| Limites de sections ±1 : précision | 100.0 % (241/241) | 100.0 % (249/249) | 100.0 % (241/241) | 100.0 % (249/249) |
+| Limites de sections ±1 : rappel | 96.8 % (241/249) | 100.0 % (249/249) | 96.8 % (241/249) | 100.0 % (249/249) |
+| Limites de sections ±1 : mesure F | 97.9 % (16/16) | 100.0 % (16/16) | 97.9 % (16/16) | 100.0 % (16/16) |
+| Lettres : mesure F par paires de mesures | 96.0 % (15/16) | 98.8 % (16/16) | 96.0 % (15/16) | 98.8 % (16/16) |
+| Forme (AABA…) exacte | 92.9 % (13/14) | 100.0 % (14/14) | 92.9 % (13/14) | 100.0 % (14/14) |
+| Mesures d’intro exactes | 93.8 % (15/16) | 93.8 % (15/16) | 93.8 % (15/16) | 93.8 % (15/16) |
+| Mesures d’outro exactes | 93.8 % (15/16) | 93.8 % (15/16) | 93.8 % (15/16) | 93.8 % (15/16) |
+| Mode Jazz / Pop juste | 100.0 % (16/16) | 100.0 % (16/16) | 100.0 % (16/16) | 100.0 % (16/16) |
+| **Parties** | | | | |
+| Limites de parties ±1 : précision | 98.2 % (107/109) | 100.0 % (107/107) | 97.9 % (94/96) | 100.0 % (95/95) |
+| Limites de parties ±1 : rappel | 99.1 % (107/108) | 99.1 % (107/108) | 87.0 % (94/108) | 88.0 % (95/108) |
+| Limites de parties ±1 : mesure F | 98.5 % (16/16) | 99.5 % (16/16) | 91.7 % (15/16) | 93.4 % (15/16) |
+| Type de partie juste (thème, solo, intro…) | 98.9 % (91/92) | 100.0 % (92/92) | 92.4 % (85/92) | 93.5 % (86/92) |
+| Numéro juste (vide lu comme 1 ; vide juste pour un soliste nommé qui ne revient pas) | 94.6 % (87/92) | 97.8 % (90/92) | 79.3 % (73/92) | 80.4 % (74/92) |
+| Long solo d’un seul instrument non coupé | 100.0 % (6/6) | 100.0 % (6/6) | 100.0 % (6/6) | 100.0 % (6/6) |
+| Solos voisins d’instruments différents séparés | 96.3 % (26/27) | 96.3 % (26/27) | 63.0 % (17/27) | 63.0 % (17/27) |
+| **Instruments** | | | | |
+| Instrument juste : piano, guitare, basse, batterie, voix | 100.0 % (40/40) | 100.0 % (40/40) | – | – |
+| Vents et vibraphone : instrument exact | 92.9 % (39/42) | 92.9 % (39/42) | – | – |
+| Vents et vibraphone : « Vents » | 7.1 % (3/42) | 7.1 % (3/42) | – | – |
+| Instrument nommé FAUX (toutes parties) ↓ | 0.0 % (0/82) | 0.0 % (0/82) | – | – |
+| Instrument nommé sans séparation (doit être 0) ↓ | – | – | 0.0 % (0/80) | 0.0 % (0/79) |
+| **Modulations** | | | | |
+| Modulations : précision | 100.0 % (16/16) | 100.0 % (16/16) | 100.0 % (16/16) | 100.0 % (16/16) |
+| Modulations : rappel | 100.0 % (16/16) | 100.0 % (16/16) | 100.0 % (16/16) | 100.0 % (16/16) |
+| Modulations : écart de position (mesures) ↓ | 0.00 | 0.00 | 0.00 | 0.00 |
+| Modulations trouvées : tonalité exacte | 93.8 % (15/16) | 93.8 % (15/16) | 93.8 % (15/16) | 93.8 % (15/16) |
+| Fausses modulations sur les morceaux sans modulation ↓ | 0 | 0 | 0 | 0 |
+| Morceaux sans modulation qui en reçoivent une ↓ | 0.0 % (0/12) | 0.0 % (0/12) | 0.0 % (0/12) | 0.0 % (0/12) |
+| **Grille simplifiée (structure vraie)** | | | | |
+| Rien à replier : pas de grille simplifiée | – | – | – | – |
+| Accords écrits justes (famille, par temps) | 96.9 % (1418/1464) | 100.0 % (1464/1464) | 96.9 % (1418/1464) | 100.0 % (1464/1464) |
+| Nombre de sections exact | 100.0 % (16/16) | 100.0 % (16/16) | 100.0 % (16/16) | 100.0 % (16/16) |
+| Reprises `xN` exactes | 96.0 % (48/50) | 96.0 % (48/50) | 96.0 % (48/50) | 96.0 % (48/50) |
+| Mesure jouée → mesure écrite juste | 100.0 % (2104/2104) | 100.0 % (2104/2104) | 100.0 % (2104/2104) | 100.0 % (2104/2104) |
+| **Grille simplifiée (chaîne complète)** | | | | |
+| Accords écrits justes (famille, par temps) | 87.0 % (1273/1464) | 93.2 % (1364/1464) | 87.0 % (1273/1464) | 93.2 % (1364/1464) |
+| Nombre de sections exact | 93.8 % (15/16) | 100.0 % (16/16) | 93.8 % (15/16) | 100.0 % (16/16) |
+| Mesure jouée → mesure écrite juste | 93.7 % (1972/2104) | 96.8 % (2036/2104) | 93.7 % (1972/2104) | 96.8 % (2036/2104) |
+| **Autumn Leaves (cahier)** | | | | |
+| Grille écrite attendue (structure vraie) | 100.0 % (1/1) | 100.0 % (1/1) | 100.0 % (1/1) | 100.0 % (1/1) |
+| Forme et grille attendues (chaîne complète) | 100.0 % (1/1) | 100.0 % (1/1) | 100.0 % (1/1) | 100.0 % (1/1) |
+| Cas | 16 | 16 | 16 | 16 |
+| Temps de calcul (ms) | 408 | 304 | 193 | 275 |
+
+### Tier S, sous-ensemble — erreurs d’analyse : realiste
+
+| Mesure | pistes / sans grille | pistes / grille connue | sans séparation / sans grille | sans séparation / grille connue |
+|---|---:|---:|---:|---:|
+| **Forme** | | | | |
+| Longueur du chorus exacte | 85.7 % (12/14) | 100.0 % (14/14) | 85.7 % (12/14) | 100.0 % (14/14) |
+| Limites de chorus ±1 : précision | 86.8 % (59/68) | 100.0 % (66/66) | 88.2 % (60/68) | 100.0 % (66/66) |
+| Limites de chorus ±1 : rappel | 89.4 % (59/66) | 100.0 % (66/66) | 90.9 % (60/66) | 100.0 % (66/66) |
+| Limites de sections ±1 : précision | 90.8 % (216/238) | 96.8 % (240/248) | 91.2 % (217/238) | 96.8 % (240/248) |
+| Limites de sections ±1 : rappel | 86.7 % (216/249) | 96.4 % (240/249) | 87.1 % (217/249) | 96.4 % (240/249) |
+| Limites de sections ±1 : mesure F | 84.7 % (14/16) | 93.3 % (15/16) | 85.2 % (14/16) | 93.3 % (15/16) |
+| Lettres : mesure F par paires de mesures | 81.1 % (13/16) | 92.4 % (15/16) | 81.3 % (13/16) | 92.4 % (15/16) |
+| Forme (AABA…) exacte | 64.3 % (9/14) | 100.0 % (14/14) | 64.3 % (9/14) | 100.0 % (14/14) |
+| Mesures d’intro exactes | 68.8 % (11/16) | 87.5 % (14/16) | 62.5 % (10/16) | 87.5 % (14/16) |
+| Mesures d’outro exactes | 75.0 % (12/16) | 87.5 % (14/16) | 75.0 % (12/16) | 87.5 % (14/16) |
+| Mode Jazz / Pop juste | 100.0 % (16/16) | 100.0 % (16/16) | 100.0 % (16/16) | 100.0 % (16/16) |
+| **Parties** | | | | |
+| Limites de parties ±1 : précision | 85.0 % (91/107) | 93.1 % (95/102) | 85.0 % (68/80) | 94.7 % (71/75) |
+| Limites de parties ±1 : rappel | 84.3 % (91/108) | 88.0 % (95/108) | 63.0 % (68/108) | 65.7 % (71/108) |
+| Limites de parties ±1 : mesure F | 85.6 % (14/16) | 91.4 % (15/16) | 74.6 % (12/16) | 79.9 % (13/16) |
+| Type de partie juste (thème, solo, intro…) | 81.5 % (75/92) | 88.0 % (81/92) | 76.1 % (70/92) | 78.3 % (72/92) |
+| Numéro juste (vide lu comme 1 ; vide juste pour un soliste nommé qui ne revient pas) | 76.1 % (70/92) | 83.7 % (77/92) | 48.9 % (45/92) | 51.1 % (47/92) |
+| Long solo d’un seul instrument non coupé | 100.0 % (6/6) | 100.0 % (6/6) | 100.0 % (6/6) | 100.0 % (6/6) |
+| Solos voisins d’instruments différents séparés | 88.9 % (24/27) | 92.6 % (25/27) | 25.9 % (7/27) | 25.9 % (7/27) |
+| **Instruments** | | | | |
+| Instrument juste : piano, guitare, basse, batterie, voix | 95.0 % (38/40) | 95.0 % (38/40) | – | – |
+| Vents et vibraphone : instrument exact | 47.6 % (20/42) | 50.0 % (21/42) | – | – |
+| Vents et vibraphone : « Vents » | 42.9 % (18/42) | 42.9 % (18/42) | – | – |
+| Instrument nommé FAUX (toutes parties) ↓ | 3.7 % (3/82) | 3.7 % (3/82) | – | – |
+| Instrument nommé sans séparation (doit être 0) ↓ | – | – | 0.0 % (0/64) | 0.0 % (0/59) |
+| **Modulations** | | | | |
+| Modulations : précision | 100.0 % (14/14) | 100.0 % (16/16) | 100.0 % (14/14) | 100.0 % (16/16) |
+| Modulations : rappel | 87.5 % (14/16) | 100.0 % (16/16) | 87.5 % (14/16) | 100.0 % (16/16) |
+| Modulations : écart de position (mesures) ↓ | 0.50 | 0.13 | 0.50 | 0.13 |
+| Modulations trouvées : tonalité exacte | 85.7 % (12/14) | 81.3 % (13/16) | 85.7 % (12/14) | 81.3 % (13/16) |
+| Fausses modulations sur les morceaux sans modulation ↓ | 0 | 0 | 0 | 0 |
+| Morceaux sans modulation qui en reçoivent une ↓ | 0.0 % (0/12) | 0.0 % (0/12) | 0.0 % (0/12) | 0.0 % (0/12) |
+| **Grille simplifiée (structure vraie)** | | | | |
+| Rien à replier : pas de grille simplifiée | – | – | – | – |
+| Accords écrits justes (famille, par temps) | 79.0 % (1156/1464) | 90.3 % (1322/1464) | 79.0 % (1156/1464) | 90.3 % (1322/1464) |
+| Nombre de sections exact | 87.5 % (14/16) | 87.5 % (14/16) | 87.5 % (14/16) | 87.5 % (14/16) |
+| Reprises `xN` exactes | 90.0 % (45/50) | 90.0 % (45/50) | 90.0 % (45/50) | 90.0 % (45/50) |
+| Mesure jouée → mesure écrite juste | 98.8 % (2063/2088) | 98.8 % (2063/2088) | 98.8 % (2063/2088) | 98.8 % (2063/2088) |
+| **Grille simplifiée (chaîne complète)** | | | | |
+| Accords écrits justes (famille, par temps) | 52.3 % (765/1464) | 79.8 % (1168/1464) | 50.3 % (736/1464) | 79.8 % (1168/1464) |
+| Nombre de sections exact | 56.3 % (9/16) | 75.0 % (12/16) | 50.0 % (8/16) | 75.0 % (12/16) |
+| Mesure jouée → mesure écrite juste | 61.3 % (1279/2088) | 91.4 % (1908/2088) | 55.9 % (1168/2088) | 91.4 % (1908/2088) |
+| **Autumn Leaves (cahier)** | | | | |
+| Grille écrite attendue (structure vraie) | 0.0 % (0/1) | 100.0 % (1/1) | 0.0 % (0/1) | 100.0 % (1/1) |
+| Forme et grille attendues (chaîne complète) | 0.0 % (0/1) | 0.0 % (0/1) | 0.0 % (0/1) | 0.0 % (0/1) |
+| Cas | 16 | 16 | 16 | 16 |
+| Temps de calcul (ms) | 344 | 353 | 243 | 293 |
+
+### Tier S, sous-ensemble — erreurs d’analyse : mauvais
+
+| Mesure | pistes / sans grille | pistes / grille connue | sans séparation / sans grille | sans séparation / grille connue |
+|---|---:|---:|---:|---:|
+| **Forme** | | | | |
+| Longueur du chorus exacte | 28.6 % (4/14) | 100.0 % (14/14) | 28.6 % (4/14) | 100.0 % (14/14) |
+| Limites de chorus ±1 : précision | 54.3 % (38/70) | 100.0 % (63/63) | 45.7 % (32/70) | 100.0 % (63/63) |
+| Limites de chorus ±1 : rappel | 57.6 % (38/66) | 95.5 % (63/66) | 48.5 % (32/66) | 95.5 % (63/66) |
+| Limites de sections ±1 : précision | 71.4 % (150/210) | 99.2 % (234/236) | 67.6 % (142/210) | 99.2 % (234/236) |
+| Limites de sections ±1 : rappel | 60.2 % (150/249) | 94.0 % (234/249) | 57.0 % (142/249) | 94.0 % (234/249) |
+| Limites de sections ±1 : mesure F | 53.3 % (9/16) | 89.5 % (14/16) | 48.5 % (8/16) | 89.5 % (14/16) |
+| Lettres : mesure F par paires de mesures | 60.8 % (10/16) | 87.8 % (14/16) | 60.6 % (10/16) | 87.8 % (14/16) |
+| Forme (AABA…) exacte | 50.0 % (7/14) | 100.0 % (14/14) | 50.0 % (7/14) | 100.0 % (14/14) |
+| Mesures d’intro exactes | 43.8 % (7/16) | 75.0 % (12/16) | 37.5 % (6/16) | 75.0 % (12/16) |
+| Mesures d’outro exactes | 43.8 % (7/16) | 62.5 % (10/16) | 43.8 % (7/16) | 62.5 % (10/16) |
+| Mode Jazz / Pop juste | 100.0 % (16/16) | 100.0 % (16/16) | 100.0 % (16/16) | 100.0 % (16/16) |
+| **Parties** | | | | |
+| Limites de parties ±1 : précision | 73.1 % (76/104) | 85.6 % (83/97) | 66.2 % (45/68) | 90.5 % (57/63) |
+| Limites de parties ±1 : rappel | 70.4 % (76/108) | 76.9 % (83/108) | 41.7 % (45/108) | 52.8 % (57/108) |
+| Limites de parties ±1 : mesure F | 69.9 % (11/16) | 80.2 % (13/16) | 52.0 % (8/16) | 68.2 % (11/16) |
+| Type de partie juste (thème, solo, intro…) | 71.7 % (66/92) | 72.8 % (67/92) | 67.4 % (62/92) | 68.5 % (63/92) |
+| Numéro juste (vide lu comme 1 ; vide juste pour un soliste nommé qui ne revient pas) | 58.7 % (54/92) | 63.0 % (58/92) | 35.9 % (33/92) | 40.2 % (37/92) |
+| Long solo d’un seul instrument non coupé | 100.0 % (6/6) | 83.3 % (5/6) | 83.3 % (5/6) | 100.0 % (6/6) |
+| Solos voisins d’instruments différents séparés | 81.5 % (22/27) | 81.5 % (22/27) | 7.4 % (2/27) | 14.8 % (4/27) |
+| **Instruments** | | | | |
+| Instrument juste : piano, guitare, basse, batterie, voix | 77.5 % (31/40) | 77.5 % (31/40) | – | – |
+| Vents et vibraphone : instrument exact | 35.7 % (15/42) | 40.5 % (17/42) | – | – |
+| Vents et vibraphone : « Vents » | 33.3 % (14/42) | 33.3 % (14/42) | – | – |
+| Instrument nommé FAUX (toutes parties) ↓ | 12.2 % (10/82) | 12.2 % (10/82) | – | – |
+| Instrument nommé sans séparation (doit être 0) ↓ | – | – | 0.0 % (0/53) | 0.0 % (0/48) |
+| **Modulations** | | | | |
+| Modulations : précision | 77.8 % (7/9) | 81.8 % (9/11) | 77.8 % (7/9) | 81.8 % (9/11) |
+| Modulations : rappel | 43.8 % (7/16) | 56.3 % (9/16) | 43.8 % (7/16) | 56.3 % (9/16) |
+| Modulations : écart de position (mesures) ↓ | 0.29 | 0.33 | 0.29 | 0.33 |
+| Modulations trouvées : tonalité exacte | 100.0 % (7/7) | 88.9 % (8/9) | 100.0 % (7/7) | 88.9 % (8/9) |
+| Fausses modulations sur les morceaux sans modulation ↓ | 2 | 2 | 2 | 2 |
+| Morceaux sans modulation qui en reçoivent une ↓ | 8.3 % (1/12) | 8.3 % (1/12) | 8.3 % (1/12) | 8.3 % (1/12) |
+| **Grille simplifiée (structure vraie)** | | | | |
+| Rien à replier : pas de grille simplifiée | – | – | – | – |
+| Accords écrits justes (famille, par temps) | 59.3 % (868/1464) | 74.3 % (1088/1464) | 59.3 % (868/1464) | 74.3 % (1088/1464) |
+| Nombre de sections exact | 87.5 % (14/16) | 87.5 % (14/16) | 87.5 % (14/16) | 87.5 % (14/16) |
+| Reprises `xN` exactes | 86.0 % (43/50) | 86.0 % (43/50) | 86.0 % (43/50) | 86.0 % (43/50) |
+| Mesure jouée → mesure écrite juste | 80.4 % (1654/2056) | 80.4 % (1654/2056) | 80.4 % (1654/2056) | 80.4 % (1654/2056) |
+| **Grille simplifiée (chaîne complète)** | | | | |
+| Accords écrits justes (famille, par temps) | 20.6 % (302/1464) | 68.0 % (996/1464) | 19.7 % (288/1464) | 68.0 % (996/1464) |
+| Nombre de sections exact | 43.8 % (7/16) | 68.8 % (11/16) | 43.8 % (7/16) | 68.8 % (11/16) |
+| Mesure jouée → mesure écrite juste | 22.0 % (452/2056) | 68.9 % (1416/2056) | 20.2 % (416/2056) | 68.9 % (1416/2056) |
+| **Autumn Leaves (cahier)** | | | | |
+| Grille écrite attendue (structure vraie) | 0.0 % (0/1) | 0.0 % (0/1) | 0.0 % (0/1) | 0.0 % (0/1) |
+| Forme et grille attendues (chaîne complète) | 0.0 % (0/1) | 0.0 % (0/1) | 0.0 % (0/1) | 0.0 % (0/1) |
+| Cas | 16 | 16 | 16 | 16 |
+| Temps de calcul (ms) | 295 | 344 | 277 | 390 |
+
+### Autumn Leaves (exemple du cahier, C14)
+
+- parfait / pistes / sans grille : grille (structure vraie) **passe** ; chaîne complète **passe**
+- parfait / pistes / grille connue : grille (structure vraie) **passe** ; chaîne complète **passe**
+- parfait / sans séparation / sans grille : grille (structure vraie) **passe** ; chaîne complète **passe**
+- parfait / sans séparation / grille connue : grille (structure vraie) **passe** ; chaîne complète **passe**
+- realiste / pistes / sans grille : grille (structure vraie) **échoue** (A mesure 8 : « % » attendu ; C mesure 4 : Am7 G#7 attendu ; C mesure 4 : Am7 G#7 attendu ; +1) ; chaîne complète **échoue** (6 parties au lieu de 5 ; partie 4 : instrument winds au lieu de trumpet ; lettres de la forme ,AABC,AABC,AA,BC, au lieu de ,AABC,AABC,AA,BC ; +10)
+- realiste / pistes / grille connue : grille (structure vraie) **passe** ; chaîne complète **échoue** (partie 4 : instrument winds au lieu de trumpet)
+- realiste / sans séparation / sans grille : grille (structure vraie) **échoue** (A mesure 8 : « % » attendu ; C mesure 4 : Am7 G#7 attendu ; C mesure 4 : Am7 G#7 attendu ; +1) ; chaîne complète **échoue** (3 parties au lieu de 5 ; lettres de la forme ,AABC,AABCAABC au lieu de ,AABC,AABC,AA,BC ; grille : A mesure 8 : « % » attendu ; +8)
+- realiste / sans séparation / grille connue : grille (structure vraie) **passe** ; chaîne complète **échoue** (3 parties au lieu de 5 ; lettres de la forme ,AABC,AABCAABC au lieu de ,AABC,AABC,AA,BC)
+- mauvais / pistes / sans grille : grille (structure vraie) **échoue** (B mesure 1 : C#m7b5 attendu ; B mesure 5 : Em7 attendu ; B mesure 7 : Dmaj7 attendu ; +2) ; chaîne complète **échoue** (6 parties au lieu de 5 ; partie 1 : theme au lieu de intro ; partie 2 : solo au lieu de theme ; +35)
+- mauvais / pistes / grille connue : grille (structure vraie) **échoue** (C : 7 mesures au lieu de 8 ; intro : Bm attendu) ; chaîne complète **échoue** (6 parties au lieu de 5 ; partie 2 : instrument null au lieu de voice ; partie 2 : début décalé ; +11)
+- mauvais / sans séparation / sans grille : grille (structure vraie) **échoue** (B mesure 1 : C#m7b5 attendu ; B mesure 5 : Em7 attendu ; B mesure 7 : Dmaj7 attendu ; +2) ; chaîne complète **échoue** (3 parties au lieu de 5 ; partie 1 : theme au lieu de intro ; partie 2 : solo au lieu de theme ; +33)
+- mauvais / sans séparation / grille connue : grille (structure vraie) **échoue** (C : 7 mesures au lieu de 8 ; intro : Bm attendu) ; chaîne complète **échoue** (3 parties au lieu de 5 ; partie 2 : début décalé ; lettres de la forme ,AABC,AABCAABC au lieu de ,AABC,AABC,AA,BC ; +2)
+
+ [32m✓[39m src/structure/bench.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 299[2mms[22m[39m
+ [32m✓[39m src/analysis/models/store.test.ts [2m([22m[2m19 tests[22m[2m)[22m[32m 31[2mms[22m[39m
+ [32m✓[39m src/separation/engine/ease.test.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 3322[2mms[22m[39m
+   [32m✓[39m a rest after each segment [2m(4)[22m
+     [33m[2m✓[22m[39m is taken after every segment but the last, the next segment starting only after it[33m 564[2mms[22m[39m
+     [33m[2m✓[22m[39m changes nothing in the result[33m 1182[2mms[22m[39m
+     [33m[2m✓[22m[39m is not taken at all at full speed (no throttle: the same calls, in the same order)[33m 758[2mms[22m[39m
+     [33m[2m✓[22m[39m lasts for the time each segment took, scaled by the share[33m 757[2mms[22m[39m
+ [32m✓[39m src/harmony/approach.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+ [32m✓[39m src/store/tempoFix.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 162[2mms[22m[39m
+ [32m✓[39m src/chart/editorPlacement.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 17[2mms[22m[39m
+ [32m✓[39m src/separation/models.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 49[2mms[22m[39m
+ [32m✓[39m src/analysis/engine/repeats.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 156[2mms[22m[39m
+ [32m✓[39m src/store/keyDisplay.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+ [32m✓[39m src/import/aiff.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 67[2mms[22m[39m
+ [32m✓[39m src/export/irealMeters.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+ [32m✓[39m src/import/detect.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 122[2mms[22m[39m
+[90mstdout[2m | src/analysis/engine/tempo.bench.test.ts[2m > [22m[2mthe tempo hardening on real network outputs (chord bench pieces)[2m > [22m[2mprints the figures
+[22m[39manatole-sib.propre               dev  beats 87.3 % → 99.9 %, downbeats 67.7 % → 100.0 %, tempo jumps 4 → 0, zigzags 0 → 0
+anatole-sib.disque               dev  beats 72.3 % → 95.1 %, downbeats 46.9 % → 95.8 %, tempo jumps 11 → 0, zigzags 9 → 2
+ballade-cuivres.disque           test beats 99.6 % → 99.6 %, downbeats 100.0 % → 100.0 %, tempo jumps 0 → 0, zigzags 0 → 0 (unchanged)
+bill-bailey.propre               dev  beats 66.7 % → 66.7 %, downbeats 50.0 % → 50.0 %, tempo jumps 0 → 0, zigzags 0 → 0 (unchanged)
+blue-bossa.disque                dev  beats 96.1 % → 100.0 %, downbeats 78.8 % → 100.0 %, tempo jumps 11 → 0, zigzags 10 → 0
+blues-bird.propre                test beats 88.8 % → 99.9 %, downbeats 42.9 % → 100.0 %, tempo jumps 7 → 0, zigzags 3 → 0
+blues-bird.disque                test beats 97.1 % → 99.6 %, downbeats 64.3 % → 100.0 %, tempo jumps 6 → 0, zigzags 6 → 0
+blues-sib-basie.propre           test beats 94.7 % → 99.8 %, downbeats 90.3 % → 100.0 %, tempo jumps 1 → 0, zigzags 0 → 0
+deux-cinq-mineur-rapide.propre   test beats 80.3 % → 99.7 %, downbeats 56.3 % → 100.0 %, tempo jumps 2 → 0, zigzags 0 → 0
+feuilles-mortes.propre           test beats 99.8 % → 99.8 %, downbeats 100.0 % → 100.0 %, tempo jumps 0 → 0, zigzags 0 → 0 (unchanged)
+georgia.disque                   test beats 99.5 % → 99.5 %, downbeats 100.0 % → 100.0 %, tempo jumps 0 → 0, zigzags 0 → 0 (unchanged)
+saints.disque                    dev  beats 96.0 % → 99.5 %, downbeats 83.3 % → 100.0 %, tempo jumps 5 → 0, zigzags 2 → 0
+satin.disque                     dev  beats 96.2 % → 96.2 %, downbeats 100.0 % → 100.0 %, tempo jumps 0 → 0, zigzags 0 → 0 (unchanged)
+so-what.disque                   test beats 88.8 % → 88.5 %, downbeats 78.1 % → 90.6 %, tempo jumps 1 → 0, zigzags 3 → 2
+valse-sib.propre                 dev  beats 100.0 % → 100.0 %, downbeats 100.0 % → 100.0 %, tempo jumps 0 → 0, zigzags 0 → 0 (unchanged)
+
+ [32m✓[39m src/analysis/engine/tempo.bench.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m src/import/fromFile.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 59[2mms[22m[39m
+ [32m✓[39m src/ui/modulationForm.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m src/chart/layoutMeters.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m src/export/chartExport.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+ [32m✓[39m src/audio/MockEngine.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+ [32m✓[39m src/export/simplifiedExport.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 33[2mms[22m[39m
+ [32m✓[39m src/grid/loopText.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m src/export/irealOpen.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m src/export/audio/run.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 28[2mms[22m[39m
+ [2m[90m↓[39m[22m src/standards/collectionAddresses.real.test.ts [2m([22m[2m16 tests[22m[2m | [22m[33m16 skipped[39m[2m)[22m
+ [2m[90m↓[39m[22m src/standards/irealRead.real.test.ts [2m([22m[2m1 test[22m[2m | [22m[33m1 skipped[39m[2m)[22m
+ [32m✓[39m src/markers/markers.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m src/ui/partForm.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m src/audio/pcm.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 44[2mms[22m[39m
+ [32m✓[39m src/analysis/engine/tsumugiFeatures.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 55[2mms[22m[39m
+[90mstdout[2m | src/analysis/engine/repair.network.test.ts[2m > [22m[2mthe repair on the real beat network[2m > [22m[2mprints the figures
+[22m[39mdemo               beats 96.3 % → 96.3 %, downbeats 95.0 % → 95.0 %, repaired []
+old                beats 98.8 % → 98.8 %, downbeats 95.0 % → 95.0 %, repaired []
+gap-14.3-19.7      beats 95.0 % → 96.3 %, downbeats 45.0 % → 90.0 %, after the passage 0.0 % → 100.0 %, beats counted -2 → 0, repaired [[16.56,17.87,0,2]]
+silence-14.3-19.7  beats 95.0 % → 98.8 %, downbeats 40.0 % → 95.0 %, after the passage 0.0 % → 100.0 %, beats counted -3 → 0, repaired [[15.24,16.11,0,1],[16.11,17.95,1,3]]
+wind-8.8-14.3      beats 98.8 % → 98.8 %, downbeats 30.0 % → 95.0 %, after the passage 0.0 % → 100.0 %, beats counted 1 → 0, repaired [[10.63,12.54,4,3]]
+wind-21.5-26.9     beats 98.8 % → 98.8 %, downbeats 95.0 % → 95.0 %, after the passage 100.0 % → 100.0 %, beats counted 0 → 0, repaired []
+muffled-8.8-12.5   beats 98.8 % → 98.8 %, downbeats 95.0 % → 95.0 %, after the passage 100.0 % → 100.0 %, beats counted 0 → 0, repaired []
+
+ [32m✓[39m src/analysis/engine/repair.network.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m src/analysis/windowClock.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 21[2mms[22m[39m
+ [32m✓[39m src/audio/worklet/limiter.test.ts [2m([22m[2m4 tests[22m[2m)[22m[33m 688[2mms[22m[39m
+   [32m✓[39m safety limiter [2m(4)[22m
+     [33m[2m✓[22m[39m is a pure delay below the ceiling (bit exact)[33m 312[2mms[22m[39m
+     [33m[2m✓[22m[39m recovers after a peak: quiet material comes back to gain 1[33m 326[2mms[22m[39m
+ [32m✓[39m src/import/resample.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 134[2mms[22m[39m
+ [32m✓[39m src/structure/instruments/decide.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m src/timeline/meterMarks.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [2m[90m↓[39m[22m src/structure/instruments/classify.real.test.ts [2m([22m[2m1 test[22m[2m | [22m[33m1 skipped[39m[2m)[22m
+ [32m✓[39m src/analysis/engine/sheetsage2Mel.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 78[2mms[22m[39m
+ [32m✓[39m src/analysis/index.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m src/timeline/chordMarkup.test.ts [2m([22m[2m2 tests[22m[2m)[22m[33m 579[2mms[22m[39m
+   [32m✓[39m the ruler writes chords with the markup of <ChordSymbol> [2m(2)[22m
+     [33m[2m✓[22m[39m is identical for every quality, extension, bass, key, transposition, instrument and minor sign[33m 576[2mms[22m[39m
+ [32m✓[39m src/separation/importChoice.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m src/export/chartExportShown.test.ts [2m([22m[2m4 tests[22m[2m)[22m[33m 365[2mms[22m[39m
+ [32m✓[39m src/chart/stops.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m src/structure/grid.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m src/audio/storage.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 18[2mms[22m[39m
+ [32m✓[39m src/analysis/engine/reliability.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m src/ui/meterForm.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 44[2mms[22m[39m
+ [32m✓[39m src/structure/instruments/excerpt.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 225[2mms[22m[39m
+ [32m✓[39m src/ui/historyKeys.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [2m[90m↓[39m[22m src/standards/forAnalysis.real.test.ts [2m([22m[2m1 test[22m[2m | [22m[33m1 skipped[39m[2m)[22m
+ [32m✓[39m src/settings/deviceUsage.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m src/chart/hit.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m src/model/structureLabels.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m src/timeline/tempoRow.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m src/ui/saveKeys.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m src/analysis/engine/hand.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m src/timeline/chordRowMeters.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m src/storage/timeout.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m src/chart/followLine.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m src/ui/tapFixReading.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m src/standards/smooth.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m src/timeline/keyMarks.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m src/import/formats.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m src/analysis/models/sha256.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 32[2mms[22m[39m
+ [32m✓[39m src/analysis/engine/tsumugiExtensions.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m src/store/storageNotice.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m src/import/amount.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 19[2mms[22m[39m
+[90mstdout[2m | src/analysis/engine/tempo.eval.test.ts[2m > [22m[2mthe tempo hardening on its case set[2m > [22m[2mprints the level passages
+[22m[39m1520 level cases (a third)
+2/3 tempo,  1 bars                    66  bars in place  72.7 % →  81.8 %  downbeats after  99.8 % →  99.8 %  F 99.5 % → 99.6 %  jumps 5 → 3  zigzags 272 → 266  broken 0
+2/3 tempo,  2 bars                    61  bars in place  60.7 % →  78.7 %  downbeats after  96.7 % →  99.6 %  F 99.2 % → 99.5 %  jumps 42 → 19  zigzags 310 → 303  broken 0
+2/3 tempo,  4 bars                    64  bars in place  60.9 % →  75.0 %  downbeats after  94.3 % →  99.8 %  F 98.5 % → 98.9 %  jumps 72 → 24  zigzags 314 → 279  broken 0
+2/3 tempo,  8 bars                    49  bars in place  24.5 % →  59.2 %  downbeats after  60.8 % →  95.6 %  F 95.6 % → 97.7 %  jumps 76 → 39  zigzags 218 → 216  broken 0
+2/3 tempo, 16 bars                    46  bars in place  32.6 % →  54.3 %  downbeats after  37.0 % →  66.3 %  F 91.3 % → 94.6 %  jumps 64 → 42  zigzags 176 → 173  broken 0
+2/3 tempo, 24 bars                    47  bars in place 100.0 % →  97.9 %  downbeats after  99.7 % →  95.5 %  F 86.8 % → 90.1 %  jumps 67 → 45  zigzags 160 → 162  broken 1
+2/3 tempo, 32 bars                    48  bars in place  25.0 % →  45.8 %  downbeats after  32.4 % →  73.0 %  F 81.8 % → 88.0 %  jumps 73 → 49  zigzags 154 → 181  broken 0
+3/2 tempo,  1 bars                    65  bars in place  70.8 % →  78.5 %  downbeats after  99.9 % →  99.9 %  F 99.4 % → 99.5 %  jumps 29 → 18  zigzags 323 → 307  broken 0
+3/2 tempo,  2 bars                    62  bars in place 100.0 % →  98.4 %  downbeats after  99.7 % →  99.7 %  F 99.0 % → 99.1 %  jumps 42 → 23  zigzags 283 → 281  broken 1
+3/2 tempo,  4 bars                    62  bars in place 100.0 % → 100.0 %  downbeats after  99.7 % →  99.7 %  F 97.6 % → 98.2 %  jumps 68 → 39  zigzags 289 → 278  broken 0
+3/2 tempo,  8 bars                    50  bars in place 100.0 % → 100.0 %  downbeats after  99.7 % →  99.7 %  F 93.7 % → 95.3 %  jumps 79 → 53  zigzags 254 → 237  broken 0
+3/2 tempo, 16 bars                    47  bars in place 100.0 % → 100.0 %  downbeats after 100.0 % → 100.0 %  F 88.0 % → 90.0 %  jumps 87 → 66  zigzags 300 → 266  broken 0
+3/2 tempo, 24 bars                    45  bars in place 100.0 % → 100.0 %  downbeats after 100.0 % → 100.0 %  F 82.5 % → 87.3 %  jumps 83 → 54  zigzags 343 → 302  broken 0
+3/2 tempo, 32 bars                    49  bars in place 100.0 % → 100.0 %  downbeats after  99.3 % →  99.3 %  F 77.2 % → 82.2 %  jumps 80 → 58  zigzags 350 → 332  broken 0
+all held                            1013  bars in place  85.9 % →  90.8 %  downbeats after  94.3 % →  97.2 %  F 94.4 % → 96.0 %  jumps 1511 → 867  zigzags 6767 → 6297  broken 3
+all tune                             507  bars in place  86.6 % →  90.5 %  downbeats after  94.1 % →  97.4 %  F 94.3 % → 96.0 %  jumps 688 → 422  zigzags 1463 → 1303  broken 0
+double,  1 bars                       65  bars in place 100.0 % → 100.0 %  downbeats after  99.8 % →  99.8 %  F 99.5 % → 99.6 %  jumps 69 → 33  zigzags 294 → 292  broken 0
+double,  2 bars                       61  bars in place 100.0 % →  98.4 %  downbeats after  99.5 % →  98.5 %  F 99.1 % → 99.3 %  jumps 75 → 36  zigzags 279 → 264  broken 1
+double,  4 bars                       64  bars in place 100.0 % → 100.0 %  downbeats after  99.7 % →  99.7 %  F 97.9 % → 98.7 %  jumps 130 → 73  zigzags 368 → 342  broken 0
+double,  8 bars                       48  bars in place 100.0 % → 100.0 %  downbeats after  99.7 % →  99.7 %  F 95.7 % → 97.4 %  jumps 107 → 64  zigzags 317 → 276  broken 0
+double, 16 bars                       48  bars in place 100.0 % → 100.0 %  downbeats after  99.8 % →  99.8 %  F 92.1 % → 93.9 %  jumps 117 → 96  zigzags 377 → 319  broken 0
+double, 24 bars                       46  bars in place 100.0 % → 100.0 %  downbeats after  92.1 % →  92.1 %  F 88.6 % → 92.7 %  jumps 105 → 68  zigzags 607 → 391  broken 0
+double, 32 bars                       47  bars in place 100.0 % → 100.0 %  downbeats after  96.1 % →  96.1 %  F 85.6 % → 88.5 %  jumps 107 → 76  zigzags 758 → 632  broken 0
+half,  1 bars                         64  bars in place  68.8 % →  76.6 %  downbeats after  99.8 % →  99.8 %  F 99.5 % → 99.6 %  jumps 27 → 24  zigzags 303 → 303  broken 0
+half,  2 bars                         62  bars in place 100.0 % → 100.0 %  downbeats after  99.5 % →  99.5 %  F 99.5 % → 99.6 %  jumps 62 → 19  zigzags 250 → 237  broken 0
+half,  4 bars                         64  bars in place  98.4 % →  98.4 %  downbeats after  99.7 % →  99.7 %  F 98.9 % → 99.3 %  jumps 101 → 34  zigzags 323 → 320  broken 0
+half,  8 bars                         49  bars in place 100.0 % → 100.0 %  downbeats after 100.0 % → 100.0 %  F 97.6 % → 99.1 %  jumps 117 → 29  zigzags 173 → 170  broken 0
+half, 16 bars                         46  bars in place 100.0 % → 100.0 %  downbeats after  99.9 % →  99.9 %  F 95.4 % → 97.1 %  jumps 94 → 57  zigzags 163 → 182  broken 0
+half, 24 bars                         46  bars in place 100.0 % → 100.0 %  downbeats after  99.5 % →  99.5 %  F 92.9 % → 96.0 %  jumps 100 → 54  zigzags 152 → 159  broken 0
+half, 32 bars                         49  bars in place 100.0 % → 100.0 %  downbeats after  99.7 % →  96.3 %  F 90.6 % → 92.3 %  jumps 121 → 94  zigzags 120 → 130  broken 0
+2/3 tempo | lost                      46  bars in place  71.7 % →  76.1 %  downbeats after  99.8 % →  99.8 %  F 99.1 % → 99.2 %  jumps 28 → 10  zigzags 266 → 249  broken 0
+2/3 tempo | none                     114  bars in place  50.0 % →  50.0 %  downbeats after   0.0 % →   0.0 %  F 93.0 % → 93.0 %  jumps 127 → 124  zigzags 367 → 367  broken 0
+2/3 tempo | sharp                    113  bars in place  54.0 % →  99.1 %  downbeats after  73.6 % →  99.7 %  F 93.3 % → 99.6 %  jumps 134 → 2  zigzags 517 → 513  broken 0
+2/3 tempo | weak                     108  bars in place  54.6 % →  63.0 %  downbeats after  75.8 % →  80.6 %  F 93.6 % → 93.9 %  jumps 110 → 85  zigzags 454 → 451  broken 1
+3/2 tempo | lost                      48  bars in place  89.6 % →  89.6 %  downbeats after  99.7 % →  99.7 %  F 98.6 % → 98.8 %  jumps 40 → 26  zigzags 208 → 204  broken 0
+3/2 tempo | none                     113  bars in place  94.7 % →  94.7 %  downbeats after   0.0 % →   0.0 %  F 91.1 % → 91.2 %  jumps 129 → 125  zigzags 600 → 594  broken 0
+3/2 tempo | sharp                    107  bars in place  96.3 % →  99.1 %  downbeats after  99.9 % →  99.9 %  F 91.2 % → 97.2 %  jumps 146 → 25  zigzags 595 → 489  broken 1
+3/2 tempo | weak                     112  bars in place  96.4 % →  97.3 %  downbeats after  99.7 % →  99.7 %  F 90.8 % → 91.1 %  jumps 153 → 135  zigzags 739 → 716  broken 0
+double | lost                         46  bars in place 100.0 % → 100.0 %  downbeats after  99.9 % →  99.9 %  F 98.8 % → 99.3 %  jumps 66 → 28  zigzags 258 → 245  broken 0
+double | none                        107  bars in place 100.0 % → 100.0 %  downbeats after   0.0 % →   0.0 %  F 94.4 % → 94.4 %  jumps 208 → 194  zigzags 666 → 661  broken 0
+double | sharp                       111  bars in place 100.0 % → 100.0 %  downbeats after  99.5 % →  99.5 %  F 93.8 % → 98.5 %  jumps 219 → 32  zigzags 996 → 550  broken 0
+double | weak                        115  bars in place 100.0 % →  99.1 %  downbeats after  96.9 % →  96.5 %  F 94.2 % → 94.3 %  jumps 217 → 192  zigzags 1080 → 1060  broken 1
+half | lost                           46  bars in place  91.3 % →  91.3 %  downbeats after  99.7 % →  99.7 %  F 99.3 % → 99.5 %  jumps 53 → 21  zigzags 171 → 167  broken 0
+half | none                          115  bars in place  93.0 % →  93.0 %  downbeats after   0.0 % →   0.0 %  F 96.5 % → 96.8 %  jumps 210 → 157  zigzags 385 → 378  broken 0
+half | sharp                         104  bars in place  96.2 % → 100.0 %  downbeats after  99.7 % →  99.7 %  F 96.5 % → 99.7 %  jumps 161 → 1  zigzags 470 → 498  broken 0
+half | weak                          115  bars in place  95.7 % →  96.5 %  downbeats after  99.7 % →  98.8 %  F 96.1 % → 96.5 %  jumps 198 → 132  zigzags 458 → 458  broken 0
+
+[90mstdout[2m | src/analysis/engine/tempo.eval.test.ts[2m > [22m[2mthe tempo hardening on its case set[2m > [22m[2mprints the displaced runs
+[22m[39m800 displaced runs
+1 beats by 0.08                       32  bars in place 100.0 % → 100.0 %  downbeats after  99.8 % →  99.8 %  F 99.8 % → 99.8 %  jumps 0 → 0  zigzags 112 → 112  broken 0  passage error 23 → 23 ms
+1 beats by 0.12                       32  bars in place 100.0 % → 100.0 %  downbeats after  99.5 % →  99.5 %  F 99.5 % → 99.5 %  jumps 0 → 0  zigzags 117 → 117  broken 0  passage error 35 → 35 ms
+1 beats by 0.18                       32  bars in place 100.0 % → 100.0 %  downbeats after  99.4 % →  99.4 %  F 99.4 % → 99.4 %  jumps 0 → 0  zigzags 123 → 123  broken 0  passage error 44 → 43 ms
+1 beats by 0.25                       32  bars in place 100.0 % → 100.0 %  downbeats after  99.8 % →  99.8 %  F 99.4 % → 99.5 %  jumps 0 → 0  zigzags 130 → 127  broken 0  passage error 53 → 43 ms
+1 beats by 0.33                       32  bars in place 100.0 % → 100.0 %  downbeats after  99.6 % →  99.6 %  F 99.7 % → 99.7 %  jumps 0 → 0  zigzags 110 → 102  broken 0  passage error 24 → 17 ms
+16 beats by 0.08                      32  bars in place 100.0 % → 100.0 %  downbeats after  99.7 % →  99.7 %  F 98.9 % → 98.9 %  jumps 0 → 0  zigzags 115 → 115  broken 0  passage error 42 → 42 ms
+16 beats by 0.12                      32  bars in place 100.0 % → 100.0 %  downbeats after  99.4 % →  99.4 %  F 97.4 % → 97.4 %  jumps 0 → 0  zigzags 106 → 106  broken 0  passage error 61 → 61 ms
+16 beats by 0.18                      32  bars in place 100.0 % → 100.0 %  downbeats after  99.9 % →  99.9 %  F 95.5 % → 96.7 %  jumps 0 → 0  zigzags 132 → 129  broken 0  passage error 90 → 69 ms
+16 beats by 0.25                      32  bars in place 100.0 % → 100.0 %  downbeats after  99.5 % →  99.5 %  F 94.5 % → 96.3 %  jumps 0 → 0  zigzags 139 → 125  broken 0  passage error 124 → 83 ms
+16 beats by 0.33                      32  bars in place 100.0 % → 100.0 %  downbeats after  99.6 % →  99.6 %  F 94.4 % → 97.0 %  jumps 0 → 0  zigzags 184 → 154  broken 0  passage error 164 → 85 ms
+2 beats by 0.08                       32  bars in place 100.0 % → 100.0 %  downbeats after  99.6 % →  99.6 %  F 99.6 % → 99.6 %  jumps 0 → 0  zigzags 120 → 120  broken 0  passage error 30 → 30 ms
+2 beats by 0.12                       32  bars in place 100.0 % → 100.0 %  downbeats after  99.6 % →  99.6 %  F 99.4 % → 99.4 %  jumps 0 → 0  zigzags 117 → 117  broken 0  passage error 41 → 41 ms
+2 beats by 0.18                       32  bars in place 100.0 % → 100.0 %  downbeats after  99.7 % →  99.7 %  F 99.2 % → 99.3 %  jumps 0 → 0  zigzags 121 → 117  broken 0  passage error 55 → 41 ms
+2 beats by 0.25                       32  bars in place 100.0 % → 100.0 %  downbeats after  99.8 % →  99.8 %  F 99.1 % → 99.4 %  jumps 0 → 0  zigzags 121 → 109  broken 0  passage error 73 → 44 ms
+2 beats by 0.33                       32  bars in place 100.0 % → 100.0 %  downbeats after  99.5 % →  99.6 %  F 99.4 % → 99.5 %  jumps 0 → 0  zigzags 129 → 120  broken 0  passage error 44 → 31 ms
+4 beats by 0.08                       32  bars in place 100.0 % → 100.0 %  downbeats after 100.0 % → 100.0 %  F 99.5 % → 99.5 %  jumps 0 → 0  zigzags 117 → 117  broken 0  passage error 36 → 36 ms
+4 beats by 0.12                       32  bars in place 100.0 % → 100.0 %  downbeats after  99.9 % →  99.9 %  F 99.3 % → 99.3 %  jumps 0 → 0  zigzags 112 → 112  broken 0  passage error 49 → 49 ms
+4 beats by 0.18                       32  bars in place 100.0 % → 100.0 %  downbeats after  99.7 % →  99.7 %  F 98.6 % → 98.9 %  jumps 0 → 0  zigzags 111 → 103  broken 0  passage error 71 → 54 ms
+4 beats by 0.25                       32  bars in place 100.0 % → 100.0 %  downbeats after  99.7 % →  99.7 %  F 98.5 % → 99.1 %  jumps 0 → 0  zigzags 139 → 114  broken 0  passage error 98 → 54 ms
+4 beats by 0.33                       32  bars in place 100.0 % → 100.0 %  downbeats after  99.7 % →  99.7 %  F 99.3 % → 99.4 %  jumps 0 → 0  zigzags 133 → 128  broken 0  passage error 45 → 40 ms
+8 beats by 0.08                       32  bars in place 100.0 % → 100.0 %  downbeats after  99.8 % →  99.8 %  F 99.4 % → 99.4 %  jumps 0 → 0  zigzags 121 → 121  broken 0  passage error 39 → 39 ms
+8 beats by 0.12                       32  bars in place 100.0 % → 100.0 %  downbeats after  99.8 % →  99.8 %  F 98.4 % → 98.4 %  jumps 0 → 0  zigzags 112 → 112  broken 0  passage error 57 → 57 ms
+8 beats by 0.18                       32  bars in place 100.0 % → 100.0 %  downbeats after  99.8 % →  99.8 %  F 97.6 % → 98.2 %  jumps 0 → 0  zigzags 150 → 148  broken 0  passage error 84 → 64 ms
+8 beats by 0.25                       32  bars in place 100.0 % → 100.0 %  downbeats after 100.0 % → 100.0 %  F 97.2 % → 98.3 %  jumps 0 → 0  zigzags 128 → 109  broken 0  passage error 112 → 66 ms
+8 beats by 0.33                       32  bars in place 100.0 % → 100.0 %  downbeats after  99.6 % →  99.6 %  F 97.0 % → 98.5 %  jumps 0 → 0  zigzags 163 → 130  broken 0  passage error 149 → 65 ms
+all held                             600  bars in place 100.0 % → 100.0 %  downbeats after  99.7 % →  99.7 %  F 98.3 % → 98.8 %  jumps 0 → 0  zigzags 2434 → 2290  broken 0  passage error 70 → 49 ms
+all tune                             200  bars in place 100.0 % → 100.0 %  downbeats after  99.7 % →  99.7 %  F 98.8 % → 99.0 %  jumps 0 → 0  zigzags 728 → 697  broken 0  passage error 53 → 46 ms
+
+[90mstdout[2m | src/analysis/engine/tempo.eval.test.ts[2m > [22m[2mthe tempo hardening on its case set[2m > [22m[2mputs the level passages back when the downbeats keep the bars
+[22m[39mall, sharp                           435  bars in place  86.2 % →  99.5 %  downbeats after  93.0 % →  99.7 %  F 93.7 % → 98.8 %  jumps 660 → 60  zigzags 2578 → 2050  broken 1
+all, lost                            186  bars in place  88.2 % →  89.2 %  downbeats after  99.8 % →  99.8 %  F 99.0 % → 99.2 %  jumps 187 → 85  zigzags 903 → 865  broken 0
+
+[90mstdout[2m | src/analysis/engine/tempo.eval.test.ts[2m > [22m[2mthe tempo hardening on its case set[2m > [22m[2mmoves nothing on the negatives
+[22m[39mnegatives: 180, changed before 0, now 0
+
+[90mstdout[2m | src/analysis/engine/tempo.eval.test.ts[2m > [22m[2mthe tempo hardening on its case set[2m > [22m[2mleaves no brutal and brief change that comes back, on any case
+[22m[39mrule left for want of downbeats heard on 34 cases: swing 120 4/4 | 2/3 tempo for 4 bars at middle | jitter 25 ms | none; swing 120 4/4 | 2/3 tempo for 4 bars at twice | jitter 25 ms | none; drift 100→116 4/4 | 2/3 tempo for 2 bars at middle | jitter 25 ms | none; drift 100→116 4/4 | 2/3 tempo for 4 bars at twice | jitter 12 ms | none; drift 100→116 4/4 | 2/3 tempo for 8 bars at twice | jitter 25 ms | none; fast 200 4/4 | 2/3 tempo for 2 bars at twice | jitter 25 ms | weak; fast 200 4/4 | 2/3 tempo for 4 bars at twice | jitter 25 ms | none; ballad 72 4/4 | 2/3 tempo for 8 bars at twice | jitter 12 ms | none; waltz 150 3/4 | half for 1 bars at twice | jitter 25 ms | weak; waltz 150 3/4 | half for 4 bars at middle | jitter 25 ms | none; waltz 150 3/4 | half for 4 bars at twice | jitter 25 ms | none; waltz 150 3/4 | double for 1 bars at twice | jitter 25 ms | none; waltz 150 3/4 | 3/2 tempo for 2 bars at middle | jitter 25 ms | weak; waltz 150 3/4 | 3/2 tempo for 2 bars at twice | jitter 25 ms | none; waltz 150 3/4 | 3/2 tempo for 4 bars at twice | jitter 25 ms | none; rubato ±6% 4/4 | half for 1 bars at middle | jitter 25 ms | none; rubato ±6% 4/4 | half for 1 bars at twice | jitter 25 ms | none; rubato ±6% 4/4 | double for 32 bars at twice | jitter 12 ms | sharp; rubato ±6% 4/4 | 2/3 tempo for 2 bars at twice | jitter 25 ms | none; rubato ±6% 4/4 | 2/3 tempo for 8 bars at twice | jitter 25 ms | none; rubato ±6% 4/4 | 3/2 tempo for 1 bars at middle | jitter 25 ms | none; rubato ±6% 4/4 | 3/2 tempo for 1 bars at twice | jitter 25 ms | none; fermatas 4/4 | jitter 12 ms | sharp; fermatas 4/4 | jitter 12 ms | weak; fermatas 4/4 | jitter 12 ms | none; fermatas 4/4 | jitter 25 ms | sharp; fermatas 4/4 | jitter 25 ms | weak; fermatas 4/4 | jitter 25 ms | none; fermatas 3/4 | jitter 12 ms | sharp; fermatas 3/4 | jitter 12 ms | weak; fermatas 3/4 | jitter 12 ms | none; fermatas 3/4 | jitter 25 ms | sharp; fermatas 3/4 | jitter 25 ms | weak; fermatas 3/4 | jitter 25 ms | none
+
+ [32m✓[39m src/analysis/engine/tempo.eval.test.ts [2m([22m[2m6 tests[22m[2m)[22m[33m 1938[2mms[22m[39m
+   [32m✓[39m the tempo hardening on its case set [2m(6)[22m
+     [33m[2m✓[22m[39m moves nothing on the negatives[33m 1911[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m163 passed[39m[22m[2m | [22m[33m6 skipped[39m[90m (169)[39m
+[2m      Tests [22m [1m[32m2057 passed[39m[22m[2m | [22m[33m43 skipped[39m[90m (2100)[39m
+[2m   Start at [22m 11:52:18
+[2m   Duration [22m 205.73s[2m (tests 56%, import 42%, transform 2%)[22m
+
+[2m     Import [22m [33m526 modules were evaluated 1045 times[39m[2m · 143.69s total, 42% of tracked time[22m
+[2m            [22m [2m~23.44s faster with [22m[33misolate: false[39m[2m — shared modules are evaluated once per worker instead of once per file[22m
+[2m            [22m [2mlearn more: https://vitest.dev/guide/improving-performance#test-isolation[22m
+

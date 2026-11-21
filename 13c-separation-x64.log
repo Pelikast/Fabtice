@@ -1,0 +1,39 @@
+### logs/logs-intel/13c-separation-x64.log (38 lines, last 400 shown)
+### step 13c-separation-x64 — 2026-11-21T12:19:47Z — Darwin 24.6.0 x86_64
+TAP version 13
+# tools list: remote (ok), bs-roformer-sw, htdemucs-6s, scnet; requests: none seen
+# separation states: {"status":"running","projectId":"4962c464-03e3-4b8a-be4d-a81ef2121ed1","modelId":"scnet","step":"download","backend":null,"fellBack":false} → {"status":"running","projectId":"4962c464-03e3-4b8a-be4d-a81ef2121ed1","modelId":"scnet","step":"prepare","backend":null,"fellBack":false} → {"status":"running","projectId":"4962c464-03e3-4b8a-be4d-a81ef2121ed1","modelId":"scnet","step":"separate","backend":"cpu","fellBack":false} → {"status":"running","projectId":"4962c464-03e3-4b8a-be4d-a81ef2121ed1","modelId":"scnet","step":"finish","backend":"cpu","fellBack":false}
+# separation in the app: 121.8 s with the download, on cpu; compute 119.0 s
+# Rapport de séparation Fabtice
+# Date : 2026-11-21T12:21:51.383Z
+# Outil : SCNet (scnet) · SHA-256 982289314941…
+# Demandé : processeur · terminé sur : processeur (WebAssembly)
+# Adaptateur graphique : —
+# Repli sur le processeur : non
+# Morceau : 37,6 s, mono
+# Segments : 9 (un tous les 5,5 s de musique)
+# Calcul total : 119 s, soit 3,16 fois la durée du morceau
+# Par segment, processeur (WebAssembly) : 13,09 s en moyenne (2,38 fois la durée)
+# Chargement de l’outil, processeur (WebAssembly) : 1,1 s
+# Téléchargement de l’outil : 2 s pour 13 Mo
+# Fils de calcul : 3 · cœurs : 4 · mémoire annoncée : 16 Go · isolation : oui
+# Moteur : ONNX Runtime Web 1.31.1
+# Navigateur : Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Fabtice/1.0.3 Chrome/150.0.7871.250 Electron/43.8.9 Safari/537.36
+# [diagnostic warning] No available adapters.
+# the report is in the diagnostic window
+# ignored: [warning] No available adapters. | [warning] No available adapters.
+# Subtest: the real separation runs in the app under the shipped policy, shows the instruments and reports to the diagnostic window
+ok 1 - the real separation runs in the app under the shipped policy, shows the instruments and reports to the diagnostic window
+  ---
+  duration_ms: 124864.261675
+  type: 'test'
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 1
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 125334.681338

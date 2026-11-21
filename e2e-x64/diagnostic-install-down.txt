@@ -1,0 +1,46 @@
+=== Fabtice — diagnostic ===
+Date : 2026-11-21T12:19:09.960Z
+App : Fabtice 1.0.3 (commit 5ed6870e3d, construit le 2026-11-21T11:56:11Z, run 44901115000)
+Electron 43.8.9 · Chromium 150.0.7871.250 · Node 24.22.1 · V8 15.0.245.31-electron.0
+Système : macOS 15.7.9 (noyau 24.6.0)
+Processeur : Intel(R) Core(TM) i7-8700B CPU @ 3.20GHz · 4 cœurs · 14 Go de mémoire
+Architecture du processus : x64 · sous Rosetta : non
+Moteur JS pour yt-dlp : node = ~/work/_temp/app/Fabtice.app/Contents/MacOS/Fabtice avec ELECTRON_RUN_AS_NODE=1 → répond v24.22.1 (134 ms)
+yt-dlp : non installé · source : téléchargé par Fabtice · chemin : /var/folders/20/jp1_0n3n7kndh6rnbqb5344m0000gn/T/fabtice-e2e-install-JRPGq5/yt-dlp/yt-dlp_macos
+Installation yt-dlp : dernier échec — net::ERR_EMPTY_RESPONSE
+Mise à jour yt-dlp : vérification impossible (net::ERR_EMPTY_RESPONSE)
+Réseau yt-dlp (16 essais cette session) :
+  12:19:06.668 version 127.0.0.1:49497 essai 1/4 · ÉCHEC en 92 ms · net::ERR_EMPTY_RESPONSE
+  12:19:06.886 version 127.0.0.1:49497 essai 2/4 · ÉCHEC en 60 ms · net::ERR_EMPTY_RESPONSE
+  12:19:07.157 version 127.0.0.1:49497 essai 3/4 · ÉCHEC en 52 ms · net::ERR_EMPTY_RESPONSE
+  12:19:07.527 version 127.0.0.1:49497 essai 4/4 · ÉCHEC en 32 ms · net::ERR_EMPTY_RESPONSE
+  12:19:07.559 sommes 127.0.0.1:49497 essai 1/4 · ÉCHEC en 33 ms · net::ERR_EMPTY_RESPONSE
+  12:19:07.706 sommes 127.0.0.1:49497 essai 2/4 · ÉCHEC en 7 ms · net::ERR_EMPTY_RESPONSE
+  12:19:07.915 sommes 127.0.0.1:49497 essai 3/4 · ÉCHEC en 2 ms · net::ERR_EMPTY_RESPONSE
+  12:19:08.220 sommes 127.0.0.1:49497 essai 4/4 · ÉCHEC en 2 ms · net::ERR_EMPTY_RESPONSE
+  12:19:08.731 version 127.0.0.1:49497 essai 1/4 · ÉCHEC en 3 ms · net::ERR_EMPTY_RESPONSE
+  12:19:08.835 version 127.0.0.1:49497 essai 2/4 · ÉCHEC en 2 ms · net::ERR_EMPTY_RESPONSE
+  12:19:09.039 version 127.0.0.1:49497 essai 3/4 · ÉCHEC en 1 ms · net::ERR_EMPTY_RESPONSE
+  12:19:09.341 version 127.0.0.1:49497 essai 4/4 · ÉCHEC en 3 ms · net::ERR_EMPTY_RESPONSE
+  12:19:09.344 sommes 127.0.0.1:49497 essai 1/4 · ÉCHEC en 3 ms · net::ERR_EMPTY_RESPONSE
+  12:19:09.448 sommes 127.0.0.1:49497 essai 2/4 · ÉCHEC en 2 ms · net::ERR_EMPTY_RESPONSE
+  12:19:09.652 sommes 127.0.0.1:49497 essai 3/4 · ÉCHEC en 2 ms · net::ERR_EMPTY_RESPONSE
+  12:19:09.956 sommes 127.0.0.1:49497 essai 4/4 · ÉCHEC en 3 ms · net::ERR_EMPTY_RESPONSE
+
+--- Dernière importation ---
+Aucune.
+
+--- Dernière séparation ---
+Aucune séparation n’a encore été faite dans cette app.
+
+--- Journal audio ---
+=== Fabtice — journal audio ===
+Copié le 2026-11-21 12:19:07.583
+Dernière lecture réussie : aucune
+2 événement(s), les plus anciens d’abord :
+2026-11-21 12:19:06.635  [système] Fabtice démarre
+2026-11-21 12:19:07.558  [interface] Page ouverte (Chrome/150.0.7871.250 Electron/43.8.9 Safari/537.36 (Macintosh))
+
+--- WebGPU ---
+navigator.gpu : présent · format de canevas préféré bgra8unorm
+Adaptateur : aucun (requestAdapter a renvoyé null)

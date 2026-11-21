@@ -1,0 +1,32 @@
+### logs/logs-publish/15-publish.log (31 lines, last 400 shown)
+### step 15-publish — 2026-11-21T12:23:11Z — Linux 7.0.0-1020-azure x86_64
+total 535136
+drwxr-xr-x 2 runner runner      4096 Nov 21 12:23 .
+drwxr-xr-x 6 runner runner      4096 Nov 21 12:23 ..
+-rw-r--r-- 1 runner runner 136248711 Nov 21 12:23 Fabtice-mac-apple-silicon.dmg
+-rw-r--r-- 1 runner runner 131780349 Nov 21 12:23 Fabtice-mac-apple-silicon.zip
+-rw-r--r-- 1 runner runner 142219565 Nov 21 12:23 Fabtice-mac-intel.dmg
+-rw-r--r-- 1 runner runner 137717400 Nov 21 12:23 Fabtice-mac-intel.zip
+== PUBLICATION — dépôt Pelikast/Fabtice, commit 5ed6870e3d3416cf7b46e922ac17c0ba77aa83b8
+Version 1.0.3 : app/package.json, desktop/package.json et CHANGELOG.md concordent.
+$ git ls-remote --tags origin refs/tags/v1.0.3
+(aucune étiquette)
+$ gh api repos/Pelikast/Fabtice/releases?per_page=100
+4 release(s) : v1.0.2, v1.0.1, v1.0.0, desktop-dev (préversion)
+La version v1.0.3 n’existe pas encore sur GitHub.
+/home/runner/work/_temp/release/fabtice-version.json: 1.0.3, notes 2992 characters, Fabtice-mac-apple-silicon.zip 131780349 803009705020107156b916c42491adc1680f79602f5b6fb121d2e5fa859ea1f0, Fabtice-mac-intel.zip 137717400 bafa50682fcf12f2fc84519fd57b38b700e4efa324e3407d028f38741ab6706b
+Notes de la release : /home/runner/work/_temp/release/notes.md (3937 octets ; « Nouveautés » = les notes du fichier de version)
+  Fabtice-mac-apple-silicon.dmg      136248711 octets  sha256 c9201fcdf8ffd629c0d13e26ed010653959740f1f5fac5bd0af778ba74f018e4
+  Fabtice-mac-intel.dmg              142219565 octets  sha256 8cfcf48c6beff722a4bac1567a76184c5a3edeb76e2a356cee7eafc248fa7117
+  Fabtice-mac-apple-silicon.zip      131780349 octets  sha256 803009705020107156b916c42491adc1680f79602f5b6fb121d2e5fa859ea1f0
+  Fabtice-mac-intel.zip              137717400 octets  sha256 bafa50682fcf12f2fc84519fd57b38b700e4efa324e3407d028f38741ab6706b
+  fabtice-version.json                    3898 octets  sha256 7d02eecef0a9c5dbb22f9f06bfd85ea4c4c8d48470265c503c68e90939b70c7e
+Brouillon créé : release 453673125 (https://github.com/Pelikast/Fabtice/releases/tag/untagged-553c742bcb01ff9dcf02).
+Cinq fichiers envoyés.
+  Fabtice-mac-apple-silicon.zip relu depuis GitHub : sha256 803009705020107156b916c42491adc1680f79602f5b6fb121d2e5fa859ea1f0 (identique)
+  Fabtice-mac-intel.zip relu depuis GitHub : sha256 bafa50682fcf12f2fc84519fd57b38b700e4efa324e3407d028f38741ab6706b (identique)
+  fabtice-version.json relu depuis GitHub : sha256 7d02eecef0a9c5dbb22f9f06bfd85ea4c4c8d48470265c503c68e90939b70c7e (identique)
+PUBLIÉE : https://github.com/Pelikast/Fabtice/releases/tag/v1.0.3
+Vérifié : v1.0.3 est la dernière version, son étiquette est sur 5ed6870e3d3416cf7b46e922ac17c0ba77aa83b8.
+Chaîne de mise à jour (code de l’app, hôtes permis : github.com, objects.githubusercontent.com, release-assets.githubusercontent.com) :
+Vérifié : https://github.com/pelikast/fabtice/releases/latest/download/fabtice-version.json donne 1.0.3 ; les .zip se joignent par release-assets.githubusercontent.com (arm64), release-assets.githubusercontent.com (x64).
