@@ -38,6 +38,8 @@ export interface AnalyseRequestMessage {
   grid: GridHint | null;
   key: Key | null;
   known: KnownCharts | null;
+  /** 1.0.3, « Chercher aussi les accords entre deux temps » (`engine/halfBeats.ts`); absent: one chord per beat at most. */
+  halfBeats?: boolean;
   /** Length of the piece in seconds. */
   duration: number;
   /** A manual tempo action: the grid from its bar on is computed from the networks' outputs. */
@@ -55,6 +57,7 @@ export interface DecodeRequestMessage {
   grid: GridHint | null;
   key: Key | null;
   known: KnownCharts | null;
+  halfBeats?: boolean;
   tempoFix?: ManualTempoFix | null;
 }
 

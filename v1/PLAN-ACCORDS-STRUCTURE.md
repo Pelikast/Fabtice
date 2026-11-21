@@ -2,8 +2,23 @@
 
 Proposé le 20 novembre 2026, après la demande du propriétaire (accords justes
 à 99 % jusqu'à la septième, extensions à plus de 95 %, structure fiable, huit
-accords par mesure, le temps de calcul ne compte pas). **Rien n'est commencé :
-ce document attend son feu vert et ses décisions (partie 8).**
+accords par mesure, le temps de calcul ne compte pas).
+
+**Accepté par le propriétaire le 21 novembre 2026** (« je le trouve bien »),
+avec son accord pour préparer 10 à 15 projets corrigés à la main. Il a demandé
+les huit accords par mesure d'abord, parce qu'il en a besoin pour corriger ses
+projets : l'étape 1 est donc passée avant l'étape 0.
+
+## Où en est le plan (21 novembre 2026)
+
+| Étape | État |
+|---|---|
+| 1 — Huit accords par mesure | **Faite, publiée dans la version 1.0.3.** À la main : complet. Par l'analyse : une case « à l'essai », décochée d'office, à mesurer à l'étape 0. Deux décisions prises seul, à confirmer (partie 8, point 5). |
+| 0 — Mesurer sur de vrais disques | **En attente des projets corrigés du propriétaire** (voir « Comment transmettre les projets » dans l'étape 0). |
+| 2 à 6 | Pas commencées. Elles attendent les mesures de l'étape 0. |
+| 7 — Modèle entraîné sur du jazz | À décider plus tard. |
+
+Décisions encore attendues, sans urgence : partie 8, points 3, 4, 5 et 6.
 
 ## 1. En bref
 
@@ -42,7 +57,7 @@ Relevés dans le code et dans nos bancs de mesure (pas des estimations).
 | Extensions | Lues par un simple seuil sur douze notes, plus les altérations nommées par Tsumugi. SheetSage2 n'en donne aucune. C'est grossier : aucune note n'est réellement transcrite. |
 | Instruments séparés | L'app repasse **le même modèle d'accords** sur les pistes séparées : aucun gain mesuré. Même avec une séparation parfaite, +6 points seulement. Le modèle est la limite, pas le mélange. |
 | Grille du standard | Cherchée **par le titre seulement**, et utilisée comme filet de sécurité « en cas de doute important ». |
-| Accords par mesure | L'analyse décide **un accord par temps** au plus (4 en 4/4). La correction à la main en accepte **2**. |
+| Accords par mesure | Au 20 novembre : l'analyse décidait **un accord par temps** au plus (4 en 4/4), la correction à la main en acceptait **2**. Depuis la 1.0.3 : **8 par mesure** à la main ; l'analyse peut chercher entre deux temps (case à l'essai). |
 | Structure | Longueur du chorus, lettres, parties : tout part des accords décodés. Mesuré : chorus juste 97 % quand les accords sont justes, 81 % avec un accord sur quatre faux, **33 % avec un sur deux**. Sur un vrai disque, on est dans ce dernier cas. |
 | Signal « douteux » | Montre environ la moitié des erreurs ; un accord marqué douteux n'est faux qu'une fois sur quatre (banc de synthèse). |
 
@@ -125,36 +140,90 @@ aucune chute). Tout reste réglable dans Réglages → Détection des accords.
 
 ### Étape 0 — Mesurer sur de vrais disques (condition de tout le reste)
 
+**État : en attente des projets corrigés du propriétaire.**
+
 - **Vos morceaux corrigés.** 10 à 15 projets `.fab` variés (1945 mono, trad
   récent, bossa, cuivres, voix harmonisées), accords corrigés dans l'affichage
-  complet. Ils ne vont jamais dans le dépôt.
+  complet. Ils ne vont jamais dans le dépôt public.
+- **Ce qu'il faut dans un projet corrigé** pour qu'il serve de référence :
+  1. les **mesures justes d'abord** (premier temps, tempo, signature) : un
+     accord juste sur une grille décalée compte comme faux ;
+  2. **tout le morceau vérifié**, de la première à la dernière mesure. Une
+     mesure que vous n'avez pas touchée compte comme « l'analyse avait
+     raison » : si vous n'avez vérifié qu'une partie, dites-moi jusqu'où ;
+  3. les accords tels que **vous** les écririez : fondamentale, couleur,
+     septième ; les extensions seulement quand vous les entendez vraiment
+     (règle de la partie 4) ; la basse quand elle n'est pas la fondamentale ;
+  4. jusqu'à huit accords par mesure là où c'est ce qui est joué ;
+  5. si vous le pouvez : la tonalité, les modulations, les lettres de section
+     et les parties (thème, solos). C'est ce qui permettra de mesurer la
+     structure (étape 2) ;
+  6. le titre exact du standard, quand c'en est un.
+  Peu importe le modèle d'accords et les réglages utilisés : la référence est
+  ce que vous avez écrit.
+- **Comment transmettre les projets.** Le dépôt de Fabtice est public : les
+  projets n'y vont pas. Ils passent par un **dépôt GitHub privé** à vous (par
+  exemple `fabtice-projets`), que la session de travail peut lire comme vos
+  autres dépôts privés :
+  1. sur github.com : « New repository », nom `fabtice-projets`, **Private** ;
+  2. dans ce dépôt : « Add file » → « Upload files », glisser les `.fab`,
+     « Commit changes » ;
+  3. me donner le nom du dépôt dans la conversation.
+  Limites de GitHub : 25 Mo par fichier par le navigateur, 100 Mo par fichier
+  avec l'app GitHub Desktop, rien au-delà. Un projet **sans pistes séparées**
+  pèse à peu près le poids du fichier importé (quelques Mo pour un lien
+  YouTube ou un mp3) ; ce sont les pistes séparées qui le rendent lourd. Pour
+  la mesure, l'enregistrement d'origine et vos corrections suffisent : les
+  pistes séparées ne servent qu'à partir de l'étape 5. Si vos projets
+  dépassent ces limites, on ajoutera à l'app un « projet allégé, sans les
+  pistes séparées » (à décider).
 - **Un bulletin de mesure dans l'app Mac** (menu Aide, discret) : sur un
   projet corrigé, l'app relance l'analyse sans regarder vos corrections,
   compare, et écrit un petit fichier : pourcentages (fondamentale, couleur,
   complet, basse), types d'erreurs, et pour chaque temps les candidats de
-  chaque source (pas de son, pas de titre si vous préférez). Vous me
-  l'envoyez ; je règle l'analyse dessus sans jamais avoir votre musique.
-  Après chaque version, un clic refait la mesure sur les mêmes projets.
+  chaque source (pas de son, pas de titre si vous préférez). Après chaque
+  version, un clic refait la mesure sur les mêmes projets. Il reste utile
+  même si vous m'envoyez les projets : il vous montre les chiffres chez vous.
 - **Deux jeux publics de vrai jazz** : JAAH (113 disques) et JSIR (267
   enregistrements de 44 standards, avec temps, accords et sections annotés,
   publié en octobre 2026). Les annotations sont publiques ; le son ne l'est
   pas (JSIR donne des liens YouTube). L'app Mac peut les importer chez vous
   comme n'importe quel lien ; une vingtaine suffit pour commencer.
-- Sortie : nos vrais chiffres de départ, enfin connus.
+- Sortie : nos vrais chiffres de départ, enfin connus — y compris pour la
+  recherche des accords entre deux temps (étape 1), jamais mesurée sur de
+  vrais disques.
 
 ### Étape 1 — Huit accords par mesure
 
-- Aujourd'hui : un accord par temps au plus dans l'analyse, deux à la main.
-- À faire : positions **au demi-temps** partout (une quinzaine de fichiers :
-  grille, éditeur d'accords, colonne des sections, grille simplifiée,
-  impression, exports, structure). L'éditeur permet d'ajouter jusqu'à 8
-  accords et de les placer sur n'importe quelle croche.
-- L'analyse décide à la croche, avec une forte préférence pour un, deux ou
-  quatre accords par mesure : huit reste l'exception (passages chromatiques,
-  tempos lents), sinon la grille se couvre de faux accords.
-- Deux points à décider (partie 8) : le dessin d'une mesure très chargée avec
-  la règle « une seule taille pour tous les accords », et l'export iReal Pro,
-  qui n'a qu'une case par temps.
+**État : faite, version 1.0.3 (21 novembre 2026).** Détail dans le code :
+`app/README.md`, « Huit accords par mesure (1.0.3) ».
+
+- **À la main : complet.** Un accord se pose sur un temps ou entre deux temps
+  (le « et »), jusqu'à huit par mesure à quatre temps (en 6/8 ou 7/8, les
+  temps sont déjà des croches : un accord par croche). Dans la fenêtre de
+  l'accord : « Ajouter un accord », et « Place dans la mesure » avec un bouton
+  « et » entre deux temps. La grille, l'impression, la ligne d'accords de
+  « Pistes » et les dossiers pour Logic Pro et Ableton Live suivent.
+- **Par l'analyse : à l'essai.** Case « À l'essai : chercher aussi les accords
+  entre deux temps » (Réglages → Détection des accords), décochée d'office.
+  L'analyse garde sa lecture temps par temps, puis écoute chaque temps en deux
+  moitiés ; elle n'écrit un accord sur le « et » que quand il est net, et
+  jamais pour un accord joué un peu en avance ou en retard. Réglée sur des
+  données de synthèse seulement : **à mesurer sur vos projets (étape 0) avant
+  de l'activer d'office**. La préférence pour un, deux ou quatre accords par
+  mesure vient du fait que la lecture temps par temps n'est pas touchée.
+- **Deux décisions prises seul, à confirmer (partie 8, point 5) :**
+  - le dessin : la règle « une seule taille pour tous les accords » est
+    gardée. Les accords se rangent sur deux lignes dans la mesure ; si une
+    mesure très chargée ne tient toujours pas, toute la grille est écrite un
+    palier plus petit (nettement plus petit sur téléphone) ;
+  - iReal Pro, qui n'a qu'une case par temps : les accords posés sur les
+    temps sont gardés, un accord entre deux temps va sur le temps suivant
+    quand il est libre, sinon il est laissé de côté.
+- **Ce qui reste limité** : la grille complète simplifiée écrit toujours un ou
+  deux accords par mesure, et la détection de la structure lit toujours un
+  accord par temps. C'est sans gravité aujourd'hui, et l'étape 3 refait de
+  toute façon cette grille.
 
 ### Étape 2 — La forme d'abord (corrige la structure)
 
@@ -277,23 +346,34 @@ grille**.
 
 ## 8. Ce que j'attends de vous
 
-1. **Feu vert** sur ce plan et sur l'ordre des étapes.
-2. **Vos projets corrigés** (10 à 15, variés), et votre accord pour importer
-   chez vous une vingtaine de morceaux des jeux publics (étape 0).
+État au 21 novembre 2026.
+
+1. **Feu vert** sur ce plan et sur l'ordre des étapes : **donné** (21
+   novembre), avec l'étape 1 passée en premier.
+2. **Vos projets corrigés** (10 à 15, variés) : **accordés, à venir**. Comment
+   les préparer et les transmettre : étape 0. Reste à me dire si vous êtes
+   d'accord pour importer chez vous une vingtaine de morceaux des jeux publics.
 3. **La référence** : « juste » = conforme à votre grille corrigée ; et la
-   règle des extensions de la partie 4.
+   règle des extensions de la partie 4. *Attendu.*
 4. **La grille du standard comme point de départ** (étape 4), au lieu du
    simple filet de sécurité. Avec ou sans marque sur les accords « du livre ».
-5. **Huit accords par mesure** : comment dessiner une mesure à 5–8 accords
-   (je proposerai deux dessins sur la maquette) ; à l'export iReal Pro, garder
-   les quatre accords posés sur les temps, ou couper la mesure en deux.
+   *Attendu, à décider avant l'étape 4.*
+5. **Huit accords par mesure** : fait. *À confirmer ou à changer* : le dessin
+   d'une mesure très chargée (aujourd'hui : taille unique gardée, toute la
+   grille plus petite si besoin ; l'autre choix serait d'écrire plus petit la
+   seule mesure chargée, ou de la faire plus large) ; et l'export iReal Pro
+   (aujourd'hui : accords des temps gardés ; l'autre choix serait de couper la
+   mesure en deux).
 6. **Séparation obligatoire** pour l'analyse approfondie (étape 5) : d'accord
    pour que l'app la lance d'elle-même quand cette analyse est demandée ?
+   *Attendu, à décider avant l'étape 5.*
 7. Plus tard : l'entraînement d'un modèle sur du jazz (étape 7).
 
 ## 9. Ce que je ne sais pas encore
 
 - Nos vrais chiffres sur vos disques (étape 0).
+- Ce que vaut la recherche des accords entre deux temps (1.0.3) sur un vrai
+  disque : elle n'a vu que des données de synthèse.
 - Ce que valent les modèles de transcription sur des pistes séparées de
   disques des années 1930–1950 : personne ne l'a publié. C'est le principal
   risque de l'étape 5.

@@ -10,6 +10,7 @@ import { ANALYSIS_RESULT_VERSION, type AnalysedChord, type AnalysedKey, type Ana
 import type { ChordExtension, ChordQuality, ChordSymbol, Key } from '../../model/harmony';
 import { NO_CHORD, QUALS, chordQual, chordRoot } from './chords';
 import type { ChordSegment } from './decode';
+import type { HalfBeatChord } from './halfBeats';
 import { firstDownbeat, type Grid } from './grid';
 import type { KeyEstimate } from './key';
 import type { MeterScore } from './meter';
@@ -66,8 +67,45 @@ export interface ResultInput {
   now?: Date;
   /** Per segment: probability that the chord is right (`reliability.ts`); when given, it is the confidence and « doubtful » is below 0.5. */
   reliability?: readonly number[];
+  /** 1.0.3: the beats that hold two chords (`halfBeats.ts`): written between two beats in the result. */
+  halves?: readonly HalfBeatChord[];
   /** What the analysis listened to (`chart.ts#ChartEvidence`), kept in the result. */
   evidence?: AnalysisEvidence;
+}
+
+/**
+ * The chords of the segments with the chords found between two beats put in (1.0.3). A chord lasts
+ * until the next one, so a beat split in two may need its own chord written again after the half:
+ *   - `second` (own chord, then X from the middle): X at the middle, and the own chord again on
+ *     the next beat when the segment goes on;
+ *   - `first` (X on the beat, own chord from the middle): X on the beat, the own chord at the middle
+ *     (moved there when the beat started its segment).
+ */
+export function withHalfBeats(chords: readonly AnalysedChord[], segments: readonly ChordSegment[], halves: readonly HalfBeatChord[], beats: readonly number[]): AnalysedChord[] {
+  if (!halves.length) return [...chords];
+  const out: AnalysedChord[] = chords.map((c) => ({ ...c }));
+  const segmentOf = new Map<number, number>();
+  segments.forEach((s, k) => s.beats.forEach((b) => segmentOf.set(b, k)));
+  // A beat that starts with another chord needs no reminder of the chord before it.
+  const startsOther = new Set(halves.filter((h) => h.half === 'first').map((h) => h.beat));
+  for (const h of halves) {
+    const k = segmentOf.get(h.beat);
+    const start = beats[h.beat];
+    if (k === undefined || start === undefined) continue;
+    const seg = segments[k]!;
+    const own = out[k]!;
+    const half: AnalysedChord = { time: 0, chord: symbolOf(h.chord), confidence: h.p, doubtful: h.p < RELIABILITY_DOUBT, alternatives: [] };
+    if (h.half === 'second') {
+      out.push({ ...half, time: h.time });
+      const next = beats[h.beat + 1];
+      if (seg.beats.includes(h.beat + 1) && next !== undefined && !startsOther.has(h.beat + 1)) out.push({ ...chords[k]!, time: next });
+    } else {
+      out.push({ ...half, time: start });
+      if (seg.beats[0] === h.beat) own.time = h.time;
+      else out.push({ ...chords[k]!, time: h.time });
+    }
+  }
+  return out.sort((a, b) => a.time - b.time);
 }
 
 export function toAnalysisResult(r: ResultInput): AnalysisResult {
@@ -86,7 +124,7 @@ export function toAnalysisResult(r: ResultInput): AnalysisResult {
     meterConfidence: r.gridIsHint ? 1 : (r.meterScores[0]?.prob ?? 0.5),
   };
   if (r.repairs?.length) beats.repaired = r.repairs.map((p) => ({ start: p.start, end: p.end, found: p.found, placed: p.placed, cause: p.cause }));
-  const chords: AnalysedChord[] = r.segments.map((s, k) => {
+  const onBeats: AnalysedChord[] = r.segments.map((s, k) => {
     const suggestions = s.extensions.map((e) => e.name);
     const symbol = symbolOf(s.chord, suggestions, s.bass ? s.bass.pc : null);
     const rel = r.reliability?.[k];
@@ -98,6 +136,7 @@ export function toAnalysisResult(r: ResultInput): AnalysisResult {
       alternatives: s.alternatives.map((a) => symbolOf(a.chord)).filter((c): c is ChordSymbol => c !== null),
     };
   });
+  const chords = withHalfBeats(onBeats, r.segments, r.halves ?? [], r.grid.beats);
   const out: ListenedResult = {
     version: ANALYSIS_RESULT_VERSION,
     analyser: { id: 'fabtice', version: ANALYSER_VERSION, models: [...r.models] },

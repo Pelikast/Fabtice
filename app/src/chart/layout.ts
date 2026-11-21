@@ -4,9 +4,10 @@
 // four bars. Nothing here knows about React, the store or the screen.
 //
 // Chords and sections are stored in source time (seconds). Here they are put
-// on the grid in force: a chord goes to the NEAREST BEAT, a section to the
-// NEAREST BAR LINE. That is how they stay with the music when the grid is
-// corrected (first beat moved, tempo doubled…).
+// on the grid in force: a chord goes to the NEAREST BEAT, or to the middle of
+// a beat when it is stored there (1.0.3: up to eight chords in a 4/4 bar, see
+// `nearestSlot`), a section to the NEAREST BAR LINE. That is how they stay with
+// the music when the grid is corrected (first beat moved, tempo doubled…).
 //
 // Signatures bar by bar (C13): a beat is a beat of the bar's own signature
 // (the eighths of a 6/8 bar in a 4/4 piece), every bar keeps the width of the
@@ -30,7 +31,10 @@ export const BARS_PER_LINE = 4;
 export interface ChartChord {
   /** Stored position (source time). */
   time: Seconds;
-  /** Nearest beat of the grid in force (map beats from the first downbeat; a beat of its bar's own signature, so fractional after a 7/8 bar). */
+  /**
+   * Its place on the grid in force (`nearestSlot`: map beats from the first downbeat; a beat of its
+   * bar's own signature, so fractional after a 7/8 bar, or the middle of one).
+   */
   beat: number;
   chord: ChordSymbol | null;
   origin: 'analysis' | 'manual';
@@ -50,6 +54,57 @@ export function nearestBeat(map: TempoMap, time: Seconds): number {
   return k >= pos.meter.numerator ? barToBeat(map, pos.bar + 1) : barBeatToBeat(map, pos.bar, k);
 }
 
+/**
+ * Places of a beat where a chord can start (1.0.3: up to eight chords in a bar, at the eighth note):
+ * the beat and its middle (the « et » of the beat) when the beat is a quarter note or longer (4/4,
+ * 3/4, 2/2…); the beat alone when the beats are already eighths or shorter (6/8, 7/8, 12/16…).
+ */
+export function slotsPerBeat(meter: Meter): number {
+  return meter.denominator <= 4 ? 2 : 1;
+}
+
+/** Most chords a bar can hold (1.0.3, owner's request): eight, and never more than its places. */
+export const MAX_BAR_CHORDS = 8;
+
+/** Most chords a bar of `meter` can hold. */
+export const maxBarChords = (meter: Meter): number => Math.max(1, Math.min(MAX_BAR_CHORDS, Math.round(meter.numerator) * slotsPerBeat(meter)));
+
+/**
+ * How near the middle of a beat (in beats) a chord must be stored to be written there. Narrow on
+ * purpose: a chord written on a beat stays on it when the grid moves a little under it (a tempo
+ * corrected by hand, a new analysis from a bar), exactly as before 1.0.3; only a chord really
+ * placed between two beats (by hand: stored at the very middle; or by the analysis) goes there.
+ */
+export const HALF_BEAT_WINDOW = 0.15;
+
+/**
+ * A position in beats brought to the nearest place: a beat, or (`slots` 2) the middle of a beat
+ * when it is within `HALF_BEAT_WINDOW` of it.
+ */
+export function snapToSlot(beats: number, slots = 2): number {
+  if (slots < 2) return Math.round(beats);
+  const whole = Math.floor(beats + 1e-9);
+  return Math.abs(beats - whole - 0.5) <= HALF_BEAT_WINDOW + 1e-9 ? whole + 0.5 : Math.round(beats);
+}
+
+/** A beat-in-bar brought exactly to a place of a bar of `meter` (what the editor and the chart handle: 0, 0.5, 1… in 4/4). */
+export function toPlace(beatInBar: number, meter: Meter): number {
+  const slots = slotsPerBeat(meter);
+  return Math.round(beatInBar * slots) / slots;
+}
+
+/**
+ * The place nearest `time` where a chord is written, as a map beat position: a beat of the bar's
+ * own signature, or the middle of one (`snapToSlot`, `slotsPerBeat`).
+ */
+export function nearestSlot(map: TempoMap, time: Seconds): number {
+  const beat = timeToBeat(map, time);
+  if (map.meters.length === 1) return snapToSlot(beat, slotsPerBeat(map.meters[0]!.meter));
+  const pos = beatToBar(map, beat);
+  const k = snapToSlot(pos.beatInBar, slotsPerBeat(pos.meter));
+  return k >= pos.meter.numerator ? barToBeat(map, pos.bar + 1) : barBeatToBeat(map, pos.bar, k);
+}
+
 const sameBeat = (a: number, b: number) => Math.abs(a - b) < 1e-9;
 
 /** Whole beats [first, end) covered by a hand span, on the grid in force. */
@@ -59,20 +114,20 @@ function spanBeats(map: TempoMap, span: TimeRange): [number, number] {
 
 /**
  * The chords in force: analysed chords outside the stretches the user rewrote,
- * plus the hand chords, ordered by beat. When two chords land on the same beat
- * the later one in time wins (it is the one heard after the beat).
+ * plus the hand chords, ordered by beat. When two chords land on the same place
+ * the later one in time wins (it is the one heard after it).
  */
 export function resolveChords(map: TempoMap, analysed: readonly AnalysedChord[] | null, corrections: Corrections): ChartChord[] {
   const spans = corrections.handSpans.map((s) => spanBeats(map, s));
   const hidden = (beat: number) => spans.some(([a, b]) => beat >= a && beat < b);
   const out: ChartChord[] = [];
   for (const c of analysed ?? []) {
-    const beat = nearestBeat(map, c.time);
+    const beat = nearestSlot(map, c.time);
     if (hidden(beat)) continue;
     out.push({ time: c.time, beat, chord: c.chord, origin: 'analysis', confidence: c.confidence, doubtful: c.doubtful, alternatives: c.alternatives });
   }
   for (const c of corrections.chords) {
-    out.push({ time: c.time, beat: nearestBeat(map, c.time), chord: c.chord, origin: 'manual', confidence: null, doubtful: false, alternatives: [] });
+    out.push({ time: c.time, beat: nearestSlot(map, c.time), chord: c.chord, origin: 'manual', confidence: null, doubtful: false, alternatives: [] });
   }
   out.sort((a, b) => a.beat - b.beat || a.time - b.time);
   const unique: ChartChord[] = [];
@@ -85,7 +140,7 @@ export function resolveChords(map: TempoMap, analysed: readonly AnalysedChord[] 
 
 /** A chord as placed in its bar. */
 export interface BarChord extends ChartChord {
-  /** 0-based beat in the bar where it starts (0 = on the bar line). */
+  /** 0-based beat in the bar where it starts (0 = on the bar line), in half beats: 1.5 is the middle of beat 2. */
   beatInBar: number;
   /**
    * The chord it goes to, when one is known (`harmony/chord.ts#approachTargets`: the next chord of
@@ -156,7 +211,7 @@ export function chartBars({ map, chords, sections, duration, keyChanges = [] }: 
     const pos = beatToBar(map, c.beat);
     const list = byBar.get(pos.bar) ?? [];
     const next = targets[i];
-    list.push({ ...c, beatInBar: Math.round(pos.beatInBar), ...(next ? { next } : {}) });
+    list.push({ ...c, beatInBar: toPlace(pos.beatInBar, pos.meter), ...(next ? { next } : {}) });
     byBar.set(pos.bar, list);
     first = Math.min(first, pos.bar);
     last = Math.max(last, pos.bar);
@@ -244,7 +299,7 @@ export function barProgress(map: TempoMap, time: Seconds): { bar: number; progre
   return { bar: pos.bar, progress: Math.min(1, Math.max(0, pos.beatInBar / pos.meter.numerator)) };
 }
 
-/** Source time of beat `beatInBar` (0-based) of bar `bar`. */
+/** Source time of beat `beatInBar` (0-based; 1.5 is the middle of beat 2) of bar `bar`. */
 export function timeOfBeatInBar(map: TempoMap, bar: number, beatInBar: number): Seconds {
   return beatToTime(map, barBeatToBeat(map, bar, beatInBar));
 }

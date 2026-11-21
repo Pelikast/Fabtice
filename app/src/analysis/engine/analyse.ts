@@ -46,7 +46,8 @@ export function resultFromOutputs(r: DecodeRequest): AnalysisResult {
     harmony: outputs.listening?.harmony ?? null,
     bass: outputs.listening?.bass ?? null,
     known: r.known ?? null,
-    settings: r.settings,
+    // Between two beats only when the beats are quarter notes or longer: in the user's 6/8 the beats are the eighths already.
+    settings: r.grid && r.grid.meter.denominator > 4 ? { ...r.settings, halfBeats: null } : r.settings,
   });
   return toAnalysisResult({
     grid: g,
@@ -62,6 +63,7 @@ export function resultFromOutputs(r: DecodeRequest): AnalysisResult {
     models: r.models,
     now: r.now,
     reliability: run.reliability,
+    halves: run.halves,
     evidence: run.evidence,
   });
 }

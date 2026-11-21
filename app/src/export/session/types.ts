@@ -118,7 +118,7 @@ export interface SessionChord {
   time: OutputSeconds;
   quarters: number;
   bar: number;
-  /** 0-based beat in its bar, in the bar's own signature. */
+  /** 0-based beat in its bar, in the bar's own signature, in half beats (1.5: the middle of beat 2). */
   beatInBar: number;
   /** Transposed; null for « N.C. ». */
   chord: ChordSymbol | null;

@@ -14,6 +14,7 @@
 // Pure; each step can be switched off (`ChartOptions`), for the bench.
 
 import { COMBINE_AGREEMENT } from './combine';
+import { findHalfBeats, type HalfBeatChord, type HalfBeatOptions } from './halfBeats';
 import { handSource, type HandHint } from './hand';
 import { bassBeats, type BassBeat } from './bassline';
 import type { ChordFrames, PooledUnit } from './chords';
@@ -62,6 +63,11 @@ export interface ChartSettings {
   repeats: Partial<RepeatOptions> | null;
   chart: Partial<ChartOptions> | null;
   decode: Partial<DecodeOptions>;
+  /**
+   * 1.0.3, « Chercher aussi les accords entre deux temps » (off by default, on trial): a second look
+   * inside each beat (`halfBeats.ts`), up to eight chords in a 4/4 bar. Null: one chord per beat at most.
+   */
+  halfBeats: Partial<HalfBeatOptions> | null;
 }
 
 /**
@@ -70,7 +76,7 @@ export interface ChartSettings {
  * (HTDemucs, variant `modele-tiges`, 8 pieces × 2 sounds): no weight gains (0.3: −0.8 / −1.4
  * points of colour, 0.7: −0.5 / −0.5, 0.85: −0.2 / −0.2); 0.7 keeps every piece within 1.6 points.
  */
-export const CHART_SETTINGS: ChartSettings = { mixWeight: 0.7, bass: {}, repeats: {}, chart: {}, decode: {} };
+export const CHART_SETTINGS: ChartSettings = { mixWeight: 0.7, bass: {}, repeats: {}, chart: {}, decode: {}, halfBeats: null };
 
 export interface ChartInput {
   frames: ChordFrames;
@@ -102,6 +108,8 @@ export interface ChartRun {
   /** Per segment: probability that the chord (root and colour) is right. */
   reliability: number[];
   evidence: ChartEvidence;
+  /** The beats that hold two chords (`halfBeats.ts`); empty unless `ChartSettings.halfBeats`. */
+  halves: HalfBeatChord[];
   /** For diagnostics. */
   repeats: RepeatAnalysis | null;
   fit: ChartFit | null;
@@ -159,10 +167,13 @@ export function analyseChart(input: ChartInput): ChartRun {
     const a = segments[k]!.agreement;
     return COMBINE_AGREEMENT.doubt && a !== undefined && a < COMBINE_AGREEMENT.minShare ? Math.min(r, 0.45) : r;
   });
+  // 1.0.3: the two halves of each beat, heard on the mix (what the network itself heard, before any other evidence).
+  const halves = s.halfBeats ? findHalfBeats(input.frames, input.timeScale, segs, dec.path, s.halfBeats) : [];
   return {
     key,
     segments,
     reliability: rel,
+    halves,
     evidence: {
       harmonyStems: input.harmony ? input.harmony.stems.filter((x) => x !== 'bass') : [],
       bass: bass ? input.bass!.from : null,

@@ -40,12 +40,12 @@ describe('the chart with several signatures', () => {
   });
 
   it('chords go to the nearest beat of their bar’s own signature: the eighths of a 6/8 bar', () => {
-    const chords = resolveChords(map, [an(0), an(4.52, chord(2, 'min7')), an(7.02, chord(7, '7')), an(7.8, chord(0, 'maj7')), an(8.4, chord(9, 'min7'))], emptyCorrections());
+    const chords = resolveChords(map, [an(0), an(4.52, chord(2, 'min7')), an(7.02, chord(7, '7')), an(7.8, chord(0, 'maj7')), an(8.45, chord(9, 'min7'))], emptyCorrections());
     const bars = chartBars({ map, chords, sections: [], duration: 10 });
     expect(bars[2]!.chords.map((c) => c.beatInBar)).toEqual([1]);
     // 7.8 s is the 4th eighth of the 6/8 bar (3.2 eighths in): beat 3, the middle of the bar, not a quarter.
     expect(bars[4]!.chords.map((c) => c.beatInBar)).toEqual([0, 3]);
-    // 8.4 s is 0.1 s before the next bar line: it starts the next bar.
+    // 8.45 s is 0.05 s before the next bar line: it starts the next bar.
     expect(bars[5]!.chords.map((c) => c.beatInBar)).toEqual([0]);
   });
 

@@ -4,7 +4,7 @@
 // concert pitch, original key (the chart editor un-transposes what the user
 // typed with `untransposeForStorage`).
 
-import { entriesOf, mergedEntries, splitBeat, withBarChords, withChordMoved, withoutBarEdit, withSection, type BarEntry } from '../chart/edits';
+import { entriesOf, mergedEntries, splitBeat, withBarChords, withChordAdded, withChordMoved, withoutBarEdit, withSection, type BarEntry } from '../chart/edits';
 import { chordGoingOn } from '../chart/layout';
 import { transposeChord } from '../harmony/chord';
 import { sameKey, transposeKey } from '../harmony/key';
@@ -95,12 +95,28 @@ export function splitBar(bar: number): void {
 }
 
 /**
- * Puts the `index`-th chord of bar `bar` on another beat (0-based): beat 3 of 4 is `2`, the middle of the
- * bar, where a Real Book writes the second chord. A beat that would pass a neighbouring chord is refused.
+ * One more chord in bar `bar` (1.0.3: up to eight), after its `index`-th chord: a copy of the chord
+ * sounding there for now (the editor then names it). Returns its rank in the bar, or null when the
+ * bar is full or holds no chord (`chart/edits.ts#withChordAdded`).
+ */
+export function addChord(bar: number, index: number): number | null {
+  const s = get();
+  const meter = meterAtBar(s.tempoMap, bar);
+  const added = withChordAdded(current(bar), index, meter.numerator, meter);
+  if (!added) return null;
+  setBarChords(bar, added.entries);
+  return added.index;
+}
+
+/**
+ * Puts the `index`-th chord of bar `bar` on another place (0-based beats, in half beats): beat 3 of 4 is `2`,
+ * the middle of the bar, where a Real Book writes the second chord; `2.5` is the middle of that beat. A place
+ * that would pass a neighbouring chord is refused.
  */
 export function moveChord(bar: number, index: number, beatInBar: number): void {
   const s = get();
-  setBarChords(bar, withChordMoved(current(bar), index, beatInBar, meterAtBar(s.tempoMap, bar).numerator));
+  const meter = meterAtBar(s.tempoMap, bar);
+  setBarChords(bar, withChordMoved(current(bar), index, beatInBar, meter.numerator, meter));
 }
 
 /** Removes the `index`-th chord of bar `bar`; the chord before it goes on. */

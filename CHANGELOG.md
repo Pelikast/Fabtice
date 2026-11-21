@@ -3,6 +3,59 @@
 Chaque version publiée sur GitHub (page « Releases ») a sa section ici, la plus
 récente en haut. La première section est recopiée sur la page de la version.
 
+## Version 1.0.3 — 21 novembre 2026
+
+Jusqu'à **huit accords par mesure** : sur chaque temps et entre deux temps
+(sur le « et »). C'est ce qu'il fallait pour écrire à la main des grilles
+exactes, y compris les passages où les accords changent à la croche.
+
+### Écrire jusqu'à 8 accords dans une mesure
+- Dans la Grille d'accords, cliquez un accord pour ouvrir sa fenêtre. Le
+  bouton **« Ajouter un accord »** apparaît dès que la mesure a deux accords
+  (pour passer de un à deux : « Deux accords dans la mesure », comme avant).
+  Chaque clic ajoute un accord, jusqu'à huit dans une mesure à quatre temps
+  (six à trois temps, quatre à deux temps). En 6/8, 7/8 ou 12/8, les temps
+  sont déjà des croches : un accord par croche, huit au plus.
+- Le nouvel accord se place au milieu de la place libre, sur un temps quand
+  c'est possible. C'est d'abord une copie de l'accord d'avant : choisissez
+  ensuite sa note et sa nature, ou tapez-le.
+- **« Place dans la mesure »** montre maintenant chaque temps et, entre deux
+  temps, un bouton **« et »** : `1 et 2 et 3 et 4 et`. Un clic y pose l'accord.
+- En haut de la fenêtre, les numéros 1 à 8 passent d'un accord de la mesure à
+  l'autre.
+
+### Comment c'est écrit
+- Chaque accord reste écrit à la place de son temps, comme dans le Real Book.
+  Quand ils sont nombreux, ils se rangent sur deux lignes dans la mesure.
+- La règle « une seule taille pour tous les accords » est gardée : une mesure
+  très chargée, avec des accords longs, peut donc faire écrire **toute la
+  grille** un peu plus petit, surtout sur téléphone.
+- L'impression, le PDF, la ligne d'accords de l'affichage « Pistes », les
+  dossiers pour Logic Pro et Ableton Live suivent : les accords y sont à leur
+  place exacte.
+- **iReal Pro** n'accepte qu'un accord par temps. À l'export, un accord posé
+  entre deux temps va sur le temps suivant quand ce temps est libre ; sinon il
+  est laissé de côté. Les accords posés sur les temps sont toujours gardés.
+- La « Grille complète simplifiée » écrit toujours un ou deux accords par
+  mesure : elle résume, elle ne détaille pas ces passages.
+
+### À l'essai : l'analyse peut aussi chercher entre deux temps
+- Nouvelle case dans Réglages → Détection des accords : **« À l'essai :
+  chercher aussi les accords entre deux temps »**. Elle est décochée au
+  départ : rien ne change si vous n'y touchez pas.
+- Cochée, l'analyse garde sa lecture temps par temps, puis regarde à
+  l'intérieur de chaque temps. Elle n'écrit un accord sur le « et » que quand
+  c'est net, et jamais pour un accord simplement joué un peu en avance ou en
+  retard. Relancez la détection des accords pour l'essayer sur un morceau.
+- Elle n'a pas encore été mesurée sur de vrais disques : c'est justement ce
+  que vos grilles corrigées permettront de faire.
+
+### Bon à savoir
+- Rien ne change dans vos projets : les accords déjà écrits restent sur leur
+  temps.
+- Un projet avec des accords entre deux temps s'ouvre aussi dans une version
+  plus ancienne, qui les montre alors sur le temps le plus proche.
+
 ## Version 1.0.2 — 18 novembre 2026
 
 Deux nouveaux modèles d'accords **à l'essai**, pour comparer vous-même sur vos

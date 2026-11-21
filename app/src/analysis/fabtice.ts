@@ -159,6 +159,7 @@ export class FabticeAnalyzer implements Analyzer {
           grid: request.grid ?? null,
           key: request.key ?? null,
           known: request.knownCharts ?? null,
+          ...(request.halfBeats ? { halfBeats: true } : {}),
           tempoFix: request.tempoFix ?? null,
         } satisfies DecodeRequestMessage;
       } else {
@@ -177,6 +178,7 @@ export class FabticeAnalyzer implements Analyzer {
           grid: request.grid ?? null,
           key: request.key ?? null,
           known: request.knownCharts ?? null,
+          ...(request.halfBeats ? { halfBeats: true } : {}),
           tempoFix: request.tempoFix ?? null,
           ...(isEased(request.loadShare) ? { loadShare: request.loadShare } : {}),
           ...(stems.length ? { stems: stems.map((s) => ({ name: s.name, mono: s.mono })) } : {}),

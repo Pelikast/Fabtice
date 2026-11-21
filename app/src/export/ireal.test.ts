@@ -332,6 +332,23 @@ describe('the chart string', () => {
     expect(song.bars[0]!.cells).toEqual(['D-7', '', 'G7', '']);
   });
 
+  // 1.0.3: a bar holds up to eight chords, on the beats and between them; iReal Pro has one cell per beat.
+  it('a chord between two beats goes to the next beat when it is free, else it is left out; the chords on the beats are kept', () => {
+    const c = (r: number) => chord(r, '7');
+    // Bar 1: C on 1, D on « 1 et » (beat 2 free: D goes there), G on 3. Bar 2: eight chords, the four on the beats stay.
+    const eight = Array.from({ length: 8 }, (_, k) => at(4 + k / 2, c(k)));
+    const chart = chartOf({ bars: 2, chords: [at(0, c(0)), at(0.5, c(2)), at(2, c(7)), ...eight] });
+    expect(chart.bars[1]!.chords.map((x) => x.beat)).toEqual([0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5]);
+    const music = iRealMusic(chart);
+    expect(music).toBe('[T44C7,D7,G7 |C7,D7,E7,F#7Z');
+    const read = chartBarsOf(tokenize(music));
+    expect(read[0]!.chords.map((x) => x.beat)).toEqual([0, 1, 2]);
+    expect(read[1]!.chords.map((x) => x.beat)).toEqual([0, 1, 2, 3]);
+    // A chord on the « et » of the last beat has no next beat in its bar: left out.
+    const last = iRealMusic(chartOf({ bars: 1, chords: [at(0, c(0)), at(3.5, c(5))] }));
+    expect(last).toBe('[T44C7   Z');
+  });
+
   it('a chord that goes on: « x » after a single-chord bar, slashes after a bar with several, slashes before a late first chord', () => {
     const chart = chartOf({ chords: [at(0, C('maj7')), at(8, C('min7', 2)), at(10, C('7', 7)), at(18, C('maj7'))], bars: 6 });
     // bars: 0 C^7 | 1 (goes on) | 2 D-7 G7 | 3 (goes on) | 4 late chord C^7 at beat 2 | 5 (goes on)

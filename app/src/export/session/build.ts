@@ -275,7 +275,7 @@ export function buildSession(s: AppState, options: SessionOptions = {}): Session
       time: clampTime(time),
       quarters: time < startTime ? quartersAt(clampTime(time)) : quartersOfBeat(c.beat),
       bar: pos.bar,
-      beatInBar: Math.round(pos.beatInBar),
+      beatInBar: Math.round(pos.beatInBar * 2) / 2,
       chord,
       text: asciiChord(chord, key, next),
       display: chordText(chord, { key: key ?? NEUTRAL_KEY, next }),

@@ -1871,7 +1871,7 @@ signatures, un choix « Réglage des temps pour la signature » ; les accents
 restent rangés par clé de signature dans `metronome.patterns` (format
 inchangé, version 6).
 
-**Éditeur d'accord.** Au-delà de 8 temps (`LONG_BAR_BEATS`), les boutons de
+**Éditeur d'accord.** Au-delà de 8 places (`LONG_BAR_PLACES` ; depuis la 1.0.3 une place est un temps ou, quand le temps est une noire, son milieu), les boutons de
 place dans la mesure passent en grille (`.editeur-temps.longue`).
 
 **Barre d'espace et fenêtres.** `ui/useGlobalKeys.ts#windowOpen` est la seule
@@ -3262,7 +3262,7 @@ Chromium (`npm run test:chart`).
 
 | Fichier | Rôle |
 |---|---|
-| `layout.ts`, `edits.ts` | mise en page et corrections pures (accords en vigueur, mesures, répétition « 𝄎 », sections et doubles barres, lignes de quatre mesures ; réécriture d'une mesure entière, retour à l'analyse, `hasBarEdit`, `mergedEntries`, `movableBeats` et `withChordMoved` : mettre un accord sur un autre temps) |
+| `layout.ts`, `edits.ts` | mise en page et corrections pures (accords en vigueur, mesures, répétition « 𝄎 », sections et doubles barres, lignes de quatre mesures ; réécriture d'une mesure entière, retour à l'analyse, `hasBarEdit`, `mergedEntries`, `movableBeats` et `withChordMoved` : mettre un accord sur un autre temps ou entre deux temps ; 1.0.3 : `nearestSlot` et `snapToSlot` (un accord est écrit sur un temps, ou au milieu d'un temps quand il y est gardé), `maxBarChords` (huit au plus), `withChordAdded` (« Ajouter un accord »)) |
 | `fit.ts`, `useFitChords.ts` | la place et la taille des accords : chaque accord est écrit **à la place de son temps** ; **une seule taille pour toute la grille** : un symbole tardif est repoussé contre la barre de fin, puis deux rangées à la même taille, et seulement en dernier recours toute la grille descend d'un palier (`FIT_RATIOS`) ; fonctions pures testées, et le crochet qui mesure l'écran |
 | `ChartSheet.tsx` | la feuille : en-tête (titre, tonalité, métrique, tempo, choix Ut / Si♭ / Mi♭) et états vide, « analyse en cours », échec, aucun accord |
 | `ChartGrid.tsx` | les mesures et tout ce qui se fait dessus : gestes, clavier, suivi, éditeur |
@@ -3315,7 +3315,7 @@ s'applique aussitôt (pas de bouton « Valider »), par les actions de
 
 - *Mesure N*, les onglets 1, 2… quand la mesure a plusieurs accords, l'accord
   tel qu'écrit, la croix ;
-- **Place dans la mesure** (quand la mesure a plusieurs accords, ou que cet accord ne commence pas au premier temps) : les temps 1, 2, 3, 4… de la mesure, celui de l'accord enfoncé ; un clic sur un autre temps y met l'accord (`moveChord`). Les temps d'un voisin, et ceux qui feraient passer l'accord devant ou derrière lui, sont grisés : les accords gardent leur ordre. C'est le geste pour mettre un deuxième accord sur le temps 3 (le milieu), 2 ou 4 ;
+- **Place dans la mesure** (quand la mesure a plusieurs accords, ou que cet accord ne commence pas au premier temps) : les temps 1, 2, 3, 4… de la mesure et, depuis la 1.0.3, un bouton « et » entre deux temps (`data-temps` : 1, 1.5, 2, 2.5…), celui de l'accord enfoncé ; un clic sur une autre place y met l'accord (`moveChord`, en demi-temps : 1.5 est le « et » du temps 2). Les places d'un voisin, et celles qui feraient passer l'accord devant ou derrière lui, sont grisées : les accords gardent leur ordre. Jusqu'à huit places elles tiennent sur une ligne ; au-delà elles passent à la ligne (`LONG_BAR_PLACES`) ; une mesure en croches (6/8, 13/8…) n'a que ses temps, comme avant ;
 - si l'accord est douteux : « Fabtice hésite sur cet accord. », **« C'est le bon
   accord »** (`confirmBar`) et, s'il y en a, « Ou peut-être : » avec les autres
   lectures de l'analyse (`alternatives`) ;
@@ -3329,7 +3329,7 @@ s'applique aussitôt (pas de bouton « Valider »), par les actions de
 - « Extension et basse » (replié) : les onze extensions (plusieurs possibles,
   dans l'ordre d'une grille) et la note de basse ;
 - « Pas d'accord (N.C.) », « Deux accords dans la mesure » (`splitBar` : le deuxième accord est mis **sur le temps du milieu**, le temps 3 d'une mesure à quatre temps, le temps 2 à trois temps ; on le déplace ensuite avec « Place dans la mesure ») ou « Un
-  seul accord pour la mesure » (`mergeBar`, garde l'accord choisi), « Retirer
+  seul accord pour la mesure » (`mergeBar`, garde l'accord choisi), « Ajouter un accord » (1.0.3, `addChord` : dès deux accords et jusqu'à huit par mesure, `maxBarChords` ; le nouvel accord prend le milieu de la place libre après l'accord choisi, sur un temps quand c'est possible, et commence comme une copie de l'accord d'avant), « Retirer
   cet accord » (`removeChord`), « Revenir à l'analyse » (`resetBar`, seulement
   pour une mesure écrite à la main) ;
 - **Lettre de section** : A, B, C, D, un nom libre (12 signes au plus : « Intro »,
@@ -4012,6 +4012,43 @@ ouverture, comme avant). La recherche de Réglages appelle
 `registration.update()`. Sans worker (adresses de test, navigateur qui ne le
 permet pas), elle le dit : la page s'ouvre alors toujours dans sa dernière
 version. Le hors-ligne est inchangé (`npm run test:offline`).
+
+## Huit accords par mesure (1.0.3)
+
+Demande du propriétaire (21 novembre 2026), étape 1 de `v1/PLAN-ACCORDS-STRUCTURE.md`.
+
+- **Modèle inchangé.** Un accord est toujours gardé par son temps en secondes (`HandChord.time`,
+  `AnalysedChord.time`). Ce qui change est la place où la grille l'écrit : `chart/layout.ts#nearestSlot`
+  le met sur le temps le plus proche, ou au milieu d'un temps quand il est gardé à moins de
+  `HALF_BEAT_WINDOW` (0,15 temps) de ce milieu. La fenêtre est étroite exprès : un accord posé sur
+  un temps y reste quand la grille bouge de moins d'un tiers de temps sous lui, comme avant. Un
+  tempo divisé par deux met les accords des temps pairs entre deux temps, là où est la musique.
+  `BarChord.beatInBar`, `BarEntry.beatInBar`, `ExportChord.beat` et `SessionChord.beatInBar` sont en
+  demi-temps (0, 0.5, 1…). Les places entre deux temps n'existent que quand le temps est une noire
+  ou plus long (`slotsPerBeat` : 2 si le dénominateur est 4 ou moins, 1 en 6/8, 7/8, 12/16…, où les
+  temps sont déjà des croches) ; `maxBarChords(meter)` : huit, et jamais plus que les places.
+  Aucun changement du format du document ni du `.fab`.
+- **Éditeur** : voir « Place dans la mesure » et « Ajouter un accord » plus haut ; au-delà de quatre
+  accords, les numéros des accords prennent une ligne à eux (`.editeur-tete.nombreux`).
+- **Dessin** : `fit.ts` n'a pas changé (place du temps, deux rangées, puis un palier pour toute la
+  grille). Une mesure de huit accords longs fait donc descendre toute la grille d'un palier sur
+  ordinateur et de plusieurs sur téléphone : point laissé à la décision du propriétaire.
+- **Analyse** : `analysis/engine/halfBeats.ts#findHalfBeats`, appelé par `chart.ts#analyseChart` quand
+  `ChartSettings.halfBeats` n'est pas nul (réglage `AppSettings.halfBeatChords`, « À l'essai »,
+  décoché d'office ; il passe par `AnalysisRequest.halfBeats` et les deux messages du worker). La
+  lecture temps par temps n'est pas touchée ; chaque temps est ensuite écouté en deux moitiés et
+  n'est coupé que si l'autre moitié nomme nettement une autre fondamentale (`HALF_BEATS` : trois
+  images du réseau et 0,18 s par moitié au moins, 1,2 nat d'écart dans les deux sens, probabilité
+  0,5 au moins), et jamais pour l'accord du temps suivant venu en avance ou celui du temps
+  d'avant parti en retard. `result.ts#withHalfBeats` les range dans `AnalysisResult.chords`. Réglé
+  sur des données de synthèse seulement (`halfBeats.test.ts`) : à mesurer sur les projets corrigés
+  du propriétaire avant de l'activer d'office.
+- **Exports** : `export/ireal.ts#onWrittenBeats` (une case par temps : un accord entre deux temps va
+  sur le temps suivant s'il est libre, sinon il est laissé de côté) ; la session des séquenceurs
+  place chaque accord à son temps exact. La grille simplifiée (`structure/simplify.ts`) et la
+  détection de structure échantillonnent toujours un accord par temps.
+- **Tests** : `chart/halfBeats.test.ts`, `analysis/engine/halfBeats.test.ts`, `export/ireal.test.ts`,
+  et dans Chromium `npm run test:chart` (huit accords posés un par un, géométrie, taille unique).
 
 ## Saisie et correction de la grille
 

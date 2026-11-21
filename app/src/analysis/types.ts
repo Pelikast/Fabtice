@@ -202,6 +202,12 @@ export interface AnalysisRequest {
   /** Known charts whose title matches the piece's (`knownCharts.ts`): plain data, a few kB. */
   knownCharts?: KnownCharts | null;
   /**
+   * 1.0.3, « Chercher aussi les accords entre deux temps » (Réglages → Détection des accords, on
+   * trial): the analysis also looks inside each beat (`engine/halfBeats.ts`), up to eight chords in a
+   * 4/4 bar. Absent or false: one chord per beat at most, as before.
+   */
+  halfBeats?: boolean;
+  /**
    * Which chord model reads the chords (default `crema`). With `fine`, `channels` should hold
    * both channels of the piece: the fine model listens in stereo.
    */

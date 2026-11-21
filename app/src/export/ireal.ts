@@ -132,14 +132,26 @@ export function iRealMeterFor(m: Meter): { meter: Meter; exact: boolean } {
   return { meter: best, exact: false };
 }
 
-/** A bar's chords moved to the cells of the signature written for it (one cell per beat; a later chord wins a shared cell). */
+/**
+ * A bar's chords moved to the cells of the signature written for it (one cell per beat; a later chord
+ * wins a shared cell). iReal Pro has one chord per beat at most: a chord written between two beats
+ * (1.0.3, up to eight chords in a bar) goes to the next beat when that beat is free, else it is left
+ * out — the chords on the beats are always kept.
+ */
 function onWrittenBeats(bar: ExportBar, own: Meter, written: Meter): ExportBar {
-  if (sameMeter(own, written)) return bar;
+  const onBeat = (c: ExportChord) => Number.isInteger(c.beat);
+  if (sameMeter(own, written) && bar.chords.every(onBeat)) return bar;
   const byCell = new Map<number, ExportChord>();
+  const place = (c: ExportChord) => (c.beat * written.numerator) / own.numerator;
   for (const c of bar.chords) {
-    if (c.beat < 0 || c.beat >= own.numerator) continue;
-    const cell = Math.min(written.numerator - 1, Math.round((c.beat * written.numerator) / own.numerator));
+    if (!onBeat(c) || c.beat < 0 || c.beat >= own.numerator) continue;
+    const cell = Math.min(written.numerator - 1, Math.round(place(c)));
     byCell.set(cell, { ...c, beat: cell });
+  }
+  for (const c of bar.chords) {
+    if (onBeat(c) || c.beat < 0 || c.beat >= own.numerator) continue;
+    const cell = Math.ceil(place(c) - 1e-9);
+    if (cell < written.numerator && !byCell.has(cell)) byCell.set(cell, { ...c, beat: cell });
   }
   return { ...bar, chords: [...byCell.values()].sort((a, b) => a.beat - b.beat) };
 }

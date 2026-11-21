@@ -28,6 +28,11 @@ export function setListenToStems(listenToStems: boolean): void {
   set((s) => ({ settings: { ...s.settings, listenToStems } }));
 }
 
+/** « Chercher aussi les accords entre deux temps » (1.0.3, on trial): applies to the next analysis. */
+export function setHalfBeatChords(halfBeatChords: boolean): void {
+  set((s) => ({ settings: { ...s.settings, halfBeatChords } }));
+}
+
 /** « Détecter les modulations » (stage 5): off, the detected modulations go at the next refresh of the harmony pass. */
 export function setDetectModulations(detectModulations: boolean): void {
   set((s) => ({ settings: { ...s.settings, detectModulations } }));

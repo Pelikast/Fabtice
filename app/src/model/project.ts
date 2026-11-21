@@ -162,6 +162,11 @@ export interface AppSettings {
    * chord model also listens to the parts that carry the harmony (`analysis/engine/listen.ts`).
    */
   listenToStems: boolean;
+  /**
+   * Per device (1.0.3, on trial, off by default). « Chercher aussi les accords entre deux temps »: the chord
+   * analysis also looks inside each beat (`analysis/engine/halfBeats.ts`), up to eight chords in a 4/4 bar.
+   */
+  halfBeatChords: boolean;
   /** Per device (stage 5). « Détecter les modulations »: off, the detected modulations are emptied (the hand ones stay). */
   detectModulations: boolean;
   /** Per device (stage 5). « Structure automatique du morceau »: off, no detected structure (the hand parts and letters stay). */
@@ -191,6 +196,7 @@ export function defaultAppSettings(): AppSettings {
     analyseOnImport: true,
     useKnownCharts: true,
     listenToStems: LISTEN_TO_STEMS_DEFAULT,
+    halfBeatChords: false,
     detectModulations: true,
     autoStructure: true,
     easeLoad: false,

@@ -1,6 +1,6 @@
 {
   "name": "fabtice-app",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Fabtice : interface de l'app (web et Mac)",
   "license": "GPL-3.0-or-later",
   "private": true,

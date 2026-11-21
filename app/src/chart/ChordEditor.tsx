@@ -9,7 +9,7 @@
 // then split / merge / no chord / remove / back to the analysis, and the
 // section letter of the bar.
 
-import { useEffect, useLayoutEffect, useRef, useState, type Dispatch, type KeyboardEvent, type RefObject } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type Dispatch, type KeyboardEvent, type RefObject } from 'react';
 import { chordParts, extensionText, transposeChord } from '../harmony/chord';
 import { displayChord, spellingKey } from '../harmony/display';
 import { noteText } from '../harmony/pitch';
@@ -19,11 +19,11 @@ import { formatBarNumber } from '../grid/format';
 import { t, type MessageKey } from '../i18n';
 import type { ChordExtension, ChordQuality, PitchClass } from '../model/harmony';
 import { selectBarContext, selectChartBars } from '../store/chartSelectors';
-import { confirmBar, mergeBar, moveChord, removeChord, replaceChord, replaceDisplayedChord, resetBar, setSection, splitBar, writeChordText } from '../store/harmonyActions';
+import { addChord, confirmBar, mergeBar, moveChord, removeChord, replaceChord, replaceDisplayedChord, resetBar, setSection, splitBar, writeChordText } from '../store/harmonyActions';
 import { useApp } from '../store/store';
 import { entriesOf, hasBarEdit, movableBeats, SECTION_LABEL_MAX } from './edits';
 import { EXTENSION_CHOICES, noteChoices, patchChord, QUALITY_CHOICES, type EditorAction, type EditorState } from './editor';
-import { chordGoingOn } from './layout';
+import { chordGoingOn, maxBarChords, slotsPerBeat } from './layout';
 import { placeEditor } from './editorPlacement';
 import { CloseIcon } from '../ui/icons';
 
@@ -41,8 +41,14 @@ interface Props {
   onTyped: () => void;
 }
 
-/** Above this many beats the beat buttons wrap in rows under their label instead of sitting in one line. */
-export const LONG_BAR_BEATS = 8;
+/**
+ * Above this many places (each beat and, in a bar of quarter notes, its middle: 1.0.3) they wrap in
+ * rows instead of sitting in one line of equal buttons: a 4/4 bar is one line of eight.
+ */
+export const LONG_BAR_PLACES = 8;
+
+/** More chords than this in the bar: their numbers get a line of their own under the title. */
+const MANY_CHORDS = 4;
 
 export function ChordEditor({ state, dispatch, grid, scroller, onClose, onTyped }: Props) {
   const target = state.target!;
@@ -209,9 +215,14 @@ export function ChordEditor({ state, dispatch, grid, scroller, onClose, onTyped 
   const shownRoot = shown ? chordParts(shown, { key: keyForSpelling, next: shownNext }).root : null;
   const roots = noteChoices(ctx).map((r) => (shown && shownRoot && r.pc === shown.root ? { ...r, note: shownRoot } : r));
   const canSplit = chords.length < 2 && (chords.length > 0 || going !== undefined);
+  // 1.0.3: a bar holds up to eight chords, on the beats and between them.
+  const canAdd = chords.length >= 2 && chords.length < maxBarChords(bar.meter);
+  // The places of the bar: each beat and, when the beats are quarter notes or longer, its middle (« et »).
+  const slots = slotsPerBeat(bar.meter);
+  const places = bar.beats * slots;
   const section = bar.section;
   // Where in the bar the chord starts: offered when the bar holds several chords or this one is not on the bar line.
-  const beatChoices = current && (chords.length >= 2 || current.beatInBar > 0) ? movableBeats(entriesOf(chords), index, bar.beats) : [];
+  const beatChoices = current && (chords.length >= 2 || current.beatInBar > 0) ? movableBeats(entriesOf(chords), index, bar.beats, bar.meter) : [];
 
   return (
     <div
@@ -225,7 +236,7 @@ export function ChordEditor({ state, dispatch, grid, scroller, onClose, onTyped 
       data-testid="editeur"
       onKeyDown={onKeyDown}
     >
-      <div className="editeur-tete">
+      <div className={`editeur-tete${chords.length > MANY_CHORDS ? ' nombreux' : ''}`}>
         <h2 className="libelle">{t('editor.bar', { n })}</h2>
         {chords.length > 1 && (
           <div className="duo editeur-accords" role="group" aria-label={t('editor.chords')}>
@@ -265,23 +276,31 @@ export function ChordEditor({ state, dispatch, grid, scroller, onClose, onTyped 
       {!current && going && <p className="editeur-note">{t('editor.goesOn')}</p>}
 
       {beatChoices.length > 0 && current && (
-        <div className={`editeur-temps${bar.beats > LONG_BAR_BEATS ? ' longue' : ''}`}>
+        <div className={`editeur-temps${places > LONG_BAR_PLACES ? ' longue' : ''}`}>
           <span className="libelle" id="editeur-temps-nom" title={t('editor.beatHint')}>
             {t('editor.beat')}
           </span>
-          <div className="duo" role="group" aria-labelledby="editeur-temps-nom">
-            {Array.from({ length: bar.beats }, (_, b) => (
-              <button
-                key={b}
-                data-temps={b + 1}
-                aria-pressed={current.beatInBar === b}
-                aria-label={t('editor.beatOf', { n: b + 1 })}
-                disabled={!beatChoices.includes(b)}
-                onClick={() => moveChord(bar.bar, index, b)}
-              >
-                {b + 1}
-              </button>
-            ))}
+          <div className="duo" role="group" aria-labelledby="editeur-temps-nom" style={{ '--places': places } as CSSProperties}>
+            {Array.from({ length: places }, (_, k) => {
+              // Every beat, then its middle (« et »): 1, et, 2, et…
+              const b = k / slots;
+              const half = k % slots !== 0;
+              const beat = Math.floor(b) + 1;
+              return (
+                <button
+                  key={k}
+                  className={half ? 'demi' : undefined}
+                  data-temps={b + 1}
+                  aria-pressed={current.beatInBar === b}
+                  aria-label={t(half ? 'editor.halfBeatOf' : 'editor.beatOf', { n: beat })}
+                  title={half ? t('editor.halfBeatOf', { n: beat }) : undefined}
+                  disabled={!beatChoices.includes(b)}
+                  onClick={() => moveChord(bar.bar, index, b)}
+                >
+                  {half ? t('editor.halfBeat') : beat}
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
@@ -379,6 +398,18 @@ export function ChordEditor({ state, dispatch, grid, scroller, onClose, onTyped 
               {t('editor.split')}
             </button>
           )
+        )}
+        {canAdd && (
+          <button
+            className="bouton-cadre"
+            data-testid="editeur-ajouter"
+            onClick={() => {
+              const added = addChord(bar.bar, Math.max(index, 0));
+              if (added !== null) dispatch({ type: 'select', index: added });
+            }}
+          >
+            {t('editor.add')}
+          </button>
         )}
         {current && (
           <button className="bouton-cadre" onClick={() => removeChord(bar.bar, index)}>

@@ -207,6 +207,7 @@ async function launch(fix: TempoFixRun | null, fresh = false): Promise<AnalysisR
     // A tempo action keeps the key in force, so that the chords from its bar are read in the same key.
     key: fix ? (s.corrections.key ?? (s.analysis?.key ? { tonic: s.analysis.key.tonic, mode: s.analysis.key.mode } : null)) : fresh ? null : s.corrections.key,
     knownCharts,
+    ...(s.settings.halfBeatChords ? { halfBeats: true } : {}),
     // « Alléger le travail pour l'appareil »: read now, for the whole analysis (a change applies to the next one).
     loadShare: currentLoadShare(),
     ...(stems.length ? { stems } : {}),

@@ -142,19 +142,22 @@ describe('putting a chord on a beat', () => {
     { beatInBar: 2, chord: chord(7, '7') },
   ];
 
-  it('the second chord of a bar can be on beat 2, 3 or 4; the first on beat 1 or 2', () => {
-    expect(movableBeats(two, 1, 4)).toEqual([1, 2, 3]);
-    expect(movableBeats(two, 0, 4)).toEqual([0, 1]);
+  // 1.0.3: a chord goes on a beat or between two beats (half beats: 1.5 is the « et » of beat 2).
+  it('the second chord of a bar can be anywhere after the first, on the beats and between them; the first before the second', () => {
+    expect(movableBeats(two, 1, 4)).toEqual([0.5, 1, 1.5, 2, 2.5, 3, 3.5]);
+    expect(movableBeats(two, 0, 4)).toEqual([0, 0.5, 1, 1.5]);
   });
 
   it('a lone chord can go anywhere in its bar', () => {
-    expect(movableBeats([{ beatInBar: 2, chord: chord(5, 'maj7') }], 0, 4)).toEqual([0, 1, 2, 3]);
-    expect(movableBeats([{ beatInBar: 0, chord: chord(5, 'maj7') }], 0, 3)).toEqual([0, 1, 2]);
+    expect(movableBeats([{ beatInBar: 2, chord: chord(5, 'maj7') }], 0, 4)).toEqual([0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5]);
+    expect(movableBeats([{ beatInBar: 0, chord: chord(5, 'maj7') }], 0, 3)).toEqual([0, 0.5, 1, 1.5, 2, 2.5]);
   });
 
-  it('chords never pass each other: the beats of the neighbours are out of reach', () => {
+  it('chords never pass each other: the places of the neighbours are out of reach', () => {
     const four: BarEntry[] = [0, 1, 2, 3].map((b) => ({ beatInBar: b, chord: chord(b, 'min7') }));
-    expect(movableBeats(four, 1, 4)).toEqual([1]);
+    expect(movableBeats(four, 1, 4)).toEqual([0.5, 1, 1.5]);
+    const eight: BarEntry[] = [0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5].map((b) => ({ beatInBar: b, chord: chord(b * 2, 'min7') }));
+    expect(movableBeats(eight, 3, 4)).toEqual([1.5]);
   });
 
   it('moving a chord changes its beat only; a beat out of reach changes nothing', () => {

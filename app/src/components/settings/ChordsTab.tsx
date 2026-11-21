@@ -1,11 +1,11 @@
 // « Détection des accords »: the model (« Rapide » or « Détaillé », with its weight), whether the analysis leans
-// on the known charts of standards, whether the modulations and the structure are detected (stage 5), and for
+// on the known charts of standards, whether it also looks for chords between two beats (1.0.3, on trial), whether the modulations and the structure are detected (stage 5), and for
 // the open piece, the « Mode » of its structure (the same choice as the structure column's) and running the
 // detection again.
 
 import { t } from '../../i18n';
 import { STRUCTURE_MODE_CHOICES } from '../../model/structure';
-import { setAutoStructure, setDetectModulations, setListenToStems, setUseKnownCharts } from '../../store/settingsActions';
+import { setAutoStructure, setDetectModulations, setHalfBeatChords, setListenToStems, setUseKnownCharts } from '../../store/settingsActions';
 import { setStructureMode } from '../../store/structureActions';
 import { useApp } from '../../store/store';
 import { ChordAnalysisAgain, ChordModelSetting } from '../ChordModelSetting';
@@ -14,6 +14,7 @@ import { CheckRow, Section } from './parts';
 export function ChordsTab() {
   const known = useApp((s) => s.settings.useKnownCharts);
   const stems = useApp((s) => s.settings.listenToStems);
+  const halves = useApp((s) => s.settings.halfBeatChords);
   const modulations = useApp((s) => s.settings.detectModulations);
   const structure = useApp((s) => s.settings.autoStructure);
   const mode = useApp((s) => s.corrections.structure.mode);
@@ -23,6 +24,7 @@ export function ChordsTab() {
         <ChordModelSetting />
         <CheckRow checked={known} onChange={setUseKnownCharts} label={t('settingsWin.chords.known')} note={t('settingsWin.chords.knownNote')} testId="grilles-connues" />
         <CheckRow checked={stems} onChange={setListenToStems} label={t('settingsWin.chords.stems')} note={t('settingsWin.chords.stemsNote')} testId="ecouter-instruments" />
+        <CheckRow checked={halves} onChange={setHalfBeatChords} label={t('settingsWin.chords.halfBeats')} note={t('settingsWin.chords.halfBeatsNote')} testId="accords-entre-temps" />
         <CheckRow
           checked={modulations}
           onChange={setDetectModulations}

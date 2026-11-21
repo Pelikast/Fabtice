@@ -278,6 +278,31 @@ Deux choix de plus dans Réglages → Détection des accords → « Modèle d'ac
   standard, instruments séparés si la case est cochée) ; puis Tsumugi donne les extensions et
   la basse. Poids choisis sur le banc (`web/spikes/accords/modeles/RECHERCHE.md`).
 
+## Version 1.0.3 (demande du propriétaire, 21 novembre 2026)
+
+Jusqu'à **huit accords par mesure**, à la main et par l'analyse : le propriétaire en a besoin pour
+préparer ses projets corrigés (étape 0 de `v1/PLAN-ACCORDS-STRUCTURE.md`, plan « Accords et
+structure », accepté le 21 novembre 2026).
+
+- **Places** : un accord commence sur un temps ou au milieu d'un temps (le « et »). Une mesure porte
+  au plus huit accords (six à trois temps, quatre à deux temps). Quand les temps sont déjà des
+  croches ou plus courts (6/8, 7/8, 12/16…), il n'y a pas de place entre deux temps. Les accords restent gardés en
+  secondes dans l'enregistrement ; la grille les écrit sur le temps le plus proche, ou sur le
+  milieu d'un temps quand ils y sont gardés (fenêtre étroite, pour qu'un accord posé sur un temps
+  y reste quand la grille bouge un peu sous lui).
+- **À la main** : « Ajouter un accord » dans la fenêtre de l'accord, et « Place dans la mesure »
+  avec un bouton « et » entre deux temps.
+- **Dessin** : la règle « une seule taille pour tous les accords » est gardée (deux lignes dans la
+  mesure, puis toute la grille un palier plus petit). Décision provisoire, prise sans maquette :
+  le propriétaire peut demander un autre dessin des mesures très chargées.
+- **Analyse** : case « À l'essai : chercher aussi les accords entre deux temps » (Réglages →
+  Détection des accords), **décochée d'office** car non mesurée sur de vrais disques. Elle garde
+  la lecture temps par temps et n'ajoute un accord sur le « et » que quand il est net, jamais pour
+  un accord simplement anticipé ou retardé.
+- **iReal Pro** (un accord par temps) : un accord entre deux temps va sur le temps suivant s'il
+  est libre, sinon il est laissé de côté ; les accords posés sur les temps sont toujours gardés.
+- La grille complète simplifiée reste à un ou deux accords par mesure.
+
 ## Exigences de qualité
 
 - Le cas de test principal est le jazz ancien (mono, instruments mélangés,

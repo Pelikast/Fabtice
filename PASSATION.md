@@ -1,5 +1,22 @@
 # Passation — état du projet
 
+## Où on en est le 21 novembre 2026 : version 1.0.3, plan « Accords et structure »
+
+À lire d'abord. Les versions 1.0.1 et 1.0.2 (18 novembre) ont amélioré les accords
+(`CHANGELOG.md`, `v1/PLAN-1.0.1.md`, `web/spikes/accords/modeles/RECHERCHE.md`).
+
+- **Le plan en cours est `v1/PLAN-ACCORDS-STRUCTURE.md`**, accepté par le propriétaire le 21 novembre
+  2026. Son tableau « Où en est le plan » dit quelle étape est faite.
+- **Version 1.0.3** : huit accords par mesure (étape 1 du plan), à la main et, à l'essai, par
+  l'analyse. Résumé dans `CLAUDE.md` (« Version 1.0.3 »), détail dans `app/README.md` (« Huit accords
+  par mesure (1.0.3) »).
+- **On attend du propriétaire** 10 à 15 projets `.fab` corrigés à la main (étape 0). Ils arrivent par
+  un dépôt GitHub **privé** à lui, jamais par ce dépôt public ; la marche à suivre et ce qu'un projet
+  corrigé doit contenir sont dans l'étape 0 du plan. Avec eux : construire le banc de mesure sur de
+  vrais disques, puis mesurer d'abord la recherche des accords entre deux temps.
+- **Décisions prises seul, à lui faire confirmer** : le dessin d'une mesure très chargée (taille
+  unique gardée) et l'export iReal Pro des accords entre deux temps (partie 8, point 5 du plan).
+
 ## État des lieux : version 1.0.0, publiée le 18 novembre 2026
 
 À lire d'abord ; le reste du document décrit ce qui existait avant (lots 1 à

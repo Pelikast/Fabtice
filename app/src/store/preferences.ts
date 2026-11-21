@@ -33,6 +33,7 @@ interface Preferences {
   analyseOnImport?: boolean;
   useKnownCharts?: boolean;
   listenToStems?: boolean;
+  halfBeatChords?: boolean;
   detectModulations?: boolean;
   autoStructure?: boolean;
   easeLoad?: boolean;
@@ -71,6 +72,7 @@ const pick = (s: AppState): Preferences => ({
   analyseOnImport: s.settings.analyseOnImport,
   useKnownCharts: s.settings.useKnownCharts,
   listenToStems: s.settings.listenToStems,
+  halfBeatChords: s.settings.halfBeatChords,
   detectModulations: s.settings.detectModulations,
   autoStructure: s.settings.autoStructure,
   easeLoad: s.settings.easeLoad,
@@ -91,6 +93,7 @@ export function persistPreferences(store: AppStore): () => void {
       ...(typeof p.analyseOnImport === 'boolean' ? { analyseOnImport: p.analyseOnImport } : {}),
       ...(typeof p.useKnownCharts === 'boolean' ? { useKnownCharts: p.useKnownCharts } : {}),
       ...(typeof p.listenToStems === 'boolean' ? { listenToStems: p.listenToStems } : {}),
+      ...(typeof p.halfBeatChords === 'boolean' ? { halfBeatChords: p.halfBeatChords } : {}),
       ...(typeof p.detectModulations === 'boolean' ? { detectModulations: p.detectModulations } : {}),
       ...(typeof p.autoStructure === 'boolean' ? { autoStructure: p.autoStructure } : {}),
       ...(typeof p.easeLoad === 'boolean' ? { easeLoad: p.easeLoad } : {}),

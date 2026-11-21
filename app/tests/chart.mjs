@@ -351,7 +351,10 @@ try {
         const b = c.querySelectorAll('.ch')[1].getBoundingClientRect();
         return Math.abs((b.left - r.left) / r.width - 0.5) < 0.06;
       }));
-      check('the editor now offers the beat of the second chord: 1 to 4, with 3 chosen, 1 out of reach', (await page.$$eval('.editeur-temps button', (els) => els.map((e) => `${e.dataset.temps}${e.getAttribute('aria-pressed') === 'true' ? '*' : ''}${e.disabled ? 'x' : ''}`).join(','))) === '1x,2,3*,4', await page.$$eval('.editeur-temps button', (els) => els.map((e) => `${e.dataset.temps}${e.getAttribute('aria-pressed') === 'true' ? '*' : ''}${e.disabled ? 'x' : ''}`).join(',')));
+      // 1.0.3: every beat and its middle (« et »); 1.5 is the « et » of beat 1.
+      const places = () => page.$$eval('.editeur-temps button', (els) => els.map((e) => `${e.dataset.temps}${e.getAttribute('aria-pressed') === 'true' ? '*' : ''}${e.disabled ? 'x' : ''}`).join(','));
+      check('the editor now offers the place of the second chord: the beats and between them, with 3 chosen, 1 out of reach', (await places()) === '1x,1.5,2,2.5,3*,3.5,4,4.5', await places());
+      check('the places between two beats are written « et »', (await page.$$eval('.editeur-temps button.demi', (els) => els.map((e) => e.textContent).join(','))) === 'et,et,et,et');
       await page.click('.editeur-temps button[data-temps="4"]');
       await sleep(200);
       check('a click on « 4 »: the second chord is on beat 4', (await beats(13)) === '0,3', await beats(13));
@@ -359,6 +362,55 @@ try {
       await sleep(200);
       check('a click on « 2 »: on beat 2', (await beats(13)) === '0,1', await beats(13));
       check('the stored chord follows (a hand chord on beat 2 of the bar)', (await state(page)).corrections.chords.length >= 2);
+
+      // 1.0.3: between two beats, and up to eight chords in the bar.
+      await page.click('.editeur-temps button[data-temps="2.5"]');
+      await sleep(200);
+      check('a click on the « et » of beat 2: the chord is between beats 2 and 3', (await beats(13)) === '0,1.5', await beats(13));
+      check('… and it is drawn there, at three eighths of the bar', await page.$eval('.case[data-mesure="13"]', (c) => {
+        const st = getComputedStyle(c);
+        const pg = parseFloat(st.getPropertyValue('--pg'));
+        const pd = parseFloat(st.getPropertyValue('--pd'));
+        const r = c.getBoundingClientRect();
+        const b = c.querySelectorAll('.ch')[1].getBoundingClientRect();
+        return Math.abs((b.left - r.left - pg) / (c.clientWidth - pg - pd) - 0.375) < 0.06;
+      }));
+      check('« Ajouter un accord » is offered from two chords on', (await page.locator('[data-testid="editeur-ajouter"]').count()) === 1);
+      for (let n = 3; n <= 8; n++) {
+        await page.click('[data-testid="editeur-ajouter"]');
+        await sleep(120);
+        const count = await page.locator('.case[data-mesure="13"] .accord-case[data-debut]').count();
+        if (count !== n) check(`« Ajouter un accord »: ${n} chords in the bar`, false, `${count}`);
+      }
+      check('six more « Ajouter un accord »: eight chords, on every beat and every « et »', (await beats(13)) === '0,0.5,1,1.5,2,2.5,3,3.5', await beats(13));
+      check('the bar is full: « Ajouter un accord » is no longer offered', (await page.locator('[data-testid="editeur-ajouter"]').count()) === 0);
+      check('the editor lists the eight chords, the added one selected', (await page.locator('.editeur-accords button').count()) === 8 && (await page.locator('.editeur-accords button[aria-pressed="true"]').count()) === 1);
+      check('the editor stays inside its window with eight chords', await page.$eval('[data-testid="editeur"]', (e) => e.scrollWidth <= e.clientWidth + 1));
+      // Each of the eight gets its own name, typed: the chart keeps them all, in order.
+      const names = ['C7', 'Db7', 'D7', 'Eb7', 'E7', 'F7', 'Gb7', 'G7'];
+      for (let i = 0; i < 8; i++) {
+        await page.click(`.editeur-accords button:nth-child(${i + 1})`);
+        await page.fill('.editeur-saisie input', names[i]);
+        await page.keyboard.press('Enter');
+        await sleep(120);
+        if (i < 7) {
+          await chordOf(page, 13, i + 1).click();
+          await page.waitForSelector('[data-testid="editeur"]');
+        }
+      }
+      await page.keyboard.press('Escape');
+      await sleep(250);
+      const written = await page.$$eval('.case[data-mesure="13"] .ch', (els) => els.map((e) => e.textContent.replace(/\s+/g, '')).join(' '));
+      check('eight chords typed one after another are all on the chart', written === 'C7 D♭7 D7 E♭7 E7 F7 G♭7 G7', written);
+      const full = (await geometry(page)).filter((b) => b.problems.length);
+      check('with a bar of eight chords, no chord touches another or leaves its bar, anywhere on the chart', full.length === 0, full.map((b) => `bar ${b.bar}: ${b.problems.join(', ')}`).join(' ; '));
+      check('one size for every chord of the chart, the bar of eight included', (await page.$$eval('.case .ch', (els) => new Set(els.map((e) => getComputedStyle(e).fontSize)).size)) === 1);
+      await page.screenshot({ path: path.join(out, 'app-grille-huit-accords-1280.png') });
+      check('the stored chords are eight hand chords in that bar, half a beat apart', await page.evaluate(() => {
+        const s = window.__fabtice.store.getState();
+        const span = s.corrections.handSpans.find((h) => s.corrections.chords.filter((c) => c.time >= h.start - 1e-6 && c.time < h.end - 1e-6).length === 8);
+        return !!span;
+      }));
       check('no page errors (beat choice)', errors.length === 0, errors.join(' | '));
       await page.close();
     }

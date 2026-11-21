@@ -121,8 +121,10 @@ async function createSession(bytes: ArrayBuffer): Promise<ort.InferenceSession> 
 const asSession = (s: ort.InferenceSession) => s as unknown as SessionLike;
 
 /** Grid, key and chords on the networks' outputs. Cheap. */
-function decode(outputs: NetworkOutputs, grid: GridHint | null, key: Key | null, known: KnownCharts | null, base: { duration: number; models: string[] }) {
-  return resultFromOutputs({ outputs, grid, key, known, ...base });
+function decode(outputs: NetworkOutputs, grid: GridHint | null, key: Key | null, known: KnownCharts | null, base: { duration: number; models: string[]; halfBeats?: boolean }) {
+  const { halfBeats, ...rest } = base;
+  // 1.0.3, « Chercher aussi les accords entre deux temps »: the second look inside each beat (`engine/halfBeats.ts`).
+  return resultFromOutputs({ outputs, grid, key, known, ...rest, ...(halfBeats ? { settings: { halfBeats: {} } } : {}) });
 }
 
 /** The grid the chords are decoded on: the user's, or the one a manual tempo action computes from the outputs. */
@@ -270,7 +272,7 @@ async function analyse(msg: AnalyseRequestMessage): Promise<void> {
     // 3. The fine chord models, fed with the beats and the key of the analysis just made.
     //    « Combinaison » (1.0.2): Tsumugi, then SheetSage2, then their vote (`engine/combine.ts`).
     let models = base.map((s) => s.id);
-    const first = fine || ss2 ? decode(outputs, msg.grid, msg.key, msg.known, { duration: msg.duration, models }) : null;
+    const first = fine || ss2 ? decode(outputs, msg.grid, msg.key, msg.known, { duration: msg.duration, models, halfBeats: msg.halfBeats }) : null;
     // One steady progress over both models: Tsumugi's windows, then SheetSage2's pieces of work.
     const tsUnits = fine && fineWeights && !fallback ? tsumugiWindows(Math.round(msg.duration * 25600)) * (remix ? 2 : 1) : 0;
     const allUnits = tsUnits + (ss2 && ss2Files ? ss2Units(msg.duration, SS2_MANIFEST) : 0);
@@ -323,7 +325,7 @@ async function analyse(msg: AnalyseRequestMessage): Promise<void> {
     ctl.step('finish');
     ctl.check();
     await rest();
-    const result: ListenedResult = decode(outputs, msg.grid, msg.key, msg.known, { duration: msg.duration, models });
+    const result: ListenedResult = decode(outputs, msg.grid, msg.key, msg.known, { duration: msg.duration, models, halfBeats: msg.halfBeats });
     if (fine || ss2) {
       const wanted = CHORD_MODEL_ID[msg.chordModel];
       const why = ss2 ? (ss2Fallback ?? fallback) : fallback;
@@ -513,7 +515,7 @@ async function decodeOnly(msg: DecodeRequestMessage): Promise<void> {
   const ctl = control();
   ctl.step('finish');
   const grid = gridFor(msg.outputs, msg.grid, msg.tempoFix);
-  const result: ListenedResult = decode(msg.outputs, grid, msg.key, msg.known, { duration: msg.duration, models: msg.models });
+  const result: ListenedResult = decode(msg.outputs, grid, msg.key, msg.known, { duration: msg.duration, models: msg.models, halfBeats: msg.halfBeats });
   const tapped = tappedInfoOf(grid);
   if (tapped) result.tapped = tapped;
   post({ type: 'result', result, outputs: null, models: msg.models });
